@@ -1,12 +1,26 @@
 name: e_livre
-version: 2.0.0
+version: 3.0.0
 repository: https://github.com/KaiqueFarias09/eLivre
 description: >-
-  Provides a simple way to extract information for ebook files 
-  such as epub 2.0 and epub 3.0
+  Pure Dart book parsing library. Extract metadata, covers, content,
+  stylesheets, fonts and navigation from EPUB 2.0/3.0, MOBI, AZW3
+  (KF8) and FB2 ebooks.
 
 environment:
   sdk: ">=3.1.0 <4.0.0"
+
+topics:
+  - ebook
+  - epub
+  - mobi
+  - fb2
+  - parser
+  - metadata
+
+# Base64 image payloads inside test fixtures can match the OAuth
+# refresh-token pattern; they are public-domain book data, not secrets.
+false_secrets:
+  - test/resources/**
 
 dev_dependencies:
   lints: ^3.0.0
