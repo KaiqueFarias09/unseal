@@ -1,4 +1,14 @@
 library e_livre;
 
+export './features/core/book/book.dart';
+export './features/core/book/e_book.dart';
+export './features/core/detection/format_detector.dart';
+export './features/core/entities/entities.dart';
+export './features/core/exceptions/elivre_exception.dart';
+export './features/core/utils/image_sniffer.dart';
 export './features/epub/entities/entities.dart';
 export './features/epub/exceptions/exceptions.dart';
+export './features/fb2/entities/entities.dart';
+export './features/fb2/exceptions/exceptions.dart';
+export './features/mobi/entities/entities.dart';
+export './features/mobi/exceptions/exceptions.dart';

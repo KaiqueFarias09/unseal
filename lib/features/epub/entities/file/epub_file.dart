@@ -1,7 +1,7 @@
-abstract class EpubFile {
-  EpubFile({required this.name, required this.type, required this.path});
+// The abstract file entity lives in core now; kept for compatibility.
+import 'package:e_livre/features/core/entities/file/book_file.dart';
 
-  final String name;
-  final String type;
-  final String path;
-}
+export 'package:e_livre/features/core/entities/file/book_file.dart';
+
+/// Backwards compatible alias for the base file entity.
+typedef EpubFile = BookFile;

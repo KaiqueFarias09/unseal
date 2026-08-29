@@ -6,9 +6,7 @@ class Epub3Package extends EpubPackage {
     required super.metadata,
     required super.manifest,
     required super.spine,
-    required super.uniqueIdentifier,
-    required super.xmlns,
-    required this.tocId,
+    required super.uniqueIdentifier, required super.xmlns, required this.tocId, super.guide,
   });
 
   // On some EPUB 3.0 files the tocPath is present directly on the manifest
@@ -29,16 +27,7 @@ class Epub3Metadata extends Metadata {
     required super.description,
     required super.identifiers,
     required super.uniqueIdentifierValue,
-    required this.schemaOrgs,
-    required this.accessibilitySummaries,
-    required this.educationalRole,
-    required this.typicalAgeRange,
-    required this.accessibilityFeatures,
-    required this.modified,
-    required this.rendition,
-    required this.belongsToCollection,
-    required this.sourceOf,
-    required this.recordIdentifier,
+    required this.schemaOrgs, required this.accessibilitySummaries, required this.educationalRole, required this.typicalAgeRange, required this.accessibilityFeatures, required this.modified, required this.rendition, required this.belongsToCollection, required this.sourceOf, required this.recordIdentifier, super.coverId,
   });
 
   List<String> schemaOrgs;

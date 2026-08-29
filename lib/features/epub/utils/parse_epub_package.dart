@@ -66,15 +66,15 @@ EpubPackage parsePackage(final String xml) {
   final spine = _parseSpine(spineElement!);
 
   final xmlns = package.getAttribute('xmlns');
-  if (_isEpub2(version)) {
-    final guideElement = package
-        .findElements(
-          'guide',
-          namespace: namespaceUri,
-        )
-        .firstOrNull;
-    final guide = guideElement != null ? _parseGuide(guideElement) : null;
+  final guideElement = package
+      .findElements(
+        'guide',
+        namespace: namespaceUri,
+      )
+      .firstOrNull;
+  final guide = guideElement != null ? _parseGuide(guideElement) : null;
 
+  if (_isEpub2(version)) {
     return Epub2Package(
       xmlns: xmlns,
       uniqueIdentifier: uniqueIdentifierProperty,
@@ -102,6 +102,7 @@ EpubPackage parsePackage(final String xml) {
       metadata: metadata,
       manifest: Epub2Manifest(items: manifestItems),
       spine: spine,
+      guide: guide,
       tocId: tocPath,
     );
   }
@@ -175,13 +176,24 @@ Metadata _parseMetadata(
       .toList();
 
   final uniqueIdentifierValue = metadataElement
-      .findElements('dc:identifier')
-      .firstWhere(
+          .findElements('dc:identifier')
+          .firstWhereOrNull(
+            (final element) =>
+                element.getAttribute('id') == uniqueIdentifierProperty,
+          )
+          ?.innerText
+          .trim() ??
+      (identifiers.isEmpty ? '' : identifiers.first);
+
+  // EPUB 2 cover reference: <meta name="cover" content="cover-id"/>
+  final coverId = metadataElement
+      .findElements('meta')
+      .firstWhereOrNull(
         (final element) =>
-            element.getAttribute('id') == uniqueIdentifierProperty,
+            element.getAttribute('name') == 'cover' &&
+            (element.getAttribute('content') ?? '').isNotEmpty,
       )
-      .innerText
-      .trim();
+      ?.getAttribute('content');
 
   if (_isEpub2(version)) {
     return Epub2Metadata(
@@ -196,21 +208,24 @@ Metadata _parseMetadata(
       description: description,
       identifiers: identifiers,
       uniqueIdentifierValue: uniqueIdentifierValue,
+      coverId: coverId,
     );
   }
 
   final educationalRole = metadataElement
-      .findElements('meta')
-      .firstWhere((final element) =>
-          element.getAttribute('property') == 'schema:educationalRole')
-      .innerText
-      .trim();
+          .findElements('meta')
+          .firstWhereOrNull((final element) =>
+              element.getAttribute('property') == 'schema:educationalRole')
+          ?.innerText
+          .trim() ??
+      '';
   final typicalAgeRange = metadataElement
-      .findElements('meta')
-      .firstWhere((final element) =>
-          element.getAttribute('property') == 'schema:typicalAgeRange')
-      .innerText
-      .trim();
+          .findElements('meta')
+          .firstWhereOrNull((final element) =>
+              element.getAttribute('property') == 'schema:typicalAgeRange')
+          ?.innerText
+          .trim() ??
+      '';
   final accessibilityFeatures = metadataElement
       .findElements('meta')
       .where((final element) =>
@@ -229,6 +244,7 @@ Metadata _parseMetadata(
     subject: subject,
     description: description,
     identifiers: identifiers,
+    coverId: coverId,
     schemaOrgs: metadataElement
         .findElements('meta')
         .where(
@@ -246,12 +262,13 @@ Metadata _parseMetadata(
     accessibilityFeatures: accessibilityFeatures,
     uniqueIdentifierValue: uniqueIdentifierValue,
     modified: metadataElement
-        .findElements('meta')
-        .where((final element) =>
-            element.getAttribute('property') == 'dcterms:modified')
-        .first
-        .innerText
-        .trim(),
+            .findElements('meta')
+            .where((final element) =>
+                element.getAttribute('property') == 'dcterms:modified')
+            .firstOrNull
+            ?.innerText
+            .trim() ??
+        '',
     rendition: metadataElement
             .findElements('meta')
             .firstWhereOrNull(

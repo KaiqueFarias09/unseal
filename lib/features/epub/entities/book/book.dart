@@ -1,117 +1,94 @@
-import 'dart:convert' as convert;
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
-import 'package:e_livre/features/epub/entities/book/files.dart';
-import 'package:e_livre/features/epub/entities/file/binary_file.dart';
-import 'package:e_livre/features/epub/entities/file/text_file.dart';
-import 'package:e_livre/features/epub/entities/navigation/navigation.dart';
+import 'package:e_livre/features/core/book/book.dart';
+import 'package:e_livre/features/core/entities/book/files.dart';
+import 'package:e_livre/features/core/entities/book_format.dart';
+import 'package:e_livre/features/core/entities/book_metadata.dart';
+import 'package:e_livre/features/core/entities/file/binary_file.dart';
+import 'package:e_livre/features/core/entities/file/text_file.dart';
+import 'package:e_livre/features/core/entities/navigation/navigation.dart';
 import 'package:e_livre/features/epub/entities/package/epub_package.dart';
 import 'package:e_livre/features/epub/exceptions/empty_bytes_exception.dart';
 import 'package:e_livre/features/epub/exceptions/epub_exception.dart';
-import 'package:e_livre/features/epub/utils/extract_files.dart';
-import 'package:e_livre/features/epub/utils/get_book_cover.dart';
-import 'package:e_livre/features/epub/utils/get_epub_root_file_path.dart';
-import 'package:e_livre/features/epub/utils/parse_epub_package.dart';
-import 'package:e_livre/features/epub/utils/process_package.dart';
+import 'package:e_livre/features/epub/utils/epub_metadata_mapper.dart';
+import 'package:e_livre/features/epub/utils/parse_epub_book.dart';
 import 'package:path/path.dart' as path;
 
-class EpubBook {
+/// A parsed EPUB 2.0 / 3.0 book.
+class EpubBook extends Book {
+  /// Creates an [EpubBook] from already parsed parts.
   EpubBook({
     required this.navigation,
     required this.files,
     required this.cover,
     required this.package,
-  });
+  }) : super(format: BookFormat.epub);
 
-  static Future<EpubBook> fromFilePath(final String path) {
-    final file = _getFileIfValid(path);
-    final bytes = file.readAsBytesSync();
-
-    return _readBook(bytes);
+  /// Reads an EPUB book from the file at [filePath].
+  static Future<EpubBook> fromFilePath(final String filePath) {
+    final file = _getFileIfValid(filePath);
+    return fromFile(file);
   }
 
+  /// Reads an EPUB book from [file].
   static Future<EpubBook> fromFile(final File file) {
-    final bytes = file.readAsBytesSync();
     if (!file.existsSync()) throw EpubException('No such file or directory');
-
-    return _readBook(bytes);
+    return fromBytes(file.readAsBytesSync());
   }
 
+  /// Reads an EPUB book from the provided [bytes].
   static Future<EpubBook> fromBytes(final List<int> bytes) {
     if (bytes.isEmpty) throw EmptyBytesException();
-    return _readBook(bytes);
+    return Future.value(parseEpubBook(Uint8List.fromList(bytes)));
   }
 
+  /// The navigation (table of contents) of the book.
+  @override
   final Navigation navigation;
+
+  /// The files extracted from the book.
+  @override
   final Files files;
+
+  /// The cover image, or an empty file when none was found.
   final BinaryFile cover;
+
+  /// The parsed OPF package.
   final EpubPackage package;
 
+  /// The format-agnostic metadata of this book.
+  @override
+  BookMetadata get metadata => epubBookMetadata(package, cover);
+
+  /// The book title.
   String get title => package.metadata.title;
+
+  /// The book creator (main author).
   String? get creator => package.metadata.creator;
+
+  /// The book language.
   String get language => package.metadata.language;
+
+  /// The book publisher.
   String? get publisher => package.metadata.publisher;
+
+  /// The unique identifier value of the package.
   String get uid => package.metadata.uniqueIdentifierValue;
+
+  /// The EPUB version (`2.0` or `3.0`).
   String get version => package.version;
+
+  /// The HTML content files.
   List<TextFile> get content => files.html;
+
+  /// The image files.
   List<BinaryFile> get images => files.images;
-
-  /// Reads an EPUB book from the provided bytes and decodes them into an archive.
-  ///
-  /// It then retrieves the root file path and root file from the archive, and
-  /// parses the root file into a package.
-  ///
-  /// It also retrieves the navigation of the EPUB from the package and archive,
-  /// and extracts the files from the archive and package.
-  ///
-  /// Finally, it retrieves the cover of the book from the package's manifest
-  /// items and the extracted images, and creates an `EpubBook` from the
-  /// retrieved data.
-  ///
-  /// [bytes] are the bytes to read.
-  ///
-  /// Returns a `Future` that completes with the `EpubBook` representing the
-  /// read book.
-  ///
-  /// Throws an `EpubException` if the root file path could not be found, the root
-  /// file could not be found, or the TOC ID is empty when getting the navigation.
-  static Future<EpubBook> _readBook(final List<int> bytes) async {
-    final archive = ZipDecoder().decodeBytes(bytes);
-
-    final rootFilePath = await getEpubRootFilePath(archive);
-    final rootFile = _getRootFile(archive, rootFilePath).content as List<int>;
-
-    final package = parsePackage(convert.utf8.decode(rootFile));
-    final navigation = getEpubNavigation(package, archive, rootFilePath);
-
-    final files = extractFiles(archive.files, package.manifest.items);
-    final cover = getBookCover(package.manifest.items, files.images);
-
-    return EpubBook(
-      navigation: navigation,
-      files: files,
-      cover: cover,
-      package: package,
-    );
-  }
 
   static File _getFileIfValid(final String filePath) {
     if (filePath.isEmpty) throw EpubException('Path cannot be empty');
 
     final sanitizedPath = path.normalize(filePath);
-    final file = File(sanitizedPath);
-    if (!file.existsSync()) throw EpubException('No such file or directory');
-
-    return file;
-  }
-
-  static ArchiveFile _getRootFile(
-    final Archive archive,
-    final String? rootFilePath,
-  ) {
-    if (rootFilePath == null) throw EpubException('No root file found');
-    final rootFile = archive.findFile(rootFilePath);
-    return rootFile ?? (throw EpubException('No root file found'));
+    return File(sanitizedPath);
   }
 }

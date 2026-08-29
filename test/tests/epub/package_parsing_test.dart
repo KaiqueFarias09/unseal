@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/features/epub/entities/entities.dart';
+import 'package:e_livre/features/epub/exceptions/epub_exception.dart';
 import 'package:e_livre/features/epub/utils/get_epub_root_file_path.dart';
 import 'package:e_livre/features/epub/utils/parse_epub_package.dart';
-import 'package:e_livre/features/epub/exceptions/epub_exception.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -173,7 +173,7 @@ void main() {
       final bytes = File(book.file).readAsBytesSync();
       final archive = ZipDecoder().decodeBytes(bytes);
 
-      final rootFilePath = await getEpubRootFilePath(archive);
+      final rootFilePath = getEpubRootFilePath(archive);
       final rootFile = _getRootFile(archive, rootFilePath);
 
       final epubPackage = parsePackage(

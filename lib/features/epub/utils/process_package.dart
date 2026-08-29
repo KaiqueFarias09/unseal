@@ -1,31 +1,26 @@
 import 'dart:convert' as convert;
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
+import 'package:collection/collection.dart';
+import 'package:e_livre/features/core/entities/navigation/nav_point.dart';
+import 'package:e_livre/features/core/entities/navigation/navigation.dart';
+import 'package:e_livre/features/epub/entities/package/epub_3_package.dart';
+import 'package:e_livre/features/epub/entities/package/epub_package.dart';
+import 'package:e_livre/features/epub/exceptions/epub_exception.dart';
+import 'package:e_livre/features/epub/utils/archive_utils.dart';
 import 'package:xml/xml.dart';
 
-/// Retrieves the navigation of the EPUB from the provided package and archive.
+/// Retrieves the navigation (table of contents) of an EPUB.
 ///
-/// The function first gets the TOC ID from the package, then finds the TOC manifest item with that ID.
-/// It then gets the TOC file entry from the archive and parses it into an XML document.
-/// Finally, it creates a `Navigation` object from the container document.
-///
-/// [package] is the `EpubPackage` from which to retrieve the TOC ID.
-/// [archive] is the `Archive` from which to retrieve the TOC file entry.
-/// [rootFilePath] is the root file path of the EPUB.
-///
-/// Returns a `Navigation` representing the navigation of the EPUB.
-///
-/// Throws an `EpubException` if the TOC ID is empty, the TOC manifest item could not be found, or the TOC file entry could not be found.
+/// Tries the NCX document referenced by the spine `toc` attribute
+/// first (EPUB 2 and most EPUB 3 books ship one), then the EPUB 3
+/// `nav` document (a manifest item with `properties="nav"`).
 Navigation getEpubNavigation(
   final EpubPackage package,
   final Archive archive,
   final String? rootFilePath,
 ) {
-  final tocId = package is Epub3Package && package.spine.tocId == null
-      ? package.tocId
-      : package.spine.tocId;
-
+  final tocId = package.spine.tocId ?? _navDocumentId(package);
   if (tocId == null) {
     throw EpubException('EPUB parsing error: TOC ID is empty.');
   }
@@ -37,34 +32,118 @@ Navigation getEpubNavigation(
     ),
   );
 
-  final contentDirectoryPath = _getDirectoryPath(rootFilePath ?? '');
-  final tocFileEntryPath = _combinePaths(
-    contentDirectoryPath,
-    tocManifestItem.path,
-  );
-
-  final tocFileEntry = archive.files.firstWhere(
-    (final file) => file.name.toLowerCase() == tocFileEntryPath.toLowerCase(),
-    orElse: () => throw EpubException(
+  final tocFileEntryPath = resolveItemPath(rootFilePath, tocManifestItem.path);
+  final tocFileEntry = findArchiveFile(archive, tocFileEntryPath);
+  if (tocFileEntry == null) {
+    throw EpubException(
       'EPUB parsing error: TOC file $tocFileEntryPath not found in archive.',
-    ),
-  );
+    );
+  }
 
-  final containerDocument = XmlDocument.parse(
+  final document = XmlDocument.parse(
     convert.utf8.decode(tocFileEntry.content as List<int>),
   );
-  final navigationContent = Navigation(document: containerDocument);
-  return navigationContent;
+
+  final isNcx = document.rootElement.name.local == 'ncx';
+  return isNcx ? _navigationFromNcx(document) : _navigationFromNavDoc(document);
 }
 
-String _combinePaths(
-  final String directory,
-  final String fileName,
-) {
-  return directory == '' ? fileName : '$directory/$fileName';
+String? _navDocumentId(final EpubPackage package) {
+  if (package is Epub3Package) {
+    return package.tocId;
+  }
+  return null;
 }
 
-String _getDirectoryPath(final String filePath) {
-  final lastSlashIndex = filePath.lastIndexOf('/');
-  return lastSlashIndex == -1 ? '' : filePath.substring(0, lastSlashIndex);
+Navigation _navigationFromNcx(final XmlDocument document) {
+  final title = document
+      .findAllElements('docTitle')
+      .firstOrNull
+      ?.findElements('text')
+      .firstOrNull
+      ?.value
+      ?.trim() ??
+      '';
+
+  final navMap = document.findAllElements('navMap').firstOrNull;
+  final rootPoints = navMap == null
+      ? <NavPoint>[]
+      : navMap.findElements('navPoint').map(_navPointFromNcx).toList();
+
+  return Navigation(title: title, navPoints: rootPoints);
+}
+
+NavPoint _navPointFromNcx(final XmlElement element) {
+  final label = element
+          .findElements('navLabel')
+          .firstOrNull
+          ?.findElements('text')
+          .firstOrNull
+          ?.value
+          ?.trim() ??
+      '';
+  final content = element.findElements('content').firstOrNull?.getAttribute('src') ?? '';
+
+  return NavPoint(
+    classAttribute: element.getAttribute('class') ?? '',
+    id: element.getAttribute('id') ?? '',
+    playOrder: element.getAttribute('playOrder') ?? '',
+    label: label,
+    content: content,
+    subNavPoints:
+        element.findElements('navPoint').map(_navPointFromNcx).toList(),
+  );
+}
+
+Navigation _navigationFromNavDoc(final XmlDocument document) {
+  var title = '';
+  for (final element in document.findAllElements('title')) {
+    title = element.innerText.trim();
+    break;
+  }
+
+  // Prefer the nav element typed as `toc`; fall back to the first nav.
+  XmlElement? navElement;
+  for (final candidate in document.findAllElements('nav')) {
+    final type = candidate.getAttribute('epub:type') ?? candidate.getAttribute('type');
+    if (type == 'toc') {
+      navElement = candidate;
+      break;
+    }
+    navElement ??= candidate;
+  }
+  if (navElement == null) {
+    return Navigation(title: title, navPoints: <NavPoint>[]);
+  }
+
+  final list = navElement.findElements('ol').firstOrNull;
+  final navPoints =
+      list == null ? <NavPoint>[] : _navPointsFromNavList(list, 0);
+
+  return Navigation(title: title, navPoints: navPoints);
+}
+
+List<NavPoint> _navPointsFromNavList(final XmlElement list, final int order) {
+  final points = <NavPoint>[];
+  var playOrder = order;
+  for (final listItem in list.findElements('li')) {
+    final anchor = listItem.findElements('a').firstOrNull;
+    final nestedList = listItem.findElements('ol').firstOrNull;
+    if (anchor == null && nestedList == null) {
+      continue;
+    }
+    playOrder++;
+    points.add(
+      NavPoint(
+        classAttribute: 'toc-${anchor?.getAttribute('class') ?? ''}'.trim(),
+        id: anchor?.getAttribute('id') ?? '',
+        playOrder: '$playOrder',
+        label: anchor?.innerText.trim() ?? '',
+        content: anchor?.getAttribute('href') ?? '',
+        subNavPoints:
+            nestedList == null ? <NavPoint>[] : _navPointsFromNavList(nestedList, playOrder),
+      ),
+    );
+  }
+  return points;
 }
