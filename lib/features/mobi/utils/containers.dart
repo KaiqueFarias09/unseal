@@ -10,7 +10,7 @@ import 'package:e_livre/features/core/utils/image_sniffer.dart';
 class MobiContainer {
   /// Parses a `CONT` record.
   MobiContainer(final Uint8List data) {
-    isImageContainer = false;
+    var imageContainer = false;
     if (data.length > 60 && data[48] == 0x45 && data[49] == 0x58 &&
         data[50] == 0x54 && data[51] == 0x48) {
       final view = ByteData.sublistView(data);
@@ -25,12 +25,13 @@ class MobiContainer {
           break;
         }
         if (idx == 539) {
-          isImageContainer = _isMimeImage(data, pos, payloadSize);
+          imageContainer = _isMimeImage(data, pos, payloadSize);
           break;
         }
         pos += payloadSize;
       }
     }
+    isImageContainer = imageContainer;
   }
 
   /// Whether this container holds `application/image` resources.

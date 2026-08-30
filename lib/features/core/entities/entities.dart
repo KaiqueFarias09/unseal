@@ -1,4 +1,5 @@
 export 'book/files.dart';
+export 'book/reading_order_item.dart';
 export 'book_cover.dart';
 export 'book_format.dart';
 export 'book_metadata.dart';

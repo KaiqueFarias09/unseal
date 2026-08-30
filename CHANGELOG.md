@@ -1,5 +1,22 @@
 ## Unreleased
 
+### Fixed
+
+- **KF8 books with image containers no longer crash**: `MobiContainer`
+  assigned its `late final isImageContainer` twice whenever the `CONT`
+  record carried an EXTH 539 `application/image` entry — every AZW3
+  using CONT/CRES-wrapped images threw `LateInitializationError`.
+  Found by the new synthetic CONT/CRES tests.
+- **KF8 headers with a single FDST section no longer crash**:
+  `MobiHeader` assigned `fdstIndex` twice when `fdstCount <= 1`,
+  throwing `LateInitializationError` during the parse.
+- **RAR 5 reading matches the format spec**: the reader treated the
+  main archive header (type 1) as the end of the archive — real RAR 5
+  files yielded zero entries — and computed header ends without the
+  header-size vint length, misaligning every block. End of archive is
+  type 5; the main header is now skipped like any other non-file
+  block.
+
 ### Performance
 
 - **FB2 metadata reads parse only the metadata**: `readMetadataSync`
@@ -42,6 +59,15 @@
   table.
 - `EpubBook.fromBytes` no longer copies the input when it already is
   a `Uint8List`.
+
+## 3.2.0 - August 29, 2026
+
+### Added
+
+- `Book.readingOrder`: the content files in reading order. EPUB
+  resolves the OPF spine (exposed on `EpubBook.spinePaths` too);
+  other formats fall back to the extraction order; comics list their
+  pages with `isHtml: false`.
 
 ## 3.1.0 - August 29, 2026
 

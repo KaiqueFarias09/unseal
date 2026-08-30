@@ -1,5 +1,5 @@
-import 'package:e_livre/e_livre.dart' show EpubBook, MobiBook, Fb2Book, ComicBook;
 import 'package:e_livre/features/core/entities/book/files.dart';
+import 'package:e_livre/features/core/entities/book/reading_order_item.dart';
 import 'package:e_livre/features/core/entities/book_format.dart';
 import 'package:e_livre/features/core/entities/book_metadata.dart';
 import 'package:e_livre/features/core/entities/book_statistics.dart';
@@ -14,6 +14,7 @@ import 'package:e_livre/features/core/entities/navigation/navigation.dart';
 /// * [navigation] — the table of contents.
 /// * [files] — extracted content files (html, css, images, fonts, ...).
 /// * [statistics] — word count and reading time estimates.
+/// * [readingOrder] — the content files in reading order.
 ///
 /// The cover is available through `metadata.cover`.
 abstract class Book {
@@ -37,4 +38,13 @@ abstract class Book {
   late final BookStatistics statistics = BookStatistics.fromTexts(
     files.html.map((final file) => file.plainText),
   );
+
+  /// The content files in reading order.
+  ///
+  /// The default is the extraction order of `files.html`; formats
+  /// with an explicit order (the EPUB spine) override it, and comics
+  /// list their pages with `isHtml: false`.
+  List<ReadingOrderItem> get readingOrder => <ReadingOrderItem>[
+        for (final file in files.html) ReadingOrderItem(name: file.path),
+      ];
 }

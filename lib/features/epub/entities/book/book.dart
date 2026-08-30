@@ -7,6 +7,7 @@ import 'package:e_livre/features/core/entities/book_format.dart';
 import 'package:e_livre/features/core/entities/book_metadata.dart';
 import 'package:e_livre/features/core/entities/file/binary_file.dart';
 import 'package:e_livre/features/core/entities/file/text_file.dart';
+import 'package:e_livre/features/core/entities/book/reading_order_item.dart';
 import 'package:e_livre/features/core/entities/navigation/navigation.dart';
 import 'package:e_livre/features/epub/entities/package/epub_package.dart';
 import 'package:e_livre/features/epub/exceptions/empty_bytes_exception.dart';
@@ -23,6 +24,7 @@ class EpubBook extends Book {
     required this.files,
     required this.cover,
     required this.package,
+    this.spinePaths,
   }) : super(format: BookFormat.epub);
 
   /// Reads an EPUB book from the file at [filePath].
@@ -59,6 +61,19 @@ class EpubBook extends Book {
 
   /// The parsed OPF package.
   final EpubPackage package;
+
+  /// Archive paths of the spine items in reading order (computed at
+  /// parse time since it needs the OPF location). Falls back to the
+  /// extraction order when the spine cannot be resolved.
+  final List<String>? spinePaths;
+
+  /// The EPUB spine in reading order.
+  @override
+  List<ReadingOrderItem> get readingOrder => spinePaths == null
+      ? super.readingOrder
+      : <ReadingOrderItem>[
+          for (final path in spinePaths!) ReadingOrderItem(name: path),
+        ];
 
   /// The format-agnostic metadata of this book.
   @override

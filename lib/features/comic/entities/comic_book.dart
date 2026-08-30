@@ -1,5 +1,6 @@
 import 'package:e_livre/features/core/book/book.dart';
 import 'package:e_livre/features/core/entities/book/files.dart';
+import 'package:e_livre/features/core/entities/book/reading_order_item.dart';
 import 'package:e_livre/features/core/entities/book_metadata.dart';
 import 'package:e_livre/features/core/entities/file/binary_file.dart';
 import 'package:e_livre/features/core/entities/navigation/navigation.dart';
@@ -44,4 +45,11 @@ class ComicBook extends Book {
 
   /// Number of pages.
   int get pageCount => pages.length;
+
+  /// The comic pages in reading order.
+  @override
+  List<ReadingOrderItem> get readingOrder => <ReadingOrderItem>[
+        for (final page in pages)
+          ReadingOrderItem(name: page.path, isHtml: false),
+      ];
 }

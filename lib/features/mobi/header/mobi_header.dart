@@ -93,11 +93,8 @@ class MobiHeader {
       skelIndex = view.getUint32(0xFC);
       // 0x100 datpIndex (unused), 0x104 othIndex
       othIndex = view.getUint32(0x104);
-      fdstIndex = view.getUint32(0xC0);
       fdstCount = view.getUint32(0xC4);
-      if (fdstCount <= 1) {
-        fdstIndex = nullIndex;
-      }
+      fdstIndex = fdstCount > 1 ? view.getUint32(0xC0) : nullIndex;
     } else {
       divIndex = skelIndex = othIndex = fdstIndex = nullIndex;
       fdstCount = 0;

@@ -127,7 +127,9 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
     offset += 4; // header CRC32 (unverified)
     final (headerSize, consumedH) = _vint(bytes, offset);
     offset += consumedH;
-    final headerEnd = blockStart + 4 + headerSize;
+    // Header size counts from the type field to the end of the
+    // header, excluding the CRC and the size vint itself.
+    final headerEnd = offset + headerSize;
     if (headerEnd > bytes.length) {
       break;
     }
@@ -188,8 +190,8 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
     }
 
     offset = headerEnd + dataSize;
-    if (headerType == 1) {
-      break; // end of archive
+    if (headerType == 5) {
+      break; // end of archive (1 = main header, skipped above)
     }
     if (offset <= blockStart) {
       break; // guard against malformed headers

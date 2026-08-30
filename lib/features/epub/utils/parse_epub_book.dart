@@ -2,8 +2,11 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:collection/collection.dart';
+import 'package:e_livre/features/core/entities/book/files.dart';
 import 'package:e_livre/features/core/entities/book_metadata.dart';
 import 'package:e_livre/features/epub/entities/book/book.dart';
+import 'package:e_livre/features/epub/entities/package/epub_package.dart';
 import 'package:e_livre/features/epub/exceptions/epub_exception.dart';
 import 'package:e_livre/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/features/epub/utils/epub_metadata_mapper.dart';
@@ -34,6 +37,7 @@ EpubBook parseEpubArchive(final Archive archive) {
     files: files,
     cover: cover,
     package: package,
+    spinePaths: _spinePaths(package, files, rootFilePath),
   );
 }
 
@@ -56,4 +60,27 @@ ArchiveFile _getRootFile(
   if (rootFilePath == null) throw EpubException('No root file found');
   final rootFile = findArchiveFile(archive, rootFilePath);
   return rootFile ?? (throw EpubException('No root file found'));
+}
+
+List<String>? _spinePaths(
+  final EpubPackage package,
+  final Files files,
+  final String? rootFilePath,
+) {
+  final htmlPaths = files.html
+      .map((final file) => normalizeZipPath(file.path).toLowerCase())
+      .toList();
+  final resolved = <String>[];
+  for (final idref in package.spine.items) {
+    final item = package.manifest.items.firstWhereOrNull(
+      (final candidate) => candidate.id == idref,
+    );
+    if (item == null) continue;
+    final path = normalizeZipPath(resolveItemPath(rootFilePath, item.path));
+    final index = htmlPaths.indexOf(path.toLowerCase());
+    if (index >= 0) {
+      resolved.add(files.html[index].path);
+    }
+  }
+  return resolved.isEmpty ? null : resolved;
 }
