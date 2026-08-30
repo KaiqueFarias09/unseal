@@ -1,7 +1,9 @@
-class EpubException implements Exception {
-  EpubException(this.message);
+import 'package:e_livre/features/core/exceptions/elivre_exception.dart';
 
-  final String message;
+/// Error thrown while reading or parsing an EPUB document.
+class EpubException extends ELivreException {
+  /// Creates an [EpubException] with the given [message].
+  EpubException(super.message);
 
   @override
   String toString() => 'EpubException: $message';

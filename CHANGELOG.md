@@ -1,3 +1,154 @@
+## Unreleased
+
+### Fixed
+
+- **KF8 books with image containers no longer crash**: `MobiContainer`
+  assigned its `late final isImageContainer` twice whenever the `CONT`
+  record carried an EXTH 539 `application/image` entry — every AZW3
+  using CONT/CRES-wrapped images threw `LateInitializationError`.
+  Found by the new synthetic CONT/CRES tests.
+- **KF8 headers with a single FDST section no longer crash**:
+  `MobiHeader` assigned `fdstIndex` twice when `fdstCount <= 1`,
+  throwing `LateInitializationError` during the parse.
+- **RAR 5 reading matches the format spec**: the reader treated the
+  main archive header (type 1) as the end of the archive — real RAR 5
+  files yielded zero entries — and computed header ends without the
+  header-size vint length, misaligning every block. End of archive is
+  type 5; the main header is now skipped like any other non-file
+  block.
+
+### Performance
+
+- **FB2 metadata reads parse only the metadata**: `readMetadataSync`
+  for FB2 slices the leading `<description>` element (plus the single
+  cover `<binary>`) out of the raw bytes instead of building the DOM
+  for the whole document and base64-decoding every image — ~15×
+  faster (23 ms → 1.6 ms on the 3.4 MB fixture). Malformed slices
+  fall back to the full parse, so results are unchanged.
+- **KF8 markup expansion is ~2× faster**: kindlegen `aid`/`cid`
+  attributes are stripped by a single-pass scanner instead of a
+  backtracking regex over every tag, and the flow/image reference
+  passes are skipped entirely for parts that carry no
+  `kindle:flow`/`kindle:embed` reference (parsing output is
+  byte-identical, verified by differential snapshots).
+- **`extractPlainText` is a single pass** (58 MB/s from 15 MB/s on
+  the benchmark chapter): markup removal, entity decoding and
+  whitespace collapsing share one left-to-right scan that bulk-copies
+  plain text spans. `book.statistics` first access drops ~3× (it maps
+  `plainText` over every content file). A differential check against
+  the previous implementation over every fixture file found no output
+  changes on real book content.
+- **Double escaped entities now decode once** (`&amp;lt;` yields
+  `&lt;`, browser behaviour, instead of `<`); entities expanding to
+  `<`/`>` remain text, as before. Documented in the new dedicated
+  `extractPlainText` test suite.
+- **PalmDoc decompression is now linear**: `decompressPalmdoc` used to
+  snapshot the whole output buffer on every back reference (quadratic
+  overall). Full parses drop from ~118 ms to ~7 ms (MOBI 6), ~133 ms
+  to ~16 ms (KF8) and ~142 ms to ~16 ms (joint files) on the benchmark
+  fixtures.
+- **EPUB manifest resolution is O(n)**: `extractFiles` resolves items
+  through a prebuilt path map instead of scanning every archive entry
+  per manifest item.
+- **Shared compiled patterns**: the KF8 markup pipeline, MOBI 6 markup
+  conversions, chapter splitting and `extractPlainText` reuse
+  top-level `RegExp`s instead of recompiling them per tag, per
+  chapter or per call.
+- MOBI text records strip control bytes in bulk spans instead of byte
+  by byte, and cp1252 decoding goes through a 256-entry code unit
+  table.
+- `EpubBook.fromBytes` no longer copies the input when it already is
+  a `Uint8List`.
+
+## 3.2.0 - August 29, 2026
+
+### Added
+
+- `Book.readingOrder`: the content files in reading order. EPUB
+  resolves the OPF spine (exposed on `EpubBook.spinePaths` too);
+  other formats fall back to the extraction order; comics list their
+  pages with `isHtml: false`.
+
+## 3.1.0 - August 29, 2026
+
+### Added
+
+- **Series support**: `BookMetadata.series` / `seriesIndex` from EPUB
+  `calibre:series` metas, EPUB 3 `belongs-to-collection` +
+  `group-position` and FB2 `<sequence name number>`.
+- **Calibre sidecar OPF**: `EBook.readMetadataFromPath/File` merge a
+  sibling `<basename>.opf` / `metadata.opf` over the book's own
+  metadata (`mergeBookMetadata` is public for custom merges).
+- **Filename fallback**: books without internal metadata get
+  title/authors from the Calibre `Title - Author.ext` pattern.
+- **`BookStatistics`**: `book.statistics` exposes `wordCount`,
+  `characterCount` and `estimatedReadingTime(wordsPerMinute: 200)`.
+- **Plain text**: `TextFile.plainText` (and `extractPlainText` /
+  `countWords` utils) strip markup and decode entities.
+- **Cover dimensions**: `BookCover.width`/`height` parsed from
+  JPEG/PNG/GIF/BMP/WebP headers without decoding (`imageSize`).
+- **MOBI 6 chapters**: `MobiBook.chapters` splits the single HTML
+  stream at the TOC anchors, including the front-matter part.
+- **Comic books**: CBZ (zip + `ComicInfo.xml`) and CBR (RAR 4/5 with
+  stored entries) with natural page ordering, page count and
+  first-page cover.
+
+### Fixed
+
+- MOBI 6 internal links now normalize `filepos` numbers so padded
+  hrefs (`#filepos0000198965`) match their anchor ids.
+- EPUB binary extraction no longer copies every archive entry a
+  second time (views over the decoded buffers), halving peak memory
+  of full parses.
+
+## 3.0.0 - August 29, 2026
+
+Multi-format release: eLivre now parses EPUB, MOBI, AZW3 (KF8) and FB2
+with full feature parity — metadata, cover, content files, stylesheets,
+fonts and navigation — from a single format-agnostic API.
+
+### Added
+
+- `EBook` entry point: `openFromBytes`/`openFromFile`/`openFromPath`
+  detect the format by magic bytes and return the fully parsed book in
+  a background isolate; `readMetadataFrom*` performs a fast
+  metadata-only read without extracting content.
+- `Book` / `BookMetadata` / `BookCover` / `BookFormat`: the common,
+  format-agnostic result types every module maps into.
+- MOBI support: PDB/MOBI/EXTH headers, PalmDoc and HUFF/CDIC
+  decompression, MOBI 6 content extraction (filepos anchors, recindex
+  image mapping, fonts), KF8 (AZW3) skeleton/div reassembly, FDST
+  flows (CSS/SVG), CONT/CRES wrapped resources, NCX-based navigation
+  and joint MOBI 6 + KF8 files. DRM-protected files raise
+  `DrmProtectedException`.
+- FB2 (and zipped FB2) support: title-info/publish-info metadata,
+  coverpage covers, body-to-XHTML conversion with notes bodies,
+  internal link rewriting and section-based navigation.
+- Format detection helpers (`detectFormat`, `refineMobiFormat`) and an
+  image magic-byte sniffer (`sniffImageType`).
+- `readEpubMetadata` fast path and a metadata-only EPUB read in
+  `EBook.readMetadataFrom*`.
+
+### Changed
+
+- `Navigation` is now a concrete, format-agnostic structure
+  (`title` + `navPoints`); EPUB 3 `nav.xhtml` documents are supported
+  in addition to NCX.
+- `Files`, `BinaryFile`, `TextFile`, `NavPoint` moved to
+  `features/core`; the EPUB barrels re-export them for compatibility.
+- Archive entries are matched by exact normalized path instead of
+  substring matching.
+
+### Fixed
+
+- EPUB cover resolution now follows the spec precedence (EPUB 3
+  `cover-image` property, EPUB 2 `<meta name="cover">`, guide
+  references, then heuristics) instead of an id-substring match.
+- `EpubBook.fromFile` no longer reads the file before checking that
+  it exists.
+- Incomplete OPF packages no longer crash with `StateError` on
+  optional EPUB 3 metadata fields.
+
 ## 2.0.0 - February 6, 2024
 
 -  Move readBook functionality to EpubBook class

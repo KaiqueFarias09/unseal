@@ -33,6 +33,9 @@ abstract class Metadata {
     this.publisher,
     this.subject,
     this.description,
+    this.coverId,
+    this.series,
+    this.seriesIndex,
   });
 
   String title;
@@ -46,6 +49,15 @@ abstract class Metadata {
   String? contributor;
   String? creator;
   String? publisher;
+
+  /// EPUB 2 cover manifest item id, from `<meta name="cover" content="id"/>`.
+  String? coverId;
+
+  /// Series name from `calibre:series` (or EPUB 3 collections).
+  String? series;
+
+  /// Series position from `calibre:series_index` (or `group-position`).
+  String? seriesIndex;
 }
 
 abstract class Manifest {

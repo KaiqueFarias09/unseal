@@ -66,15 +66,15 @@ EpubPackage parsePackage(final String xml) {
   final spine = _parseSpine(spineElement!);
 
   final xmlns = package.getAttribute('xmlns');
-  if (_isEpub2(version)) {
-    final guideElement = package
-        .findElements(
-          'guide',
-          namespace: namespaceUri,
-        )
-        .firstOrNull;
-    final guide = guideElement != null ? _parseGuide(guideElement) : null;
+  final guideElement = package
+      .findElements(
+        'guide',
+        namespace: namespaceUri,
+      )
+      .firstOrNull;
+  final guide = guideElement != null ? _parseGuide(guideElement) : null;
 
+  if (_isEpub2(version)) {
     return Epub2Package(
       xmlns: xmlns,
       uniqueIdentifier: uniqueIdentifierProperty,
@@ -102,6 +102,7 @@ EpubPackage parsePackage(final String xml) {
       metadata: metadata,
       manifest: Epub2Manifest(items: manifestItems),
       spine: spine,
+      guide: guide,
       tocId: tocPath,
     );
   }
@@ -175,13 +176,51 @@ Metadata _parseMetadata(
       .toList();
 
   final uniqueIdentifierValue = metadataElement
-      .findElements('dc:identifier')
-      .firstWhere(
+          .findElements('dc:identifier')
+          .firstWhereOrNull(
+            (final element) =>
+                element.getAttribute('id') == uniqueIdentifierProperty,
+          )
+          ?.innerText
+          .trim() ??
+      (identifiers.isEmpty ? '' : identifiers.first);
+
+  // EPUB 2 cover reference: <meta name="cover" content="cover-id"/>
+  final coverId = metadataElement
+      .findElements('meta')
+      .firstWhereOrNull(
         (final element) =>
-            element.getAttribute('id') == uniqueIdentifierProperty,
+            element.getAttribute('name') == 'cover' &&
+            (element.getAttribute('content') ?? '').isNotEmpty,
       )
-      .innerText
-      .trim();
+      ?.getAttribute('content');
+
+  // Series: calibre writes <meta name="calibre:series" content="..."/>
+  // (EPUB 2) or <meta property="calibre:series"> (EPUB 3); EPUB 3
+  // collections use belongs-to-collection + group-position.
+  final metaElements = metadataElement.findElements('meta');
+  String? series;
+  String? seriesIndex;
+  for (final meta in metaElements) {
+    final name = meta.getAttribute('name');
+    final property = meta.getAttribute('property');
+    if (name == null && property == null) {
+      continue;
+    }
+    final value =
+        meta.getAttribute('content') ?? meta.innerText.trim();
+    if (value.isEmpty) {
+      continue;
+    }
+    if (name == 'calibre:series' || property == 'calibre:series') {
+      series ??= value;
+    } else if (name == 'calibre:series_index' ||
+        property == 'calibre:series_index') {
+      seriesIndex ??= value;
+    } else if (property == 'group-position' && !_isEpub2(version)) {
+      seriesIndex ??= value;
+    }
+  }
 
   if (_isEpub2(version)) {
     return Epub2Metadata(
@@ -196,21 +235,26 @@ Metadata _parseMetadata(
       description: description,
       identifiers: identifiers,
       uniqueIdentifierValue: uniqueIdentifierValue,
+      coverId: coverId,
+      series: series,
+      seriesIndex: seriesIndex,
     );
   }
 
   final educationalRole = metadataElement
-      .findElements('meta')
-      .firstWhere((final element) =>
-          element.getAttribute('property') == 'schema:educationalRole')
-      .innerText
-      .trim();
+          .findElements('meta')
+          .firstWhereOrNull((final element) =>
+              element.getAttribute('property') == 'schema:educationalRole')
+          ?.innerText
+          .trim() ??
+      '';
   final typicalAgeRange = metadataElement
-      .findElements('meta')
-      .firstWhere((final element) =>
-          element.getAttribute('property') == 'schema:typicalAgeRange')
-      .innerText
-      .trim();
+          .findElements('meta')
+          .firstWhereOrNull((final element) =>
+              element.getAttribute('property') == 'schema:typicalAgeRange')
+          ?.innerText
+          .trim() ??
+      '';
   final accessibilityFeatures = metadataElement
       .findElements('meta')
       .where((final element) =>
@@ -229,6 +273,9 @@ Metadata _parseMetadata(
     subject: subject,
     description: description,
     identifiers: identifiers,
+    coverId: coverId,
+    series: series,
+    seriesIndex: seriesIndex,
     schemaOrgs: metadataElement
         .findElements('meta')
         .where(
@@ -246,12 +293,13 @@ Metadata _parseMetadata(
     accessibilityFeatures: accessibilityFeatures,
     uniqueIdentifierValue: uniqueIdentifierValue,
     modified: metadataElement
-        .findElements('meta')
-        .where((final element) =>
-            element.getAttribute('property') == 'dcterms:modified')
-        .first
-        .innerText
-        .trim(),
+            .findElements('meta')
+            .where((final element) =>
+                element.getAttribute('property') == 'dcterms:modified')
+            .firstOrNull
+            ?.innerText
+            .trim() ??
+        '',
     rendition: metadataElement
             .findElements('meta')
             .firstWhereOrNull(

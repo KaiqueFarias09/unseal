@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uuid_id">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>Sidecar Title Wins</dc:title>
+    <dc:creator>Sidecar Author</dc:creator>
+    <dc:language>en</dc:language>
+    <dc:identifier id="uuid_id">sidecar-uuid-1</dc:identifier>
+    <meta name="calibre:series" content="The Sidecar Series"/>
+    <meta name="calibre:series_index" content="3.5"/>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="ncx"/>
+  </spine>
+</package>
