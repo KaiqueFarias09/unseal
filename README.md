@@ -113,6 +113,23 @@ final comic = parseComicBook(bytes);          // CBZ / CBR
 - `EpubException` / `MobiException` / `Fb2Exception` — per-format
   parse errors (all extend `ELivreException`).
 
+## Benchmarks
+
+The `benchmark/` suite measures the public API surface — format
+detection, full parsing, metadata-only reads, isolate entry points and
+the lazy getters (`metadata`, `statistics`, `chapters`, `plainText`) —
+against the books in `test/resources`:
+
+```sh
+dart run benchmark/e_livre_benchmarks.dart                 # full run
+dart run benchmark/e_livre_benchmarks.dart --quick         # fast smoke pass
+dart run benchmark/e_livre_benchmarks.dart --filter=parseBook
+```
+
+The filter is a case-insensitive substring matched against
+`<group> — <benchmark name>`. Results are machine-dependent; compare
+runs from the same machine only.
+
 ## Example
 
 A complete Flutter reader app lives in [`example/`](example/).
