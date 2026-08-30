@@ -8,7 +8,7 @@ import 'package:e_livre/features/core/exceptions/elivre_exception.dart';
 /// Each family is handled by one format module which then refines the
 /// concrete [BookFormat] (e.g. `mobi` versus `azw3`).
 enum DetectedFormat {
-  /// Zip container (EPUB).
+  /// Zip container (EPUB, zipped FB2 or CBZ — refined by content).
   epub,
 
   /// PalmDB / MOBI family (MOBI 6, KF8 / AZW3, joint files).
@@ -16,6 +16,9 @@ enum DetectedFormat {
 
   /// FictionBook XML (or zipped FB2).
   fb2,
+
+  /// Comic archive (RAR — CBR).
+  comic,
 }
 
 /// Sniffs the book format of [bytes] from its magic bytes.
@@ -57,9 +60,16 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   }
 
   if (bytes.length > 2 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
-    // Zip container. EPUB and FB2.zip are the supported zip books;
-    // each module validates the container structure.
+    // Zip container. EPUB, zipped FB2 and CBZ are the supported zip
+    // books; the dispatcher refines by content.
     return DetectedFormat.epub;
+  }
+
+  // RAR 4 / RAR 5 signature -> comic (CBR).
+  if (bytes.length >= 8 &&
+      bytes[0] == 0x52 && bytes[1] == 0x61 && bytes[2] == 0x72 &&
+      bytes[3] == 0x21 && bytes[4] == 0x1A && bytes[5] == 0x07) {
+    return DetectedFormat.comic;
   }
 
   if (bytes.length >= 68) {

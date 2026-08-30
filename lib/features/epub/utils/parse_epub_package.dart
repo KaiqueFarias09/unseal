@@ -195,6 +195,33 @@ Metadata _parseMetadata(
       )
       ?.getAttribute('content');
 
+  // Series: calibre writes <meta name="calibre:series" content="..."/>
+  // (EPUB 2) or <meta property="calibre:series"> (EPUB 3); EPUB 3
+  // collections use belongs-to-collection + group-position.
+  final metaElements = metadataElement.findElements('meta');
+  String? series;
+  String? seriesIndex;
+  for (final meta in metaElements) {
+    final name = meta.getAttribute('name');
+    final property = meta.getAttribute('property');
+    if (name == null && property == null) {
+      continue;
+    }
+    final value =
+        meta.getAttribute('content') ?? meta.innerText.trim();
+    if (value.isEmpty) {
+      continue;
+    }
+    if (name == 'calibre:series' || property == 'calibre:series') {
+      series ??= value;
+    } else if (name == 'calibre:series_index' ||
+        property == 'calibre:series_index') {
+      seriesIndex ??= value;
+    } else if (property == 'group-position' && !_isEpub2(version)) {
+      seriesIndex ??= value;
+    }
+  }
+
   if (_isEpub2(version)) {
     return Epub2Metadata(
       rights: rights,
@@ -209,6 +236,8 @@ Metadata _parseMetadata(
       identifiers: identifiers,
       uniqueIdentifierValue: uniqueIdentifierValue,
       coverId: coverId,
+      series: series,
+      seriesIndex: seriesIndex,
     );
   }
 
@@ -245,6 +274,8 @@ Metadata _parseMetadata(
     description: description,
     identifiers: identifiers,
     coverId: coverId,
+    series: series,
+    seriesIndex: seriesIndex,
     schemaOrgs: metadataElement
         .findElements('meta')
         .where(

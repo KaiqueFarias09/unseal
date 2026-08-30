@@ -11,4 +11,10 @@ enum BookFormat {
 
   /// FictionBook 2.0 (XML) or its zipped variant (FB2.zip).
   fb2,
+
+  /// Comic book zip archive.
+  cbz,
+
+  /// Comic book RAR archive (stored entries only).
+  cbr,
 }

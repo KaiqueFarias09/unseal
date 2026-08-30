@@ -2,6 +2,7 @@ import 'package:e_livre/features/core/entities/book_cover.dart';
 import 'package:e_livre/features/core/entities/book_format.dart';
 import 'package:e_livre/features/core/entities/book_metadata.dart';
 import 'package:e_livre/features/core/entities/file/binary_file.dart';
+import 'package:e_livre/features/core/utils/image_size.dart';
 import 'package:e_livre/features/core/utils/image_sniffer.dart';
 import 'package:e_livre/features/mobi/header/exth_header.dart';
 import 'package:e_livre/features/mobi/header/mobi_header.dart';
@@ -112,7 +113,13 @@ BookCover? _coverFrom(final BinaryFile? coverFile) {
   if (type == null) {
     return null;
   }
-  return BookCover(bytes: coverFile.content, type: type);
+  final size = imageSize(coverFile.content);
+  return BookCover(
+    bytes: coverFile.content,
+    type: type,
+    width: size?.width,
+    height: size?.height,
+  );
 }
 
 DateTime? _parseMobiDate(final String? raw) {

@@ -18,6 +18,8 @@ final class BookMetadata {
     this.subjects = const <String>[],
     this.publishedAt,
     this.rights,
+    this.series,
+    this.seriesIndex,
     this.identifiers = const <String, String>{},
     this.cover,
   });
@@ -52,11 +54,53 @@ final class BookMetadata {
   /// Copyright / rights statement.
   final String? rights;
 
+  /// Series / collection name the book belongs to.
+  final String? series;
+
+  /// Position of the book inside its series (1-based, may be a
+  /// fraction such as `2.5` for short stories between volumes).
+  final double? seriesIndex;
+
   /// Additional identifiers keyed by scheme (e.g. `asin`, `uuid`).
   final Map<String, String> identifiers;
 
   /// The book cover, when one could be located.
   final BookCover? cover;
+
+  /// Returns a copy with the provided fields replaced.
+  BookMetadata copyWith({
+    final BookFormat? format,
+    final String? title,
+    final List<String>? authors,
+    final List<String>? languages,
+    final String? publisher,
+    final String? description,
+    final String? isbn,
+    final List<String>? subjects,
+    final DateTime? publishedAt,
+    final String? rights,
+    final String? series,
+    final double? seriesIndex,
+    final Map<String, String>? identifiers,
+    final BookCover? cover,
+  }) {
+    return BookMetadata(
+      format: format ?? this.format,
+      title: title ?? this.title,
+      authors: authors ?? this.authors,
+      languages: languages ?? this.languages,
+      publisher: publisher ?? this.publisher,
+      description: description ?? this.description,
+      isbn: isbn ?? this.isbn,
+      subjects: subjects ?? this.subjects,
+      publishedAt: publishedAt ?? this.publishedAt,
+      rights: rights ?? this.rights,
+      series: series ?? this.series,
+      seriesIndex: seriesIndex ?? this.seriesIndex,
+      identifiers: identifiers ?? this.identifiers,
+      cover: cover ?? this.cover,
+    );
+  }
 
   @override
   String toString() {

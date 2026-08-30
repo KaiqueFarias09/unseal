@@ -50,6 +50,23 @@ void main() {
       expect(metadata.cover, isNotNull);
     });
 
+    test('opens a CBZ comic into a ComicBook', () async {
+      final book = await EBook.openFromPath(
+        'test/resources/comic/sample.cbz',
+      );
+      expect(book, isA<ComicBook>());
+      expect(book.format, BookFormat.cbz);
+      expect((book as ComicBook).pageCount, greaterThan(0));
+    });
+
+    test('reads comic metadata without pages', () async {
+      final metadata = await EBook.readMetadataFromPath(
+        'test/resources/comic/sample.cbz',
+      );
+      expect(metadata.format, BookFormat.cbz);
+      expect(metadata.title, 'Fixture Comic');
+    });
+
     test('rejects empty bytes', () {
       expect(
         () => EBook.openFromBytes(Uint8List(0)),

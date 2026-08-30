@@ -27,7 +27,7 @@ class Epub3Metadata extends Metadata {
     required super.description,
     required super.identifiers,
     required super.uniqueIdentifierValue,
-    required this.schemaOrgs, required this.accessibilitySummaries, required this.educationalRole, required this.typicalAgeRange, required this.accessibilityFeatures, required this.modified, required this.rendition, required this.belongsToCollection, required this.sourceOf, required this.recordIdentifier, super.coverId,
+    required this.schemaOrgs, required this.accessibilitySummaries, required this.educationalRole, required this.typicalAgeRange, required this.accessibilityFeatures, required this.modified, required this.rendition, required this.belongsToCollection, required this.sourceOf, required this.recordIdentifier, super.coverId, super.series, super.seriesIndex,
   });
 
   List<String> schemaOrgs;

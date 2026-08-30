@@ -1,4 +1,5 @@
 import 'package:e_livre/features/core/entities/file/book_file.dart';
+import 'package:e_livre/features/core/utils/plain_text.dart';
 
 /// Represents a text book file.
 ///
@@ -17,4 +18,8 @@ class TextFile extends BookFile {
 
   /// The text content of the file.
   final String content;
+
+  /// The readable plain text of [content] (tags stripped, entities
+  /// decoded, whitespace collapsed). Computed on every access.
+  String get plainText => extractPlainText(content);
 }

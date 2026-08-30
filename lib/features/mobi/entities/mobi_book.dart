@@ -2,9 +2,25 @@ import 'package:e_livre/features/core/book/book.dart';
 import 'package:e_livre/features/core/entities/book/files.dart';
 import 'package:e_livre/features/core/entities/book_metadata.dart';
 import 'package:e_livre/features/core/entities/file/binary_file.dart';
+import 'package:e_livre/features/core/entities/file/text_file.dart';
 import 'package:e_livre/features/core/entities/navigation/navigation.dart';
 import 'package:e_livre/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/features/mobi/utils/mobi_metadata_mapper.dart';
+
+/// A chapter of a MOBI 6 book, split from its single HTML stream at
+/// the table of contents anchors.
+final class MobiChapter {
+  const MobiChapter({required this.title, required this.file});
+
+  /// Chapter title from the table of contents.
+  final String title;
+
+  /// The chapter HTML slice.
+  final TextFile file;
+
+  @override
+  String toString() => 'MobiChapter(title: $title, file: ${file.name})';
+}
 
 /// A parsed MOBI 6 / KF8 (AZW3) book.
 class MobiBook extends Book {
@@ -21,7 +37,7 @@ class MobiBook extends Book {
   @override
   final Navigation navigation;
 
-  /// The files extracted from the book.
+  /// The extracted files of the book.
   @override
   final Files files;
 
@@ -35,19 +51,90 @@ class MobiBook extends Book {
   @override
   BookMetadata get metadata => mobiBookMetadata(header, coverFile: cover);
 
+  /// The book chapters.
+  ///
+  /// MOBI 6 stores the whole book as one HTML stream; this splits it
+  /// at the table of contents anchors (plus a leading front-matter
+  /// part when present), giving chapter-by-chapter access comparable
+  /// to the per-file output of the other formats. KF8 books already
+  /// expose one file per chapter through [files] and return an empty
+  /// list here. Computed once on first access.
+  late final List<MobiChapter> chapters = _splitChapters();
+
   /// The book title.
   String get title => header.exth?.title ?? header.title;
 
   /// The book author names.
-  List<String> get creators =>
-      metadata.authors;
+  List<String> get creators => metadata.authors;
 
   /// The book language code.
-  String get language => metadata.languages.isEmpty ? '' : metadata.languages.first;
+  String get language =>
+      metadata.languages.isEmpty ? '' : metadata.languages.first;
 
   /// The book publisher.
   String? get publisher => metadata.publisher;
 
   /// The MOBI version (6 or 8).
   int get version => header.mobiVersion;
+
+  List<MobiChapter> _splitChapters() {
+    if (files.html.isEmpty) {
+      return const <MobiChapter>[];
+    }
+    final html = files.html.first.content;
+
+    // Collect the anchor position of every TOC entry.
+    final anchors = <(int, String)>[];
+    for (final point in navigation.navPoints) {
+      final number = RegExp(r'#filepos(\d+)$').firstMatch(point.content);
+      if (number == null) {
+        continue;
+      }
+      final position = html.indexOf('id="filepos${number.group(1)}"');
+      if (position >= 0) {
+        anchors.add((position, point.label));
+      }
+    }
+    if (anchors.isEmpty) {
+      return const <MobiChapter>[];
+    }
+    anchors.sort((final a, final b) => a.$1.compareTo(b.$1));
+
+    // Deduplicate anchors pointing at the same position.
+    final boundaries = <(int, String)>[];
+    for (final anchor in anchors) {
+      if (boundaries.isEmpty || boundaries.last.$1 != anchor.$1) {
+        boundaries.add(anchor);
+      }
+    }
+
+    final chapters = <MobiChapter>[];
+    var index = 0;
+    // Leading front matter (cover, title page) before the first
+    // anchor becomes its own chapter when it has visible content.
+    if (boundaries.first.$1 > 0) {
+      final leading = html.substring(0, boundaries.first.$1);
+      if (leading.replaceAll(RegExp('<[^>]*>'), '').trim().isNotEmpty) {
+        chapters.add(_chapter(index++, title, leading));
+      }
+    }
+
+    // Each anchor marks the start of its chapter's content.
+    for (var i = 0; i < boundaries.length; i++) {
+      final start = boundaries[i].$1;
+      final end = i + 1 < boundaries.length ? boundaries[i + 1].$1 : html.length;
+      chapters.add(
+        _chapter(index++, boundaries[i].$2, html.substring(start, end)),
+      );
+    }
+    return chapters;
+  }
+
+  MobiChapter _chapter(final int index, final String title, final String html) {
+    final name = 'chapter${index.toString().padLeft(5, '0')}.html';
+    return MobiChapter(
+      title: title,
+      file: TextFile(name: name, type: 'html', path: name, content: html),
+    );
+  }
 }

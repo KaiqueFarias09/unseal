@@ -84,10 +84,11 @@ String processMobi6Html(final String html, final Map<int, String> imageNames) {
     },
   );
 
-  // Internal links: filepos -> #fileposN anchor.
+  // Internal links: filepos -> #fileposN anchor. The number is
+  // normalized (leading zeros stripped) to match the anchor ids.
   result = result.replaceAllMapped(
     RegExp(r"""\sfilepos\s*=\s*["']?(\d+)["']?""", caseSensitive: false),
-    (final match) => ' href="#filepos${match.group(1)}"',
+    (final match) => ' href="#filepos${int.parse(match.group(1)!)}"',
   );
 
   // Anchor ids carried via filepos-id.

@@ -2,7 +2,10 @@ import 'package:e_livre/features/core/entities/book_cover.dart';
 import 'package:e_livre/features/core/entities/book_format.dart';
 import 'package:e_livre/features/core/entities/book_metadata.dart';
 import 'package:e_livre/features/core/entities/file/binary_file.dart';
+import 'package:e_livre/features/core/utils/image_size.dart';
 import 'package:e_livre/features/core/utils/image_sniffer.dart';
+import 'package:e_livre/features/core/utils/metadata_utils.dart';
+import 'package:e_livre/features/epub/entities/package/epub_3_package.dart';
 import 'package:e_livre/features/epub/entities/package/epub_package.dart';
 
 /// Maps an EPUB [package] into the common [BookMetadata].
@@ -39,6 +42,8 @@ BookMetadata epubBookMetadata(
     ],
     publishedAt: parseEpubDate(metadata.date),
     rights: metadata.rights?.firstOrNull,
+    series: _seriesOf(package),
+    seriesIndex: parseSeriesIndex(metadata.seriesIndex),
     identifiers: identifiers,
     cover: _coverFrom(coverFile),
   );
@@ -52,7 +57,13 @@ BookCover? _coverFrom(final BinaryFile? coverFile) {
   if (type == null) {
     return null;
   }
-  return BookCover(bytes: coverFile.content, type: type);
+  final size = imageSize(coverFile.content);
+  return BookCover(
+    bytes: coverFile.content,
+    type: type,
+    width: size?.width,
+    height: size?.height,
+  );
 }
 
 /// Parses an EPUB `dc:date` string, tolerating loose forms.
@@ -86,6 +97,17 @@ String? _findIsbn(final List<String> identifiers) {
     if (isIsbn10 || isIsbn13) {
       return compact;
     }
+  }
+  return null;
+}
+
+String? _seriesOf(final EpubPackage package) {
+  final metadata = package.metadata;
+  if (metadata.series != null && metadata.series!.isNotEmpty) {
+    return metadata.series;
+  }
+  if (metadata is Epub3Metadata && metadata.belongsToCollection.isNotEmpty) {
+    return metadata.belongsToCollection;
   }
   return null;
 }

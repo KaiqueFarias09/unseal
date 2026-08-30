@@ -2,6 +2,7 @@ export 'book/files.dart';
 export 'book_cover.dart';
 export 'book_format.dart';
 export 'book_metadata.dart';
+export 'book_statistics.dart';
 export 'file/binary_file.dart';
 export 'file/book_file.dart';
 export 'file/text_file.dart';

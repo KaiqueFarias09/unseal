@@ -1,11 +1,16 @@
 library e_livre;
 
+export './features/comic/entities/entities.dart';
+export './features/comic/exceptions/exceptions.dart';
 export './features/core/book/book.dart';
 export './features/core/book/e_book.dart';
 export './features/core/detection/format_detector.dart';
 export './features/core/entities/entities.dart';
 export './features/core/exceptions/elivre_exception.dart';
+export './features/core/utils/image_size.dart';
 export './features/core/utils/image_sniffer.dart';
+export './features/core/utils/metadata_utils.dart';
+export './features/core/utils/plain_text.dart';
 export './features/epub/entities/entities.dart';
 export './features/epub/exceptions/exceptions.dart';
 export './features/fb2/entities/entities.dart';

@@ -43,6 +43,22 @@ void main() {
       }
     });
 
+    test('splits chapters at the toc anchors', () {
+      final chapters = book.chapters;
+      // Front matter + one chapter per toc entry.
+      expect(chapters.length, greaterThan(9));
+      expect(chapters.first.title, aliceTitle);
+      final first = chapters[1];
+      expect(first.title, contains('Rabbit-Hole'));
+      expect(first.file.content, contains('Alice'));
+      // Chapters reassemble into the full content.
+      final total = chapters.fold<int>(
+        0,
+        (final sum, final chapter) => sum + chapter.file.content.length,
+      );
+      expect(total, lessThanOrEqualTo(book.files.html.first.content.length));
+    });
+
     test('derives navigation from filepos anchors', () {
       expect(book.navigation.navPoints.length, greaterThanOrEqualTo(8));
       for (final point in book.navigation.navPoints) {

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as path;
 
@@ -51,4 +53,14 @@ String normalizeZipPath(final String zipPath) {
     segments.add(segment);
   }
   return segments.join('/');
+}
+
+/// Returns archive entry content as a [Uint8List] without copying
+/// when the archive already decoded it into one.
+Uint8List contentBytes(final ArchiveFile entry) {
+  final content = entry.content;
+  if (content is Uint8List) {
+    return Uint8List.sublistView(content);
+  }
+  return Uint8List.fromList(content as List<int>);
 }

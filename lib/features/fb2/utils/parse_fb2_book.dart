@@ -9,7 +9,9 @@ import 'package:e_livre/features/core/entities/book_format.dart';
 import 'package:e_livre/features/core/entities/book_metadata.dart';
 import 'package:e_livre/features/core/entities/file/binary_file.dart';
 import 'package:e_livre/features/core/entities/file/text_file.dart';
+import 'package:e_livre/features/core/utils/image_size.dart';
 import 'package:e_livre/features/core/utils/image_sniffer.dart';
+import 'package:e_livre/features/core/utils/metadata_utils.dart';
 import 'package:e_livre/features/fb2/entities/fb2_book.dart';
 import 'package:e_livre/features/fb2/exceptions/fb2_exception.dart';
 import 'package:e_livre/features/fb2/utils/fb2_to_html.dart';
@@ -257,6 +259,17 @@ BookMetadata _mapMetadata(
     }
   }
 
+  String? series;
+  double? seriesIndex;
+  for (final sequence in all('title-info', 'sequence')) {
+    final name = sequence.getAttribute('name')?.trim();
+    if (name != null && name.isNotEmpty) {
+      series ??= name;
+      seriesIndex ??= parseSeriesIndex(sequence.getAttribute('number'));
+      break;
+    }
+  }
+
   var publishedAt = _parseFb2Date(
     first('title-info', 'date')?.innerText.trim(),
   );
@@ -274,7 +287,13 @@ BookMetadata _mapMetadata(
     if (binary != null) {
       final type = sniffImageType(binary.content);
       if (type != null) {
-        cover = BookCover(bytes: binary.content, type: type);
+        final size = imageSize(binary.content);
+        cover = BookCover(
+          bytes: binary.content,
+          type: type,
+          width: size?.width,
+          height: size?.height,
+        );
       }
     }
   }
@@ -289,6 +308,8 @@ BookMetadata _mapMetadata(
     isbn: isbn == null || isbn.isEmpty ? null : isbn,
     subjects: subjects,
     publishedAt: publishedAt,
+    series: series,
+    seriesIndex: seriesIndex,
     identifiers: identifiers,
     cover: cover,
   );

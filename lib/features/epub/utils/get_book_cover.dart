@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
@@ -88,7 +87,7 @@ BinaryFile getBookCover(
   }
   final name = entry.name.split('/').last;
   return BinaryFile(
-    content: Uint8List.fromList(entry.content as List<int>),
+    content: contentBytes(entry),
     name: name,
     type: name.split('.').last,
     path: entry.name,

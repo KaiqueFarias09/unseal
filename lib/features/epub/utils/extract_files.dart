@@ -1,5 +1,4 @@
 import 'dart:convert' as convert;
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/features/core/entities/book/files.dart';
@@ -58,7 +57,7 @@ List<BinaryFile> _binaryFiles(
         name: name,
         type: name.contains('.') ? name.split('.').last : '',
         path: entry.name,
-        content: Uint8List.fromList(entry.content as List<int>),
+        content: contentBytes(entry),
       ),
     );
   }
@@ -78,7 +77,7 @@ List<TextFile> _textFiles(
         name: name,
         type: name.contains('.') ? name.split('.').last : '',
         path: entry.name,
-        content: convert.utf8.decode(entry.content as List<int>),
+        content: convert.utf8.decode(contentBytes(entry)),
       ),
     );
   }

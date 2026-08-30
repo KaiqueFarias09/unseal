@@ -35,6 +35,8 @@ class Epub2Metadata extends Metadata {
     required super.identifiers,
     required super.uniqueIdentifierValue,
     super.coverId,
+    super.series,
+    super.seriesIndex,
   });
 
   @override

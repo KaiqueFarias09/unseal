@@ -60,6 +60,8 @@ void main() {
       expect(metadata.isbn, '9783161484100');
       expect(metadata.subjects, containsAll(['sf', 'fiction', 'test tag']));
       expect(metadata.publishedAt, DateTime(2020, 5));
+      expect(metadata.series, 'Coleção Teste');
+      expect(metadata.seriesIndex, 2.5);
       expect(metadata.description, contains('Um livro de teste'));
     });
 
@@ -123,6 +125,7 @@ const String _syntheticFb2 = '''
       </author>
       <book-title>Test Book</book-title>
       <annotation><p>Um livro de teste.</p></annotation>
+      <sequence name="Coleção Teste" number="2.5"/>
       <date>2020-05-01</date>
       <lang>pt-BR</lang>
       <keywords>test tag</keywords>
