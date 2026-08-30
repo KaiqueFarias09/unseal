@@ -1,3 +1,35 @@
+## 3.1.0 - August 29, 2026
+
+### Added
+
+- **Series support**: `BookMetadata.series` / `seriesIndex` from EPUB
+  `calibre:series` metas, EPUB 3 `belongs-to-collection` +
+  `group-position` and FB2 `<sequence name number>`.
+- **Calibre sidecar OPF**: `EBook.readMetadataFromPath/File` merge a
+  sibling `<basename>.opf` / `metadata.opf` over the book's own
+  metadata (`mergeBookMetadata` is public for custom merges).
+- **Filename fallback**: books without internal metadata get
+  title/authors from the Calibre `Title - Author.ext` pattern.
+- **`BookStatistics`**: `book.statistics` exposes `wordCount`,
+  `characterCount` and `estimatedReadingTime(wordsPerMinute: 200)`.
+- **Plain text**: `TextFile.plainText` (and `extractPlainText` /
+  `countWords` utils) strip markup and decode entities.
+- **Cover dimensions**: `BookCover.width`/`height` parsed from
+  JPEG/PNG/GIF/BMP/WebP headers without decoding (`imageSize`).
+- **MOBI 6 chapters**: `MobiBook.chapters` splits the single HTML
+  stream at the TOC anchors, including the front-matter part.
+- **Comic books**: CBZ (zip + `ComicInfo.xml`) and CBR (RAR 4/5 with
+  stored entries) with natural page ordering, page count and
+  first-page cover.
+
+### Fixed
+
+- MOBI 6 internal links now normalize `filepos` numbers so padded
+  hrefs (`#filepos0000198965`) match their anchor ids.
+- EPUB binary extraction no longer copies every archive entry a
+  second time (views over the decoded buffers), halving peak memory
+  of full parses.
+
 ## 3.0.0 - August 29, 2026
 
 Multi-format release: eLivre now parses EPUB, MOBI, AZW3 (KF8) and FB2
