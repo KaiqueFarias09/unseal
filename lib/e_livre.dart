@@ -17,3 +17,4 @@ export './features/fb2/entities/entities.dart';
 export './features/fb2/exceptions/exceptions.dart';
 export './features/mobi/entities/entities.dart';
 export './features/mobi/exceptions/exceptions.dart';
+export 'src/heuristics.dart';
