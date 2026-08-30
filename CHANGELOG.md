@@ -2,6 +2,18 @@
 
 ### Performance
 
+- **FB2 metadata reads parse only the metadata**: `readMetadataSync`
+  for FB2 slices the leading `<description>` element (plus the single
+  cover `<binary>`) out of the raw bytes instead of building the DOM
+  for the whole document and base64-decoding every image — ~15×
+  faster (23 ms → 1.6 ms on the 3.4 MB fixture). Malformed slices
+  fall back to the full parse, so results are unchanged.
+- **KF8 markup expansion is ~2× faster**: kindlegen `aid`/`cid`
+  attributes are stripped by a single-pass scanner instead of a
+  backtracking regex over every tag, and the flow/image reference
+  passes are skipped entirely for parts that carry no
+  `kindle:flow`/`kindle:embed` reference (parsing output is
+  byte-identical, verified by differential snapshots).
 - **`extractPlainText` is a single pass** (58 MB/s from 15 MB/s on
   the benchmark chapter): markup removal, entity decoding and
   whitespace collapsing share one left-to-right scan that bulk-copies

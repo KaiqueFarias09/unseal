@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import "dart:typed_data";
 
 import 'package:e_livre/features/core/entities/file/binary_file.dart';
 import 'package:e_livre/features/core/entities/file/text_file.dart';
@@ -567,21 +567,14 @@ class Mobi8Reader {
   }
 
   String _removeKindleAids(final String part) {
-    var result = part.replaceAllMapped(
-      _kindleAidPattern,
-      (final match) {
-        final aid = match.group(2)!;
-        if (_linkedAids.contains(aid)) {
-          return '${match.group(1)} id="$aid"${match.group(3)}';
-        }
-        return '${match.group(1)}${match.group(3)}';
-      },
-    );
-    result = result.replaceAllMapped(
-      _amznPageBreakPattern,
-      (final match) =>
-          '${match.group(1)} style="page-break-after:${match.group(2)}"${match.group(3)}',
-    );
+    var result = _stripAidAttributes(part, _linkedAids);
+    if (_containsAsciiIgnoreCase(result, 'data-amznpagebreak')) {
+      result = result.replaceAllMapped(
+        _amznPageBreakPattern,
+        (final match) =>
+            '${match.group(1)} style="page-break-after:${match.group(2)}"${match.group(3)}',
+      );
+    }
     return result;
   }
 
@@ -624,6 +617,9 @@ class Mobi8Reader {
   }
 
   String _insertFlows(final String part) {
+    if (!_containsAsciiIgnoreCase(part, 'kindle:flow')) {
+      return part;
+    }
     return part.replaceAllMapped(
       _anyTagPattern,
       (final tagMatch) {
@@ -645,6 +641,9 @@ class Mobi8Reader {
   }
 
   String _insertImages(final String part) {
+    if (!_containsAsciiIgnoreCase(part, 'kindle:embed')) {
+      return part;
+    }
     var result = part.replaceAllMapped(
       _imgTagPattern,
       (final tagMatch) {
@@ -759,10 +758,6 @@ final RegExp _kindlePosFidPattern = RegExp(
   '''['"]kindle:pos:fid:([0-9A-V]+):off:([0-9A-V]+)[^"']*['"]''',
   caseSensitive: false,
 );
-final RegExp _kindleAidPattern = RegExp(
-  r'''(<[^>]*?)\s[ac]id\s*=\s*['"]([^'"]*)['"]([^>]*>)''',
-  caseSensitive: false,
-);
 final RegExp _amznPageBreakPattern = RegExp(
   r'''(<[^>]*?)\sdata-AmznPageBreak\s*=\s*['"]([^'"]*)['"]([^>]*>)''',
   caseSensitive: false,
@@ -826,6 +821,149 @@ bool _hasMagic(final Uint8List data, final String magic) {
   }
   return true;
 }
+
+/// Removes kindlegen `aid`/`cid` attributes (renaming linked ones to
+/// `id`) in a single pass, one attribute per tag — mirroring the
+/// `(<[^>]*?)\s[ac]id\s*=\s*['"]([^'"]*)['"]([^>]*>)` replacement it
+/// replaces.
+String _stripAidAttributes(
+  final String part,
+  final Set<String> linkedAids,
+) {
+  final units = part.codeUnits;
+  final length = units.length;
+  final buffer = StringBuffer();
+  var changed = false;
+  var i = 0;
+  while (i < length) {
+    if (units[i] != _lt) {
+      var end = i + 1;
+      while (end < length && units[end] != _lt) {
+        end++;
+      }
+      buffer.write(part.substring(i, end));
+      i = end;
+      continue;
+    }
+    var gt = i + 1;
+    while (gt < length && units[gt] != _gt) {
+      gt++;
+    }
+    if (gt == length) {
+      // No '>': the pattern needs its trailing one.
+      buffer.write(part.substring(i));
+      break;
+    }
+    final attr = _findAidAttribute(part, units, i + 1, gt);
+    if (attr == null) {
+      buffer.write(part.substring(i, gt + 1));
+    } else {
+      changed = true;
+      final (separator, valueStart, valueEnd) = attr;
+      final aid = part.substring(valueStart, valueEnd);
+      buffer.write(part.substring(i, separator));
+      if (linkedAids.contains(aid)) {
+        buffer.write(' id="$aid"');
+      }
+      buffer.write(part.substring(valueEnd + 1, gt + 1));
+    }
+    i = gt + 1;
+  }
+  return changed ? buffer.toString() : part;
+}
+
+/// First `aid`/`cid` attribute inside `(from, to)`, as
+/// `(separator index, value start, closing quote index)`.
+(int, int, int)? _findAidAttribute(
+  final String part,
+  final List<int> units,
+  final int from,
+  final int to,
+) {
+  for (var i = from; i + 3 < to; i++) {
+    if (!_isMarkupWhitespace(units[i])) {
+      continue;
+    }
+    final c1 = _asciiLowerCase(units[i + 1]);
+    if (c1 != _a && c1 != _c) {
+      continue;
+    }
+    if (_asciiLowerCase(units[i + 2]) != _i || _asciiLowerCase(units[i + 3]) != _d) {
+      continue;
+    }
+    var k = i + 4;
+    while (k < to && _isMarkupWhitespace(units[k])) {
+      k++;
+    }
+    if (k >= to || units[k] != _equals) {
+      continue;
+    }
+    k++;
+    while (k < to && _isMarkupWhitespace(units[k])) {
+      k++;
+    }
+    if (k >= to || (units[k] != _doubleQuote && units[k] != _singleQuote)) {
+      continue;
+    }
+    final valueStart = k + 1;
+    var valueEnd = valueStart;
+    while (valueEnd < units.length &&
+        units[valueEnd] != _doubleQuote &&
+        units[valueEnd] != _singleQuote) {
+      valueEnd++;
+    }
+    if (valueEnd < units.length) {
+      return (i, valueStart, valueEnd);
+    }
+  }
+  return null;
+}
+
+bool _containsAsciiIgnoreCase(final String text, final String lowercaseNeedle) {
+  final units = text.codeUnits;
+  final needle = lowercaseNeedle.codeUnits;
+  final lastStart = units.length - needle.length;
+  for (var i = 0; i <= lastStart; i++) {
+    var matched = true;
+    for (var j = 0; j < needle.length; j++) {
+      if (_asciiLowerCase(units[i + j]) != needle[j]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const int _lt = 0x3C;
+const int _gt = 0x3E;
+const int _a = 0x61;
+const int _c = 0x63;
+const int _i = 0x69;
+const int _d = 0x64;
+const int _equals = 0x3D;
+const int _doubleQuote = 0x22;
+const int _singleQuote = 0x27;
+
+int _asciiLowerCase(final int codeUnit) =>
+    codeUnit >= 0x41 && codeUnit <= 0x5A ? codeUnit + 0x20 : codeUnit;
+
+/// The RegExp `\s` set (ECMAScript).
+bool _isMarkupWhitespace(final int codeUnit) =>
+    codeUnit == 0x20 ||
+    (codeUnit >= 0x09 && codeUnit <= 0x0D) ||
+    codeUnit == 0xA0 ||
+    codeUnit == 0x1680 ||
+    (codeUnit >= 0x2000 && codeUnit <= 0x200A) ||
+    codeUnit == 0x2028 ||
+    codeUnit == 0x2029 ||
+    codeUnit == 0x202F ||
+    codeUnit == 0x205F ||
+    codeUnit == 0x3000 ||
+    codeUnit == 0xFEFF;
 
 bool _isUnknownMarker(final Uint8List data) =>
     data.length >= 4 &&

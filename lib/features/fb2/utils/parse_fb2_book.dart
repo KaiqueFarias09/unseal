@@ -107,8 +107,168 @@ Fb2Book _parseDocument(final List<int> bytes) {
 }
 
 BookMetadata _readDocumentMetadata(final List<int> bytes) {
+  // Fast path: all metadata lives in the leading <description>
+  // element and the cover in a single <binary>; parse only those
+  // slices instead of building the DOM for the whole document (and
+  // base64-decoding every image).
+  final typed = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+  final sliced = _readSlicedMetadata(typed);
+  if (sliced != null) {
+    return sliced;
+  }
   final document = _parseXml(bytes);
   return _mapMetadata(document.rootElement, _collectBinaries(document.rootElement));
+}
+
+/// Metadata read over the `<description>` slice, or `null` when the
+/// document does not match the expected shape (caller falls back to
+/// the full parse).
+BookMetadata? _readSlicedMetadata(final Uint8List bytes) {
+  final description = _sliceElement(bytes, 0, _descriptionOpen, _descriptionClose);
+  if (description == null) {
+    return null;
+  }
+  try {
+    final wrapper = XmlDocument.parse(
+      '<m>${convert.utf8.decode(description.$1, allowMalformed: true)}</m>',
+    );
+    final root = wrapper.rootElement;
+    final coverId = _coverId(root);
+    final binaries = <String, BinaryFile>{};
+    if (coverId != null) {
+      final binary = _sliceCoverBinary(bytes, coverId);
+      if (binary != null) {
+        binaries[coverId] = binary;
+      }
+    }
+    return _mapMetadata(root, binaries);
+  } on Exception {
+    // Malformed slice (CDATA tricks, broken markup, ...): the full
+    // parse handles the document the honest way.
+    return null;
+  }
+}
+
+/// Returns `(element bytes, end offset)` of the first element whose
+/// open tag starts with [open] at/after [from], or `null`.
+(Uint8List, int)? _sliceElement(
+  final Uint8List bytes,
+  final int from,
+  final List<int> open,
+  final List<int> close,
+) {
+  final start = _indexOfAscii(bytes, from, open);
+  if (start == -1) {
+    return null;
+  }
+  final end = _indexOfAscii(bytes, start + open.length, close);
+  if (end == -1) {
+    return null;
+  }
+  return (Uint8List.sublistView(bytes, start, end + close.length), end + close.length);
+}
+
+/// Finds the `<binary id="[coverId]">` element and decodes its image.
+BinaryFile? _sliceCoverBinary(final Uint8List bytes, final String coverId) {
+  var from = 0;
+  while (true) {
+    final open = _indexOfAscii(bytes, from, _binaryOpen);
+    if (open == -1) {
+      return null;
+    }
+    final tagEnd = _indexOfByte(bytes, open, _greaterThan);
+    if (tagEnd == -1) {
+      return null;
+    }
+    final tag = convert.utf8.decode(
+      Uint8List.sublistView(bytes, open, tagEnd + 1),
+      allowMalformed: true,
+    );
+    if (_attributeValue(tag, 'id') == coverId) {
+      final close = _indexOfAscii(bytes, tagEnd, _binaryClose);
+      if (close == -1) {
+        return null;
+      }
+      final text = convert.utf8.decode(
+        Uint8List.sublistView(bytes, tagEnd + 1, close),
+        allowMalformed: true,
+      );
+      return _decodeBinary(coverId, _attributeValue(tag, 'content-type') ?? 'image/jpeg', text);
+    }
+    from = tagEnd;
+  }
+}
+
+/// Extracts a plain attribute value (`name="value"`, single or double
+/// quotes) out of a decoded open tag.
+String? _attributeValue(final String tag, final String name) {
+  var at = tag.indexOf(name);
+  while (at != -1) {
+    final before = at == 0 ? ' ' : tag[at - 1];
+    final separated = before == ' ' || before == '\t' || before == '\n' || before == '\r';
+    if (separated) {
+      var i = at + name.length;
+      while (i < tag.length && (tag[i] == ' ' || tag[i] == '\t' || tag[i] == '\n' || tag[i] == '\r')) {
+        i++;
+      }
+      if (i < tag.length && tag[i] == '=') {
+        i++;
+        while (i < tag.length && (tag[i] == ' ' || tag[i] == '\t' || tag[i] == '\n' || tag[i] == '\r')) {
+          i++;
+        }
+        if (i < tag.length && (tag[i] == '"' || tag[i] == "'")) {
+          final quote = tag[i];
+          final end = tag.indexOf(quote, i + 1);
+          if (end != -1) {
+            return tag.substring(i + 1, end);
+          }
+        }
+      }
+    }
+    at = tag.indexOf(name, at + 1);
+  }
+  return null;
+}
+
+const List<int> _descriptionOpen = <int>[
+  0x3C, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6F, 0x6E, // <description
+];
+const List<int> _descriptionClose = <int>[
+  0x3C, 0x2F, 0x64, 0x65, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6F, 0x6E, 0x3E, // </description>
+];
+const List<int> _binaryOpen = <int>[0x3C, 0x62, 0x69, 0x6E, 0x61, 0x72, 0x79]; // <binary
+const List<int> _binaryClose = <int>[
+  0x3C, 0x2F, 0x62, 0x69, 0x6E, 0x61, 0x72, 0x79, 0x3E, // </binary>
+];
+const int _greaterThan = 0x3E;
+
+int _indexOfAscii(final Uint8List bytes, final int from, final List<int> pattern) {
+  final first = pattern[0];
+  for (var i = from; i + pattern.length <= bytes.length; i++) {
+    if (bytes[i] != first) {
+      continue;
+    }
+    var matched = true;
+    for (var j = 1; j < pattern.length; j++) {
+      if (bytes[i + j] != pattern[j]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int _indexOfByte(final Uint8List bytes, final int from, final int byte) {
+  for (var i = from; i < bytes.length; i++) {
+    if (bytes[i] == byte) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 XmlDocument _parseXml(final List<int> bytes) {
@@ -131,27 +291,43 @@ Map<String, BinaryFile> _collectBinaries(final XmlElement root) {
     if (id == null || id.isEmpty) {
       continue;
     }
-    final contentType = element.getAttribute('content-type') ?? 'image/jpeg';
-    Uint8List data;
-    try {
-      final normalized = element.innerText.replaceAll(RegExp(r'\s'), '');
-      data = Uint8List.fromList(convert.base64.decode(normalized));
-    } on FormatException {
-      continue;
-    }
-    final sniffed = sniffImageType(data);
-    final extension = sniffed?.fileExtension ??
-        _extensionFromMime(contentType);
-    final fileName = _binaryFileName(id, extension);
-    binaries[id] = BinaryFile(
-      content: data,
-      name: fileName,
-      type: extension,
-      path: fileName,
+    final binary = _decodeBinary(
+      id,
+      element.getAttribute('content-type') ?? 'image/jpeg',
+      element.innerText,
     );
+    if (binary != null) {
+      binaries[id] = binary;
+    }
   }
   return binaries;
 }
+
+BinaryFile? _decodeBinary(
+  final String id,
+  final String contentType,
+  final String base64Text,
+) {
+  Uint8List data;
+  try {
+    data = Uint8List.fromList(
+      convert.base64.decode(base64Text.replaceAll(_whitespacePattern, '')),
+    );
+  } on FormatException {
+    return null;
+  }
+  final sniffed = sniffImageType(data);
+  final extension = sniffed?.fileExtension ?? _extensionFromMime(contentType);
+  final fileName = _binaryFileName(id, extension);
+  return BinaryFile(
+    content: data,
+    name: fileName,
+    type: extension,
+    path: fileName,
+  );
+}
+
+final RegExp _whitespacePattern = RegExp(r'\s');
 
 Map<String, String> _extensionsOf(final Map<String, BinaryFile> binaries) {
   return {
