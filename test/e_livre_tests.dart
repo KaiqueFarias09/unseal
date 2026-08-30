@@ -5,6 +5,7 @@ import 'tests/core/detection_test.dart' as detection_test;
 import 'tests/core/e_book_test.dart' as e_book_test;
 import 'tests/core/image_size_test.dart' as image_size_test;
 import 'tests/core/metadata_utils_test.dart' as metadata_utils_test;
+import 'tests/core/plain_text_test.dart' as plain_text_test;
 import 'tests/core/statistics_test.dart' as statistics_test;
 import 'tests/epub/metadata_test.dart' as metadata_test;
 import 'tests/epub/open_book_test.dart' as open_book_test;
@@ -19,6 +20,7 @@ void main() {
   e_book_test.main();
   metadata_utils_test.main();
   image_size_test.main();
+  plain_text_test.main();
   statistics_test.main();
   open_book_test.main();
   package_parsing_test.main();

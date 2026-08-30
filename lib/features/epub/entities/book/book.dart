@@ -40,7 +40,10 @@ class EpubBook extends Book {
   /// Reads an EPUB book from the provided [bytes].
   static Future<EpubBook> fromBytes(final List<int> bytes) {
     if (bytes.isEmpty) throw EmptyBytesException();
-    return Future.value(parseEpubBook(Uint8List.fromList(bytes)));
+    // Skip the defensive copy when the caller already holds typed
+    // data; parsing never mutates its input.
+    final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+    return Future.value(parseEpubBook(data));
   }
 
   /// The navigation (table of contents) of the book.

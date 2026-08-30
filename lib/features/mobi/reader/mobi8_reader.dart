@@ -336,13 +336,10 @@ class Mobi8Reader {
       final asText = String.fromCharCodes(slice);
       final number = j.toString().padLeft(4, '0');
 
-      final svgMatch = RegExp('<svg[^>]*>', caseSensitive: false).firstMatch(asText);
+      final svgMatch = _svgOpenTagPattern.firstMatch(asText);
       if (svgMatch != null) {
         final stripped = asText.substring(svgMatch.start);
-        final hasImage = RegExp(
-          '<(?:svg:)?image[^>]*>',
-          caseSensitive: false,
-        ).hasMatch(stripped);
+        final hasImage = _svgImagePattern.hasMatch(stripped);
         if (hasImage) {
           _flows.add(_Flow(j, 'svg', null, stripped));
         } else {
@@ -554,10 +551,7 @@ class Mobi8Reader {
   String _updateInternalLinks(final Uint8List part) {
     final asText = decodeBytes(part, header.codec);
     return asText.replaceAllMapped(
-      RegExp(
-        '''['"]kindle:pos:fid:([0-9A-V]+):off:([0-9A-V]+)[^"']*['"]''',
-        caseSensitive: false,
-      ),
+      _kindlePosFidPattern,
       (final match) {
         final resolved = _resolveByPosFid(
           parseBase32(match.group(1)!),
@@ -574,10 +568,7 @@ class Mobi8Reader {
 
   String _removeKindleAids(final String part) {
     var result = part.replaceAllMapped(
-      RegExp(
-        r'''(<[^>]*?)\s[ac]id\s*=\s*['"]([^'"]*)['"]([^>]*>)''',
-        caseSensitive: false,
-      ),
+      _kindleAidPattern,
       (final match) {
         final aid = match.group(2)!;
         if (_linkedAids.contains(aid)) {
@@ -587,10 +578,7 @@ class Mobi8Reader {
       },
     );
     result = result.replaceAllMapped(
-      RegExp(
-        r'''(<[^>]*?)\sdata-AmznPageBreak\s*=\s*['"]([^'"]*)['"]([^>]*>)''',
-        caseSensitive: false,
-      ),
+      _amznPageBreakPattern,
       (final match) =>
           '${match.group(1)} style="page-break-after:${match.group(2)}"${match.group(3)}',
     );
@@ -599,39 +587,30 @@ class Mobi8Reader {
 
   String _updateFlowLinks(final String content) {
     var result = content.replaceAllMapped(
-      RegExp(r'(<(?:img|image|svg:image)\b[^>]*>)', caseSensitive: false),
+      _flowImageTagPattern,
       (final tagMatch) {
         final tag = tagMatch.group(1)!;
         return tag.replaceFirstMapped(
-          RegExp(
-            '''['"]kindle:embed:([0-9A-V]+)[^"']*['"]''',
-            caseSensitive: false,
-          ),
+          _kindleEmbedQuotedPattern,
           (final match) => '"${_embedHref(match.group(1)!) ?? ''}"',
         );
       },
     );
 
     result = result.replaceAllMapped(
-      RegExp(r'url\((.*?)\)', caseSensitive: false, dotAll: true),
+      _cssUrlPattern,
       (final urlMatch) {
         var inner = urlMatch.group(1)!;
         inner = inner.replaceAllMapped(
-          RegExp(
-            r'''kindle:embed:([0-9A-V]+)\?mime=image/[^\)]*''',
-            caseSensitive: false,
-          ),
+          _kindleEmbedMimePattern,
           (final match) => _embedHref(match.group(1)!) ?? inner,
         );
         inner = inner.replaceAllMapped(
-          RegExp('kindle:embed:([0-9A-V]+)', caseSensitive: false),
+          _kindleEmbedPattern,
           (final match) => _embedHref(match.group(1)!) ?? inner,
         );
         inner = inner.replaceAllMapped(
-          RegExp(
-            r'''kindle:flow:([0-9A-V]+)\?mime=text/css[^\)]*''',
-            caseSensitive: false,
-          ),
+          _kindleFlowCssPattern,
           (final match) {
             final target = _flowByNumber(parseBase32(match.group(1)!));
             return target?.filename ?? inner;
@@ -646,14 +625,10 @@ class Mobi8Reader {
 
   String _insertFlows(final String part) {
     return part.replaceAllMapped(
-      RegExp('(<[^>]*>)'),
+      _anyTagPattern,
       (final tagMatch) {
         final tag = tagMatch.group(1)!;
-        final flowPattern = RegExp(
-          r'''['"]kindle:flow:([0-9A-V]+)\?mime=([^'"]+)['"]''',
-          caseSensitive: false,
-        );
-        final match = flowPattern.firstMatch(tag);
+        final match = _flowRefPattern.firstMatch(tag);
         if (match == null) {
           return tag;
         }
@@ -664,21 +639,18 @@ class Mobi8Reader {
         if (target.filename == null) {
           return target.content;
         }
-        return tag.replaceFirst(flowPattern, '"${target.filename}"');
+        return tag.replaceFirst(_flowRefPattern, '"${target.filename}"');
       },
     );
   }
 
   String _insertImages(final String part) {
     var result = part.replaceAllMapped(
-      RegExp(r'(<(?:img|image)\b[^>]*>)', caseSensitive: false),
+      _imgTagPattern,
       (final tagMatch) {
         final tag = tagMatch.group(1)!;
         return tag.replaceFirstMapped(
-          RegExp(
-            '''[('"]kindle:embed:([0-9A-V]+)[^'")]*[)'"]''',
-            caseSensitive: false,
-          ),
+          _kindleEmbedWrappedPattern,
           (final match) {
             final href = _embedHref(match.group(1)!);
             return href == null ? match.group(0)! : '"$href"';
@@ -688,17 +660,14 @@ class Mobi8Reader {
     );
 
     result = result.replaceAllMapped(
-      RegExp(r'(<[a-zA-Z0-9]+\s[^>]*style\s*=\s*[^>]*>)', caseSensitive: false),
+      _styledTagPattern,
       (final tagMatch) {
         final tag = tagMatch.group(1)!;
         if (!tag.contains('kindle:embed')) {
           return tag;
         }
         return tag.replaceAllMapped(
-          RegExp(
-            '''[('"]kindle:embed:([0-9A-V]+)[^'")]*[)'"]''',
-            caseSensitive: false,
-          ),
+          _kindleEmbedWrappedPattern,
           (final match) {
             final href = _embedHref(match.group(1)!);
             return href == null ? match.group(0)! : '"$href"';
@@ -710,7 +679,7 @@ class Mobi8Reader {
   }
 
   String _normalizePart(final String part) {
-    var result = part.replaceAll(RegExp(r'<\?xml[^>]*>'), '');
+    var result = part.replaceAll(_xmlDeclarationPattern, '');
     result = result.replaceAll('\uFEFF', '');
     if (!result.contains('charset')) {
       result = result.replaceFirst('<head>', '<head><meta charset="utf-8"/>');
@@ -762,15 +731,15 @@ class Mobi8Reader {
         final plt = _lastIndexOfByte(block, 0x3C, 0, pgt);
         if (plt == -1) break;
         final tag = String.fromCharCodes(block.sublist(plt, pgt + 1));
-        final id = RegExp(r'''\sid\s*=\s*['"]([^'"]+)['"]''').firstMatch(tag);
+        final id = _idAttrPattern.firstMatch(tag);
         if (id != null) {
           return id.group(1)!;
         }
-        final name = RegExp(r'''\sname\s*=\s*['"]([^'"]+)['"]''').firstMatch(tag);
+        final name = _nameAttrPattern.firstMatch(tag);
         if (name != null) {
           return name.group(1)!;
         }
-        final aid = RegExp(r'''\said\s*=\s*['"]([^'"]+)['"]''').firstMatch(tag);
+        final aid = _aidAttrPattern.firstMatch(tag);
         if (aid != null) {
           _linkedAids.add(aid.group(1)!);
           return aid.group(1)!;
@@ -782,6 +751,73 @@ class Mobi8Reader {
     return '';
   }
 }
+
+// Markup patterns are compiled once and shared by every part —
+// rebuilding them per tag or per chapter dominates parse time on
+// large KF8 books.
+final RegExp _kindlePosFidPattern = RegExp(
+  '''['"]kindle:pos:fid:([0-9A-V]+):off:([0-9A-V]+)[^"']*['"]''',
+  caseSensitive: false,
+);
+final RegExp _kindleAidPattern = RegExp(
+  r'''(<[^>]*?)\s[ac]id\s*=\s*['"]([^'"]*)['"]([^>]*>)''',
+  caseSensitive: false,
+);
+final RegExp _amznPageBreakPattern = RegExp(
+  r'''(<[^>]*?)\sdata-AmznPageBreak\s*=\s*['"]([^'"]*)['"]([^>]*>)''',
+  caseSensitive: false,
+);
+final RegExp _flowImageTagPattern = RegExp(
+  r'(<(?:img|image|svg:image)\b[^>]*>)',
+  caseSensitive: false,
+);
+final RegExp _kindleEmbedQuotedPattern = RegExp(
+  '''['"]kindle:embed:([0-9A-V]+)[^"']*['"]''',
+  caseSensitive: false,
+);
+final RegExp _cssUrlPattern = RegExp(
+  r'url\((.*?)\)',
+  caseSensitive: false,
+  dotAll: true,
+);
+final RegExp _kindleEmbedMimePattern = RegExp(
+  r'''kindle:embed:([0-9A-V]+)\?mime=image/[^\)]*''',
+  caseSensitive: false,
+);
+final RegExp _kindleEmbedPattern = RegExp(
+  'kindle:embed:([0-9A-V]+)',
+  caseSensitive: false,
+);
+final RegExp _kindleFlowCssPattern = RegExp(
+  r'''kindle:flow:([0-9A-V]+)\?mime=text/css[^\)]*''',
+  caseSensitive: false,
+);
+final RegExp _anyTagPattern = RegExp('(<[^>]*>)');
+final RegExp _flowRefPattern = RegExp(
+  r'''['"]kindle:flow:([0-9A-V]+)\?mime=([^'"]+)['"]''',
+  caseSensitive: false,
+);
+final RegExp _imgTagPattern = RegExp(
+  r'(<(?:img|image)\b[^>]*>)',
+  caseSensitive: false,
+);
+final RegExp _kindleEmbedWrappedPattern = RegExp(
+  '''[('"]kindle:embed:([0-9A-V]+)[^'")]*[)'"]''',
+  caseSensitive: false,
+);
+final RegExp _styledTagPattern = RegExp(
+  r'(<[a-zA-Z0-9]+\s[^>]*style\s*=\s*[^>]*>)',
+  caseSensitive: false,
+);
+final RegExp _xmlDeclarationPattern = RegExp(r'<\?xml[^>]*>');
+final RegExp _svgOpenTagPattern = RegExp('<svg[^>]*>', caseSensitive: false);
+final RegExp _svgImagePattern = RegExp(
+  '<(?:svg:)?image[^>]*>',
+  caseSensitive: false,
+);
+final RegExp _idAttrPattern = RegExp(r'''\sid\s*=\s*['"]([^'"]+)['"]''');
+final RegExp _nameAttrPattern = RegExp(r'''\sname\s*=\s*['"]([^'"]+)['"]''');
+final RegExp _aidAttrPattern = RegExp(r'''\said\s*=\s*['"]([^'"]+)['"]''');
 
 bool _hasMagic(final Uint8List data, final String magic) {
   if (data.length < magic.length) return false;

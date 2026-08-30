@@ -1,3 +1,36 @@
+## Unreleased
+
+### Performance
+
+- **`extractPlainText` is a single pass** (58 MB/s from 15 MB/s on
+  the benchmark chapter): markup removal, entity decoding and
+  whitespace collapsing share one left-to-right scan that bulk-copies
+  plain text spans. `book.statistics` first access drops ~3× (it maps
+  `plainText` over every content file). A differential check against
+  the previous implementation over every fixture file found no output
+  changes on real book content.
+- **Double escaped entities now decode once** (`&amp;lt;` yields
+  `&lt;`, browser behaviour, instead of `<`); entities expanding to
+  `<`/`>` remain text, as before. Documented in the new dedicated
+  `extractPlainText` test suite.
+- **PalmDoc decompression is now linear**: `decompressPalmdoc` used to
+  snapshot the whole output buffer on every back reference (quadratic
+  overall). Full parses drop from ~118 ms to ~7 ms (MOBI 6), ~133 ms
+  to ~16 ms (KF8) and ~142 ms to ~16 ms (joint files) on the benchmark
+  fixtures.
+- **EPUB manifest resolution is O(n)**: `extractFiles` resolves items
+  through a prebuilt path map instead of scanning every archive entry
+  per manifest item.
+- **Shared compiled patterns**: the KF8 markup pipeline, MOBI 6 markup
+  conversions, chapter splitting and `extractPlainText` reuse
+  top-level `RegExp`s instead of recompiling them per tag, per
+  chapter or per call.
+- MOBI text records strip control bytes in bulk spans instead of byte
+  by byte, and cp1252 decoding goes through a 256-entry code unit
+  table.
+- `EpubBook.fromBytes` no longer copies the input when it already is
+  a `Uint8List`.
+
 ## 3.1.0 - August 29, 2026
 
 ### Added

@@ -58,26 +58,32 @@ String decodeBytes(final Uint8List bytes, final String codec) {
   return _cp1252(bytes);
 }
 
-const Map<int, String> _cp1252High = {
-  0x80: '\u20AC', 0x82: '\u201A', 0x83: '\u0192', 0x84: '\u201E',
-  0x85: '\u2026', 0x86: '\u2020', 0x87: '\u2021', 0x88: '\u02C6',
-  0x89: '\u2030', 0x8A: '\u0160', 0x8B: '\u2039', 0x8C: '\u0152',
-  0x8E: '\u017D', 0x91: '\u2018', 0x92: '\u2019', 0x93: '\u201C',
-  0x94: '\u201D', 0x95: '\u2022', 0x96: '\u2013', 0x97: '\u2014',
-  0x98: '\u02DC', 0x99: '\u2122', 0x9A: '\u0161', 0x9B: '\u203A',
-  0x9C: '\u0153', 0x9E: '\u017E', 0x9F: '\u0178',
-};
+/// cp1252 code unit for each byte value; the 0x80..0x9F range maps to
+/// its Windows punctuation, everything else is Latin-1 identity.
+final List<int> _cp1252CodeUnits = List<int>.generate(256, (final byte) {
+  const high = <int, String>{
+    0x80: '\u20AC', 0x82: '\u201A', 0x83: '\u0192', 0x84: '\u201E',
+    0x85: '\u2026', 0x86: '\u2020', 0x87: '\u2021', 0x88: '\u02C6',
+    0x89: '\u2030', 0x8A: '\u0160', 0x8B: '\u2039', 0x8C: '\u0152',
+    0x8E: '\u017D', 0x91: '\u2018', 0x92: '\u2019', 0x93: '\u201C',
+    0x94: '\u201D', 0x95: '\u2022', 0x96: '\u2013', 0x97: '\u2014',
+    0x98: '\u02DC', 0x99: '\u2122', 0x9A: '\u0161', 0x9B: '\u203A',
+    0x9C: '\u0153', 0x9E: '\u017E', 0x9F: '\u0178',
+  };
+  final mapped = high[byte];
+  if (mapped != null) {
+    return mapped.codeUnitAt(0);
+  }
+  // 0x81, 0x8D, 0x8F, 0x90 and 0x9D are undefined in cp1252.
+  return byte >= 0x80 && byte <= 0x9F ? 0x3F : byte;
+});
 
 String _cp1252(final Uint8List bytes) {
-  final buffer = StringBuffer();
-  for (final byte in bytes) {
-    if (byte >= 0x80 && byte <= 0x9F) {
-      buffer.write(_cp1252High[byte] ?? '?');
-    } else {
-      buffer.writeCharCode(byte);
-    }
-  }
-  return buffer.toString();
+  final codeUnits = List<int>.generate(
+    bytes.length,
+    (final i) => _cp1252CodeUnits[bytes[i]],
+  );
+  return String.fromCharCodes(codeUnits);
 }
 
 /// Counts the number of set bits in [value].

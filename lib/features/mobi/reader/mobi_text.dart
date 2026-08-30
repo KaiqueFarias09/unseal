@@ -54,12 +54,20 @@ Uint8List extractMobiText({
     html = Uint8List.sublistView(html, 0, html.length - 1);
   }
 
-  // Strip control bytes that survive in some encodings.
+  // Strip control bytes that survive in some encodings, copying the
+  // intact spans in bulk instead of byte by byte.
+  final isCp1252 = header.codec == 'cp1252';
   final output = BytesBuilder(copy: false);
-  for (final byte in html) {
-    if (byte == 0x00) continue;
-    if (header.codec == 'cp1252' && (byte == 0x1E || byte == 0x02)) continue;
-    output.addByte(byte);
+  var spanStart = 0;
+  for (var i = 0; i < html.length; i++) {
+    final byte = html[i];
+    final bad = byte == 0x00 || (isCp1252 && (byte == 0x1E || byte == 0x02));
+    if (!bad) {
+      continue;
+    }
+    output.add(Uint8List.sublistView(html, spanStart, i));
+    spanStart = i + 1;
   }
+  output.add(Uint8List.sublistView(html, spanStart));
   return output.takeBytes();
 }

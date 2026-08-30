@@ -66,6 +66,31 @@ Uint8List addFileposAnchors(final Uint8List html) {
   return out.takeBytes();
 }
 
+// Compiled once: these run over every chapter and every TOC entry of
+// every MOBI 6 book.
+final RegExp _recIndexPattern = RegExp(
+  r"""(<img[^>]*?)\s(?:lowrecindex|recindex|hirecindex)\s*=\s*["']?(\d+)["']?""",
+  caseSensitive: false,
+);
+final RegExp _fileposAttrPattern = RegExp(
+  r"""\sfilepos\s*=\s*["']?(\d+)["']?""",
+  caseSensitive: false,
+);
+final RegExp _pageBreakPattern = RegExp(
+  r'<\s*/?\s*mbp:pagebreak[^>]*>',
+  caseSensitive: false,
+);
+final RegExp _malformedClosingPattern = RegExp('</([a-zA-Z]+)<');
+final RegExp _tocAnchorPattern = RegExp(
+  r"""<a[^>]+href\s*=\s*["']#filepos(\d+)["'][^>]*>(.*?)</a>""",
+  dotAll: true,
+);
+final RegExp _separatorTagsPattern = RegExp(
+  '<(br|/p|p|/div|div)[^>]*>',
+  caseSensitive: false,
+);
+final RegExp _anyTagPattern = RegExp('<[^>]*>');
+
 /// Applies MOBI 6 markup conversions to decoded HTML:
 /// image `recindex` attributes to `src`, `filepos` attributes to
 /// anchors and `mbp:pagebreak` elements to styled divs.
@@ -74,10 +99,7 @@ String processMobi6Html(final String html, final Map<int, String> imageNames) {
 
   // Images: recindex / hirecindex / lowrecindex -> src.
   result = result.replaceAllMapped(
-    RegExp(
-      r"""(<img[^>]*?)\s(?:lowrecindex|recindex|hirecindex)\s*=\s*["']?(\d+)["']?""",
-      caseSensitive: false,
-    ),
+    _recIndexPattern,
     (final match) {
       final name = imageNames[int.parse(match.group(2)!)];
       return name == null ? match.group(1)! : '${match.group(1)} src="$name"';
@@ -87,7 +109,7 @@ String processMobi6Html(final String html, final Map<int, String> imageNames) {
   // Internal links: filepos -> #fileposN anchor. The number is
   // normalized (leading zeros stripped) to match the anchor ids.
   result = result.replaceAllMapped(
-    RegExp(r"""\sfilepos\s*=\s*["']?(\d+)["']?""", caseSensitive: false),
+    _fileposAttrPattern,
     (final match) => ' href="#filepos${int.parse(match.group(1)!)}"',
   );
 
@@ -96,17 +118,14 @@ String processMobi6Html(final String html, final Map<int, String> imageNames) {
 
   // Page breaks.
   result = result.replaceAll(
-    RegExp(
-      r'<\s*/?\s*mbp:pagebreak[^>]*>',
-      caseSensitive: false,
-    ),
+    _pageBreakPattern,
     '<div class="mbp_pagebreak"></div>',
   );
 
   // Light cleanup of malformed closings seen in the wild.
   result = result.replaceAll('</</', '</');
   result = result.replaceAllMapped(
-    RegExp('</([a-zA-Z]+)<'),
+    _malformedClosingPattern,
     (final match) => '</${match.group(1)}><',
   );
   return result;
@@ -196,11 +215,7 @@ class Mobi6Resources {
 /// block of `filepos` links. The longest contiguous run of anchors is
 /// taken as the TOC.
 Navigation deriveMobi6Navigation(final String html, final String title) {
-  final anchorPattern = RegExp(
-    r"""<a[^>]+href\s*=\s*["']#filepos(\d+)["'][^>]*>(.*?)</a>""",
-    dotAll: true,
-  );
-  final matches = anchorPattern.allMatches(html).toList();
+  final matches = _tocAnchorPattern.allMatches(html).toList();
   if (matches.isEmpty) {
     return Navigation(title: title, navPoints: <NavPoint>[]);
   }
@@ -249,7 +264,7 @@ bool _onlySeparators(final String html, final int from, final int to) {
     return false;
   }
   final between = html.substring(from, to)
-      .replaceAll(RegExp('<(br|/p|p|/div|div)[^>]*>', caseSensitive: false), '')
+      .replaceAll(_separatorTagsPattern, '')
       .trim();
   if (between.length > 2) {
     // Allow thin separators like '. ' or '-'.
@@ -258,8 +273,7 @@ bool _onlySeparators(final String html, final int from, final int to) {
   return true;
 }
 
-String _stripTags(final String raw) =>
-    raw.replaceAll(RegExp('<[^>]*>'), '');
+String _stripTags(final String raw) => raw.replaceAll(_anyTagPattern, '');
 
 String _padded(final int value) => value.toString().padLeft(5, '0');
 

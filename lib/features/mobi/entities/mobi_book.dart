@@ -22,6 +22,9 @@ final class MobiChapter {
   String toString() => 'MobiChapter(title: $title, file: ${file.name})';
 }
 
+final RegExp _fileposLinkPattern = RegExp(r'#filepos(\d+)$');
+final RegExp _anyTagPattern = RegExp('<[^>]*>');
+
 /// A parsed MOBI 6 / KF8 (AZW3) book.
 class MobiBook extends Book {
   /// Creates a [MobiBook] from already parsed parts.
@@ -86,7 +89,7 @@ class MobiBook extends Book {
     // Collect the anchor position of every TOC entry.
     final anchors = <(int, String)>[];
     for (final point in navigation.navPoints) {
-      final number = RegExp(r'#filepos(\d+)$').firstMatch(point.content);
+      final number = _fileposLinkPattern.firstMatch(point.content);
       if (number == null) {
         continue;
       }
@@ -114,7 +117,7 @@ class MobiBook extends Book {
     // anchor becomes its own chapter when it has visible content.
     if (boundaries.first.$1 > 0) {
       final leading = html.substring(0, boundaries.first.$1);
-      if (leading.replaceAll(RegExp('<[^>]*>'), '').trim().isNotEmpty) {
+      if (leading.replaceAll(_anyTagPattern, '').trim().isNotEmpty) {
         chapters.add(_chapter(index++, title, leading));
       }
     }

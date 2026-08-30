@@ -89,17 +89,22 @@ Iterable<ArchiveFile> _resolveEntries(
   final Iterable<ManifestItem> items,
   final String? rootFilePath,
 ) {
+  // Index the archive once by normalized, case-insensitive path; the
+  // first entry wins, mirroring a linear scan's match preference.
+  final filesByPath = <String, ArchiveFile>{};
+  for (final file in files) {
+    if (!file.isFile) {
+      continue;
+    }
+    filesByPath.putIfAbsent(
+      normalizeZipPath(file.name).toLowerCase(),
+      () => file,
+    );
+  }
+
   final resolved = <ArchiveFile>[];
   for (final item in items) {
-    ArchiveFile? match;
-    final itemPath = resolveItemPath(rootFilePath, item.path);
-    for (final file in files) {
-      if (!file.isFile) continue;
-      if (normalizeZipPath(file.name).toLowerCase() == itemPath.toLowerCase()) {
-        match = file;
-        break;
-      }
-    }
+    final match = filesByPath[resolveItemPath(rootFilePath, item.path).toLowerCase()];
     if (match != null) {
       resolved.add(match);
     }
