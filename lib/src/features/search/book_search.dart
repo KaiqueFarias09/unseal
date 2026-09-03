@@ -1,4 +1,5 @@
 import 'package:e_livre/src/features/reading/book.dart';
+import 'package:e_livre/src/features/text/document_text.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// One hit of a full-text search over a book's content.
@@ -18,28 +19,24 @@ final class SearchMatch {
   /// Path of the content file holding the match.
   final String sectionName;
 
-  /// Start offset of the match within the section's plain text.
+  /// Start offset of the match within the section's document text.
   final int start;
 
-  /// End offset (exclusive) of the match within the section's plain text.
+  /// End offset (exclusive) of the match within the section's
+  /// document text.
   final int end;
 
   /// The surrounding text, with `…` markers where context was cut.
   final String snippet;
 
   @override
-  String toString() =>
-      'SearchMatch(section: $sectionIndex, $start..$end, snippet: $snippet)';
+  String toString() => 'SearchMatch(section: $sectionIndex, $start..$end, snippet: $snippet)';
 }
 
 /// The result of a full-text search over a [Book].
 final class SearchResults {
   /// Creates [SearchResults].
-  const SearchResults({
-    required this.query,
-    required this.matches,
-    required this.truncated,
-  });
+  const SearchResults({required this.query, required this.matches, required this.truncated});
 
   /// The search query.
   final String query;
@@ -58,26 +55,38 @@ final class SearchResults {
 /// Full-text search over a book's plain text.
 ///
 /// Finds every occurrence of the query across the book's HTML
-/// sections (in reading order), case-insensitively by default.
-/// Matches carry the section they were found in plus offsets and a
-/// context snippet within that section's plain text.
+/// sections (in reading order). Matching is case-insensitive by
+/// default and, in the tolerant mode, ignores soft hyphens and
+/// zero-width characters and collapses whitespace runs — the same
+/// leniency Calibre's reader applies. Match offsets address the
+/// `documentText` space of each section, so a hit can be highlighted
+/// in a rendered page or turned into a reading position.
 extension BookSearch on Book {
-  /// Searches the book's plain text for [query].
+  /// Searches the book's document text for [query].
   ///
   /// [contextChars] controls how much surrounding text each snippet
-  /// carries on either side; [maxMatches] caps the result size.
+  /// carries on either side; [maxMatches] caps the result size;
+  /// [tolerant] enables the hyphenation/whitespace leniency (disable
+  /// for exact substring matching).
   SearchResults search(
     final String query, {
     final bool caseSensitive = false,
+    final bool tolerant = true,
     final int contextChars = 48,
     final int maxMatches = 200,
   }) {
     final results = <SearchMatch>[];
-    if (query.isEmpty) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
       return SearchResults(query: query, matches: results, truncated: false);
     }
 
+    final pattern = tolerant
+        ? _tolerantPattern(trimmed, caseSensitive: caseSensitive)
+        : RegExp(RegExp.escape(trimmed), caseSensitive: caseSensitive);
+
     final sections = readingOrder;
+    var truncated = false;
     for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
       final section = sections[sectionIndex];
       if (!section.isHtml) continue;
@@ -91,33 +100,26 @@ extension BookSearch on Book {
       }
       if (file == null) continue;
 
-      final text = file.plainText;
-      final haystack = caseSensitive ? text : text.toLowerCase();
-      final needle = caseSensitive ? query : query.toLowerCase();
-
-      var from = 0;
-      while (from <= haystack.length - needle.length) {
-        final start = haystack.indexOf(needle, from);
-        if (start == -1) break;
-        final end = start + needle.length;
-
+      final text = documentText(file.content);
+      for (final match in pattern.allMatches(text)) {
         if (results.length >= maxMatches) {
-          return SearchResults(query: query, matches: results, truncated: true);
+          truncated = true;
+          break;
         }
         results.add(
           SearchMatch(
             sectionIndex: sectionIndex,
             sectionName: section.name,
-            start: start,
-            end: end,
-            snippet: _snippet(text, start, end, contextChars),
+            start: match.start,
+            end: match.end,
+            snippet: _snippet(text, match.start, match.end, contextChars),
           ),
         );
-        from = end;
       }
+      if (truncated) break;
     }
 
-    return SearchResults(query: query, matches: results, truncated: false);
+    return SearchResults(query: query, matches: results, truncated: truncated);
   }
 
   /// Builds a context snippet around `[start, end)` with ellipses
@@ -134,4 +136,27 @@ extension BookSearch on Book {
     final suffix = to < text.length ? '…' : '';
     return '$prefix${text.substring(from, to)}$suffix';
   }
+}
+
+/// Optional separators between query characters: soft hyphens and
+/// zero-width characters inserted by typesetting.
+const String _invisibleSeparators = r'[\u00AD\u200B\u200C\u200D]?';
+
+/// Builds the lenient match pattern for [query]: each whitespace run
+/// in the query matches any whitespace run in the text, invisible
+/// separators may appear between characters, and the match is
+/// case-insensitive. Parity with Calibre's reader search.
+RegExp _tolerantPattern(final String query, {required final bool caseSensitive}) {
+  final buffer = StringBuffer();
+  for (final char in query.trim().split('')) {
+    if (buffer.isNotEmpty) {
+      buffer.write(_invisibleSeparators);
+    }
+    if (RegExp(r'\s').hasMatch(char)) {
+      buffer.write(r'\s+');
+    } else {
+      buffer.write(RegExp.escape(char));
+    }
+  }
+  return RegExp(buffer.toString(), caseSensitive: caseSensitive);
 }

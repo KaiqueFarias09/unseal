@@ -1,6 +1,6 @@
 import 'package:e_livre/src/features/cfi/epub_cfi.dart';
+import 'package:e_livre/src/features/cfi/epub_cfi_document.dart';
 import 'package:e_livre/src/features/epub/entities/entities.dart';
-import 'package:xml/xml.dart';
 
 /// The result of resolving a CFI against an [EpubBook].
 final class EpubCfiLocation {
@@ -19,12 +19,11 @@ final class EpubCfiLocation {
   /// Path of the content file the CFI points into.
   final String contentPath;
 
-  /// Character offset inside the addressed text node, when the CFI
-  /// targets one.
+  /// Character offset inside the document text (`documentText`
+  /// space), when the CFI targets a text node.
   final int? charOffset;
 
-  /// The addressed text node's content, excerpted around
-  /// [charOffset].
+  /// The addressed text, excerpted around [charOffset].
   final String? textExcerpt;
 
   /// Tag names walked while resolving the intra-document steps.
@@ -36,18 +35,22 @@ final class EpubCfiLocation {
       'offset: $charOffset, trail: $elementTrail)';
 }
 
-/// Resolves CFIs to content files and DOM positions, and builds CFIs
-/// from positions inside an [EpubBook].
+/// Resolves CFIs to content files and document-text positions, and
+/// builds CFIs from positions inside an [EpubBook].
+///
+/// Offsets live in the `documentText` space of each content file
+/// (visible text inside `<body>`, whitespace as-is) — the same space
+/// as `BookSearch.search` and reading positions.
 extension EpubCfiResolver on EpubBook {
   /// Resolves [cfi] against this book, or `null` when the CFI points
-  /// outside the book (unknown spine item, step past the DOM).
+  /// outside the book (unknown spine item, steps past the DOM).
   EpubCfiLocation? resolveCfi(final EpubCfi cfi) {
     final segments = cfi.start.segments;
     if (segments.isEmpty) return null;
 
-    // Canonical CFIs carry two segments: the package/spine steps and
-    // the document steps. A single segment is treated as a spine
-    // step alone.
+    // Canonical book CFIs carry two segments: the package/spine steps
+    // and the file-local document steps. A single segment is treated
+    // as document steps of the first spine item.
     EpubCfiSegment spineSegment;
     EpubCfiSegment? documentSegment;
     if (segments.length >= 2) {
@@ -72,68 +75,35 @@ extension EpubCfiResolver on EpubBook {
     }
     if (file == null) return null;
 
-    final trail = <String>[];
     if (documentSegment == null) {
       return EpubCfiLocation(
         contentIndex: contentIndex,
         contentPath: section.name,
         charOffset: spineStep.charOffset,
-        elementTrail: trail,
       );
     }
 
-    final root = _parseDocument(file.content);
-    if (root == null) return null;
-
-    XmlElement node = root;
-    for (var i = 0; i < documentSegment.steps.length; i++) {
-      final step = documentSegment.steps[i];
-      final isLast = i == documentSegment.steps.length - 1;
-      if (step.index.isEven) {
-        final elements = node.children.whereType<XmlElement>().toList();
-        final index = step.index ~/ 2 - 1;
-        if (index < 0 || index >= elements.length) return null;
-        node = elements[index];
-        trail.add(node.name.local);
-        if (isLast) {
-          return EpubCfiLocation(
-            contentIndex: contentIndex,
-            contentPath: section.name,
-            elementTrail: trail,
-            textExcerpt: _excerpt(node.innerText, 0),
-          );
-        }
-      } else {
-        final texts = node.children
-            .where((final child) => child is XmlText || child is XmlCDATA)
-            .toList();
-        final ordinal = (step.index + 1) ~/ 2 - 1;
-        if (ordinal < 0 || ordinal >= texts.length) return null;
-        final text = texts[ordinal].value ?? '';
-        final offset = (step.charOffset ?? 0).clamp(0, text.length);
-        return EpubCfiLocation(
-          contentIndex: contentIndex,
-          contentPath: section.name,
-          charOffset: offset,
-          textExcerpt: _excerpt(text, offset),
-          elementTrail: trail,
-        );
-      }
-    }
+    final document = EpubCfiDocument.parse(file.content);
+    final steps = <int>[for (final step in documentSegment.steps) step.index];
+    final localOffset = EpubCfi.simple(
+      steps: steps,
+      charOffset: spineStep.charOffset ?? documentSegment.steps.last.charOffset ?? 0,
+    );
+    final offset = document.offsetForCfi(localOffset);
+    if (offset == null) return null;
 
     return EpubCfiLocation(
       contentIndex: contentIndex,
       contentPath: section.name,
-      elementTrail: trail,
+      charOffset: offset,
+      textExcerpt: _excerpt(document.text, offset),
+      elementTrail: const <String>[],
     );
   }
 
-  /// Builds a range-less CFI pointing at [offsetInText] of the raw
-  /// concatenated text of the content section at [contentIndex] in
-  /// the reading order.
-  ///
-  /// The offset counts every character of every text node of the
-  /// document (whitespace included), in document order.
+  /// Builds a book-level CFI (`epubcfi(/6/N!…)`) pointing at
+  /// [offsetInText] of the document text of the content section at
+  /// [contentIndex] in the reading order.
   String buildEpubCfi({required final int contentIndex, required final int offsetInText}) {
     final sections = readingOrder;
     if (contentIndex < 0 || contentIndex >= sections.length) {
@@ -152,78 +122,19 @@ extension EpubCfiResolver on EpubBook {
       throw StateError('content section ${section.name} is not an HTML file');
     }
 
-    final root = _parseDocument(file.content);
-    if (root == null) throw StateError('content section ${section.name} is not valid XML');
-
-    // Walk the document text in order to find the node that holds the
-    // offset, keeping each node's path from the root.
-    final parents = <XmlElement>[];
-    XmlNode? target;
-    var targetOffset = 0;
-    var consumed = 0;
-
-    void visit(final XmlNode node) {
-      if (target != null) return;
-      if (node is XmlText || node is XmlCDATA) {
-        final length = (node.value ?? '').length;
-        if (offsetInText < consumed + length) {
-          target = node;
-          targetOffset = offsetInText - consumed;
-        }
-        consumed += length;
-        return;
-      }
-      if (node is XmlElement) {
-        parents.add(node);
-        for (final child in node.children) {
-          visit(child);
-          if (target != null) return;
-        }
-        parents.removeLast();
-      }
+    // The file-local steps come from the document model; the spine
+    // segment is prepended so the CFI addresses the whole book:
+    // /6 is the spine element, /2N the N-th itemref.
+    final document = EpubCfiDocument.parse(file.content);
+    if (offsetInText < 0 || offsetInText > document.text.length) {
+      throw RangeError.range(offsetInText, 0, document.text.length, 'offsetInText');
     }
-
-    visit(root);
-    if (target == null) {
-      throw RangeError.value(offsetInText, 'offsetInText', 'past the end of the document');
-    }
-
-    final steps = <EpubCfiStep>[];
-    for (final parent in parents) {
-      if (identical(parent, root)) continue;
-      final siblings = parent.parentElement?.children.whereType<XmlElement>().toList() ?? const <XmlElement>[];
-      final ordinal = siblings.indexOf(parent) + 1;
-      steps.add(EpubCfiStep(index: ordinal * 2));
-    }
-    // The text node itself: odd step 2k-1 for the k-th character-data
-    // child of its parent.
-    final owner = target is XmlElement ? target : target!.parent;
-    final textSiblings = owner?.children
-        .where((final child) => child is XmlText || child is XmlCDATA)
-        .toList();
-    final textOrdinal = textSiblings?.indexOf(target!) ?? 0;
-    steps.add(EpubCfiStep(index: textOrdinal * 2 + 1, charOffset: targetOffset));
-
-    final path = EpubCfiPath(
-      segments: [
-        EpubCfiSegment(
-          steps: [
-            const EpubCfiStep(index: 6),
-            EpubCfiStep(index: (contentIndex + 1) * 2),
-          ],
-        ),
-        EpubCfiSegment(steps: steps),
-      ],
+    final local = document.cfiForOffset(offsetInText);
+    final spine = EpubCfi.simple(steps: [6, (contentIndex + 1) * 2]);
+    final prefixed = EpubCfi(
+      start: EpubCfiPath(segments: [...spine.start.segments, ...local.start.segments]),
     );
-    return EpubCfi(start: path).encode();
-  }
-}
-
-XmlElement? _parseDocument(final String content) {
-  try {
-    return XmlDocument.parse(content).rootElement;
-  } on XmlException {
-    return null;
+    return prefixed.encode();
   }
 }
 

@@ -8,10 +8,7 @@ import '../mobi/mobi_fixture_builder.dart';
 
 Uint8List _buildBook(final String html) {
   return buildPdb('Synthetic', [
-    buildMobiRecord0(
-      textRecordCount: 1,
-      title: 'Search Fixture',
-    ),
+    buildMobiRecord0(textRecordCount: 1, title: 'Search Fixture'),
     Uint8List.fromList(convert.utf8.encode(html)),
   ]);
 }
@@ -68,18 +65,14 @@ void main() {
     });
 
     test('truncates at maxMatches', () {
-      final book = parseFixture(
-        '<html><body><p>abc abc abc abc abc abc</p></body></html>',
-      );
+      final book = parseFixture('<html><body><p>abc abc abc abc abc abc</p></body></html>');
       final results = book.search('abc', maxMatches: 2);
       expect(results.matches, hasLength(2));
       expect(results.truncated, isTrue);
     });
 
     test('matches in later sections carry their reading-order index', () {
-      final book = parseFixture(
-        '<html><body><p>first chapter</p></body></html>',
-      );
+      final book = parseFixture('<html><body><p>first chapter</p></body></html>');
       final results = book.search('chapter');
       expect(results.matches.single.sectionName, isNotEmpty);
     });

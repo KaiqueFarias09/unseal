@@ -6,19 +6,13 @@ import 'package:test/test.dart';
 void main() {
   group('EpubCfi.parse', () {
     test('parses the canonical Moby Dick example from the spec', () {
-      final cfi = EpubCfi.parse(
-        'epubcfi(/6/4[chap01ref]!/4[body01]/10[para05]/3:10)',
-      );
+      final cfi = EpubCfi.parse('epubcfi(/6/4[chap01ref]!/4[body01]/10[para05]/3:10)');
       expect(cfi.isRange, isFalse);
       expect(cfi.start.segments, hasLength(2));
       expect(cfi.start.segments[0].steps.map((final s) => s.index), [6, 4]);
       expect(cfi.start.segments[0].steps[1].assertion, 'chap01ref');
       expect(cfi.start.segments[1].steps.map((final s) => s.index), [4, 10, 3]);
-      expect(cfi.start.segments[1].steps.map((final s) => s.assertion), [
-        'body01',
-        'para05',
-        null,
-      ]);
+      expect(cfi.start.segments[1].steps.map((final s) => s.assertion), ['body01', 'para05', null]);
       final last = cfi.start.segments[1].steps.last;
       expect(last.isText, isTrue);
       expect(last.charOffset, 10);
@@ -38,8 +32,10 @@ void main() {
 
     test('parses side bias inside assertions', () {
       final cfi = EpubCfi.parse('epubcfi(/6/4!/4/1:5[some text;s=b])');
-      expect(cfi.start.segments[1].steps.last.assertion, 'some text;s=b');
+      expect(cfi.start.segments[1].steps.last.assertion, 'some text');
+      expect(cfi.start.segments[1].steps.last.side, 'b');
       expect(cfi.start.segments[1].steps.last.charOffset, 5);
+      expect(cfi.encode(), 'epubcfi(/6/4!/4/1:5[some text;s=b])');
     });
 
     test('accepts bare paths without the epubcfi() wrapper', () {
@@ -110,11 +106,12 @@ void main() {
     });
 
     test('resolves hand-written CFIs into the right section', () {
-      // /6/2 targets the first spine item, /2 its first element child.
-      final location = book.resolveCfi(EpubCfi.parse('epubcfi(/6/2!/2)'));
+      // /6/2 targets the first spine item; /1:0 its first text node.
+      final location = book.resolveCfi(EpubCfi.parse('epubcfi(/6/2!/1:0)'));
       expect(location, isNotNull);
       expect(location!.contentIndex, 0);
-      expect(location.elementTrail, isNotEmpty);
+      expect(location.charOffset, 0);
+      expect(location.textExcerpt, isNotNull);
     });
 
     test('returns null for CFIs outside the book', () {
