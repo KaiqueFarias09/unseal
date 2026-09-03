@@ -7,7 +7,7 @@ description: >-
   (KF8) and FB2 ebooks.
 
 environment:
-  sdk: ">=3.1.0 <4.0.0"
+  sdk: ">=3.8.0 <4.0.0"
 
 topics:
   - ebook
@@ -15,7 +15,6 @@ topics:
   - mobi
   - fb2
   - parser
-  - metadata
 
 # Base64 image payloads inside test fixtures can match the OAuth
 # refresh-token pattern; they are public-domain book data, not secrets.
@@ -23,7 +22,7 @@ false_secrets:
   - test/resources/**
 
 dev_dependencies:
-  lints: ^3.0.0
+  lints: ^6.1.0
   test: ^1.16.7
 
 dependencies:

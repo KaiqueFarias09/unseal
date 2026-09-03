@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:e_livre/e_livre.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -55,7 +53,7 @@ class BookSummaryPage extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    book.metadata.title,
+                    book.metadata.title ?? 'Untitled',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
