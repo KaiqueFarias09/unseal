@@ -191,7 +191,9 @@ Metadata _parseMetadata(
   // `marc:relators` refines). DC elements are looked up by namespace
   // since the `dc:` prefix is not guaranteed.
   final titleElement = metadataElement.findElements('title', namespace: _dcNamespace).firstOrNull;
-  final creatorElement = metadataElement.findElements('creator', namespace: _dcNamespace).firstOrNull;
+  final creatorElement = metadataElement
+      .findElements('creator', namespace: _dcNamespace)
+      .firstOrNull;
   final titleSort =
       _fileAsOf(titleElement, metaElements) ??
       _normalize(_namedMeta(metaElements, 'calibre:title_sort'));
@@ -362,24 +364,6 @@ Guide? _parseGuide(final XmlElement guideElement) {
   );
 }
 
-bool _isEpub2(final String version) => double.parse(version) < 3.0;
-
-const String _opfNamespace = 'http://www.idpf.org/2007/opf';
-const String _dcNamespace = 'http://purl.org/dc/elements/1.1/';
-
-/// An OPF-namespaced (or plain) attribute by local name, trimmed.
-///
-/// Real-world files spell these attributes `opf:file-as`, `ns4:role`,
-/// plain `file-as`, ... so the prefix must not matter.
-String? _opfAttribute(final XmlElement element, final String localName) {
-  final namespaced = element.getAttribute(localName, namespace: _opfNamespace);
-  if (namespaced != null && namespaced.trim().isNotEmpty) return namespaced.trim();
-  final plain = element.getAttribute(localName);
-  if (plain != null && plain.trim().isNotEmpty) return plain.trim();
-
-  return null;
-}
-
 /// The sort form carried on [element]: its `file-as` attribute, or a
 /// `file-as` refine targeted at it (`<meta refines="#id"
 /// property="file-as">…</meta>`).
@@ -400,28 +384,43 @@ String? _fileAsOf(final XmlElement? element, final List<XmlElement> metaElements
   return null;
 }
 
-/// Value of `<meta name="[name]" content="…"/>`.
-String? _namedMeta(final Iterable<XmlElement> metaElements, final String name) {
-  for (final meta in metaElements) {
-    if (meta.getAttribute('name') != name) continue;
-    final value = (meta.getAttribute('content') ?? meta.innerText).trim();
+/// Text of the `dc:contributor` carrying the `bkp` (book producer)
+/// role, either as an attribute or as a `marc:relators` refines.
+String? _bookProducerOf(final XmlElement metadataElement, final List<XmlElement> metaElements) {
+  for (final contributor in metadataElement.findElements('contributor', namespace: _dcNamespace)) {
+    final role = _opfAttribute(contributor, 'role');
+    final isProducer = role?.toLowerCase() == 'bkp' || _refinesRoleIsBkp(contributor, metaElements);
+    if (!isProducer) continue;
+    final value = contributor.innerText.trim();
     if (value.isNotEmpty) return value;
   }
 
   return null;
 }
 
-/// Text of the `dc:contributor` carrying the `bkp` (book producer)
-/// role, either as an attribute or as a `marc:relators` refines.
-String? _bookProducerOf(final XmlElement metadataElement, final List<XmlElement> metaElements) {
-  for (final contributor in metadataElement.findElements(
-    'contributor',
-    namespace: _dcNamespace,
-  )) {
-    final role = _opfAttribute(contributor, 'role');
-    final isProducer = role?.toLowerCase() == 'bkp' || _refinesRoleIsBkp(contributor, metaElements);
-    if (!isProducer) continue;
-    final value = contributor.innerText.trim();
+bool _isEpub2(final String version) => double.parse(version) < 3.0;
+
+const String _opfNamespace = 'http://www.idpf.org/2007/opf';
+const String _dcNamespace = 'http://purl.org/dc/elements/1.1/';
+
+/// An OPF-namespaced (or plain) attribute by local name, trimmed.
+///
+/// Real-world files spell these attributes `opf:file-as`, `ns4:role`,
+/// plain `file-as`, ... so the prefix must not matter.
+String? _opfAttribute(final XmlElement element, final String localName) {
+  final namespaced = element.getAttribute(localName, namespace: _opfNamespace);
+  if (namespaced != null && namespaced.trim().isNotEmpty) return namespaced.trim();
+  final plain = element.getAttribute(localName);
+  if (plain != null && plain.trim().isNotEmpty) return plain.trim();
+
+  return null;
+}
+
+/// Value of `<meta name="[name]" content="…"/>`.
+String? _namedMeta(final Iterable<XmlElement> metaElements, final String name) {
+  for (final meta in metaElements) {
+    if (meta.getAttribute('name') != name) continue;
+    final value = (meta.getAttribute('content') ?? meta.innerText).trim();
     if (value.isNotEmpty) return value;
   }
 

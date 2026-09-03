@@ -120,11 +120,6 @@ BookCover? _coverFrom(final BinaryFile? coverFile) {
   return BookCover(bytes: coverFile.content, type: type, width: size?.width, height: size?.height);
 }
 
-/// Nulls out blank and `Unknown` strings coming from optional EXTH
-/// records (Calibre treats `Unknown` as an absent value).
-String? _nonEmpty(final String? value) =>
-    value == null || value.isEmpty || value.toLowerCase() == 'unknown' ? null : value;
-
 DateTime? _parseMobiDate(final String? raw) {
   if (raw == null) return null;
   final trimmed = raw.trim();
@@ -142,3 +137,8 @@ DateTime? _parseMobiDate(final String? raw) {
 
   return DateTime(int.parse(match.group(1)!), month, day);
 }
+
+/// Nulls out blank and `Unknown` strings coming from optional EXTH
+/// records (Calibre treats `Unknown` as an absent value).
+String? _nonEmpty(final String? value) =>
+    value == null || value.isEmpty || value.toLowerCase() == 'unknown' ? null : value;

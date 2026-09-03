@@ -39,10 +39,6 @@ Navigation getEpubNavigation(
   return isNcx ? _navigationFromNcx(document) : _navigationFromNavDoc(document);
 }
 
-String? _navDocumentId(final EpubPackage package) {
-  return package is Epub3Package ? package.tocId : null;
-}
-
 Navigation _navigationFromNcx(final XmlDocument document) {
   final title =
       document
@@ -133,4 +129,8 @@ List<NavPoint> _navPointsFromNavList(final XmlElement list, final int order) {
   }
 
   return points;
+}
+
+String? _navDocumentId(final EpubPackage package) {
+  return package is Epub3Package ? package.tocId : null;
 }
