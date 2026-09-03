@@ -17,6 +17,7 @@ class EpubBook extends Book implements EpubDocument {
     required this.cover,
     required this.package,
     this.spinePaths,
+    this.archiveEntries = const <ArchiveEntry>[],
   }) : super(format: BookFormat.epub);
 
   /// The navigation (table of contents) of the book.
@@ -34,6 +35,10 @@ class EpubBook extends Book implements EpubDocument {
   /// The parsed OPF package.
   @override
   final EpubPackage package;
+
+  /// The physical zip entries of the container, manifest-independent.
+  @override
+  final List<ArchiveEntry> archiveEntries;
 
   /// Archive paths of the spine items in reading order (computed at
   /// parse time since it needs the OPF location). Falls back to the

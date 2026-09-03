@@ -29,6 +29,32 @@ void main() {
     }
   });
 
+  group('archive inventory', () {
+    // The physical zip view is manifest-independent: infrastructure
+    // entries ship alongside the content files.
+    test('lists every zip entry, including non-manifest ones', () async {
+      final book = await BookReader.openFromPath(
+        'test/resources/epub/Alices Adventures in Wonderland.epub',
+      );
+      final paths = book.archiveEntries.map((final entry) => entry.path).toSet();
+      expect(paths, contains('mimetype'));
+      expect(paths, anyElement(contains('META-INF/')));
+      for (final entry in book.archiveEntries) {
+        expect(entry.size, greaterThanOrEqualTo(0), reason: entry.path);
+      }
+    });
+
+    test('keeps the manifest content inside the physical inventory', () async {
+      final book = await BookReader.openFromPath(
+        'test/resources/epub/Alices Adventures in Wonderland.epub',
+      );
+      final entries = book.archiveEntries.map((final entry) => entry.path).toSet();
+      for (final file in book.files.html) {
+        expect(entries, contains(file.path), reason: 'manifest item missing from the zip view');
+      }
+    });
+  });
+
   group('NCX navigation', () {
     // Regression: `XmlElement.value` is always null in package:xml, so
     // NCX labels used to come out empty for every book.

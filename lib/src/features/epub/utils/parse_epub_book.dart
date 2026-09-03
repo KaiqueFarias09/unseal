@@ -35,7 +35,17 @@ EpubBook parseEpubArchive(final Archive archive) {
     cover: cover,
     package: package,
     spinePaths: _spinePaths(package, files, rootFilePath),
+    archiveEntries: _archiveEntries(archive),
   );
+}
+
+/// The physical inventory of the container: every file entry of the
+/// zip, manifest-independent.
+List<ArchiveEntry> _archiveEntries(final Archive archive) {
+  return <ArchiveEntry>[
+    for (final file in archive.files)
+      if (file.isFile) ArchiveEntry(path: normalizeZipPath(file.name), size: file.size),
+  ];
 }
 
 /// Reads only the metadata of an EPUB [archive].

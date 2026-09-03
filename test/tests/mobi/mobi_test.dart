@@ -41,6 +41,10 @@ void main() {
       }
     });
 
+    test('carries no archive inventory (records, not a zip)', () {
+      expect(book.archiveEntries, isEmpty);
+    });
+
     test('splits chapters at the toc anchors', () {
       final chapters = book.chapters;
       // Front matter + one chapter per toc entry.

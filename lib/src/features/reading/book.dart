@@ -9,6 +9,7 @@ import 'package:e_livre/src/foundation/entities/entities.dart';
 /// * [metadata] — common book metadata (title, authors, cover, ...).
 /// * [navigation] — the table of contents.
 /// * [files] — extracted content files (html, css, images, fonts, ...).
+/// * [archiveEntries] — the physical entries of the container archive.
 /// * [statistics] — word count and reading time estimates.
 /// * [readingOrder] — the content files in reading order.
 ///
@@ -34,6 +35,13 @@ abstract class Book {
 
   /// The navigation (table of contents) of this book.
   Navigation get navigation;
+
+  /// The physical entries of the book's container archive (e.g. the
+  /// EPUB zip), manifest-independent: infrastructure files such as
+  /// `META-INF/container.xml` and stray entries are included, nothing
+  /// is parsed. Empty for formats without an archive container
+  /// (MOBI, plain FB2).
+  List<ArchiveEntry> get archiveEntries => const <ArchiveEntry>[];
 
   /// The content files in reading order.
   ///

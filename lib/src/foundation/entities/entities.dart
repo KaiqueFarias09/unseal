@@ -1,3 +1,4 @@
+export 'book/archive_entry.dart';
 export 'book/files.dart';
 export 'book/reading_order_item.dart';
 export 'book_cover.dart';
