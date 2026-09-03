@@ -1,17 +1,7 @@
 import 'package:e_livre/e_livre.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-Future<Book> loadExampleBook() async {
-  final data = await rootBundle.load(
-    'assets/Alices Adventures in Wonderland.epub',
-  );
-  return BookReader.openFromBytes(Uint8List.sublistView(data));
-}
-
-void main() {
-  runApp(const ELivreExampleApp());
-}
+import 'package:e_livre_example/shared/theme/theme.dart';
 
 class ELivreExampleApp extends StatelessWidget {
   const ELivreExampleApp({super.key});
@@ -26,6 +16,16 @@ class ELivreExampleApp extends StatelessWidget {
   }
 }
 
+Future<Book> loadExampleBook() async {
+  final data = await rootBundle.load('assets/Alices Adventures in Wonderland.epub');
+
+  return BookReader.openFromBytes(Uint8List.sublistView(data));
+}
+
+void main() {
+  runApp(const ELivreExampleApp());
+}
+
 class BookSummaryPage extends StatelessWidget {
   const BookSummaryPage({super.key});
 
@@ -37,15 +37,13 @@ class BookSummaryPage extends StatelessWidget {
         future: loadExampleBook(),
         builder: (final context, final snapshot) {
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Could not read book: ${snapshot.error}'),
-            );
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: Text('Could not read book: ${snapshot.error}'));
           }
 
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
           final book = snapshot.requireData;
+
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -57,7 +55,7 @@ class BookSummaryPage extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                  const SizedBox(height: 12),
+                  AppSpacing.vMd,
                   Text('Format: ${book.format.name}'),
                   Text('Content files: ${book.files.html.length}'),
                 ],
