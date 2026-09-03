@@ -19,7 +19,6 @@ String? getEpubRootFilePath(final Archive epubArchive) {
   final containerDocument = XmlDocument.parse(
     convert.utf8.decode(containerFileEntry.content as List<int>),
   );
-
   final package = _getPackageElement(containerDocument);
 
   return _getRootFilePath(package);
@@ -37,7 +36,6 @@ XmlElement _getPackageElement(final XmlDocument containerDocument) {
   final package = containerDocument
       .findElements('container', namespace: epub_constants.containerNamespace)
       .firstOrNull;
-
   if (package == null) throw EpubException('EPUB parsing error: Invalid epub container');
 
   return package;

@@ -28,17 +28,16 @@ DecodedFont decodeFontRecord(final Uint8List data) {
       data[3] != 0x54) {
     return DecodedFont(data: data, extension: 'dat');
   }
+
   final view = ByteData.sublistView(data);
   final usize = view.getUint32(4);
   final flags = view.getUint32(8);
   final dstart = view.getUint32(12);
   final xorLen = view.getUint32(16);
   final xorStart = view.getUint32(20);
-
   if (dstart >= data.length) return DecodedFont(data: data, extension: 'dat');
 
   var fontData = Uint8List.sublistView(data, dstart);
-
   if ((flags & 0x2) != 0 && xorLen > 0 && xorStart + xorLen <= data.length) {
     final key = Uint8List.sublistView(data, xorStart, xorStart + xorLen);
     final buffer = Uint8List.fromList(fontData);
@@ -49,7 +48,6 @@ DecodedFont decodeFontRecord(final Uint8List data) {
     }
     fontData = buffer;
   }
-
   if ((flags & 0x1) != 0) {
     try {
       fontData = const ZLibDecoder().decodeBytes(fontData) as Uint8List;
@@ -58,9 +56,9 @@ DecodedFont decodeFontRecord(final Uint8List data) {
     }
     if (fontData.length != usize) return DecodedFont(data: data, extension: 'dat');
   }
-
   final signature = fontData.length >= 4 ? fontData.sublist(0, 4) : fontData;
   String extension;
+
   if (_equals(signature, const [0x00, 0x01, 0x00, 0x00]) ||
       _equalsAscii(signature, 'true') ||
       _equalsAscii(signature, 'ttcf')) {
@@ -76,6 +74,7 @@ DecodedFont decodeFontRecord(final Uint8List data) {
 
 bool _equals(final Uint8List bytes, final List<int> magic) {
   if (bytes.length < magic.length) return false;
+
   for (var i = 0; i < magic.length; i++) {
     if (bytes[i] != magic[i]) return false;
   }
@@ -85,6 +84,7 @@ bool _equals(final Uint8List bytes, final List<int> magic) {
 
 bool _equalsAscii(final Uint8List bytes, final String magic) {
   if (bytes.length < magic.length) return false;
+
   for (var i = 0; i < magic.length; i++) {
     if (bytes[i] != magic.codeUnitAt(i)) return false;
   }

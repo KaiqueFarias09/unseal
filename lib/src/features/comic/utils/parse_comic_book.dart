@@ -22,6 +22,7 @@ class _Page {
 /// Parses a comic book (CBZ zip or CBR rar) from raw [bytes].
 ComicBook parseComicBook(final Uint8List bytes) {
   final (pages, comicInfo) = _readPages(bytes);
+
   return _build(pages, comicInfo, _cbz(bytes) ? BookFormat.cbz : BookFormat.cbr);
 }
 
@@ -56,6 +57,7 @@ bool _cbz(final Uint8List bytes) => bytes.length > 2 && bytes[0] == 0x50 && byte
       if (!entry.isFile) {
         continue;
       }
+
       final content = entry.content;
       final data = content is Uint8List
           ? Uint8List.sublistView(content)
@@ -64,6 +66,7 @@ bool _cbz(final Uint8List bytes) => bytes.length > 2 && bytes[0] == 0x50 && byte
         comicInfo = ComicInfo.parse(convert.utf8.decode(data, allowMalformed: true));
         continue;
       }
+
       if (sniffImageType(data) != null) {
         pages.add(_Page(entry.name, data));
       }
@@ -83,13 +86,14 @@ bool _cbz(final Uint8List bytes) => bytes.length > 2 && bytes[0] == 0x50 && byte
           'CBR archives are supported.',
         );
       }
+
       if (sniffImageType(entry.data) != null) {
         pages.add(_Page(entry.name, entry.data));
       }
     }
   }
-
   if (pages.isEmpty) throw const ComicException('No image pages found in the comic archive.');
+
   pages.sort((final a, final b) => compareNatural(a.name, b.name));
 
   return (pages, comicInfo);
@@ -104,15 +108,14 @@ ComicBook _build(final List<_Page> pages, final ComicInfo? comicInfo, final Book
       BinaryFile(content: page.bytes, name: name, type: type.fileExtension, path: page.name),
     );
   }
-
   final cover = images.first;
-  var metadata = comicInfo?.metadata ?? BookMetadata(format: format);
-  if (comicInfo != null) {
-    metadata = metadata.copyWith(format: format);
-  }
 
+  var metadata = comicInfo?.metadata ?? BookMetadata(format: format);
+
+  if (comicInfo != null) metadata = metadata.copyWith(format: format);
   final coverType = sniffImageType(cover.content)!;
   final size = imageSize(cover.content);
+
   final coverMetadata = metadata.copyWith(
     cover: BookCover(
       bytes: cover.content,
@@ -147,11 +150,13 @@ int compareNatural(final String a, final String b) {
         ib++;
       }
       if (na != nb) return na.compareTo(nb);
-    } else {
-      if (ca != cb) return ca.compareTo(cb);
-      ia++;
-      ib++;
+
+      continue;
     }
+    if (ca != cb) return ca.compareTo(cb);
+
+    ia++;
+    ib++;
   }
 
   return (a.length - ia).compareTo(b.length - ib);

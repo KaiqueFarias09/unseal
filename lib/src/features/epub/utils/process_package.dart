@@ -27,7 +27,6 @@ Navigation getEpubNavigation(
     orElse: () =>
         throw EpubException('EPUB parsing error: TOC item $tocId not found in EPUB manifest.'),
   );
-
   final tocFileEntryPath = resolveItemPath(rootFilePath, tocManifestItem.path);
   final tocFileEntry = findArchiveFile(archive, tocFileEntryPath);
   if (tocFileEntry == null) {
@@ -35,7 +34,6 @@ Navigation getEpubNavigation(
   }
 
   final document = XmlDocument.parse(convert.utf8.decode(tocFileEntry.content as List<int>));
-
   final isNcx = document.rootElement.name.local == 'ncx';
 
   return isNcx ? _navigationFromNcx(document) : _navigationFromNavDoc(document);
@@ -55,7 +53,6 @@ Navigation _navigationFromNcx(final XmlDocument document) {
           ?.value
           ?.trim() ??
       '';
-
   final navMap = document.findAllElements('navMap').firstOrNull;
   final rootPoints = navMap == null
       ? <NavPoint>[]
@@ -101,6 +98,7 @@ Navigation _navigationFromNavDoc(final XmlDocument document) {
       navElement = candidate;
       break;
     }
+
     navElement ??= candidate;
   }
   if (navElement == null) return Navigation(title: title, navPoints: <NavPoint>[]);
@@ -117,9 +115,8 @@ List<NavPoint> _navPointsFromNavList(final XmlElement list, final int order) {
   for (final listItem in list.findElements('li')) {
     final anchor = listItem.findElements('a').firstOrNull;
     final nestedList = listItem.findElements('ol').firstOrNull;
-    if (anchor == null && nestedList == null) {
-      continue;
-    }
+    if (anchor == null && nestedList == null) continue;
+
     playOrder++;
     points.add(
       NavPoint(

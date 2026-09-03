@@ -36,6 +36,7 @@ BookMetadata mergeBookMetadata(final BookMetadata base, final BookMetadata overl
 /// do not match are returned unchanged.
 BookMetadata applyFilenameFallback(final BookMetadata metadata, final String filePath) {
   final hasTitle = metadata.title != null && metadata.title!.isNotEmpty;
+
   final hasAuthors = metadata.authors.isNotEmpty;
   if (hasTitle && hasAuthors) return metadata;
 

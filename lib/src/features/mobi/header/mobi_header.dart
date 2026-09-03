@@ -13,7 +13,6 @@ class MobiHeader {
     textRecordCount = record0.length >= 10 ? view.getUint16(8) : 0;
     textRecordSize = record0.length >= 12 ? view.getUint16(10) : 0;
     encryptionType = record0.length >= 14 ? view.getUint16(12) : 0;
-
     ancient = record0.length <= 16;
     if (ancient) {
       codec = 'cp1252';
@@ -42,7 +41,6 @@ class MobiHeader {
     uniqueId = view.getUint32(32);
     fileVersion = view.getUint32(36);
     codec = codepage == 65001 ? 'utf-8' : 'cp1252';
-
     const maxHeaderLength = 500;
     if (ident == 'TEXTREAD' || headerLength < 0xE4 || headerLength > maxHeaderLength) {
       extraFlags = 0;
@@ -51,7 +49,6 @@ class MobiHeader {
     } else {
       extraFlags = 0;
     }
-
     if (compressionType == 0x4448) {
       huffOffset = view.getUint32(0x70);
       huffRecordCount = view.getUint32(0x74);
@@ -59,23 +56,20 @@ class MobiHeader {
       huffOffset = 0;
       huffRecordCount = 0;
     }
-
     final titleOffset = view.getUint32(0x54);
     final titleLength = view.getUint32(0x58);
     final titleEnd = titleOffset + titleLength;
+
     title = titleEnd < record0.length && titleLength > 0
         ? decodeBytes(Uint8List.sublistView(record0, titleOffset, titleEnd), codec).trim()
         : '';
-
     langCode = view.getUint32(0x5C);
     mobiVersion = view.getUint32(0x68);
     firstImageIndex = view.getUint32(0x6C);
-
     final exthFlag = view.getUint32(0x80);
     exth = (exthFlag & 0x40) != 0
         ? ExthHeader.parse(Uint8List.sublistView(record0, 16 + headerLength), codec, title)
         : null;
-
     ncxIndex = record0.length >= 0xF8 ? view.getUint32(0xF4) : nullIndex;
     if (mobiVersion == 8 && record0.length >= 0xF8 + 16) {
       divIndex = view.getUint32(0xF8);

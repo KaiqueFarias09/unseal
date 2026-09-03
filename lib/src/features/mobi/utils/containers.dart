@@ -22,6 +22,7 @@ class MobiContainer {
       while (pos < 60 + length - 8 && pos + 8 <= data.length) {
         final idx = view.getUint32(pos);
         final size = view.getUint32(pos + 4);
+
         pos += 8;
         final payloadSize = size - 8;
         if (payloadSize < 0) {
@@ -31,6 +32,7 @@ class MobiContainer {
           imageContainer = _isMimeImage(data, pos, payloadSize);
           break;
         }
+
         pos += payloadSize;
       }
     }
@@ -49,19 +51,18 @@ class MobiContainer {
   /// otherwise `null`.
   Uint8List? loadImage(final Uint8List data) {
     resourceIndex += 1;
-    if (isImageContainer) {
-      if (data.length <= 12) return null;
-      final unwrapped = Uint8List.sublistView(data, 12);
+    if (!isImageContainer) return null;
+    if (data.length <= 12) return null;
 
-      return sniffImageType(unwrapped) != null ? unwrapped : null;
-    }
+    final unwrapped = Uint8List.sublistView(data, 12);
 
-    return null;
+    return sniffImageType(unwrapped) != null ? unwrapped : null;
   }
 
   static bool _isMimeImage(final Uint8List data, final int start, final int length) {
     const mime = 'application/image';
     if (length != mime.length) return false;
+
     for (var i = 0; i < mime.length; i++) {
       if (data[start + i] != mime.codeUnitAt(i)) return false;
     }

@@ -59,6 +59,7 @@ class MobiBook extends Book {
 
   MobiChapter _chapter(final int index, final String title, final String html) {
     final name = 'chapter${index.toString().padLeft(5, '0')}.html';
+
     return MobiChapter(
       title: title,
       file: TextFile(name: name, type: 'html', path: name, content: html),
@@ -67,31 +68,28 @@ class MobiBook extends Book {
 
   List<MobiChapter> _splitChapters() {
     if (files.html.isEmpty) return const <MobiChapter>[];
+
     final html = files.html.first.content;
 
     // Collect the anchor position of every TOC entry.
     final anchors = <(int, String)>[];
+
     for (final point in navigation.navPoints) {
       final number = _fileposLinkPattern.firstMatch(point.content);
-      if (number == null) {
-        continue;
-      }
+      if (number == null) continue;
+
       final position = html.indexOf('id="filepos${number.group(1)}"');
-      if (position >= 0) {
-        anchors.add((position, point.label));
-      }
+      if (position >= 0) anchors.add((position, point.label));
     }
     if (anchors.isEmpty) return const <MobiChapter>[];
+
     anchors.sort((final a, final b) => a.$1.compareTo(b.$1));
 
     // Deduplicate anchors pointing at the same position.
     final boundaries = <(int, String)>[];
     for (final anchor in anchors) {
-      if (boundaries.isEmpty || boundaries.last.$1 != anchor.$1) {
-        boundaries.add(anchor);
-      }
+      if (boundaries.isEmpty || boundaries.last.$1 != anchor.$1) boundaries.add(anchor);
     }
-
     final chapters = <MobiChapter>[];
     var index = 0;
     // Leading front matter (cover, title page) before the first

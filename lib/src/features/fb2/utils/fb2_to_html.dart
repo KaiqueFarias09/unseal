@@ -26,6 +26,7 @@ Fb2Bodies convertBodies(
   final Map<String, String> binaryExtensions,
 ) {
   final converter = _BodyConverter(binaryExtensions);
+
   return converter.convert(bodies, title);
 }
 
@@ -55,7 +56,6 @@ class _BodyConverter {
       _idsByFile[name] = <String>{};
       _collectIds(bodies[i], name);
     }
-
     final files = <String, String>{};
     for (var i = 0; i < bodies.length; i++) {
       final fileName = fileNames[i];
@@ -75,9 +75,7 @@ class _BodyConverter {
 
   void _collectIds(final XmlElement element, final String fileName) {
     final id = element.getAttribute('id');
-    if (id != null && id.isNotEmpty) {
-      _idsByFile[fileName]!.add(id);
-    }
+    if (id != null && id.isNotEmpty) _idsByFile[fileName]!.add(id);
     for (final child in element.children.whereType<XmlElement>()) {
       _collectIds(child, fileName);
     }
@@ -168,9 +166,10 @@ class _BodyConverter {
           if (child.name.local == 'v') {
             _convertInlineChildren(child, out, fileName);
             out.write('<br/>');
-          } else {
-            _convertElement(child, out, fileName, headingLevel, inToc);
+            continue;
           }
+
+          _convertElement(child, out, fileName, headingLevel, inToc);
         }
         out.write('</p>');
       case 'empty-line':
@@ -289,6 +288,7 @@ class _BodyConverter {
             subNavPoints: <NavPoint>[],
           );
           final depth = headingLevel - 3 < 0 ? 0 : headingLevel - 3;
+
           if (depth == 0 || _pointsByDepth[depth - 1] == null) {
             _navPoints.add(point);
           } else {
@@ -298,7 +298,6 @@ class _BodyConverter {
         }
       }
     }
-
     final buffer = StringBuffer();
     _convertChildren(section, buffer, fileName, headingLevel, inToc: inToc);
     out.write(buffer);
@@ -307,6 +306,7 @@ class _BodyConverter {
   XmlElement? _firstDescendant(final XmlElement root, final String localName) {
     for (final child in root.children.whereType<XmlElement>()) {
       if (child.name.local == localName) return child;
+
       final nested = _firstDescendant(child, localName);
       if (nested != null) return nested;
     }
@@ -316,10 +316,9 @@ class _BodyConverter {
 
   String _resolveInternalLink(final String fromFile, final String target) {
     if (_idsByFile[fromFile]?.contains(target) == true) return '#$target';
+
     for (final entry in _idsByFile.entries) {
-      if (entry.key != fromFile && entry.value.contains(target)) {
-        return '${entry.key}#$target';
-      }
+      if (entry.key != fromFile && entry.value.contains(target)) return '${entry.key}#$target';
     }
 
     return '#$target';
@@ -331,6 +330,7 @@ class _BodyConverter {
         element.getAttribute('l:href') ??
         '';
     if (!href.startsWith('#') || href.length < 2) return;
+
     final id = href.substring(1);
     final name = _binaryExtensions[id] ?? id;
     out.write('<img src="${_escapeAttr(name)}" alt="${_escapeAttr(id)}"/>');
@@ -345,6 +345,7 @@ class _BodyConverter {
     if (href.startsWith('#') && href.length > 1) {
       final target = href.substring(1);
       final resolved = _resolveInternalLink(fileName, target);
+
       out.write('<a href="${_escapeAttr(resolved)}">');
       _convertInlineChildren(element, out, fileName);
       out.write('</a>');

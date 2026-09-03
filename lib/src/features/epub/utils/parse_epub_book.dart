@@ -24,10 +24,8 @@ EpubBook parseEpubBook(final Uint8List bytes) {
 EpubBook parseEpubArchive(final Archive archive) {
   final rootFilePath = getEpubRootFilePath(archive);
   final rootFile = _getRootFile(archive, rootFilePath).content as List<int>;
-
   final package = parsePackage(convert.utf8.decode(rootFile));
   final navigation = getEpubNavigation(package, archive, rootFilePath);
-
   final files = extractFiles(archive.files, package.manifest.items, rootFilePath);
   final cover = getBookCover(package, archive, files.images, rootFilePath);
 
@@ -47,7 +45,6 @@ EpubBook parseEpubArchive(final Archive archive) {
 BookMetadata readEpubMetadata(final Archive archive) {
   final rootFilePath = getEpubRootFilePath(archive);
   final rootFile = _getRootFile(archive, rootFilePath).content as List<int>;
-
   final package = parsePackage(convert.utf8.decode(rootFile));
 
   return epubBookMetadata(package, getBookCover(package, archive, const [], rootFilePath));
@@ -55,6 +52,7 @@ BookMetadata readEpubMetadata(final Archive archive) {
 
 ArchiveFile _getRootFile(final Archive archive, final String? rootFilePath) {
   if (rootFilePath == null) throw EpubException('No root file found');
+
   final rootFile = findArchiveFile(archive, rootFilePath);
 
   return rootFile ?? (throw EpubException('No root file found'));
@@ -69,16 +67,16 @@ List<String>? _spinePaths(
       .map((final file) => normalizeZipPath(file.path).toLowerCase())
       .toList();
   final resolved = <String>[];
+
   for (final idref in package.spine.items) {
     final item = package.manifest.items.firstWhereOrNull(
       (final candidate) => candidate.id == idref,
     );
     if (item == null) continue;
+
     final path = normalizeZipPath(resolveItemPath(rootFilePath, item.path));
     final index = htmlPaths.indexOf(path.toLowerCase());
-    if (index >= 0) {
-      resolved.add(files.html[index].path);
-    }
+    if (index >= 0) resolved.add(files.html[index].path);
   }
 
   return resolved.isEmpty ? null : resolved;

@@ -43,6 +43,7 @@ BookMetadata epubBookMetadata(final EpubPackage package, [final BinaryFile? cove
 
 BookCover? _coverFrom(final BinaryFile? coverFile) {
   if (coverFile == null || coverFile.isEmpty) return null;
+
   final type = sniffImageType(coverFile.content);
   if (type == null) return null;
 
@@ -54,6 +55,7 @@ BookCover? _coverFrom(final BinaryFile? coverFile) {
 /// Parses an EPUB `dc:date` string, tolerating loose forms.
 DateTime? parseEpubDate(final String raw) {
   if (raw.isEmpty) return null;
+
   final trimmed = raw.trim();
   final direct = DateTime.tryParse(trimmed);
   if (direct != null) return direct;

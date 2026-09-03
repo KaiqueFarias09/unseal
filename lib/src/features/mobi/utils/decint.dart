@@ -13,9 +13,7 @@ import 'dart:typed_data';
     final byte = raw[i];
     value = (value << 7) | (byte & 0x7F);
     consumed++;
-    if (byte & 0x80 != 0) {
-      break;
-    }
+    if (byte & 0x80 != 0) break;
   }
 
   return (value, consumed);
@@ -27,6 +25,7 @@ import 'dart:typed_data';
 /// decoded with [codec]. Returns the string and bytes consumed.
 (String, int) decodeIndexString(final Uint8List raw, final String codec, [final int start = 0]) {
   if (start >= raw.length) return ('', 0);
+
   final length = raw[start];
   final end = start + 1 + length;
   final bytes = raw.sublist(start + 1, end > raw.length ? raw.length : end);
@@ -88,6 +87,7 @@ final List<int> _cp1252CodeUnits = List<int>.generate(256, (final byte) {
 
 String _cp1252(final Uint8List bytes) {
   final codeUnits = List<int>.generate(bytes.length, (final i) => _cp1252CodeUnits[bytes[i]]);
+
   return String.fromCharCodes(codeUnits);
 }
 

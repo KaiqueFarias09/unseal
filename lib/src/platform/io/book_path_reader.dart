@@ -6,6 +6,7 @@ import 'package:path/path.dart' as path;
 /// Reads a book from a local filesystem path.
 Future<Uint8List> readBookPath(final String value) async {
   if (value.isEmpty) throw ArgumentError.value(value, 'value', 'Path cannot be empty');
+
   final file = File(value);
   if (!file.existsSync()) throw FileSystemException('No such file or directory', value);
 
@@ -18,6 +19,7 @@ Future<T> withBookPath<T>(
   final Future<T> Function(Uint8List bytes, String sourcePath) operation,
 ) async {
   final bytes = await readBookPath(value);
+
   return operation(bytes, path.normalize(value));
 }
 
@@ -28,14 +30,17 @@ Future<T?> readBookSidecar<T>(
 ) async {
   final directory = path.dirname(sourcePath);
   final basename = path.basenameWithoutExtension(sourcePath);
+
   for (final candidate in ['$basename.opf', 'metadata.opf']) {
     final file = File(path.join(directory, candidate));
     if (!file.existsSync()) continue;
+
     try {
       return parse(await file.readAsString());
     } on Exception {
       // Keep trying the next candidate when a sidecar is malformed.
     }
   }
+
   return null;
 }

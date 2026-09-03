@@ -76,6 +76,7 @@ List<NcxEntry> readNcx(
     for (final tagId in tagMap.keys) {
       final values = tagMap[tagId]!;
       if (values.isEmpty) continue;
+
       switch (tagId) {
         case 1:
           entry.pos = values.first;
@@ -114,7 +115,6 @@ Navigation buildNavigation(final List<NcxEntry> entries) {
   final roots = <NavPoint>[];
   final nodes = <int, List<NavPoint>>{-1: roots};
   var playOrder = 0;
-
   for (final level in levels) {
     for (final entry in entries.where((final e) => e.hlvl == level)) {
       final parentChildren = nodes[entry.parent] ?? roots;

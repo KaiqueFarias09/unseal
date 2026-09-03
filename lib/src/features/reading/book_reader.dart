@@ -25,6 +25,7 @@ abstract final class BookReader {
   /// Parses the book from [bytes].
   static Future<Book> openFromBytes(final Uint8List bytes) {
     if (bytes.isEmpty) throw EmptyBytesException();
+
     return runInBackground(() => parseBook(bytes));
   }
 
@@ -50,6 +51,7 @@ abstract final class BookReader {
   /// Reads only metadata from [bytes].
   static Future<BookMetadata> readMetadataFromBytes(final Uint8List bytes) {
     if (bytes.isEmpty) throw EmptyBytesException();
+
     return runInBackground(() => readMetadataSync(bytes));
   }
 
@@ -57,6 +59,7 @@ abstract final class BookReader {
   static Future<BookMetadata> readMetadataFromPath(final String path) {
     return withBookPath(path, (final bytes, final sourcePath) async {
       final metadata = await readMetadataFromBytes(bytes);
+
       final sidecar = await readBookSidecar(
         sourcePath,
         (final content) => epubBookMetadata(parsePackage(content)),
@@ -98,6 +101,7 @@ abstract final class BookReader {
 
   static bool _isImageName(final String name) {
     final lower = name.toLowerCase();
+
     return lower.endsWith('.jpg') ||
         lower.endsWith('.jpeg') ||
         lower.endsWith('.png') ||
@@ -116,6 +120,7 @@ abstract final class BookReader {
     final fb2Entry = _fb2Entry(archive);
     if (fb2Entry != null) return parseFb2Archive(fb2Entry);
     if (_looksLikeComic(archive)) return parseComicBook(bytes);
+
     throw const FormatNotSupportedException(
       'Zip container holds neither an EPUB package, an FB2 document '
       'nor comic pages.',

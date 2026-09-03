@@ -14,7 +14,6 @@ import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 ///    media type is an image.
 ManifestItem? resolveCoverItem(final EpubPackage package) {
   final items = package.manifest.items;
-
   final propertyCover = items.firstWhereOrNull(
     (final item) => item.properties.contains('cover-image') && item.mediaType.contains('image/'),
   );
@@ -25,7 +24,6 @@ ManifestItem? resolveCoverItem(final EpubPackage package) {
     final metaCover = items.firstWhereOrNull((final item) => item.id == coverId);
     if (metaCover != null) return metaCover;
   }
-
   final guideReference = package.guide?.references.firstWhereOrNull(
     (final reference) => reference.type.toLowerCase() == 'cover',
   );

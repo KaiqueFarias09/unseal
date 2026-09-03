@@ -29,6 +29,7 @@ Uint8List addFileposAnchors(final Uint8List html) {
   while (true) {
     final at = _indexOfPattern(html, marker, searchFrom, caseInsensitive: true);
     if (at == -1) break;
+
     searchFrom = at + marker.length;
 
     // Skip optional quote, then read the decimal value.
@@ -41,21 +42,19 @@ Uint8List addFileposAnchors(final Uint8List html) {
       i++;
       digits++;
     }
-    if (digits > 0) {
-      positions.add(value);
-    }
+    if (digits > 0) positions.add(value);
   }
-
   final out = BytesBuilder(copy: false);
   var pos = 0;
+
   for (final oend in positions.toList()..sort()) {
-    if (oend == 0 || oend >= html.length) {
-      continue;
-    }
+    if (oend == 0 || oend >= html.length) continue;
+
     var end = oend;
     final lt = _indexOfByte(html, 0x3C, end);
     final gt = _indexOfByte(html, 0x3E, end);
     var anchor = '<a id="filepos$oend"></a>';
+
     if (gt > -1 && (gt < lt || lt == end || lt == -1)) {
       final p = _lastIndexOfByte(html, 0x3C, 0, end + 1);
       final isEndTag = p > -1 && p + 1 < html.length && html[p + 1] == 0x2F;
@@ -67,9 +66,8 @@ Uint8List addFileposAnchors(final Uint8List html) {
         end = gt + 1;
       }
     }
-    if (end <= pos) {
-      continue;
-    }
+    if (end <= pos) continue;
+
     out.add(html.sublist(pos, end));
     out.add(_ascii(anchor));
     pos = end;
@@ -113,6 +111,7 @@ String processMobi6Html(final String html, final Map<int, String> imageNames) {
   // Images: recindex / hirecindex / lowrecindex -> src.
   result = result.replaceAllMapped(_recIndexPattern, (final match) {
     final name = imageNames[int.parse(match.group(2)!)];
+
     return name == null ? match.group(1)! : '${match.group(1)} src="$name"';
   });
 
@@ -152,21 +151,18 @@ Mobi6Resources extractMobi6Resources({
   final images = <BinaryFile>[];
   final fonts = <BinaryFile>[];
   final imageNames = <int, String>{};
-
   var start = firstImageIndex;
+
   if (start > recordCount || start < 0) {
     start = 0; // Some PRC files carry broken headers.
   }
-
   var imageIndex = 0;
   for (var i = start; i < recordCount; i++) {
-    if (processedRecords.contains(i)) {
-      continue;
-    }
+    if (processedRecords.contains(i)) continue;
+
     processedRecords.add(i);
     final data = recordAt(i);
     imageIndex += 1;
-
     if (_hasMagicBytes(data, 'FONT')) {
       final font = decodeFontRecord(data);
       fonts.add(
@@ -179,15 +175,11 @@ Mobi6Resources extractMobi6Resources({
       );
       continue;
     }
-
-    if (_isKnownNonImageRecord(data)) {
-      continue;
-    }
+    if (_isKnownNonImageRecord(data)) continue;
 
     final type = sniffImageType(data);
-    if (type == null) {
-      continue;
-    }
+    if (type == null) continue;
+
     final name = 'image${_padded(imageIndex)}.${type.fileExtension}';
     imageNames[imageIndex] = name;
     images.add(BinaryFile(content: data, name: name, type: type.fileExtension, path: name));
@@ -210,12 +202,12 @@ Navigation deriveMobi6Navigation(final String html, final String title) {
   var bestStart = 0;
   var bestLength = 1;
   var runStart = 0;
+
   for (var i = 1; i <= matches.length; i++) {
     final continues =
         i < matches.length && _onlySeparators(html, matches[i - 1].end, matches[i].start);
-    if (continues) {
-      continue;
-    }
+    if (continues) continue;
+
     final length = i - runStart;
     if (length > bestLength) {
       bestLength = length;
@@ -223,7 +215,6 @@ Navigation deriveMobi6Navigation(final String html, final String title) {
     }
     runStart = i;
   }
-
   final points = <NavPoint>[];
   for (var i = bestStart; i < bestStart + bestLength; i++) {
     final match = matches[i];
@@ -243,6 +234,7 @@ Navigation deriveMobi6Navigation(final String html, final String title) {
 
 bool _onlySeparators(final String html, final int from, final int to) {
   if (to - from > 80) return false;
+
   final between = html.substring(from, to).replaceAll(_separatorTagsPattern, '').trim();
   if (between.length > 2) {
     // Allow thin separators like '. ' or '-'.
@@ -274,6 +266,7 @@ bool _isKnownNonImageRecord(final Uint8List data) {
   if (data.length < 4) return false;
   // The Mobipocket 'unknown' marker: e9 8e 0d 0a.
   if (data[0] == 0xE9 && data[1] == 0x8E && data[2] == 0x0D && data[3] == 0x0A) return true;
+
   for (final magic in _nonImageMagics) {
     if (_hasMagicBytes(data, magic)) return true;
   }
@@ -283,6 +276,7 @@ bool _isKnownNonImageRecord(final Uint8List data) {
 
 bool _hasMagicBytes(final Uint8List data, final String magic) {
   if (data.length < magic.length) return false;
+
   for (var i = 0; i < magic.length; i++) {
     if (data[i] != magic.codeUnitAt(i)) return false;
   }
@@ -301,11 +295,13 @@ int _indexOfPattern(
   final bool caseInsensitive = false,
 }) {
   if (pattern.isEmpty || data.length < pattern.length) return -1;
+
   for (var i = from; i <= data.length - pattern.length; i++) {
     var isMatched = true;
     for (var j = 0; j < pattern.length; j++) {
       var a = data[i + j];
       var b = pattern[j];
+
       if (caseInsensitive) {
         if (a >= 0x41 && a <= 0x5A) a += 0x20;
         if (b >= 0x41 && b <= 0x5A) b += 0x20;

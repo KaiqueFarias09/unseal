@@ -14,6 +14,7 @@ Uint8List stripTrailingEntries(final Uint8List record, final int extraFlags) {
     if ((flags & 1) != 0) {
       final entrySize = _sizeofTrailingEntry(record, size - num);
       if (entrySize == null) return record;
+
       num += entrySize;
     }
     flags >>= 1;
@@ -33,6 +34,7 @@ Uint8List stripTrailingEntries(final Uint8List record, final int extraFlags) {
 
 int? _sizeofTrailingEntry(final Uint8List record, final int psize) {
   var bitpos = 0;
+
   var result = 0;
   var size = psize;
   while (size > 0) {

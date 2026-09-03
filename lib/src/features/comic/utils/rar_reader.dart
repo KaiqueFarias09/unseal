@@ -32,6 +32,7 @@ class RarEntry {
 /// how to handle them.
 List<RarEntry> readRarEntries(final Uint8List bytes) {
   if (bytes.length < 8) throw const ComicException('File is too small to be a RAR archive.');
+
   final isRar4 =
       bytes[0] == 0x52 &&
       bytes[1] == 0x61 &&
@@ -63,16 +64,17 @@ List<RarEntry> _readRar4(final Uint8List bytes) {
     final blockType = bytes[offset + 2];
     final flags = view.getUint16(offset + 3);
     final headSize = view.getUint16(offset + 5);
-    if (headSize < 7) {
-      break;
-    }
+    if (headSize < 7) break;
+
     if (blockType == 0x74) {
       // File header.
       if (offset + 32 > bytes.length) {
         break;
       }
+
       var field = offset + 7;
       final packSize = view.getUint32(field);
+
       field += 4;
       final unpSize = view.getUint32(field);
       field += 4;
@@ -95,6 +97,7 @@ List<RarEntry> _readRar4(final Uint8List bytes) {
       if (nameEnd > bytes.length) {
         break;
       }
+
       final name = String.fromCharCodes(bytes.sublist(field, nameEnd));
       final isDirectory = (flags & 0xE0) == 0xE0;
       final dataStart = offset + headSize;
@@ -138,22 +141,18 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
     // Header size counts from the type field to the end of the
     // header, excluding the CRC and the size vint itself.
     final headerEnd = offset + headerSize;
-    if (headerEnd > bytes.length) {
-      break;
-    }
+    if (headerEnd > bytes.length) break;
 
     final (headerType, consumedT) = _vint(bytes, offset);
     offset += consumedT;
     final (headerFlags, consumedF) = _vint(bytes, offset);
     offset += consumedF;
-
     var dataSize = 0;
     if (headerFlags & 0x0002 != 0) {
       final (size, consumedD) = _vint(bytes, offset);
       dataSize = size;
       offset += consumedD;
     }
-
     if (headerType == 2) {
       // File header.
       final (fileFlags, consumedFF) = _vint(bytes, offset);
@@ -177,6 +176,7 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
       if (nameEnd > headerEnd) {
         break;
       }
+
       final name = String.fromCharCodes(bytes.sublist(offset, nameEnd));
       final isDirectory = fileFlags & 0x0001 != 0;
       final method = (compressionInfo >> 7) & 0x07;
@@ -193,7 +193,6 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
         ),
       );
     }
-
     offset = headerEnd + dataSize;
     if (headerType == 5) {
       break; // end of archive (1 = main header, skipped above)
@@ -215,13 +214,10 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
     final byte = bytes[offset + consumed];
     consumed++;
     value |= (byte & 0x7F) << shift;
-    if (byte & 0x80 == 0) {
-      break;
-    }
+    if (byte & 0x80 == 0) break;
+
     shift += 7;
-    if (shift > 63) {
-      break;
-    }
+    if (shift > 63) break;
   }
 
   return (value, consumed);

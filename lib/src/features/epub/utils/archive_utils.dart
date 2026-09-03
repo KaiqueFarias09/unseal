@@ -11,10 +11,9 @@ import 'package:path/path.dart' as path;
 ArchiveFile? findArchiveFile(final Archive archive, final String entryPath) {
   final normalized = normalizeZipPath(entryPath);
   if (normalized.isEmpty) return null;
+
   for (final file in archive.files) {
-    if (!file.isFile) {
-      continue;
-    }
+    if (!file.isFile) continue;
     if (file.name == normalized ||
         normalizeZipPath(file.name).toLowerCase() == normalized.toLowerCase()) {
       return file;
@@ -41,15 +40,14 @@ String resolveItemPath(final String? rootFilePath, final String href) {
 String normalizeZipPath(final String zipPath) {
   final segments = <String>[];
   for (final segment in zipPath.split('/')) {
-    if (segment.isEmpty || segment == '.') {
-      continue;
-    }
+    if (segment.isEmpty || segment == '.') continue;
     if (segment == '..') {
       if (segments.isNotEmpty) {
         segments.removeLast();
       }
       continue;
     }
+
     segments.add(segment);
   }
 

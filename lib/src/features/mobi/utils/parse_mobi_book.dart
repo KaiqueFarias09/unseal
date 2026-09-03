@@ -33,10 +33,8 @@ MobiBook parseMobiBook(final Uint8List bytes) {
   final pdb = PdbHeader.parse(bytes);
   var header = MobiHeader.parse(pdb.record(0), pdb.ident);
   assertNotDrm(header, pdb.name);
-
   final layout = _resolveLayout(pdb, header);
   header = layout.header;
-
   if (layout.isKf8) return _parseKf8(pdb, header, layout);
 
   return _parseMobi6(pdb, header);
@@ -54,6 +52,7 @@ BookMetadata readMobiMetadata(final Uint8List bytes) {
 
 BookFormat _detectFormat(final PdbHeader pdb, final MobiHeader header) {
   if (header.mobiVersion == 8 && header.skelIndex != nullIndex) return BookFormat.azw3;
+
   final k8i = header.exth?.kf8HeaderIndex;
   if (k8i != null && k8i >= 1 && k8i - 1 < pdb.count) {
     if (_hasBoundary(pdb.record(k8i - 1))) return BookFormat.azw3;
@@ -114,9 +113,9 @@ MobiBook _parseKf8(final PdbHeader pdb, final MobiHeader header, final _MobiLayo
     huffOffsetOverride: layout.huffOffsetOverride,
   );
   final assembly = reader.assemble();
-
   final coverName = assembly.coverName;
   BinaryFile cover = BinaryFile.empty();
+
   if (coverName != null) {
     for (final image in assembly.images) {
       if (image.name == coverName) {
@@ -154,7 +153,6 @@ MobiBook _parseMobi6(final PdbHeader pdb, final MobiHeader header) {
     textOffset: 1,
     header: header,
   );
-
   final processed = <int>{0};
   for (var i = 1; i <= header.textRecordCount && i < pdb.count; i++) {
     processed.add(i);
@@ -168,20 +166,18 @@ MobiBook _parseMobi6(final PdbHeader pdb, final MobiHeader header) {
       processed.add(i);
     }
   }
-
   final resources = extractMobi6Resources(
     recordAt: pdb.record,
     recordCount: pdb.count,
     firstImageIndex: header.firstImageIndex,
     processedRecords: processed,
   );
-
   final anchored = addFileposAnchors(rawHtml);
   final html = processMobi6Html(decodeBytes(anchored, header.codec), resources.imageNames);
   final navigation = deriveMobi6Navigation(html, header.exth?.title ?? header.title);
-
   BinaryFile cover = BinaryFile.empty();
   final coverOffset = header.exth?.coverOffset;
+
   if (coverOffset != null) {
     final name = resources.imageNames[coverOffset + 1];
     if (name != null) {
@@ -199,7 +195,6 @@ MobiBook _parseMobi6(final PdbHeader pdb, final MobiHeader header) {
       cover = fallback;
     }
   }
-
   final htmlFile = TextFile(name: 'index.html', type: 'html', path: 'index.html', content: html);
 
   return MobiBook(
@@ -224,15 +219,14 @@ BinaryFile? _readCoverRecord(
 ) {
   final base = firstImageIndex > 0 ? firstImageIndex : 1;
   final candidates = <int>[if (coverOffset != null) base + coverOffset, base];
+
   for (final index in candidates) {
-    if (index < 0 || index >= pdb.count) {
-      continue;
-    }
+    if (index < 0 || index >= pdb.count) continue;
+
     final data = pdb.record(index);
     final type = sniffImageType(data);
-    if (type == null) {
-      continue;
-    }
+    if (type == null) continue;
+
     final name = 'cover.${type.fileExtension}';
 
     return BinaryFile(content: data, name: name, type: type.fileExtension, path: name);

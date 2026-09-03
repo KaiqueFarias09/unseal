@@ -32,6 +32,7 @@ ImageSize? imageSize(final Uint8List bytes) {
   // PNG: IHDR
   if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
     if (bytes.length < 24) return null;
+
     final view = ByteData.sublistView(bytes);
 
     return ImageSize(view.getUint32(16), view.getUint32(20));
@@ -39,11 +40,13 @@ ImageSize? imageSize(final Uint8List bytes) {
   // GIF: logical screen descriptor
   if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
     final view = ByteData.sublistView(bytes);
+
     return ImageSize(view.getUint16(6, Endian.little), view.getUint16(8, Endian.little));
   }
   // BMP: DIB header
   if (bytes[0] == 0x42 && bytes[1] == 0x4D) {
     if (bytes.length < 26) return null;
+
     final view = ByteData.sublistView(bytes);
     final width = view.getInt32(18, Endian.little).abs();
     final height = view.getInt32(22, Endian.little).abs();
@@ -90,6 +93,7 @@ ImageSize? _jpegSize(final Uint8List bytes) {
       i++;
       continue;
     }
+
     final marker = bytes[i + 1];
     if (sofMarkers.contains(marker)) {
       return i + 9 > bytes.length ? null : ImageSize(view.getUint16(i + 7), view.getUint16(i + 5));
@@ -99,6 +103,7 @@ ImageSize? _jpegSize(final Uint8List bytes) {
       continue;
     }
     if (i + 4 > bytes.length) return null;
+
     final segmentLength = view.getUint16(i + 2);
     i += 2 + segmentLength;
   }
@@ -108,6 +113,7 @@ ImageSize? _jpegSize(final Uint8List bytes) {
 
 ImageSize? _webpSize(final Uint8List bytes) {
   if (bytes.length < 30) return null;
+
   final chunk = String.fromCharCodes(bytes.sublist(12, 16));
   switch (chunk) {
     case 'VP8X':

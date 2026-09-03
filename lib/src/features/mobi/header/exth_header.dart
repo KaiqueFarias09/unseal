@@ -10,20 +10,19 @@ class ExthHeader {
     if (raw.length < 12 || raw[0] != 0x45 || raw[1] != 0x58 || raw[2] != 0x54 || raw[3] != 0x48) {
       throw const MobiException('Invalid EXTH header.');
     }
+
     final view = ByteData.sublistView(raw);
     final length = view.getUint32(4);
     final itemCount = view.getUint32(8);
     final records = <int, List<Uint8List>>{};
-
     var pos = 12;
     var left = itemCount;
     while (left > 0 && pos + 8 <= raw.length && pos < length) {
       left--;
       final id = view.getUint32(pos);
       final size = view.getUint32(pos + 4);
-      if (size < 8) {
-        break;
-      }
+      if (size < 8) break;
+
       final contentEnd = pos + size;
       final content = contentEnd <= raw.length
           ? Uint8List.sublistView(raw, pos + 8, contentEnd)
@@ -31,9 +30,9 @@ class ExthHeader {
       records.putIfAbsent(id, () => <Uint8List>[]).add(content);
       pos += size;
     }
-
     var title = headerTitle;
     final updatedTitle = records[ExthIds.updatedTitle];
+
     if (updatedTitle != null && updatedTitle.isNotEmpty) {
       final decoded = decodeBytes(updatedTitle.first, codec).trim();
       if (decoded.isNotEmpty) {
@@ -55,6 +54,7 @@ class ExthHeader {
   int? get coverOffset {
     final offset = int32(ExthIds.coverOffset);
     if (offset == null || offset == 0xFFFFFFFF) return null;
+
     return offset;
   }
 
@@ -65,6 +65,7 @@ class ExthHeader {
   int? get kf8HeaderIndex {
     final index = int32(ExthIds.kf8Header);
     if (index == null || index == 0xFFFFFFFF) return null;
+
     return index;
   }
 

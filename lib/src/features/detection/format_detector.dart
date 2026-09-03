@@ -44,7 +44,6 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (bytes.isEmpty) {
     throw const FormatNotSupportedException('Cannot detect format of empty bytes.');
   }
-
   if (_startsWith(bytes, _tpzMagic)) {
     throw const FormatNotSupportedException('Amazon Topaz books (.azw1/.tpz) are not supported.');
   }
@@ -57,7 +56,6 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (_startsWith(bytes, _rtfMagic)) {
     throw const FormatNotSupportedException('RTF books are not supported.');
   }
-
   if (bytes.length > 2 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
     // Zip container. EPUB, zipped FB2 and CBZ are the supported zip
     // books; the dispatcher refines by content.
@@ -80,7 +78,6 @@ DetectedFormat detectFormat(final Uint8List bytes) {
     final upperIdent = ident.toUpperCase();
     if (upperIdent == 'BOOKMOBI' || upperIdent == 'TEXTREAD') return DetectedFormat.mobiFamily;
   }
-
   if (_looksLikeFictionBook(bytes)) return DetectedFormat.fb2;
 
   throw const FormatNotSupportedException('Unrecognized book format.');
@@ -102,6 +99,7 @@ BookFormat refineMobiFormat(final Uint8List bytes) {
 
 int _recordOffset(final Uint8List bytes, final int record) {
   final byteData = ByteData.sublistView(bytes);
+
   return byteData.getUint32(78 + record * 8);
 }
 
@@ -115,6 +113,7 @@ const List<int> _rtfMagic = [0x7B, 0x5C, 0x72, 0x74, 0x66];
 
 bool _startsWith(final Uint8List bytes, final List<int> magic) {
   if (bytes.length < magic.length) return false;
+
   for (var i = 0; i < magic.length; i++) {
     if (bytes[i] != magic[i]) return false;
   }
@@ -127,9 +126,7 @@ bool _looksLikeFictionBook(final Uint8List bytes) {
   // <FictionBook root or an <?xml prologue followed by <FictionBook
   // within the first bytes of the document.
   var start = 0;
-  if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
-    start = 3;
-  }
+  if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) start = 3;
   while (start < bytes.length &&
       (bytes[start] == 0x20 ||
           bytes[start] == 0x0A ||

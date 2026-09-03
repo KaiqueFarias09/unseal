@@ -89,18 +89,14 @@ Iterable<ArchiveFile> _resolveEntries(
   // first entry wins, mirroring a linear scan's match preference.
   final filesByPath = <String, ArchiveFile>{};
   for (final file in files) {
-    if (!file.isFile) {
-      continue;
-    }
+    if (!file.isFile) continue;
+
     filesByPath.putIfAbsent(normalizeZipPath(file.name).toLowerCase(), () => file);
   }
-
   final resolved = <ArchiveFile>[];
   for (final item in items) {
     final match = filesByPath[resolveItemPath(rootFilePath, item.path).toLowerCase()];
-    if (match != null) {
-      resolved.add(match);
-    }
+    if (match != null) resolved.add(match);
   }
 
   return resolved;
