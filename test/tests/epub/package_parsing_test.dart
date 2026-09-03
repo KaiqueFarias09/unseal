@@ -201,6 +201,39 @@ void main() {
       expect(epubPackage.spine.items.length, book.spineItems);
     });
   }
+
+  test('parsePackage tolerates guide references without title', () {
+    const opf =
+        '''
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">urn:uuid:guide-test</dc:identifier>
+    <dc:title>Guide Test</dc:title>
+    <dc:language>en</dc:language>
+  </metadata>
+  <manifest>
+    <item id="ch1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="ch1"/>
+  </spine>
+  <guide>
+    <reference type="text" href="chapter1.xhtml"/>
+    <reference type="toc" title="Contents" href="nav.xhtml"/>
+  </guide>
+</package>
+''';
+
+    final epubPackage = parsePackage(opf);
+
+    final guide = epubPackage.guide;
+    expect(guide, isNotNull);
+    expect(guide!.references, hasLength(2));
+    expect(guide.references.first.title, isEmpty);
+    expect(guide.references.first.href, 'chapter1.xhtml');
+    expect(guide.references.last.title, 'Contents');
+  });
 }
 
 void _checkCommonMetadataProperties(
