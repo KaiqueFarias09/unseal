@@ -1,5 +1,6 @@
 import 'package:e_livre/src/foundation/entities/book_cover.dart';
 import 'package:e_livre/src/foundation/entities/book_format.dart';
+import 'package:e_livre/src/foundation/utils/sort_keys.dart' as sort_keys;
 
 /// Format-agnostic book metadata extracted from any supported book file.
 ///
@@ -80,6 +81,29 @@ final class BookMetadata {
   /// Title string used for sorting (title without leading articles),
   /// when the source format carries one explicitly.
   final String? titleSort;
+
+  /// The title sort key to sort by: [titleSort] read from the file
+  /// when present, otherwise computed Calibre-style from [title]
+  /// (leading article moved to the end), picking the article list
+  /// from [languages]. Null only without any title.
+  String? get effectiveTitleSort {
+    final stored = titleSort;
+    if (stored != null && stored.isNotEmpty) return stored;
+    final value = title;
+    if (value == null || value.isEmpty) return null;
+
+    return sort_keys.titleSort(value, lang: languages.isEmpty ? null : languages.first);
+  }
+
+  /// The author sort key to sort by: [authorSort] read from the file
+  /// when present, otherwise computed Calibre-style from [authors].
+  String? get effectiveAuthorSort {
+    final stored = authorSort;
+    if (stored != null && stored.isNotEmpty) return stored;
+    if (authors.isEmpty) return null;
+
+    return sort_keys.authorsToSortString(authors);
+  }
 
   /// Returns a copy with the provided fields replaced.
   BookMetadata copyWith({
