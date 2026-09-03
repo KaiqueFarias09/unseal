@@ -113,22 +113,26 @@ List<NcxEntry> readNcx(
 Navigation buildNavigation(final List<NcxEntry> entries) {
   final levels = entries.map((final e) => e.hlvl).toSet().toList()..sort();
   final roots = <NavPoint>[];
-  final nodes = <int, List<NavPoint>>{-1: roots};
+  final childrenByNum = <int, List<NavPoint>>{};
   var playOrder = 0;
   for (final level in levels) {
     for (final entry in entries.where((final e) => e.hlvl == level)) {
-      final parentChildren = nodes[entry.parent] ?? roots;
+      final parentChildren = childrenByNum[entry.parent] ?? roots;
       final target = entry.idtag.isEmpty ? entry.href : '${entry.href}#${entry.idtag}';
       playOrder++;
+      // The child list must be the very instance the point carries:
+      // later entries attach their points into it.
+      final children = <NavPoint>[];
       final point = NavPoint(
         classAttribute: entry.kind,
         id: 'toc-${entry.num}',
         playOrder: '$playOrder',
         label: entry.text,
         content: target,
+        subNavPoints: children,
       );
       parentChildren.add(point);
-      nodes.putIfAbsent(entry.num, () => <NavPoint>[]).add(point);
+      childrenByNum[entry.num] = children;
     }
   }
 
