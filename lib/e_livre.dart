@@ -9,6 +9,7 @@ export 'src/features/calibre/calibre_database.dart';
 export 'src/features/cfi/epub_cfi.dart';
 export 'src/features/cfi/epub_cfi_resolver.dart';
 export 'src/features/detection/format_detector.dart';
+export 'src/features/opds/opds_feed.dart';
 export 'src/features/reading/book.dart';
 export 'src/features/reading/book_reader.dart';
 export 'src/features/search/book_search.dart';
