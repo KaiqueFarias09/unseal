@@ -5,13 +5,10 @@ import 'package:path/path.dart' as path;
 
 /// Reads a book from a local filesystem path.
 Future<Uint8List> readBookPath(final String value) async {
-  if (value.isEmpty) {
-    throw ArgumentError.value(value, 'value', 'Path cannot be empty');
-  }
+  if (value.isEmpty) throw ArgumentError.value(value, 'value', 'Path cannot be empty');
   final file = File(value);
-  if (!file.existsSync()) {
-    throw FileSystemException('No such file or directory', value);
-  }
+  if (!file.existsSync()) throw FileSystemException('No such file or directory', value);
+
   return file.readAsBytes();
 }
 

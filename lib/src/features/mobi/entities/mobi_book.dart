@@ -1,29 +1,7 @@
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/utils/mobi_metadata_mapper.dart';
 import 'package:e_livre/src/features/reading/book.dart';
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/entities/file/text_file.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
-
-/// A chapter of a MOBI 6 book, split from its single HTML stream at
-/// the table of contents anchors.
-final class MobiChapter {
-  const MobiChapter({required this.title, required this.file});
-
-  /// Chapter title from the table of contents.
-  final String title;
-
-  /// The chapter HTML slice.
-  final TextFile file;
-
-  @override
-  String toString() => 'MobiChapter(title: $title, file: ${file.name})';
-}
-
-final RegExp _fileposLinkPattern = RegExp(r'#filepos(\d+)$');
-final RegExp _anyTagPattern = RegExp('<[^>]*>');
+import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// A parsed MOBI 6 / KF8 (AZW3) book.
 class MobiBook extends Book {
@@ -50,10 +28,6 @@ class MobiBook extends Book {
   /// The MOBI header the book was parsed from.
   final MobiHeader header;
 
-  /// The format-agnostic metadata of this book.
-  @override
-  BookMetadata get metadata => mobiBookMetadata(header, coverFile: cover);
-
   /// The book chapters.
   ///
   /// MOBI 6 stores the whole book as one HTML stream; this splits it
@@ -64,25 +38,35 @@ class MobiBook extends Book {
   /// list here. Computed once on first access.
   late final List<MobiChapter> chapters = _splitChapters();
 
-  /// The book title.
-  String get title => header.exth?.title ?? header.title;
-
   /// The book author names.
   List<String> get creators => metadata.authors;
 
   /// The book language code.
   String get language => metadata.languages.isEmpty ? '' : metadata.languages.first;
 
+  /// The format-agnostic metadata of this book.
+  @override
+  BookMetadata get metadata => mobiBookMetadata(header, coverFile: cover);
+
   /// The book publisher.
   String? get publisher => metadata.publisher;
+
+  /// The book title.
+  String get title => header.exth?.title ?? header.title;
 
   /// The MOBI version (6 or 8).
   int get version => header.mobiVersion;
 
+  MobiChapter _chapter(final int index, final String title, final String html) {
+    final name = 'chapter${index.toString().padLeft(5, '0')}.html';
+    return MobiChapter(
+      title: title,
+      file: TextFile(name: name, type: 'html', path: name, content: html),
+    );
+  }
+
   List<MobiChapter> _splitChapters() {
-    if (files.html.isEmpty) {
-      return const <MobiChapter>[];
-    }
+    if (files.html.isEmpty) return const <MobiChapter>[];
     final html = files.html.first.content;
 
     // Collect the anchor position of every TOC entry.
@@ -97,9 +81,7 @@ class MobiBook extends Book {
         anchors.add((position, point.label));
       }
     }
-    if (anchors.isEmpty) {
-      return const <MobiChapter>[];
-    }
+    if (anchors.isEmpty) return const <MobiChapter>[];
     anchors.sort((final a, final b) => a.$1.compareTo(b.$1));
 
     // Deduplicate anchors pointing at the same position.
@@ -127,14 +109,26 @@ class MobiBook extends Book {
       final end = i + 1 < boundaries.length ? boundaries[i + 1].$1 : html.length;
       chapters.add(_chapter(index++, boundaries[i].$2, html.substring(start, end)));
     }
+
     return chapters;
   }
-
-  MobiChapter _chapter(final int index, final String title, final String html) {
-    final name = 'chapter${index.toString().padLeft(5, '0')}.html';
-    return MobiChapter(
-      title: title,
-      file: TextFile(name: name, type: 'html', path: name, content: html),
-    );
-  }
 }
+
+/// A chapter of a MOBI 6 book, split from its single HTML stream at
+/// the table of contents anchors.
+final class MobiChapter {
+  const MobiChapter({required this.title, required this.file});
+
+  /// Chapter title from the table of contents.
+  final String title;
+
+  /// The chapter HTML slice.
+  final TextFile file;
+
+  @override
+  String toString() => 'MobiChapter(title: $title, file: ${file.name})';
+}
+
+final RegExp _fileposLinkPattern = RegExp(r'#filepos(\d+)$');
+
+final RegExp _anyTagPattern = RegExp('<[^>]*>');

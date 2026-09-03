@@ -10,9 +10,7 @@ import 'package:path/path.dart' as path;
 /// resolve them with [resolveItemPath] first.
 ArchiveFile? findArchiveFile(final Archive archive, final String entryPath) {
   final normalized = normalizeZipPath(entryPath);
-  if (normalized.isEmpty) {
-    return null;
-  }
+  if (normalized.isEmpty) return null;
   for (final file in archive.files) {
     if (!file.isFile) {
       continue;
@@ -22,6 +20,7 @@ ArchiveFile? findArchiveFile(final Archive archive, final String entryPath) {
       return file;
     }
   }
+
   return null;
 }
 
@@ -33,6 +32,7 @@ String resolveItemPath(final String? rootFilePath, final String href) {
   final joined = directory == '.' || directory.isEmpty
       ? hrefWithoutFragment
       : '$directory/$hrefWithoutFragment';
+
   return normalizeZipPath(joined);
 }
 
@@ -52,6 +52,7 @@ String normalizeZipPath(final String zipPath) {
     }
     segments.add(segment);
   }
+
   return segments.join('/');
 }
 
@@ -59,8 +60,7 @@ String normalizeZipPath(final String zipPath) {
 /// when the archive already decoded it into one.
 Uint8List contentBytes(final ArchiveFile entry) {
   final content = entry.content;
-  if (content is Uint8List) {
-    return Uint8List.sublistView(content);
-  }
+  if (content is Uint8List) return Uint8List.sublistView(content);
+
   return Uint8List.fromList(content as List<int>);
 }

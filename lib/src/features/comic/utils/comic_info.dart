@@ -1,5 +1,5 @@
-import 'package:e_livre/src/foundation/entities/book_format.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
+
 import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
 import 'package:xml/xml.dart';
 
@@ -7,6 +7,9 @@ import 'package:xml/xml.dart';
 /// (the de-facto ComicRack schema).
 class ComicInfo {
   const ComicInfo({required this.metadata});
+
+  /// The parsed metadata (`format` is refined by the caller).
+  final BookMetadata metadata;
 
   /// Parses the [xml] document. Returns `null` when the root element
   /// is not a `ComicInfo` document.
@@ -17,13 +20,12 @@ class ComicInfo {
     } on XmlException {
       return null;
     }
-    if (document.rootElement.name.local != 'ComicInfo') {
-      return null;
-    }
+    if (document.rootElement.name.local != 'ComicInfo') return null;
 
     String? value(final String name) {
       final element = _findChild(document.rootElement, name);
       final text = element?.innerText.trim();
+
       return text == null || text.isEmpty ? null : text;
     }
 
@@ -46,22 +48,17 @@ class ComicInfo {
     );
   }
 
-  /// The parsed metadata (`format` is refined by the caller).
-  final BookMetadata metadata;
-
   static XmlElement? _findChild(final XmlElement root, final String localName) {
     for (final child in root.children.whereType<XmlElement>()) {
-      if (child.name.local == localName) {
-        return child;
-      }
+      if (child.name.local == localName) return child;
     }
+
     return null;
   }
 
   static List<String> _splitList(final String? raw) {
-    if (raw == null) {
-      return const <String>[];
-    }
+    if (raw == null) return const <String>[];
+
     return raw
         .split(RegExp('[,;]'))
         .map((final part) => part.trim())

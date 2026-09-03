@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:e_livre/src/features/mobi/compression/huff_cdic.dart';
 import 'package:e_livre/src/features/mobi/compression/palmdoc.dart';
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
+import 'package:e_livre/src/features/mobi/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/utils/trailing_bytes.dart';
 
@@ -67,5 +67,6 @@ Uint8List extractMobiText({
     spanStart = i + 1;
   }
   output.add(Uint8List.sublistView(html, spanStart));
+
   return output.takeBytes();
 }

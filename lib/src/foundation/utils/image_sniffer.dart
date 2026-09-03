@@ -1,23 +1,5 @@
 import 'dart:typed_data';
 
-/// Image formats detectable from magic bytes.
-enum ImageType {
-  /// JPEG / JFIF.
-  jpeg,
-
-  /// Portable Network Graphics.
-  png,
-
-  /// Graphics Interchange Format.
-  gif,
-
-  /// WebP (RIFF container).
-  webp,
-
-  /// Windows Bitmap.
-  bmp,
-}
-
 extension ImageTypeX on ImageType {
   /// The IANA MIME type for this image format.
   String get mimeType => switch (this) {
@@ -38,20 +20,34 @@ extension ImageTypeX on ImageType {
   };
 }
 
+/// Image formats detectable from magic bytes.
+enum ImageType {
+  /// JPEG / JFIF.
+  jpeg,
+
+  /// Portable Network Graphics.
+  png,
+
+  /// Graphics Interchange Format.
+  gif,
+
+  /// WebP (RIFF container).
+  webp,
+
+  /// Windows Bitmap.
+  bmp,
+}
+
 /// Detects the image format of [bytes] from its magic bytes.
 ///
 /// Returns `null` when the data does not start with a known image
 /// signature. Only the first bytes of the buffer are inspected.
 ImageType? sniffImageType(final Uint8List bytes) {
   final length = bytes.length;
-  if (length < 3) {
-    return null;
-  }
+  if (length < 3) return null;
 
   // JPEG: FF D8 FF
-  if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
-    return ImageType.jpeg;
-  }
+  if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return ImageType.jpeg;
 
   // PNG: 89 50 4E 47 0D 0A 1A 0A
   if (length >= 8 &&
@@ -72,9 +68,7 @@ ImageType? sniffImageType(final Uint8List bytes) {
   }
 
   // BMP: 'BM'
-  if (bytes[0] == 0x42 && bytes[1] == 0x4D) {
-    return ImageType.bmp;
-  }
+  if (bytes[0] == 0x42 && bytes[1] == 0x4D) return ImageType.bmp;
 
   // WEBP: 'RIFF' .... 'WEBP'
   if (length >= 12 &&

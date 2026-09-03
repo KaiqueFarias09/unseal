@@ -1,9 +1,5 @@
 import 'package:e_livre/src/features/reading/book.dart';
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book_format.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// A parsed FictionBook 2.0 book.
 class Fb2Book extends Book {
@@ -30,9 +26,6 @@ class Fb2Book extends Book {
   @override
   final BookMetadata metadata;
 
-  /// The book title.
-  String get title => metadata.title ?? '';
-
   /// The book authors.
   List<String> get creators => metadata.authors;
 
@@ -41,4 +34,7 @@ class Fb2Book extends Book {
 
   /// The book publisher.
   String? get publisher => metadata.publisher;
+
+  /// The book title.
+  String get title => metadata.title ?? '';
 }

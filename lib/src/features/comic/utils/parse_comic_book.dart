@@ -2,20 +2,19 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/comic/entities/comic_book.dart';
-import 'package:e_livre/src/features/comic/exceptions/comic_exception.dart';
+import 'package:e_livre/src/features/comic/entities/entities.dart';
+import 'package:e_livre/src/features/comic/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/comic/utils/comic_info.dart';
 import 'package:e_livre/src/features/comic/utils/rar_reader.dart';
-import 'package:e_livre/src/foundation/entities/book_cover.dart';
-import 'package:e_livre/src/foundation/entities/book_format.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
+
 import 'package:e_livre/src/foundation/utils/image_size.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 
 /// A comic page candidate extracted from an archive.
 class _Page {
   const _Page(this.name, this.bytes);
+
   final String name;
   final Uint8List bytes;
 }
@@ -30,9 +29,8 @@ ComicBook parseComicBook(final Uint8List bytes) {
 BookMetadata readComicMetadata(final Uint8List bytes) {
   final (_, comicInfo) = _readPages(bytes);
   final format = _cbz(bytes) ? BookFormat.cbz : BookFormat.cbr;
-  if (comicInfo == null) {
-    return BookMetadata(format: format);
-  }
+  if (comicInfo == null) return BookMetadata(format: format);
+
   return BookMetadata(
     format: format,
     title: comicInfo.metadata.title,
@@ -91,10 +89,9 @@ bool _cbz(final Uint8List bytes) => bytes.length > 2 && bytes[0] == 0x50 && byte
     }
   }
 
-  if (pages.isEmpty) {
-    throw const ComicException('No image pages found in the comic archive.');
-  }
+  if (pages.isEmpty) throw const ComicException('No image pages found in the comic archive.');
   pages.sort((final a, final b) => compareNatural(a.name, b.name));
+
   return (pages, comicInfo);
 }
 
@@ -149,16 +146,13 @@ int compareNatural(final String a, final String b) {
         nb = nb * 10 + (b.codeUnitAt(ib) ^ 0x30);
         ib++;
       }
-      if (na != nb) {
-        return na.compareTo(nb);
-      }
+      if (na != nb) return na.compareTo(nb);
     } else {
-      if (ca != cb) {
-        return ca.compareTo(cb);
-      }
+      if (ca != cb) return ca.compareTo(cb);
       ia++;
       ib++;
     }
   }
+
   return (a.length - ia).compareTo(b.length - ib);
 }

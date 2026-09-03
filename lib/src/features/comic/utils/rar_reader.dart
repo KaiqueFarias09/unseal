@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/comic/exceptions/comic_exception.dart';
+import 'package:e_livre/src/features/comic/exceptions/exceptions.dart';
 
 /// An entry extracted from a RAR archive.
 class RarEntry {
@@ -31,9 +31,7 @@ class RarEntry {
 /// reported with [RarEntry.isStored] `false` so callers can decide
 /// how to handle them.
 List<RarEntry> readRarEntries(final Uint8List bytes) {
-  if (bytes.length < 8) {
-    throw const ComicException('File is too small to be a RAR archive.');
-  }
+  if (bytes.length < 8) throw const ComicException('File is too small to be a RAR archive.');
   final isRar4 =
       bytes[0] == 0x52 &&
       bytes[1] == 0x61 &&
@@ -51,9 +49,8 @@ List<RarEntry> readRarEntries(final Uint8List bytes) {
       bytes[5] == 0x07 &&
       bytes[6] == 0x01 &&
       bytes[7] == 0x00;
-  if (!isRar4 && !isRar5) {
-    throw const ComicException('Not a RAR archive.');
-  }
+  if (!isRar4 && !isRar5) throw const ComicException('Not a RAR archive.');
+
   return isRar4 ? _readRar4(bytes) : _readRar5(bytes);
 }
 
@@ -125,6 +122,7 @@ List<RarEntry> _readRar4(final Uint8List bytes) {
       }
     }
   }
+
   return entries;
 }
 
@@ -204,6 +202,7 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
       break; // guard against malformed headers
     }
   }
+
   return entries;
 }
 
@@ -224,5 +223,6 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
       break;
     }
   }
+
   return (value, consumed);
 }

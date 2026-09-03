@@ -1,8 +1,7 @@
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
+import 'package:e_livre/src/features/epub/entities/entities.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
 
 /// Resolves the manifest item that holds the cover image.
 ///
@@ -19,16 +18,12 @@ ManifestItem? resolveCoverItem(final EpubPackage package) {
   final propertyCover = items.firstWhereOrNull(
     (final item) => item.properties.contains('cover-image') && item.mediaType.contains('image/'),
   );
-  if (propertyCover != null) {
-    return propertyCover;
-  }
+  if (propertyCover != null) return propertyCover;
 
   final coverId = package.metadata.coverId;
   if (coverId != null && coverId.isNotEmpty) {
     final metaCover = items.firstWhereOrNull((final item) => item.id == coverId);
-    if (metaCover != null) {
-      return metaCover;
-    }
+    if (metaCover != null) return metaCover;
   }
 
   final guideReference = package.guide?.references.firstWhereOrNull(
@@ -37,9 +32,7 @@ ManifestItem? resolveCoverItem(final EpubPackage package) {
   if (guideReference != null) {
     final href = normalizeZipPath(guideReference.href.split('#').first);
     final guideCover = items.firstWhereOrNull((final item) => normalizeZipPath(item.path) == href);
-    if (guideCover != null) {
-      return guideCover;
-    }
+    if (guideCover != null) return guideCover;
   }
 
   return items.firstWhereOrNull(
@@ -61,23 +54,19 @@ BinaryFile getBookCover(
   final String? rootFilePath,
 ]) {
   final coverItem = resolveCoverItem(package);
-  if (coverItem == null) {
-    return BinaryFile.empty();
-  }
+  if (coverItem == null) return BinaryFile.empty();
 
   final resolvedPath = resolveItemPath(rootFilePath, coverItem.path);
   final fromImages = images.firstWhereOrNull(
     (final image) => normalizeZipPath(image.path).toLowerCase() == resolvedPath.toLowerCase(),
   );
-  if (fromImages != null) {
-    return fromImages;
-  }
+  if (fromImages != null) return fromImages;
 
   final entry = findArchiveFile(archive, resolvedPath);
-  if (entry == null) {
-    return BinaryFile.empty();
-  }
+  if (entry == null) return BinaryFile.empty();
+
   final name = entry.name.split('/').last;
+
   return BinaryFile(
     content: contentBytes(entry),
     name: name,

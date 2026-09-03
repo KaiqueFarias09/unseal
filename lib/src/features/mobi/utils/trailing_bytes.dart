@@ -13,9 +13,7 @@ Uint8List stripTrailingEntries(final Uint8List record, final int extraFlags) {
   while (flags != 0) {
     if ((flags & 1) != 0) {
       final entrySize = _sizeofTrailingEntry(record, size - num);
-      if (entrySize == null) {
-        return record;
-      }
+      if (entrySize == null) return record;
       num += entrySize;
     }
     flags >>= 1;
@@ -28,9 +26,8 @@ Uint8List stripTrailingEntries(final Uint8List record, final int extraFlags) {
       num += (record[off] & 0x3) + 1;
     }
   }
-  if (num <= 0 || num >= record.length) {
-    return record;
-  }
+  if (num <= 0 || num >= record.length) return record;
+
   return Uint8List.sublistView(record, 0, record.length - num);
 }
 
@@ -43,9 +40,8 @@ int? _sizeofTrailingEntry(final Uint8List record, final int psize) {
     result |= (v & 0x7F) << bitpos;
     bitpos += 7;
     size -= 1;
-    if ((v & 0x80) != 0 || bitpos >= 28 || size == 0) {
-      return result;
-    }
+    if ((v & 0x80) != 0 || bitpos >= 28 || size == 0) return result;
   }
+
   return null;
 }

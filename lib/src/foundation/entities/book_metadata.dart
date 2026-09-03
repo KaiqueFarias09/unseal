@@ -9,35 +9,38 @@ final class BookMetadata {
   /// Creates a [BookMetadata].
   const BookMetadata({
     required this.format,
-    this.title,
     this.authors = const <String>[],
-    this.languages = const <String>[],
-    this.publisher,
+    this.cover,
     this.description,
+    this.identifiers = const <String, String>{},
     this.isbn,
-    this.subjects = const <String>[],
+    this.languages = const <String>[],
     this.publishedAt,
+    this.publisher,
     this.rights,
     this.series,
     this.seriesIndex,
-    this.identifiers = const <String, String>{},
-    this.cover,
+    this.subjects = const <String>[],
+    this.title,
   });
-
-  /// The format the metadata was extracted from.
-  final BookFormat format;
-
-  /// Book title, when available.
-  final String? title;
 
   /// Author names, in display order.
   final List<String> authors;
 
+  /// The format the metadata was extracted from.
+  final BookFormat format;
+
+  /// Additional identifiers keyed by scheme (e.g. `asin`, `uuid`).
+  final Map<String, String> identifiers;
+
   /// ISO language codes (e.g. `en`, `pt-BR`).
   final List<String> languages;
 
-  /// Publisher name, when available.
-  final String? publisher;
+  /// Subjects / genres / tags.
+  final List<String> subjects;
+
+  /// The book cover, when one could be located.
+  final BookCover? cover;
 
   /// Description / annotation / summary.
   final String? description;
@@ -45,11 +48,11 @@ final class BookMetadata {
   /// ISBN, when available.
   final String? isbn;
 
-  /// Subjects / genres / tags.
-  final List<String> subjects;
-
   /// Publication date, when parseable.
   final DateTime? publishedAt;
+
+  /// Publisher name, when available.
+  final String? publisher;
 
   /// Copyright / rights statement.
   final String? rights;
@@ -61,11 +64,8 @@ final class BookMetadata {
   /// fraction such as `2.5` for short stories between volumes).
   final double? seriesIndex;
 
-  /// Additional identifiers keyed by scheme (e.g. `asin`, `uuid`).
-  final Map<String, String> identifiers;
-
-  /// The book cover, when one could be located.
-  final BookCover? cover;
+  /// Book title, when available.
+  final String? title;
 
   /// Returns a copy with the provided fields replaced.
   BookMetadata copyWith({

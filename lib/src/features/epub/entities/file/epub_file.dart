@@ -1,7 +1,5 @@
 // The abstract file entity lives in core now; kept for compatibility.
-import 'package:e_livre/src/foundation/entities/file/book_file.dart';
-
-export 'package:e_livre/src/foundation/entities/file/book_file.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// Backwards compatible alias for the base file entity.
 typedef EpubFile = BookFile;

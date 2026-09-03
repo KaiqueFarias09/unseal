@@ -1,8 +1,7 @@
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_2_package.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_3_package.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
-import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
+import 'package:e_livre/src/features/epub/entities/entities.dart';
+
+import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:xml/xml.dart';
 
 /// Parses the provided XML string into an `EpubPackage`.
@@ -60,9 +59,7 @@ EpubPackage parsePackage(final String xml) {
         );
 
     final tocPath = tocElement?.getAttribute('id') ?? spine.tocId;
-    if (tocPath == null) {
-      throw EpubException('EPUB parsing package error: TOC ID is empty.');
-    }
+    if (tocPath == null) throw EpubException('EPUB parsing package error: TOC ID is empty.');
 
     return Epub3Package(
       xmlns: xmlns,
@@ -327,10 +324,12 @@ Spine _parseSpine(final XmlElement spineElement) {
 Guide? _parseGuide(final XmlElement guideElement) {
   return Guide(
     references: guideElement.findElements('reference').map((final referenceElement) {
+      // The OPF spec only requires `href` and `type`; `title` is optional and
+      // real-world books omit it, so missing attributes degrade to empty.
       return Reference(
-        href: referenceElement.getAttribute('href')!,
-        title: referenceElement.getAttribute('title')!,
-        type: referenceElement.getAttribute('type')!,
+        href: referenceElement.getAttribute('href') ?? '',
+        title: referenceElement.getAttribute('title') ?? '',
+        type: referenceElement.getAttribute('type') ?? '',
       );
     }).toList(),
   );

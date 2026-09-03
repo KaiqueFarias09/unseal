@@ -1,10 +1,5 @@
 import 'package:e_livre/e_livre.dart' show EpubBook, MobiBook, Fb2Book, ComicBook;
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book/reading_order_item.dart';
-import 'package:e_livre/src/foundation/entities/book_format.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/book_statistics.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// A fully parsed book, independent of its source format.
 ///
@@ -25,20 +20,20 @@ abstract class Book {
   /// The format this book was parsed from.
   final BookFormat format;
 
-  /// The format-agnostic metadata of this book.
-  BookMetadata get metadata;
-
-  /// The navigation (table of contents) of this book.
-  Navigation get navigation;
-
-  /// The extracted files of this book.
-  Files get files;
-
   /// Reading statistics over the HTML content, computed once on
   /// first access.
   late final BookStatistics statistics = BookStatistics.fromTexts(
     files.html.map((final file) => file.plainText),
   );
+
+  /// The extracted files of this book.
+  Files get files;
+
+  /// The format-agnostic metadata of this book.
+  BookMetadata get metadata;
+
+  /// The navigation (table of contents) of this book.
+  Navigation get navigation;
 
   /// The content files in reading order.
   ///

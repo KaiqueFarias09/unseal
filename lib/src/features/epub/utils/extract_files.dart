@@ -1,11 +1,8 @@
 import 'dart:convert' as convert;
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
+import 'package:e_livre/src/features/epub/entities/entities.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/entities/file/text_file.dart';
 
 /// Extracts various types of files from an EPUB archive.
 ///
@@ -58,6 +55,7 @@ List<BinaryFile> _binaryFiles(
       ),
     );
   }
+
   return result;
 }
 
@@ -78,6 +76,7 @@ List<TextFile> _textFiles(
       ),
     );
   }
+
   return result;
 }
 
@@ -103,5 +102,6 @@ Iterable<ArchiveFile> _resolveEntries(
       resolved.add(match);
     }
   }
+
   return resolved;
 }

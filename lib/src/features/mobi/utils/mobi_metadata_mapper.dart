@@ -1,10 +1,8 @@
 import 'package:e_livre/src/features/mobi/header/exth_header.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/utils/langcodes.dart';
-import 'package:e_livre/src/foundation/entities/book_cover.dart';
-import 'package:e_livre/src/foundation/entities/book_format.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
+
 import 'package:e_livre/src/foundation/utils/image_size.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 
@@ -102,37 +100,29 @@ BookMetadata mobiBookMetadata(
 }
 
 BookCover? _coverFrom(final BinaryFile? coverFile) {
-  if (coverFile == null || coverFile.isEmpty) {
-    return null;
-  }
+  if (coverFile == null || coverFile.isEmpty) return null;
   final type = sniffImageType(coverFile.content);
-  if (type == null) {
-    return null;
-  }
+  if (type == null) return null;
+
   final size = imageSize(coverFile.content);
+
   return BookCover(bytes: coverFile.content, type: type, width: size?.width, height: size?.height);
 }
 
 DateTime? _parseMobiDate(final String? raw) {
-  if (raw == null) {
-    return null;
-  }
+  if (raw == null) return null;
   final trimmed = raw.trim();
-  if (trimmed.isEmpty) {
-    return null;
-  }
+  if (trimmed.isEmpty) return null;
+
   final direct = DateTime.tryParse(trimmed);
-  if (direct != null) {
-    return direct;
-  }
+  if (direct != null) return direct;
+
   final match = RegExp(r'^(\d{4})(?:[-/.](\d{1,2}))?(?:[-/.](\d{1,2}))?').firstMatch(trimmed);
-  if (match == null) {
-    return null;
-  }
+  if (match == null) return null;
+
   final month = match.group(2) != null ? int.parse(match.group(2)!) : 1;
   final day = match.group(3) != null ? int.parse(match.group(3)!) : 1;
-  if (month < 1 || month > 12 || day < 1 || day > 31) {
-    return DateTime(int.parse(match.group(1)!));
-  }
+  if (month < 1 || month > 12 || day < 1 || day > 31) return DateTime(int.parse(match.group(1)!));
+
   return DateTime(int.parse(match.group(1)!), month, day);
 }

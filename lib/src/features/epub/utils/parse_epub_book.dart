@@ -3,9 +3,9 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/features/epub/entities/book/book.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
-import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
+import 'package:e_livre/src/features/epub/entities/entities.dart';
+
+import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';
 import 'package:e_livre/src/features/epub/utils/extract_files.dart';
@@ -13,8 +13,7 @@ import 'package:e_livre/src/features/epub/utils/get_book_cover.dart';
 import 'package:e_livre/src/features/epub/utils/get_epub_root_file_path.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
 import 'package:e_livre/src/features/epub/utils/process_package.dart';
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// Parses an EPUB from raw [bytes].
 EpubBook parseEpubBook(final Uint8List bytes) {
@@ -50,12 +49,14 @@ BookMetadata readEpubMetadata(final Archive archive) {
   final rootFile = _getRootFile(archive, rootFilePath).content as List<int>;
 
   final package = parsePackage(convert.utf8.decode(rootFile));
+
   return epubBookMetadata(package, getBookCover(package, archive, const [], rootFilePath));
 }
 
 ArchiveFile _getRootFile(final Archive archive, final String? rootFilePath) {
   if (rootFilePath == null) throw EpubException('No root file found');
   final rootFile = findArchiveFile(archive, rootFilePath);
+
   return rootFile ?? (throw EpubException('No root file found'));
 }
 
@@ -79,5 +80,6 @@ List<String>? _spinePaths(
       resolved.add(files.html[index].path);
     }
   }
+
   return resolved.isEmpty ? null : resolved;
 }

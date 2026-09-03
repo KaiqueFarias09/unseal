@@ -27,17 +27,10 @@ String resolveMobiLanguage(final int langCode) {
   final langId = langCode & 0xFF;
   final subLangId = (langCode >> 10) & 0xFF;
   final language = mobiLanguageCodes[langId] ?? '';
-  if (language.isEmpty) {
-    return '';
-  }
-  if (language == 'pt' && subLangId == 0x02) {
-    return 'pt-BR';
-  }
-  if (language == 'en' && subLangId == 0x03) {
-    return 'en-GB';
-  }
-  if (language == 'zh' && subLangId == 0x03) {
-    return 'zh-HK';
-  }
+  if (language.isEmpty) return '';
+  if (language == 'pt' && subLangId == 0x02) return 'pt-BR';
+  if (language == 'en' && subLangId == 0x03) return 'en-GB';
+  if (language == 'zh' && subLangId == 0x03) return 'zh-HK';
+
   return language;
 }

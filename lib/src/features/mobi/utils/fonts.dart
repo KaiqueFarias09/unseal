@@ -35,9 +35,7 @@ DecodedFont decodeFontRecord(final Uint8List data) {
   final xorLen = view.getUint32(16);
   final xorStart = view.getUint32(20);
 
-  if (dstart >= data.length) {
-    return DecodedFont(data: data, extension: 'dat');
-  }
+  if (dstart >= data.length) return DecodedFont(data: data, extension: 'dat');
 
   var fontData = Uint8List.sublistView(data, dstart);
 
@@ -58,9 +56,7 @@ DecodedFont decodeFontRecord(final Uint8List data) {
     } on Object {
       return DecodedFont(data: data, extension: 'dat');
     }
-    if (fontData.length != usize) {
-      return DecodedFont(data: data, extension: 'dat');
-    }
+    if (fontData.length != usize) return DecodedFont(data: data, extension: 'dat');
   }
 
   final signature = fontData.length >= 4 ? fontData.sublist(0, 4) : fontData;
@@ -74,6 +70,7 @@ DecodedFont decodeFontRecord(final Uint8List data) {
   } else {
     extension = 'dat';
   }
+
   return DecodedFont(data: fontData, extension: extension);
 }
 
@@ -82,6 +79,7 @@ bool _equals(final Uint8List bytes, final List<int> magic) {
   for (var i = 0; i < magic.length; i++) {
     if (bytes[i] != magic[i]) return false;
   }
+
   return true;
 }
 
@@ -90,5 +88,6 @@ bool _equalsAscii(final Uint8List bytes, final String magic) {
   for (var i = 0; i < magic.length; i++) {
     if (bytes[i] != magic.codeUnitAt(i)) return false;
   }
+
   return true;
 }

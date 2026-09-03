@@ -2,8 +2,7 @@ import 'dart:typed_data';
 
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/index/indx_reader.dart';
-import 'package:e_livre/src/foundation/entities/navigation/nav_point.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// A single NCX (KF8 table of contents) index entry.
 class NcxEntry {
@@ -65,9 +64,7 @@ List<NcxEntry> readNcx(
   final String codec,
 ) {
   final entries = <NcxEntry>[];
-  if (ncxIndex == nullIndex) {
-    return entries;
-  }
+  if (ncxIndex == nullIndex) return entries;
 
   final (table, cncx) = readIndex(recordAt, recordCount, ncxIndex, codec);
   var num = 0;
@@ -104,6 +101,7 @@ List<NcxEntry> readNcx(
     }
     entries.add(entry);
   }
+
   return entries;
 }
 

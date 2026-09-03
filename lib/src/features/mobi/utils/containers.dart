@@ -50,25 +50,22 @@ class MobiContainer {
   Uint8List? loadImage(final Uint8List data) {
     resourceIndex += 1;
     if (isImageContainer) {
-      if (data.length <= 12) {
-        return null;
-      }
+      if (data.length <= 12) return null;
       final unwrapped = Uint8List.sublistView(data, 12);
+
       return sniffImageType(unwrapped) != null ? unwrapped : null;
     }
+
     return null;
   }
 
   static bool _isMimeImage(final Uint8List data, final int start, final int length) {
     const mime = 'application/image';
-    if (length != mime.length) {
-      return false;
-    }
+    if (length != mime.length) return false;
     for (var i = 0; i < mime.length; i++) {
-      if (data[start + i] != mime.codeUnitAt(i)) {
-        return false;
-      }
+      if (data[start + i] != mime.codeUnitAt(i)) return false;
     }
+
     return true;
   }
 }

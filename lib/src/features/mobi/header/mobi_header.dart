@@ -4,9 +4,6 @@ import 'package:e_livre/src/features/mobi/header/exth_header.dart';
 import 'package:e_livre/src/features/mobi/utils/decint.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 
-/// The `null` record index sentinel used by MOBI headers.
-const int nullIndex = 0xFFFFFFFF;
-
 /// The MOBI header (record 0) of a MOBI / AZW3 file.
 class MobiHeader {
   /// Parses the MOBI header from [record0] (with PDB [ident]).
@@ -35,6 +32,7 @@ class MobiHeader {
       fdstCount = 0;
       huffOffset = huffRecordCount = 0;
       doctype = '';
+
       return;
     }
 
@@ -91,6 +89,9 @@ class MobiHeader {
       fdstCount = 0;
     }
   }
+
+  /// The PDB type identifier this header was parsed under.
+  final String ident;
 
   /// Raw compression type: 1 none, 2 PalmDoc, `DH` (0x4448) HUFF.
   late final int compressionType;
@@ -149,9 +150,6 @@ class MobiHeader {
   /// The EXTH header, when present.
   late final ExthHeader? exth;
 
-  /// The PDB type identifier this header was parsed under.
-  final String ident;
-
   /// NCX index record (KF8), or [nullIndex].
   late final int ncxIndex;
 
@@ -174,6 +172,9 @@ class MobiHeader {
   int get firstNonTextRecordIndex =>
       firstImageIndex == -1 || firstImageIndex == nullIndex ? textRecordCount + 1 : firstImageIndex;
 }
+
+/// The `null` record index sentinel used by MOBI headers.
+const int nullIndex = 0xFFFFFFFF;
 
 /// Validates that [header] is not DRM protected.
 void assertNotDrm(final MobiHeader header, final String bookName) {

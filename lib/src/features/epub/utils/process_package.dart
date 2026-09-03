@@ -2,12 +2,11 @@ import 'dart:convert' as convert;
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_3_package.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
-import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
+import 'package:e_livre/src/features/epub/entities/entities.dart';
+
+import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
-import 'package:e_livre/src/foundation/entities/navigation/nav_point.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
+
 import 'package:xml/xml.dart';
 
 /// Retrieves the navigation (table of contents) of an EPUB.
@@ -21,9 +20,7 @@ Navigation getEpubNavigation(
   final String? rootFilePath,
 ) {
   final tocId = package.spine.tocId ?? _navDocumentId(package);
-  if (tocId == null) {
-    throw EpubException('EPUB parsing error: TOC ID is empty.');
-  }
+  if (tocId == null) throw EpubException('EPUB parsing error: TOC ID is empty.');
 
   final tocManifestItem = package.manifest.items.firstWhere(
     (final element) => element.id == tocId,
@@ -40,14 +37,12 @@ Navigation getEpubNavigation(
   final document = XmlDocument.parse(convert.utf8.decode(tocFileEntry.content as List<int>));
 
   final isNcx = document.rootElement.name.local == 'ncx';
+
   return isNcx ? _navigationFromNcx(document) : _navigationFromNavDoc(document);
 }
 
 String? _navDocumentId(final EpubPackage package) {
-  if (package is Epub3Package) {
-    return package.tocId;
-  }
-  return null;
+  return package is Epub3Package ? package.tocId : null;
 }
 
 Navigation _navigationFromNcx(final XmlDocument document) {
@@ -108,9 +103,7 @@ Navigation _navigationFromNavDoc(final XmlDocument document) {
     }
     navElement ??= candidate;
   }
-  if (navElement == null) {
-    return Navigation(title: title, navPoints: <NavPoint>[]);
-  }
+  if (navElement == null) return Navigation(title: title, navPoints: <NavPoint>[]);
 
   final list = navElement.findElements('ol').firstOrNull;
   final navPoints = list == null ? <NavPoint>[] : _navPointsFromNavList(list, 0);
@@ -141,5 +134,6 @@ List<NavPoint> _navPointsFromNavList(final XmlElement list, final int order) {
       ),
     );
   }
+
   return points;
 }

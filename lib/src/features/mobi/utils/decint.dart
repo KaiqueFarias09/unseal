@@ -17,6 +17,7 @@ import 'dart:typed_data';
       break;
     }
   }
+
   return (value, consumed);
 }
 
@@ -25,9 +26,7 @@ import 'dart:typed_data';
 /// The first byte holds the length, followed by that many bytes
 /// decoded with [codec]. Returns the string and bytes consumed.
 (String, int) decodeIndexString(final Uint8List raw, final String codec, [final int start = 0]) {
-  if (start >= raw.length) {
-    return ('', 0);
-  }
+  if (start >= raw.length) return ('', 0);
   final length = raw[start];
   final end = start + 1 + length;
   final bytes = raw.sublist(start + 1, end > raw.length ? raw.length : end);
@@ -39,16 +38,14 @@ import 'dart:typed_data';
     // semantics by returning a printable-char projection.
     return (String.fromCharCodes(bytes.where((final b) => b > 0x20 && b < 0x7F)), consumed);
   }
+
   return (decodeBytes(bytes, codec), consumed);
 }
 
 /// Decodes [bytes] with the given MOBI text codec
 /// (`utf-8` or `cp1252`), replacing invalid sequences.
 String decodeBytes(final Uint8List bytes, final String codec) {
-  if (codec == 'utf-8') {
-    return convert.utf8.decode(bytes, allowMalformed: true);
-  }
-  return _cp1252(bytes);
+  return codec == 'utf-8' ? convert.utf8.decode(bytes, allowMalformed: true) : _cp1252(bytes);
 }
 
 /// cp1252 code unit for each byte value; the 0x80..0x9F range maps to
@@ -84,9 +81,7 @@ final List<int> _cp1252CodeUnits = List<int>.generate(256, (final byte) {
     0x9F: '\u0178',
   };
   final mapped = high[byte];
-  if (mapped != null) {
-    return mapped.codeUnitAt(0);
-  }
+  if (mapped != null) return mapped.codeUnitAt(0);
   // 0x81, 0x8D, 0x8F, 0x90 and 0x9D are undefined in cp1252.
   return byte >= 0x80 && byte <= 0x9F ? 0x3F : byte;
 });
@@ -103,6 +98,7 @@ int countSetBits(int value) {
     count += value & 1;
     value >>= 1;
   }
+
   return count;
 }
 

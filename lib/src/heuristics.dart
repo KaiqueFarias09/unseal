@@ -5,6 +5,20 @@
 /// time for books whose source lacks proper typography or navigation.
 library;
 
+/// Chapter heading candidates found in [text], in document order.
+/// Parity: calibre heuristic chapter detection ("Chapter N",
+/// localized "Capítulo/Capitolo/Kapitel", roman numerals alone on a
+/// line, ALL-CAPS short lines).
+class ChapterGuess {
+  const ChapterGuess({required this.title, required this.offset});
+
+  /// Detected heading text.
+  final String title;
+
+  /// Character offset of the heading line in [text].
+  final int offset;
+}
+
 /// Parity: calibre smarten_punctuation — straight quotes become curly
 /// (open if preceded by start/whitespace/opening punctuation, close
 /// otherwise), `--` becomes an em dash and `...` an ellipsis.
@@ -25,6 +39,7 @@ String smartenPunctuation(final String text) {
     }
     previous = char;
   }
+
   return quote.toString();
 }
 
@@ -38,20 +53,6 @@ String normalizeSceneBreaks(final String html, {final String marker = '• • �
   );
 }
 
-/// Chapter heading candidates found in [text], in document order.
-/// Parity: calibre heuristic chapter detection ("Chapter N",
-/// localized "Capítulo/Capitolo/Kapitel", roman numerals alone on a
-/// line, ALL-CAPS short lines).
-class ChapterGuess {
-  const ChapterGuess({required this.title, required this.offset});
-
-  /// Detected heading text.
-  final String title;
-
-  /// Character offset of the heading line in [text].
-  final int offset;
-}
-
 // Chapter-number headings match case-insensitively; standalone roman
 // numerals and ALL-CAPS lines must stay case-sensitive.
 final RegExp _chapterKeyword = RegExp(
@@ -59,6 +60,7 @@ final RegExp _chapterKeyword = RegExp(
   multiLine: true,
   caseSensitive: false,
 );
+
 final RegExp _romanOrCaps = RegExp(
   r'''^\s*(?:[IVXLC]{1,7}|[A-Z][A-Z\s:'\-,.]{3,60})\s*$''',
   multiLine: true,
@@ -81,6 +83,7 @@ List<ChapterGuess> guessChapters(final String text) {
     guesses.add(ChapterGuess(title: line, offset: match.start));
   }
   guesses.sort((final a, final b) => a.offset.compareTo(b.offset));
+
   return guesses;
 }
 
@@ -93,6 +96,7 @@ String unwrapHardLineBreaks(final String text) {
     RegExp('([a-z\\u00C0-\\u024F])\\-[ \\t]*\\n([a-z\\u00C0-\\u024F])'),
     (final m) => '${m.group(1)}${m.group(2)}',
   );
+
   return out.replaceAllMapped(
     RegExp('([a-z,;])[ \\t]*\\n([a-z\\u00C0-\\u024F])'),
     (final m) => '${m.group(1)} ${m.group(2)}',

@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// Merges [overlay] metadata over [base], Calibre `smart_update`
 /// style: every overlay field that carries a value replaces the base
@@ -34,20 +34,15 @@ BookMetadata mergeBookMetadata(final BookMetadata base, final BookMetadata overl
 BookMetadata applyFilenameFallback(final BookMetadata metadata, final String filePath) {
   final hasTitle = metadata.title != null && metadata.title!.isNotEmpty;
   final hasAuthors = metadata.authors.isNotEmpty;
-  if (hasTitle && hasAuthors) {
-    return metadata;
-  }
+  if (hasTitle && hasAuthors) return metadata;
 
   final fileName = _basenameWithoutExtension(filePath);
   final match = RegExp(r'^(.+)\s+-\s+([^-]+)$').firstMatch(fileName.trim());
-  if (match == null) {
-    return metadata;
-  }
+  if (match == null) return metadata;
+
   final title = match.group(1)!.trim();
   final author = match.group(2)!.trim();
-  if (title.isEmpty || author.isEmpty) {
-    return metadata;
-  }
+  if (title.isEmpty || author.isEmpty) return metadata;
 
   return mergeBookMetadata(
     metadata,
@@ -61,23 +56,20 @@ BookMetadata applyFilenameFallback(final BookMetadata metadata, final String fil
 
 /// Parses a series index such as `2`, `2.5` or `0,5`.
 double? parseSeriesIndex(final String? raw) {
-  if (raw == null) {
-    return null;
-  }
-  return double.tryParse(raw.trim().replaceAll(',', '.'));
+  return raw == null ? null : double.tryParse(raw.trim().replaceAll(',', '.'));
 }
 
 String _basenameWithoutExtension(final String filePath) {
   final slash = filePath.lastIndexOf('/');
   final base = slash == -1 ? filePath : filePath.substring(slash + 1);
   final dot = base.lastIndexOf('.');
+
   return dot <= 0 ? base : base.substring(0, dot);
 }
 
 String? _pick(final String? overlay, final String? base) {
-  if (overlay != null && overlay.isNotEmpty) {
-    return overlay;
-  }
+  if (overlay != null && overlay.isNotEmpty) return overlay;
+
   return base != null && base.isNotEmpty ? base : null;
 }
 

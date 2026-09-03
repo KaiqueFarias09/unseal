@@ -19,9 +19,8 @@ Uint8List decompressPalmdoc(final Uint8List data) {
 
   void ensure(final int extra) {
     final needed = written + extra;
-    if (needed <= output.length) {
-      return;
-    }
+    if (needed <= output.length) return;
+
     var capacity = output.length * 2;
     while (capacity < needed) {
       capacity *= 2;
@@ -59,5 +58,6 @@ Uint8List decompressPalmdoc(final Uint8List data) {
       }
     }
   }
+
   return Uint8List.sublistView(output, 0, written);
 }

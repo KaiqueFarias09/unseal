@@ -1,9 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
+import 'package:e_livre/src/features/mobi/exceptions/exceptions.dart';
 
 class _Dict1Entry {
   const _Dict1Entry(this.codelen, this.term, this.maxcode);
+
   final int codelen;
   final bool term;
   final int maxcode;
@@ -11,6 +12,7 @@ class _Dict1Entry {
 
 class _DictionaryEntry {
   _DictionaryEntry(this.data, this.cached);
+
   Uint8List data;
   bool cached;
 }
@@ -29,10 +31,11 @@ class HuffReader {
     }
   }
 
+  final List<_DictionaryEntry> _dictionary = <_DictionaryEntry>[];
+
   late final List<_Dict1Entry> _dict1;
   late final List<int> _mincode;
   late final List<int> _maxcode;
-  final List<_DictionaryEntry> _dictionary = <_DictionaryEntry>[];
 
   /// Decompresses a single record.
   Uint8List unpack(final Uint8List data) {
@@ -83,7 +86,43 @@ class HuffReader {
     for (final chunk in output) {
       builder.add(chunk);
     }
+
     return builder.takeBytes();
+  }
+
+  void _loadCdic(final Uint8List cdic) {
+    if (cdic.length < 16 ||
+        cdic[0] != 0x43 ||
+        cdic[1] != 0x44 ||
+        cdic[2] != 0x49 ||
+        cdic[3] != 0x43 ||
+        cdic[4] != 0 ||
+        cdic[5] != 0 ||
+        cdic[6] != 0 ||
+        cdic[7] != 0x10) {
+      throw const MobiException('Invalid CDIC header');
+    }
+    final view = ByteData.sublistView(cdic);
+    final phrases = view.getUint32(8);
+    final bits = view.getUint32(12);
+    final available = (1 << bits) < phrases - _dictionary.length
+        ? (1 << bits)
+        : phrases - _dictionary.length;
+
+    for (var i = 0; i < available; i++) {
+      final off = view.getUint16(16 + i * 2);
+      final blen = view.getUint16(16 + off);
+      final length = blen & 0x7FFF;
+      final cached = (blen & 0x8000) != 0;
+      final start = 18 + off;
+      final end = start + length;
+      _dictionary.add(
+        _DictionaryEntry(
+          Uint8List.sublistView(cdic, start, end > cdic.length ? cdic.length : end),
+          cached,
+        ),
+      );
+    }
   }
 
   void _loadHuff(final Uint8List huff) {
@@ -127,40 +166,5 @@ class HuffReader {
     }
     _mincode = mincode;
     _maxcode = maxcode;
-  }
-
-  void _loadCdic(final Uint8List cdic) {
-    if (cdic.length < 16 ||
-        cdic[0] != 0x43 ||
-        cdic[1] != 0x44 ||
-        cdic[2] != 0x49 ||
-        cdic[3] != 0x43 ||
-        cdic[4] != 0 ||
-        cdic[5] != 0 ||
-        cdic[6] != 0 ||
-        cdic[7] != 0x10) {
-      throw const MobiException('Invalid CDIC header');
-    }
-    final view = ByteData.sublistView(cdic);
-    final phrases = view.getUint32(8);
-    final bits = view.getUint32(12);
-    final available = (1 << bits) < phrases - _dictionary.length
-        ? (1 << bits)
-        : phrases - _dictionary.length;
-
-    for (var i = 0; i < available; i++) {
-      final off = view.getUint16(16 + i * 2);
-      final blen = view.getUint16(16 + off);
-      final length = blen & 0x7FFF;
-      final cached = (blen & 0x8000) != 0;
-      final start = 18 + off;
-      final end = start + length;
-      _dictionary.add(
-        _DictionaryEntry(
-          Uint8List.sublistView(cdic, start, end > cdic.length ? cdic.length : end),
-          cached,
-        ),
-      );
-    }
   }
 }

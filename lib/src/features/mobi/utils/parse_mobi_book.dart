@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/entities/mobi_book.dart';
+import 'package:e_livre/src/features/mobi/entities/entities.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
 import 'package:e_livre/src/features/mobi/reader/mobi6_markup.dart';
@@ -8,11 +8,8 @@ import 'package:e_livre/src/features/mobi/reader/mobi8_reader.dart';
 import 'package:e_livre/src/features/mobi/reader/mobi_text.dart';
 import 'package:e_livre/src/features/mobi/utils/decint.dart';
 import 'package:e_livre/src/features/mobi/utils/mobi_metadata_mapper.dart';
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book_format.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/entities/file/text_file.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
+
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 
 class _MobiLayout {
@@ -40,9 +37,8 @@ MobiBook parseMobiBook(final Uint8List bytes) {
   final layout = _resolveLayout(pdb, header);
   header = layout.header;
 
-  if (layout.isKf8) {
-    return _parseKf8(pdb, header, layout);
-  }
+  if (layout.isKf8) return _parseKf8(pdb, header, layout);
+
   return _parseMobi6(pdb, header);
 }
 
@@ -52,19 +48,17 @@ BookMetadata readMobiMetadata(final Uint8List bytes) {
   final header = MobiHeader.parse(pdb.record(0), pdb.ident);
   final format = _detectFormat(pdb, header);
   final cover = _readCoverRecord(pdb, header.firstImageIndex, header.exth?.coverOffset);
+
   return mobiBookMetadata(header, pdbName: pdb.name, coverFile: cover, formatOverride: format);
 }
 
 BookFormat _detectFormat(final PdbHeader pdb, final MobiHeader header) {
-  if (header.mobiVersion == 8 && header.skelIndex != nullIndex) {
-    return BookFormat.azw3;
-  }
+  if (header.mobiVersion == 8 && header.skelIndex != nullIndex) return BookFormat.azw3;
   final k8i = header.exth?.kf8HeaderIndex;
   if (k8i != null && k8i >= 1 && k8i - 1 < pdb.count) {
-    if (_hasBoundary(pdb.record(k8i - 1))) {
-      return BookFormat.azw3;
-    }
+    if (_hasBoundary(pdb.record(k8i - 1))) return BookFormat.azw3;
   }
+
   return BookFormat.mobi;
 }
 
@@ -86,6 +80,7 @@ _MobiLayout _resolveLayout(final PdbHeader pdb, final MobiHeader header) {
       final kf8Header = MobiHeader.parse(pdb.record(k8i), pdb.ident);
       final kf8FirstImage = kf8Header.firstImageIndex + k8i;
       final textOffset = k8i + 1;
+
       return _MobiLayout(true, kf8Header, textOffset, [
         (_firstResourceIndex(header.firstImageIndex, header.textRecordCount, 1), k8i - 1),
         (_firstResourceIndex(kf8FirstImage, kf8Header.textRecordCount, textOffset), pdb.count),
@@ -94,6 +89,7 @@ _MobiLayout _resolveLayout(final PdbHeader pdb, final MobiHeader header) {
   }
 
   // Plain MOBI 6.
+
   return _MobiLayout(false, header, 1, [
     (_firstResourceIndex(header.firstImageIndex, header.textRecordCount, 1), pdb.count),
   ], null);
@@ -104,10 +100,9 @@ int _firstResourceIndex(
   final int textRecordCount,
   final int firstTextRecord,
 ) {
-  if (firstImageIndex != -1 && firstImageIndex != nullIndex) {
-    return firstImageIndex;
-  }
-  return textRecordCount + firstTextRecord;
+  return firstImageIndex != -1 && firstImageIndex != nullIndex
+      ? firstImageIndex
+      : textRecordCount + firstTextRecord;
 }
 
 MobiBook _parseKf8(final PdbHeader pdb, final MobiHeader header, final _MobiLayout layout) {
@@ -239,7 +234,9 @@ BinaryFile? _readCoverRecord(
       continue;
     }
     final name = 'cover.${type.fileExtension}';
+
     return BinaryFile(content: data, name: name, type: type.fileExtension, path: name);
   }
+
   return null;
 }

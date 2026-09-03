@@ -1,7 +1,7 @@
 import 'dart:collection';
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
+import 'package:e_livre/src/features/mobi/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/mobi/utils/decint.dart';
 
 /// A TAGX tag definition.
@@ -84,9 +84,7 @@ typedef IndxTable = LinkedHashMap<String, Map<int, List<int>>>;
   final int index,
   final String codec,
 ) {
-  if (index < 0 || index >= recordCount) {
-    throw MobiException('INDX index $index out of range.');
-  }
+  if (index < 0 || index >= recordCount) throw MobiException('INDX index $index out of range.');
   final data = recordAt(index);
   final header = _parseIndxHeader(data);
   final table = IndxTable();
@@ -111,21 +109,19 @@ typedef IndxTable = LinkedHashMap<String, Map<int, List<int>>>;
   for (var i = index + 1; i <= index + header.count && i < recordCount; i++) {
     _parseIndexRecord(table, recordAt(i), controlByteCount, tags, codec);
   }
+
   return (table, cncx);
 }
 
 IndxHeaderInfo _parseIndxHeader(final Uint8List data) {
-  if (!_hasMagic(data, 0, 'INDX')) {
-    throw const MobiException('Not a valid INDX record.');
-  }
+  if (!_hasMagic(data, 0, 'INDX')) throw const MobiException('Not a valid INDX record.');
   final view = ByteData.sublistView(data);
   // 45 u32 words follow the magic: len..ncncx (13), 27 unknowns,
   // ocnt, oentries, ordt1, ordt2, tagx.
   const wordCount = 45;
   int word(final int i) => view.getUint32(4 + i * 4);
-  if (4 + wordCount * 4 > data.length) {
-    throw const MobiException('Truncated INDX header.');
-  }
+  if (4 + wordCount * 4 > data.length) throw const MobiException('Truncated INDX header.');
+
   return IndxHeaderInfo(
     start: word(4),
     count: word(5),
@@ -139,9 +135,7 @@ IndxHeaderInfo _parseIndxHeader(final Uint8List data) {
 }
 
 (int, List<IndxTag>) _parseTagxSection(final Uint8List data) {
-  if (!_hasMagic(data, 0, 'TAGX')) {
-    throw const MobiException('Not a valid TAGX section.');
-  }
+  if (!_hasMagic(data, 0, 'TAGX')) throw const MobiException('Not a valid TAGX section.');
   final view = ByteData.sublistView(data);
   final firstEntryOffset = view.getUint32(4);
   final controlByteCount = view.getUint32(8);
@@ -149,6 +143,7 @@ IndxHeaderInfo _parseIndxHeader(final Uint8List data) {
   for (var i = 12; i + 4 <= firstEntryOffset && i + 4 <= data.length; i += 4) {
     tags.add(IndxTag(data[i], data[i + 1], data[i + 2], data[i + 3]));
   }
+
   return (controlByteCount, tags);
 }
 
@@ -208,6 +203,7 @@ void _parseIndexRecord(
   for (var i = 0; i + 1 < chunk.length; i += 2) {
     units.add(chunk[i] << 8 | chunk[i + 1]);
   }
+
   return (String.fromCharCodes(units), 1 + available);
 }
 
@@ -277,26 +273,23 @@ Map<int, List<int>> _getTagMap(
     }
     result[tag] = values;
   }
+
   return result;
 }
 
 bool _hasMagic(final Uint8List data, final int offset, final String magic) {
-  if (offset + magic.length > data.length) {
-    return false;
-  }
+  if (offset + magic.length > data.length) return false;
   for (var i = 0; i < magic.length; i++) {
-    if (data[offset + i] != magic.codeUnitAt(i)) {
-      return false;
-    }
+    if (data[offset + i] != magic.codeUnitAt(i)) return false;
   }
+
   return true;
 }
 
 int _findMagic(final Uint8List data, final String magic, final int from) {
   for (var i = from; i + magic.length <= data.length; i++) {
-    if (_hasMagic(data, i, magic)) {
-      return i;
-    }
+    if (_hasMagic(data, i, magic)) return i;
   }
+
   return -1;
 }

@@ -1,5 +1,5 @@
-import 'package:e_livre/src/foundation/entities/navigation/nav_point.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
+
 import 'package:xml/xml.dart';
 
 /// Result of converting the FB2 bodies to XHTML.
@@ -33,11 +33,13 @@ class _BodyConverter {
   _BodyConverter(this._binaryExtensions);
 
   final Map<String, String> _binaryExtensions;
+
   final Map<String, Set<String>> _idsByFile = <String, Set<String>>{};
   final Map<String, String> _fileByBodyName = <String, String>{};
   final List<XmlElement> _bodies = <XmlElement>[];
   final List<NavPoint> _navPoints = <NavPoint>[];
   final Map<int, List<NavPoint>> _pointsByDepth = <int, List<NavPoint>>{};
+
   int _playOrder = 0;
   int _sectionCounter = 0;
 
@@ -66,9 +68,8 @@ class _BodyConverter {
 
   String _bodyName(final XmlElement body) {
     final name = body.getAttribute('name');
-    if (name == null || name.isEmpty || name == 'main') {
-      return 'notes';
-    }
+    if (name == null || name.isEmpty || name == 'main') return 'notes';
+
     return name;
   }
 
@@ -96,6 +97,7 @@ class _BodyConverter {
       buffer.write('</section>');
     }
     buffer.write('\n</body>\n</html>');
+
     return buffer.toString();
   }
 
@@ -209,6 +211,59 @@ class _BodyConverter {
     }
   }
 
+  void _convertInline(final XmlElement element, final StringBuffer out, final String fileName) {
+    switch (element.name.local) {
+      case 'emphasis':
+        out.write('<em>');
+        _convertInlineChildren(element, out, fileName);
+        out.write('</em>');
+      case 'strong':
+        out.write('<strong>');
+        _convertInlineChildren(element, out, fileName);
+        out.write('</strong>');
+      case 'strikethrough':
+        out.write('<s>');
+        _convertInlineChildren(element, out, fileName);
+        out.write('</s>');
+      case 'sub':
+        out.write('<sub>');
+        _convertInlineChildren(element, out, fileName);
+        out.write('</sub>');
+      case 'sup':
+        out.write('<sup>');
+        _convertInlineChildren(element, out, fileName);
+        out.write('</sup>');
+      case 'code':
+        out.write('<code>');
+        _convertInlineChildren(element, out, fileName);
+        out.write('</code>');
+      case 'a':
+        _writeLink(element, out, fileName);
+      case 'image':
+        _writeImage(element, out);
+      case 'style':
+        _convertInlineChildren(element, out, fileName);
+      default:
+        _convertInlineChildren(element, out, fileName);
+    }
+  }
+
+  void _convertInlineChildren(
+    final XmlElement element,
+    final StringBuffer out,
+    final String fileName,
+  ) {
+    for (final child in element.children) {
+      if (child is XmlText) {
+        out.write(_escapeText(child.value));
+      } else if (child is XmlElement) {
+        _convertInline(child, out, fileName);
+      } else if (child is XmlCDATA) {
+        out.write(_escapeText(child.value));
+      }
+    }
+  }
+
   void _convertWithToc(
     final XmlElement section,
     final StringBuffer out,
@@ -249,57 +304,36 @@ class _BodyConverter {
     out.write(buffer);
   }
 
-  void _convertInlineChildren(
-    final XmlElement element,
-    final StringBuffer out,
-    final String fileName,
-  ) {
-    for (final child in element.children) {
-      if (child is XmlText) {
-        out.write(_escapeText(child.value));
-      } else if (child is XmlElement) {
-        _convertInline(child, out, fileName);
-      } else if (child is XmlCDATA) {
-        out.write(_escapeText(child.value));
-      }
+  XmlElement? _firstDescendant(final XmlElement root, final String localName) {
+    for (final child in root.children.whereType<XmlElement>()) {
+      if (child.name.local == localName) return child;
+      final nested = _firstDescendant(child, localName);
+      if (nested != null) return nested;
     }
+
+    return null;
   }
 
-  void _convertInline(final XmlElement element, final StringBuffer out, final String fileName) {
-    switch (element.name.local) {
-      case 'emphasis':
-        out.write('<em>');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</em>');
-      case 'strong':
-        out.write('<strong>');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</strong>');
-      case 'strikethrough':
-        out.write('<s>');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</s>');
-      case 'sub':
-        out.write('<sub>');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</sub>');
-      case 'sup':
-        out.write('<sup>');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</sup>');
-      case 'code':
-        out.write('<code>');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</code>');
-      case 'a':
-        _writeLink(element, out, fileName);
-      case 'image':
-        _writeImage(element, out);
-      case 'style':
-        _convertInlineChildren(element, out, fileName);
-      default:
-        _convertInlineChildren(element, out, fileName);
+  String _resolveInternalLink(final String fromFile, final String target) {
+    if (_idsByFile[fromFile]?.contains(target) == true) return '#$target';
+    for (final entry in _idsByFile.entries) {
+      if (entry.key != fromFile && entry.value.contains(target)) {
+        return '${entry.key}#$target';
+      }
     }
+
+    return '#$target';
+  }
+
+  void _writeImage(final XmlElement element, final StringBuffer out) {
+    final href =
+        element.getAttribute('href', namespace: 'http://www.w3.org/1999/xlink') ??
+        element.getAttribute('l:href') ??
+        '';
+    if (!href.startsWith('#') || href.length < 2) return;
+    final id = href.substring(1);
+    final name = _binaryExtensions[id] ?? id;
+    out.write('<img src="${_escapeAttr(name)}" alt="${_escapeAttr(id)}"/>');
   }
 
   void _writeLink(final XmlElement element, final StringBuffer out, final String fileName) {
@@ -324,44 +358,6 @@ class _BodyConverter {
       _convertInlineChildren(element, out, fileName);
       out.write('</span>');
     }
-  }
-
-  String _resolveInternalLink(final String fromFile, final String target) {
-    if (_idsByFile[fromFile]?.contains(target) == true) {
-      return '#$target';
-    }
-    for (final entry in _idsByFile.entries) {
-      if (entry.key != fromFile && entry.value.contains(target)) {
-        return '${entry.key}#$target';
-      }
-    }
-    return '#$target';
-  }
-
-  void _writeImage(final XmlElement element, final StringBuffer out) {
-    final href =
-        element.getAttribute('href', namespace: 'http://www.w3.org/1999/xlink') ??
-        element.getAttribute('l:href') ??
-        '';
-    if (!href.startsWith('#') || href.length < 2) {
-      return;
-    }
-    final id = href.substring(1);
-    final name = _binaryExtensions[id] ?? id;
-    out.write('<img src="${_escapeAttr(name)}" alt="${_escapeAttr(id)}"/>');
-  }
-
-  XmlElement? _firstDescendant(final XmlElement root, final String localName) {
-    for (final child in root.children.whereType<XmlElement>()) {
-      if (child.name.local == localName) {
-        return child;
-      }
-      final nested = _firstDescendant(child, localName);
-      if (nested != null) {
-        return nested;
-      }
-    }
-    return null;
   }
 }
 

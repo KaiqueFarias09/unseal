@@ -2,7 +2,7 @@ import 'dart:convert' as convert;
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/src/features/epub/constants/epub_constants.dart' as epub_constants;
-import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
+import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:xml/xml.dart';
 
@@ -21,6 +21,7 @@ String? getEpubRootFilePath(final Archive epubArchive) {
   );
 
   final package = _getPackageElement(containerDocument);
+
   return _getRootFilePath(package);
 }
 
@@ -37,9 +38,7 @@ XmlElement _getPackageElement(final XmlDocument containerDocument) {
       .findElements('container', namespace: epub_constants.containerNamespace)
       .firstOrNull;
 
-  if (package == null) {
-    throw EpubException('EPUB parsing error: Invalid epub container');
-  }
+  if (package == null) throw EpubException('EPUB parsing error: Invalid epub container');
 
   return package;
 }
@@ -50,5 +49,6 @@ String? _getRootFilePath(final XmlElement package) {
     orElse: () =>
         throw EpubException('EPUB parsing error: rootfile element not found in container file'),
   );
+
   return rootFileElement.getAttribute('full-path');
 }

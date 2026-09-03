@@ -1,9 +1,5 @@
 import 'package:e_livre/src/features/reading/book.dart';
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book/reading_order_item.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// A parsed comic book (CBZ / CBR).
 ///

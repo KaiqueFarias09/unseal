@@ -1,7 +1,16 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/entities/book_format.dart';
+import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+
+/// Selects a book format from its binary signature.
+abstract final class BookFormatDetector {
+  /// Detects the format family represented by [bytes].
+  static DetectedFormat detect(final Uint8List bytes) => detectFormat(bytes);
+
+  /// Resolves the concrete MOBI-family format represented by [bytes].
+  static BookFormat refineMobi(final Uint8List bytes) => refineMobiFormat(bytes);
+}
 
 /// The book family detected from magic bytes.
 ///
@@ -19,15 +28,6 @@ enum DetectedFormat {
 
   /// Comic archive (RAR — CBR).
   comic,
-}
-
-/// Selects a book format from its binary signature.
-abstract final class BookFormatDetector {
-  /// Detects the format family represented by [bytes].
-  static DetectedFormat detect(final Uint8List bytes) => detectFormat(bytes);
-
-  /// Resolves the concrete MOBI-family format represented by [bytes].
-  static BookFormat refineMobi(final Uint8List bytes) => refineMobiFormat(bytes);
 }
 
 /// Sniffs the book format of [bytes] from its magic bytes.
@@ -78,14 +78,10 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (bytes.length >= 68) {
     final ident = String.fromCharCodes(bytes.sublist(60, 68));
     final upperIdent = ident.toUpperCase();
-    if (upperIdent == 'BOOKMOBI' || upperIdent == 'TEXTREAD') {
-      return DetectedFormat.mobiFamily;
-    }
+    if (upperIdent == 'BOOKMOBI' || upperIdent == 'TEXTREAD') return DetectedFormat.mobiFamily;
   }
 
-  if (_looksLikeFictionBook(bytes)) {
-    return DetectedFormat.fb2;
-  }
+  if (_looksLikeFictionBook(bytes)) return DetectedFormat.fb2;
 
   throw const FormatNotSupportedException('Unrecognized book format.');
 }
@@ -96,11 +92,11 @@ DetectedFormat detectFormat(final Uint8List bytes) {
 /// MOBI 6 from KF8 (AZW3).
 BookFormat refineMobiFormat(final Uint8List bytes) {
   final record0Offset = _recordOffset(bytes, 0);
-  if (bytes.length < record0Offset + 0x6C + 4) {
-    return BookFormat.mobi;
-  }
+  if (bytes.length < record0Offset + 0x6C + 4) return BookFormat.mobi;
+
   final byteData = ByteData.sublistView(bytes);
   final mobiVersion = byteData.getUint32(record0Offset + 0x68);
+
   return mobiVersion == 8 ? BookFormat.azw3 : BookFormat.mobi;
 }
 
@@ -109,20 +105,20 @@ int _recordOffset(final Uint8List bytes, final int record) {
   return byteData.getUint32(78 + record * 8);
 }
 
-const List<int> _tpzMagic = [0x54, 0x50, 0x5A]; // 'TPZ'
+const List<int> _tpzMagic = [0x54, 0x50, 0x5A];
+
 const List<int> _kfxMagic = [0xEA, 0x44, 0x52, 0x4D, 0x49, 0x4F, 0x4E, 0xEE];
-const List<int> _pdfMagic = [0x25, 0x50, 0x44, 0x46]; // '%PDF'
-const List<int> _rtfMagic = [0x7B, 0x5C, 0x72, 0x74, 0x66]; // '{\rtf'
+
+const List<int> _pdfMagic = [0x25, 0x50, 0x44, 0x46];
+
+const List<int> _rtfMagic = [0x7B, 0x5C, 0x72, 0x74, 0x66];
 
 bool _startsWith(final Uint8List bytes, final List<int> magic) {
-  if (bytes.length < magic.length) {
-    return false;
-  }
+  if (bytes.length < magic.length) return false;
   for (var i = 0; i < magic.length; i++) {
-    if (bytes[i] != magic[i]) {
-      return false;
-    }
+    if (bytes[i] != magic[i]) return false;
   }
+
   return true;
 }
 
@@ -142,12 +138,10 @@ bool _looksLikeFictionBook(final Uint8List bytes) {
     start++;
   }
   final window = bytes.sublist(start, bytes.length < start + 1024 ? bytes.length : start + 1024);
-  if (window.isEmpty) {
-    return false;
-  }
+  if (window.isEmpty) return false;
+
   final head = String.fromCharCodes(window);
-  if (head.startsWith('<FictionBook')) {
-    return true;
-  }
+  if (head.startsWith('<FictionBook')) return true;
+
   return head.startsWith('<?xml') && head.contains('<FictionBook');
 }

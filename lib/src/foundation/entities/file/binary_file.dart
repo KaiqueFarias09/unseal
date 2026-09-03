@@ -22,9 +22,9 @@ class BinaryFile extends BookFile {
     return BinaryFile(content: Uint8List(0), name: '', type: '', path: '');
   }
 
-  /// Returns `true` if the binary file is empty, `false` otherwise.
-  bool get isEmpty => content.isEmpty;
-
   /// The binary content of the file.
   final Uint8List content;
+
+  /// Returns `true` if the binary file is empty, `false` otherwise.
+  bool get isEmpty => content.isEmpty;
 }

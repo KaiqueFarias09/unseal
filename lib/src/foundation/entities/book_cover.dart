@@ -19,11 +19,11 @@ final class BookCover {
   /// Image height in pixels, when the header was readable.
   final int? height;
 
-  /// The image MIME type (e.g. `image/jpeg`).
-  String get mimeType => type.mimeType;
-
   /// The usual file extension for this image (e.g. `jpg`).
   String get fileExtension => type.fileExtension;
+
+  /// The image MIME type (e.g. `image/jpeg`).
+  String get mimeType => type.mimeType;
 
   @override
   String toString() =>
