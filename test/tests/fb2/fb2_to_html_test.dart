@@ -1,4 +1,4 @@
-import 'package:e_livre/features/fb2/utils/fb2_to_html.dart';
+import 'package:e_livre/src/features/fb2/utils/fb2_to_html.dart';
 import 'package:test/test.dart';
 import 'package:xml/xml.dart';
 
@@ -110,7 +110,10 @@ void main() {
       final result = convertBodiesFrom('''
 <body><p>see <a l:href="#n1">note</a></p></body>
 <body name="notes"><section id="n1"><title>Note</title></section></body>''');
-      expect(result.files['index.html'] ?? '', contains('href="notes.html#n1"'));
+      expect(
+        result.files['index.html'] ?? '',
+        contains('href="notes.html#n1"'),
+      );
       expect(result.files['notes.html'], isNotNull);
     });
 
@@ -176,8 +179,10 @@ void main() {
       expect(points, hasLength(2));
       expect(points.first.label, 'Alpha');
       expect(points.first.content, 'index.html#a');
-      expect(points.first.subNavPoints.map((final p) => p.label).toList(),
-          ['Alpha one', 'Alpha two']);
+      expect(points.first.subNavPoints.map((final p) => p.label).toList(), [
+        'Alpha one',
+        'Alpha two',
+      ]);
       expect(points.last.label, 'Beta');
     });
 

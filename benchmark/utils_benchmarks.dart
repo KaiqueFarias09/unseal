@@ -59,12 +59,6 @@ void _addImageBenchmark(final BenchmarkGroup group, final ImageType type) {
     return;
   }
   final label = '${type.name} (${formatBytes(bytes.length)})';
-  group.add(
-    'imageSize — $label',
-    () => imageSize(bytes),
-  );
-  group.add(
-    'sniffImageType — $label',
-    () => sniffImageType(bytes),
-  );
+  group.add('imageSize — $label', () => imageSize(bytes));
+  group.add('sniffImageType — $label', () => sniffImageType(bytes));
 }

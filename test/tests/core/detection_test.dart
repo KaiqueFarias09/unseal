@@ -12,8 +12,9 @@ void main() {
     });
 
     test('detects MOBI family', () {
-      final bytes =
-          File('test/resources/mobi/alice-old.mobi').readAsBytesSync();
+      final bytes = File(
+        'test/resources/mobi/alice-old.mobi',
+      ).readAsBytesSync();
       expect(detectFormat(bytes), DetectedFormat.mobiFamily);
     });
 
@@ -58,10 +59,8 @@ void main() {
     });
 
     test('refines mobi versus azw3', () {
-      final old =
-          File('test/resources/mobi/alice-old.mobi').readAsBytesSync();
-      final kf8 =
-          File('test/resources/mobi/alice-kf8.azw3').readAsBytesSync();
+      final old = File('test/resources/mobi/alice-old.mobi').readAsBytesSync();
+      final kf8 = File('test/resources/mobi/alice-kf8.azw3').readAsBytesSync();
       expect(refineMobiFormat(old), BookFormat.mobi);
       expect(refineMobiFormat(kf8), BookFormat.azw3);
     });

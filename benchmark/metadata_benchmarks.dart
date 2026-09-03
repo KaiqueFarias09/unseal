@@ -1,6 +1,6 @@
 // Benchmarks for the public metadata-only reads: the synchronous
-// fast path [EBook.readMetadataSync] and the isolate-based
-// [EBook.readMetadataFromBytes] / [EBook.readMetadataFromPath]
+// fast path [BookReader.readMetadataSync] and the isolate-based
+// [BookReader.readMetadataFromBytes] / [BookReader.readMetadataFromPath]
 // (the latter includes the Calibre sidecar merge).
 
 // Benchmark registration reads best as sequential statements.
@@ -16,24 +16,24 @@ Future<void> runMetadataBenchmarks() async {
   final group = BenchmarkGroup('Metadata-only read');
   for (final fixture in parsingFixtures) {
     group.add(
-      'EBook.readMetadataSync — ${fixture.label}',
-      () => EBook.readMetadataSync(fixture.bytes),
+      'BookReader.readMetadataSync — ${fixture.label}',
+      () => BookReader.readMetadataSync(fixture.bytes),
     );
   }
 
   await group.addAsync(
-    'EBook.readMetadataFromBytes — ${epubSmall.label}',
-    () => EBook.readMetadataFromBytes(epubSmall.bytes),
+    'BookReader.readMetadataFromBytes — ${epubSmall.label}',
+    () => BookReader.readMetadataFromBytes(epubSmall.bytes),
     note: 'isolate spawn + byte copy included',
   );
   await group.addAsync(
-    'EBook.readMetadataFromBytes — ${mobi8Alice.label}',
-    () => EBook.readMetadataFromBytes(mobi8Alice.bytes),
+    'BookReader.readMetadataFromBytes — ${mobi8Alice.label}',
+    () => BookReader.readMetadataFromBytes(mobi8Alice.bytes),
     note: 'isolate spawn + byte copy included',
   );
   await group.addAsync(
-    'EBook.readMetadataFromPath — ${epubWithSidecar.label}',
-    () => EBook.readMetadataFromPath(epubWithSidecar.path),
+    'BookReader.readMetadataFromPath — ${epubWithSidecar.label}',
+    () => BookReader.readMetadataFromPath(epubWithSidecar.path),
     note: 'disk read + isolate + OPF sidecar merge',
   );
 }

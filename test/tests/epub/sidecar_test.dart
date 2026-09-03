@@ -1,4 +1,3 @@
-
 import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
 
@@ -6,7 +5,7 @@ void main() {
   group('Calibre sidecar OPF', () {
     test('metadata.opf merges over the book metadata', () async {
       // test/resources/sidecar/sample1.epub ships with metadata.opf.
-      final metadata = await EBook.readMetadataFromPath(
+      final metadata = await BookReader.readMetadataFromPath(
         'test/resources/sidecar/sample1.epub',
       );
       expect(metadata.title, 'Sidecar Title Wins');
@@ -18,14 +17,14 @@ void main() {
     });
 
     test('basename sidecar is preferred over metadata.opf', () async {
-      final metadata = await EBook.readMetadataFromPath(
+      final metadata = await BookReader.readMetadataFromPath(
         'test/resources/sidecar_named/renamed-book.epub',
       );
       expect(metadata.title, 'Named Sidecar');
     });
 
     test('books without sidecars keep their own metadata', () async {
-      final metadata = await EBook.readMetadataFromPath(
+      final metadata = await BookReader.readMetadataFromPath(
         'test/resources/epub/sample1.epub',
       );
       expect(

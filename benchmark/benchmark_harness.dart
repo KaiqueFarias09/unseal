@@ -252,8 +252,9 @@ BenchmarkResult runFirstAccessBenchmark<T>(
 
 void _consume(final Object? value) => _sink = Object.hash(_sink, value);
 
-Duration _defaultBudget() =>
-    quickMode ? const Duration(milliseconds: 300) : const Duration(milliseconds: 1500);
+Duration _defaultBudget() => quickMode
+    ? const Duration(milliseconds: 300)
+    : const Duration(milliseconds: 1500);
 
 /// Collects the benchmarks of one group, printing the group header
 /// lazily before the first benchmark that matches the filter.

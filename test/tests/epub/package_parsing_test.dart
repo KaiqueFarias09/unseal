@@ -2,10 +2,10 @@ import 'dart:convert' as convert;
 import 'dart:io';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/features/epub/entities/entities.dart';
-import 'package:e_livre/features/epub/exceptions/epub_exception.dart';
-import 'package:e_livre/features/epub/utils/get_epub_root_file_path.dart';
-import 'package:e_livre/features/epub/utils/parse_epub_package.dart';
+import 'package:e_livre/src/features/epub/entities/entities.dart';
+import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
+import 'package:e_livre/src/features/epub/utils/get_epub_root_file_path.dart';
+import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -56,7 +56,7 @@ void main() {
       uniqueIdentifierValue: '63912178-abce-4816-b882-930cb32d6207',
       rights: [
         'This work is shared with the public using the GNU Free Documentation License, Version 1.2.',
-        '© 2004 by Robert A. Beezer.'
+        '© 2004 by Robert A. Beezer.',
       ],
       creator: 'Robert A. Beezer',
       manifestItems: 127,
@@ -67,7 +67,7 @@ void main() {
         'readingOrder',
         'structuralNavigation',
         'tableOfContents',
-        'unlocked'
+        'unlocked',
       ],
       typicalAgeRange: '18+',
     ),
@@ -96,7 +96,7 @@ void main() {
       publisher: 'McDougal Littell',
       rights: [
         'Copyright © 2003 McDougal Littel, Inc.',
-        'McDougal Littel, Inc. holds the copyright for these files and has provided permission to use them for the purpose of creating exemplar files. They should not be re-posted to other sites, nor may they be sold for commercial purposes.'
+        'McDougal Littel, Inc. holds the copyright for these files and has provided permission to use them for the purpose of creating exemplar files. They should not be re-posted to other sites, nor may they be sold for commercial purposes.',
       ],
       educationalRole: 'student',
       typicalAgeRange: '18+',
@@ -165,7 +165,7 @@ void main() {
       description:
           "Part foreign affairs discourse, part humor, and part twisted self-help guide, The Geography of Bliss takes the reader from America to Iceland to India in search of happiness, or, in the crabby author's case, moments of 'un-unhappiness.' The book uses a beguiling mixture of travel, psychology, science and humor to investigate not what happiness is, but where it is. Are people in Switzerland happier because it is the most democratic country in the world? Do citizens of Singapore benefit psychologically by having their options limited by the government? Is the King of Bhutan a visionary for his initiative to calculate Gross National Happiness? Why is Asheville, North Carolina so damn happy? With engaging wit and surprising insights, Eric Weiner answers those questions and many others, offering travelers of all moods some interesting new ideas for sunnier destinations and dispositions.",
       rights: ['WORLD ALL LANGUAGES'],
-    )
+    ),
   ];
 
   for (final book in books) {

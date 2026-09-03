@@ -9,14 +9,20 @@ import 'package:test/test.dart';
 void main() {
   group('smartenPunctuation', () {
     test('opens quotes after whitespace and closes before it', () {
-      expect(smartenPunctuation('She said "hello" to me'), 'She said “hello” to me');
+      expect(
+        smartenPunctuation('She said "hello" to me'),
+        'She said “hello” to me',
+      );
       expect(smartenPunctuation("'Twas the night"), '\u2018Twas the night');
       expect(smartenPunctuation("the boy's book"), 'the boy\u2019s book');
     });
 
     test('dashes and ellipses', () {
       expect(smartenPunctuation('wait--what'), 'wait\u2014what');
-      expect(smartenPunctuation('and then... nothing'), 'and then\u2026 nothing');
+      expect(
+        smartenPunctuation('and then... nothing'),
+        'and then\u2026 nothing',
+      );
     });
 
     test('leaves existing typography alone', () {
@@ -26,18 +32,9 @@ void main() {
 
   group('normalizeSceneBreaks', () {
     test('canonicalizes the common markers', () {
-      expect(
-        normalizeSceneBreaks('<p>* * *</p>'),
-        '<p>• • •</p>',
-      );
-      expect(
-        normalizeSceneBreaks('<p>***</p>'),
-        '<p>• • •</p>',
-      );
-      expect(
-        normalizeSceneBreaks('<p class="mb">-=-=</p>'),
-        '<p>• • •</p>',
-      );
+      expect(normalizeSceneBreaks('<p>* * *</p>'), '<p>• • •</p>');
+      expect(normalizeSceneBreaks('<p>***</p>'), '<p>• • •</p>');
+      expect(normalizeSceneBreaks('<p class="mb">-=-=</p>'), '<p>• • •</p>');
     });
 
     test('leaves normal paragraphs alone', () {
@@ -69,10 +66,7 @@ even more text
     });
 
     test('does not fire on prose containing the word chapter', () {
-      expect(
-        guessChapters('the chapter of my life is long\n').length,
-        0,
-      );
+      expect(guessChapters('the chapter of my life is long\n').length, 0);
     });
   });
 

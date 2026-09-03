@@ -32,10 +32,7 @@ void main() {
 
     test('removes comments', () {
       expect(extractPlainText('before<!-- c -->after'), 'before after');
-      expect(
-        extractPlainText('a<!-- c1 --><!-- c2 -->b'),
-        'a b',
-      );
+      expect(extractPlainText('a<!-- c1 --><!-- c2 -->b'), 'a b');
       expect(extractPlainText('<!-- eats <p> inside -->tail'), 'tail');
     });
 
@@ -55,10 +52,7 @@ void main() {
     });
 
     test('removes style blocks', () {
-      expect(
-        extractPlainText('<style>p{color:red}</style>text'),
-        'text',
-      );
+      expect(extractPlainText('<style>p{color:red}</style>text'), 'text');
     });
 
     test('matches block names case-insensitively', () {
@@ -67,10 +61,7 @@ void main() {
     });
 
     test('matches opening tags with attributes', () {
-      expect(
-        extractPlainText('<script src="x.js" defer></script>ok'),
-        'ok',
-      );
+      expect(extractPlainText('<script src="x.js" defer></script>ok'), 'ok');
     });
 
     test('does not treat <scriptx> as a script block', () {
@@ -158,7 +149,10 @@ void main() {
   group('extractPlainText — whitespace', () {
     test('collapses runs and trims edges', () {
       expect(extractPlainText('<p>a\n\t  b</p>'), 'a b');
-      expect(extractPlainText('  leading and trailing  '), 'leading and trailing');
+      expect(
+        extractPlainText('  leading and trailing  '),
+        'leading and trailing',
+      );
       expect(extractPlainText('\t\n\r mix'), 'mix');
     });
 

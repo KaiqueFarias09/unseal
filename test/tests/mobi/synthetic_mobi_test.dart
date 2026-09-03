@@ -3,11 +3,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/features/mobi/header/exth_header.dart';
-import 'package:e_livre/features/mobi/exceptions/mobi_exception.dart';
-import 'package:e_livre/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/features/mobi/utils/containers.dart';
-import 'package:e_livre/features/mobi/utils/parse_mobi_book.dart';
+import 'package:e_livre/src/features/mobi/header/exth_header.dart';
+import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
+import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
+import 'package:e_livre/src/features/mobi/utils/containers.dart';
+import 'package:e_livre/src/features/mobi/utils/parse_mobi_book.dart';
 import 'package:test/test.dart';
 
 import 'mobi_fixture_builder.dart';
@@ -43,13 +43,15 @@ void main() {
 
     test('extracts resources and the cover', () {
       final parsed = parseMobiBook(book);
-      expect(parsed.files.images.map((final image) => image.name), ['image00001.png']);
+      expect(parsed.files.images.map((final image) => image.name), [
+        'image00001.png',
+      ]);
       expect(parsed.files.images.single.content, tinyPng);
       expect(parsed.cover.content, tinyPng);
     });
 
     test('reads metadata through the fast path', () {
-      final metadata = EBook.readMetadataSync(book);
+      final metadata = BookReader.readMetadataSync(book);
       expect(metadata.title, 'Synthetic HUFF');
       expect(metadata.cover, isNotNull);
     });
@@ -83,7 +85,9 @@ void main() {
   });
 
   group('KF8 with CONT/CRES image containers', () {
-    final original = File('test/resources/mobi/alice-kf8.azw3').readAsBytesSync();
+    final original = File(
+      'test/resources/mobi/alice-kf8.azw3',
+    ).readAsBytesSync();
 
     test('unwraps container images into the image list', () {
       final injected = appendPdbRecords(original, [
@@ -106,7 +110,9 @@ void main() {
       ]);
       final book = parseMobiBook(injected);
       expect(
-        book.files.images.where((final image) => image.content.length == tinyPng.length),
+        book.files.images.where(
+          (final image) => image.content.length == tinyPng.length,
+        ),
         isEmpty,
       );
     });
@@ -118,14 +124,16 @@ void main() {
       final Uint8List textRecord, {
       final int codepage = 65001,
     }) {
-      return parseMobiBook(buildPdb('Edge', [
-        buildMobiRecord0(
-          compressionType: compressionType,
-          textRecordCount: 1,
-          codepage: codepage,
-        ),
-        textRecord,
-      ]));
+      return parseMobiBook(
+        buildPdb('Edge', [
+          buildMobiRecord0(
+            compressionType: compressionType,
+            textRecordCount: 1,
+            codepage: codepage,
+          ),
+          textRecord,
+        ]),
+      );
     }
 
     test('uncompressed text records pass through', () {
@@ -226,25 +234,24 @@ void main() {
         (ByteData(4)..setUint32(0, value)).buffer.asUint8List();
 
     test('keeps truncated record content instead of throwing', () {
-      final declared = buildExth([
-        (100, Uint8List(100)),
-      ]);
+      final declared = buildExth([(100, Uint8List(100))]);
       final truncated = Uint8List.sublistView(declared, 0, 25);
       final exth = ExthHeader.parse(truncated, 'utf-8', '');
       expect(exth.rawValues(100).single.length, 5);
     });
 
     test('rawValues of a missing id is empty', () {
-      final exth = ExthHeader.parse(buildExth([(100, Uint8List.fromList('a'.codeUnits))]), 'utf-8', '');
+      final exth = ExthHeader.parse(
+        buildExth([(100, Uint8List.fromList('a'.codeUnits))]),
+        'utf-8',
+        '',
+      );
       expect(exth.rawValues(999), isEmpty);
     });
 
     test('exposes thumbnail offset and fake cover flag', () {
       final exth = ExthHeader.parse(
-        buildExth([
-          (202, u32(7)),
-          (203, u32(1)),
-        ]),
+        buildExth([(202, u32(7)), (203, u32(1))]),
         'utf-8',
         '',
       );
@@ -254,9 +261,7 @@ void main() {
 
     test('cover offset of 0xFFFFFFFF counts as absent', () {
       final exth = ExthHeader.parse(
-        buildExth([
-          (201, u32(0xFFFFFFFF)),
-        ]),
+        buildExth([(201, u32(0xFFFFFFFF))]),
         'utf-8',
         '',
       );

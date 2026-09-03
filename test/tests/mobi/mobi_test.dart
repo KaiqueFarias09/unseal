@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/features/mobi/utils/parse_mobi_book.dart';
+import 'package:e_livre/src/features/mobi/utils/parse_mobi_book.dart';
 import 'package:test/test.dart';
 
 const String aliceTitle = "Alice's Adventures in Wonderland";
@@ -38,8 +38,7 @@ void main() {
     test('extracts images', () {
       expect(book.files.images.length, greaterThan(10));
       for (final image in book.files.images) {
-        expect(sniffImageType(image.content), isNotNull,
-            reason: image.name);
+        expect(sniffImageType(image.content), isNotNull, reason: image.name);
       }
     });
 
@@ -95,12 +94,17 @@ void main() {
 
     test('resolves every kindle reference', () {
       for (final file in book.files.html) {
-        expect(file.content.contains('kindle:'), isFalse,
-            reason: 'unresolved reference in ${file.name}');
+        expect(
+          file.content.contains('kindle:'),
+          isFalse,
+          reason: 'unresolved reference in ${file.name}',
+        );
       }
       // Links point to rebuilt part files.
       final links = book.files.html
-          .expand((final file) => RegExp('href="part[^"]*"').allMatches(file.content))
+          .expand(
+            (final file) => RegExp('href="part[^"]*"').allMatches(file.content),
+          )
           .length;
       expect(links, greaterThan(0));
     });
@@ -130,16 +134,20 @@ void main() {
 
     test('resolves every kindle reference', () {
       for (final file in book.files.html) {
-        expect(file.content.contains('kindle:'), isFalse,
-            reason: 'unresolved reference in ${file.name}');
+        expect(
+          file.content.contains('kindle:'),
+          isFalse,
+          reason: 'unresolved reference in ${file.name}',
+        );
       }
     });
   });
 
   group('readMobiMetadata fast path', () {
     test('reads metadata without extracting content', () {
-      final metadata =
-          readMobiMetadata(_read('test/resources/mobi/alice-old.mobi'));
+      final metadata = readMobiMetadata(
+        _read('test/resources/mobi/alice-old.mobi'),
+      );
       expect(metadata.title, aliceTitle);
       expect(metadata.authors, ['Lewis Carroll']);
       expect(metadata.cover, isNotNull);
@@ -147,8 +155,9 @@ void main() {
     });
 
     test('reads AZW3 metadata', () {
-      final metadata =
-          readMobiMetadata(_read('test/resources/mobi/alice-kf8.azw3'));
+      final metadata = readMobiMetadata(
+        _read('test/resources/mobi/alice-kf8.azw3'),
+      );
       expect(metadata.format, BookFormat.azw3);
       expect(metadata.title, aliceTitle);
       expect(metadata.cover, isNotNull);

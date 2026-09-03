@@ -34,8 +34,7 @@ final class BookFixture {
   final String? displayName;
 
   /// Short display label, e.g. `sample1.epub (188 KB)`.
-  String get label =>
-      '${displayName ?? name.split('/').last} '
+  String get label => '${displayName ?? name.split('/').last} '
       '(${formatBytes(bytes.length)})';
 
   /// The fixture name without size, for labels that add their own
@@ -159,8 +158,8 @@ void _ensureDerived() {
   }
   _derivedReady = true;
   final books = <Book>[
-    EBook.parseBook(epubAlice.bytes),
-    EBook.parseBook(comicSample.bytes),
+    BookReader.parseBook(epubAlice.bytes),
+    BookReader.parseBook(comicSample.bytes),
   ];
   for (final book in books) {
     final images = book is ComicBook ? book.pages : book.files.images;
@@ -171,7 +170,8 @@ void _ensureDerived() {
       }
     }
     for (final file in book.files.html) {
-      if (_largestHtml == null || file.content.length > _largestHtml!.content.length) {
+      if (_largestHtml == null ||
+          file.content.length > _largestHtml!.content.length) {
         _largestHtml = file;
       }
     }

@@ -47,7 +47,7 @@ Open any supported book and work with it generically:
 ```dart
 import 'package:e_livre/e_livre.dart';
 
-final book = await EBook.openFromPath('/books/wonderland.azw3');
+final book = await BookReader.openFromPath('/books/wonderland.azw3');
 
 print(book.format.name);            // azw3
 print(book.metadata.title);         // Alice's Adventures in Wonderland
@@ -88,7 +88,7 @@ extraction entirely — path-based reads also apply Calibre sidecar
 OPFs and the filename fallback:
 
 ```dart
-final metadata = await EBook.readMetadataFromPath(path);
+final metadata = await BookReader.readMetadataFromPath(path);
 print(metadata.title);
 print(metadata.cover?.mimeType); // image/jpeg
 ```
@@ -96,7 +96,7 @@ print(metadata.cover?.mimeType); // image/jpeg
 Format-specific entry points are still available:
 
 ```dart
-final epub = await EpubBook.fromFile(file);   // EPUB only
+final epub = await BookReader.openFromPath(file.path);   // EPUB only
 final mobi = parseMobiBook(bytes);            // MOBI / AZW3
 final fb2 = parseFb2Book(bytes);              // FB2 / FB2.zip
 final comic = parseComicBook(bytes);          // CBZ / CBR

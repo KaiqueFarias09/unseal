@@ -3,8 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/features/core/utils/image_size.dart';
-import 'package:e_livre/features/mobi/utils/parse_mobi_book.dart';
+import 'package:e_livre/src/foundation/utils/image_size.dart';
+import 'package:e_livre/src/features/mobi/utils/parse_mobi_book.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -14,10 +14,7 @@ void main() {
       const base64Png =
           'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'
           'YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-      expect(
-        imageSize(base64.decode(base64Png)),
-        const ImageSize(1, 1),
-      );
+      expect(imageSize(base64.decode(base64Png)), const ImageSize(1, 1));
     });
 
     test('reads GIF dimensions', () {
@@ -69,8 +66,9 @@ void main() {
     });
 
     test('real MOBI cover carries dimensions', () {
-      final metadata =
-          readMobiMetadata(File('test/resources/mobi/alice-kf8.azw3').readAsBytesSync());
+      final metadata = readMobiMetadata(
+        File('test/resources/mobi/alice-kf8.azw3').readAsBytesSync(),
+      );
       expect(metadata.cover, isNotNull);
       expect(metadata.cover!.width, greaterThan(0));
       expect(metadata.cover!.height, greaterThan(0));

@@ -1,6 +1,8 @@
 include: package:lints/recommended.yaml
 
 analyzer:
+  exclude:
+    - example/**
   errors:
     missing_required_param: error
     missing_return: error
@@ -27,7 +29,6 @@ linter:
     # - always_specify_types # we use type inference
     - annotate_overrides
     - avoid_annotating_with_dynamic # we want to be explicit with dynamic
-    - avoid_as
     - avoid_bool_literals_in_conditional_expressions
     - avoid_catches_without_on_clauses # we catch both Exceptions and Errors
     - avoid_catching_errors
@@ -82,7 +83,6 @@ linter:
     # - flutter_style_todos # don't need those for now
     - hash_and_equals
     - implementation_imports
-    - invariant_booleans
     - join_return_with_assignment
     - leading_newlines_in_multiline_strings
     - library_names
@@ -115,7 +115,6 @@ linter:
     - prefer_constructors_over_static_methods
     - prefer_contains
     # - prefer_double_quotes We use single quotes
-    - prefer_equal_for_default_values
     # - prefer_expression_function_bodies # conflicts with https://github.com/flutter/flutter/wiki/Style-guide-for-Flutter-repo#consider-using--for-short-functions-and-methods
     - prefer_final_in_for_each
     - prefer_final_locals

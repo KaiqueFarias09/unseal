@@ -10,7 +10,7 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
-import 'package:e_livre/features/mobi/header/pdb_header.dart';
+import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
 
 /// A 1x1 transparent PNG.
 final Uint8List tinyPng = convert.base64.decode(
@@ -86,8 +86,18 @@ Uint8List buildCdic() {
 }
 
 /// A minimal JPEG stub (magic bytes are enough for the sniffer).
-final Uint8List tinyJpeg =
-    Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, 0, 1, 2, 3, 0xFF, 0xD9]);
+final Uint8List tinyJpeg = Uint8List.fromList([
+  0xFF,
+  0xD8,
+  0xFF,
+  0xE0,
+  0,
+  1,
+  2,
+  3,
+  0xFF,
+  0xD9,
+]);
 
 /// Assembles a PalmDB container holding [records].
 Uint8List buildPdb(final String name, final List<Uint8List> records) {
@@ -117,7 +127,10 @@ Uint8List buildPdb(final String name, final List<Uint8List> records) {
 }
 
 /// Rebuilds [file] with [additions] appended as new PDB records.
-Uint8List appendPdbRecords(final Uint8List file, final List<Uint8List> additions) {
+Uint8List appendPdbRecords(
+  final Uint8List file,
+  final List<Uint8List> additions,
+) {
   final pdb = PdbHeader.parse(file);
   final records = <Uint8List>[
     for (var i = 0; i < pdb.count; i++) Uint8List.fromList(pdb.record(i)),
@@ -178,7 +191,11 @@ Uint8List buildMobiRecord0({
   }
   record.setRange(titleOffset, titleOffset + title.length, title.codeUnits);
   if (exthBytes.isNotEmpty) {
-    record.setRange(16 + headerLength, 16 + headerLength + exthBytes.length, exthBytes);
+    record.setRange(
+      16 + headerLength,
+      16 + headerLength + exthBytes.length,
+      exthBytes,
+    );
   }
   return record;
 }

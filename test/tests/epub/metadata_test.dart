@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/features/epub/utils/parse_epub_book.dart';
+import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -15,8 +15,9 @@ void main() {
 
     for (final file in files) {
       test('reads metadata of ${file.uri.pathSegments.last}', () {
-        final archive =
-            ZipDecoder().decodeBytes(File(file.path).readAsBytesSync());
+        final archive = ZipDecoder().decodeBytes(
+          File(file.path).readAsBytesSync(),
+        );
         final metadata = readEpubMetadata(archive);
 
         expect(metadata.format, BookFormat.epub);
@@ -26,8 +27,9 @@ void main() {
     }
 
     test('carries the cover bytes for sample1', () {
-      final archive = ZipDecoder()
-          .decodeBytes(File('test/resources/epub/sample1.epub').readAsBytesSync());
+      final archive = ZipDecoder().decodeBytes(
+        File('test/resources/epub/sample1.epub').readAsBytesSync(),
+      );
       final metadata = readEpubMetadata(archive);
       expect(metadata.cover, isNotNull);
       expect(metadata.cover!.bytes.length, greaterThan(1000));
@@ -44,8 +46,11 @@ void main() {
       for (final file in files) {
         final book = parseEpubBook(File(file.path).readAsBytesSync());
         if (!book.cover.isEmpty) {
-          expect(sniffImageType(book.cover.content), isNotNull,
-              reason: 'cover of ${file.path} is not a valid image');
+          expect(
+            sniffImageType(book.cover.content),
+            isNotNull,
+            reason: 'cover of ${file.path} is not a valid image',
+          );
         }
       }
     });

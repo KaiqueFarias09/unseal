@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/features/epub/utils/parse_epub_book.dart';
-import 'package:e_livre/features/fb2/utils/parse_fb2_book.dart';
-import 'package:e_livre/features/mobi/utils/parse_mobi_book.dart';
+import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
+import 'package:e_livre/src/features/fb2/utils/parse_fb2_book.dart';
+import 'package:e_livre/src/features/mobi/utils/parse_mobi_book.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -46,7 +46,7 @@ void main() {
   });
 
   test('comic reading order lists pages as non-html', () {
-    final book = EBook.parseBook(
+    final book = BookReader.parseBook(
       File('test/resources/comic/sample.cbz').readAsBytesSync(),
     );
     final order = book.readingOrder;

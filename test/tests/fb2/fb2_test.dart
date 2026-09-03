@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/features/fb2/utils/parse_fb2_book.dart';
+import 'package:e_livre/src/features/fb2/utils/parse_fb2_book.dart';
 import 'package:test/test.dart';
 
 const String aliceTitle = "Alice's Adventures in Wonderland";
@@ -35,8 +35,7 @@ void main() {
     test('extracts binary images', () {
       expect(book.files.images.length, greaterThan(10));
       for (final image in book.files.images) {
-        expect(sniffImageType(image.content), isNotNull,
-            reason: image.name);
+        expect(sniffImageType(image.content), isNotNull, reason: image.name);
       }
     });
 
@@ -73,7 +72,10 @@ void main() {
     test('builds navigation from section titles', () {
       expect(book.navigation.navPoints, hasLength(2));
       expect(book.navigation.navPoints.first.label, 'Capítulo Um');
-      expect(book.navigation.navPoints.first.content, startsWith('index.html#'));
+      expect(
+        book.navigation.navPoints.first.content,
+        startsWith('index.html#'),
+      );
       expect(book.navigation.navPoints.first.subNavPoints, hasLength(1));
       expect(
         book.navigation.navPoints.first.subNavPoints.first.label,

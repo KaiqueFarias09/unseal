@@ -3,8 +3,8 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/features/comic/utils/parse_comic_book.dart';
-import 'package:e_livre/features/comic/utils/rar_reader.dart';
+import 'package:e_livre/src/features/comic/utils/parse_comic_book.dart';
+import 'package:e_livre/src/features/comic/utils/rar_reader.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -17,10 +17,11 @@ void main() {
       expect(book.format, BookFormat.cbz);
       expect(book.pageCount, 3);
       // page2 sorts before page10 (natural order).
-      expect(
-        book.pages.map((final page) => page.name).toList(),
-        ['page1.png', 'page2.png', 'page10.png'],
-      );
+      expect(book.pages.map((final page) => page.name).toList(), [
+        'page1.png',
+        'page2.png',
+        'page10.png',
+      ]);
     });
 
     test('reads ComicInfo.xml metadata', () {
@@ -47,9 +48,9 @@ void main() {
       expect(metadata.title, 'Test Comic');
     });
 
-    test('works through the EBook dispatcher', () {
+    test('works through the BookReader dispatcher', () {
       // Handled async below in e_book_test too; check sync dispatch.
-      final book = EBook.parseBook(cbz);
+      final book = BookReader.parseBook(cbz);
       expect(book, isA<ComicBook>());
     });
   });
@@ -61,10 +62,10 @@ void main() {
       final book = parseComicBook(cbr);
       expect(book.format, BookFormat.cbr);
       expect(book.pageCount, 2);
-      expect(
-        book.pages.map((final page) => page.name).toList(),
-        ['001.jpg', '002.jpg'],
-      );
+      expect(book.pages.map((final page) => page.name).toList(), [
+        '001.jpg',
+        '002.jpg',
+      ]);
     });
 
     test('detects the RAR signature', () {
@@ -73,10 +74,7 @@ void main() {
 
     test('compressed entries are rejected with a clear error', () {
       final compressed = _buildCbr(method: 0x31);
-      expect(
-        () => parseComicBook(compressed),
-        throwsA(isA<ComicException>()),
-      );
+      expect(() => parseComicBook(compressed), throwsA(isA<ComicException>()));
     });
 
     test('rar reader lists stored and compressed entries', () {
@@ -87,7 +85,8 @@ void main() {
   });
 
   test('archives without pages throw', () {
-    final archive = Archive()..addFile(ArchiveFile('note.txt', 3, 'abc'.codeUnits));
+    final archive = Archive()
+      ..addFile(ArchiveFile('note.txt', 3, 'abc'.codeUnits));
     expect(
       () => parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive)!)),
       throwsA(isA<ComicException>()),
@@ -119,7 +118,13 @@ Uint8List _buildCbz() {
     ..addFile(ArchiveFile('page2.png', png.length, png))
     ..addFile(ArchiveFile('page10.png', png.length, png))
     ..addFile(ArchiveFile('page1.png', png.length, png))
-    ..addFile(ArchiveFile('ComicInfo.xml', comicInfo.codeUnits.length, comicInfo.codeUnits));
+    ..addFile(
+      ArchiveFile(
+        'ComicInfo.xml',
+        comicInfo.codeUnits.length,
+        comicInfo.codeUnits,
+      ),
+    );
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
@@ -133,19 +138,32 @@ Uint8List _buildCbr({final int method = 0x30}) {
     final headSize = 32 + nameBytes.length;
     final header = ByteData(headSize);
     var f = 0;
-    header.setUint16(f, 0); f += 2; // crc (unchecked)
-    header.setUint8(f, 0x74); f += 1; // file header
-    header.setUint16(f, 0x8000); f += 2; // long block
-    header.setUint16(f, headSize); f += 2;
-    header.setUint32(f, data.length); f += 4; // packed
-    header.setUint32(f, data.length); f += 4; // unpacked
-    header.setUint8(f, 0); f += 1; // host OS
-    header.setUint32(f, 0); f += 4; // file crc
-    header.setUint32(f, 0); f += 4; // file time
-    header.setUint8(f, 29); f += 1; // unpack version
-    header.setUint8(f, method); f += 1; // method
-    header.setUint16(f, nameBytes.length); f += 2;
-    header.setUint32(f, 0x20); f += 4; // attributes
+    header.setUint16(f, 0);
+    f += 2; // crc (unchecked)
+    header.setUint8(f, 0x74);
+    f += 1; // file header
+    header.setUint16(f, 0x8000);
+    f += 2; // long block
+    header.setUint16(f, headSize);
+    f += 2;
+    header.setUint32(f, data.length);
+    f += 4; // packed
+    header.setUint32(f, data.length);
+    f += 4; // unpacked
+    header.setUint8(f, 0);
+    f += 1; // host OS
+    header.setUint32(f, 0);
+    f += 4; // file crc
+    header.setUint32(f, 0);
+    f += 4; // file time
+    header.setUint8(f, 29);
+    f += 1; // unpack version
+    header.setUint8(f, method);
+    f += 1; // method
+    header.setUint16(f, nameBytes.length);
+    f += 2;
+    header.setUint32(f, 0x20);
+    f += 4; // attributes
     final headerBytes = header.buffer.asUint8List();
     headerBytes.setRange(f, f + nameBytes.length, nameBytes);
     builder.add(headerBytes);

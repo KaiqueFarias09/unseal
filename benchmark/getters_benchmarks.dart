@@ -13,12 +13,12 @@ import 'fixtures.dart';
 
 /// Runs the parsed-book getter benchmarks.
 void runGetterBenchmarks() {
-  final epub = EBook.parseBook(epubSmall.bytes) as EpubBook;
-  final aliceEpub = EBook.parseBook(epubAlice.bytes) as EpubBook;
-  final mobi6 = EBook.parseBook(mobi6Alice.bytes) as MobiBook;
-  final mobi8 = EBook.parseBook(mobi8Alice.bytes) as MobiBook;
-  final fb2 = EBook.parseBook(fb2Alice.bytes) as Fb2Book;
-  final comic = EBook.parseBook(comicSample.bytes) as ComicBook;
+  final epub = BookReader.parseBook(epubSmall.bytes) as EpubBook;
+  final aliceEpub = BookReader.parseBook(epubAlice.bytes) as EpubBook;
+  final mobi6 = BookReader.parseBook(mobi6Alice.bytes) as MobiBook;
+  final mobi8 = BookReader.parseBook(mobi8Alice.bytes) as MobiBook;
+  final fb2 = BookReader.parseBook(fb2Alice.bytes) as Fb2Book;
+  final comic = BookReader.parseBook(comicSample.bytes) as ComicBook;
 
   final group = BenchmarkGroup('Parsed book getters');
 
@@ -44,7 +44,7 @@ void runGetterBenchmarks() {
   group.addFirstAccess<Book>(
     'statistics — first access (${epubSmall.shortLabel})',
     24,
-    () => EBook.parseBook(epubSmall.bytes),
+    () => BookReader.parseBook(epubSmall.bytes),
     (final book) => book.statistics,
     note: 'parse before each access untimed',
   );
@@ -74,7 +74,7 @@ void runGetterBenchmarks() {
   group.addFirstAccess<MobiBook>(
     'chapters — first access (${mobi6Alice.shortLabel})',
     12,
-    () => EBook.parseBook(mobi6Alice.bytes) as MobiBook,
+    () => BookReader.parseBook(mobi6Alice.bytes) as MobiBook,
     (final book) => book.chapters,
     note: 'parse before each access untimed',
   );
@@ -122,10 +122,7 @@ void _runMetadataUtilityBenchmarks(final BookMetadata template) {
     'BookMetadata.copyWith',
     () => template.copyWith(title: 'Benchmark', isbn: '978-0'),
   );
-  group.add(
-    'mergeBookMetadata',
-    () => mergeBookMetadata(template, template),
-  );
+  group.add('mergeBookMetadata', () => mergeBookMetadata(template, template));
   group.add(
     'applyFilenameFallback — hit',
     () => applyFilenameFallback(bareMetadata, fallbackPath),

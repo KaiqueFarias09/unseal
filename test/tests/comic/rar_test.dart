@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/features/comic/utils/parse_comic_book.dart';
-import 'package:e_livre/features/comic/utils/rar_reader.dart';
+import 'package:e_livre/src/features/comic/utils/parse_comic_book.dart';
+import 'package:e_livre/src/features/comic/utils/rar_reader.dart';
 import 'package:test/test.dart';
 
 // Byte-packing builders read best as sequential field writes.
@@ -22,7 +22,11 @@ void main() {
     });
 
     test('skips the encryption salt (flag 0x0200)', () {
-      final archive = buildRar4(['salt.jpg'], flags: 0x8000 | 0x0200, withSalt: true);
+      final archive = buildRar4(
+        ['salt.jpg'],
+        flags: 0x8000 | 0x0200,
+        withSalt: true,
+      );
       final entries = readRarEntries(archive);
       expect(entries.single.name, 'salt.jpg');
       expect(entries.single.isStored, isTrue);
@@ -38,7 +42,10 @@ void main() {
     test('reads stored entries behind a main header', () {
       final archive = buildRar5(['002.jpg', '001.jpg']);
       final entries = readRarEntries(archive);
-      expect(entries.map((final entry) => entry.name).toList(), ['002.jpg', '001.jpg']);
+      expect(entries.map((final entry) => entry.name).toList(), [
+        '002.jpg',
+        '001.jpg',
+      ]);
       expect(entries.every((final entry) => entry.isStored), isTrue);
       expect(entries.first.data, tinyJpegPage);
     });
@@ -56,13 +63,17 @@ void main() {
     });
 
     test('marks directory entries', () {
-      final entries = readRarEntries(buildRar5(['chapter1/'], fileFlags: 0x0001));
+      final entries = readRarEntries(
+        buildRar5(['chapter1/'], fileFlags: 0x0001),
+      );
       expect(entries.single.isDirectory, isTrue);
       expect(entries.single.data, isEmpty);
     });
 
     test('stops at the end-of-archive block', () {
-      final entries = readRarEntries(buildRar5(['001.jpg'], trailingGarbage: true));
+      final entries = readRarEntries(
+        buildRar5(['001.jpg'], trailingGarbage: true),
+      );
       expect(entries, hasLength(1));
     });
 
@@ -96,8 +107,18 @@ void main() {
   });
 }
 
-final Uint8List tinyJpegPage =
-    Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, 0, 1, 2, 3, 0xFF, 0xD9]);
+final Uint8List tinyJpegPage = Uint8List.fromList([
+  0xFF,
+  0xD8,
+  0xFF,
+  0xE0,
+  0,
+  1,
+  2,
+  3,
+  0xFF,
+  0xD9,
+]);
 
 /// Builds a RAR 4 archive with stored entries.
 Uint8List buildRar4(
@@ -115,19 +136,32 @@ Uint8List buildRar4(
     final extras = (withHighSizes ? 8 : 0) + (withSalt ? 8 : 0);
     final header = ByteData(32 + nameBytes.length + extras);
     var f = 0;
-    header.setUint16(f, 0); f += 2; // crc (unchecked)
-    header.setUint8(f, 0x74); f += 1; // file header
-    header.setUint16(f, flags); f += 2;
-    header.setUint16(f, header.lengthInBytes); f += 2;
-    header.setUint32(f, tinyJpegPage.length); f += 4; // packed
-    header.setUint32(f, tinyJpegPage.length); f += 4; // unpacked
-    header.setUint8(f, 0); f += 1; // host OS
-    header.setUint32(f, 0); f += 4; // file crc
-    header.setUint32(f, 0); f += 4; // file time
-    header.setUint8(f, 29); f += 1; // unpack version
-    header.setUint8(f, 0x30); f += 1; // method: stored
-    header.setUint16(f, nameBytes.length + nameSizeOvershoot); f += 2;
-    header.setUint32(f, 0x20); f += 4; // attributes
+    header.setUint16(f, 0);
+    f += 2; // crc (unchecked)
+    header.setUint8(f, 0x74);
+    f += 1; // file header
+    header.setUint16(f, flags);
+    f += 2;
+    header.setUint16(f, header.lengthInBytes);
+    f += 2;
+    header.setUint32(f, tinyJpegPage.length);
+    f += 4; // packed
+    header.setUint32(f, tinyJpegPage.length);
+    f += 4; // unpacked
+    header.setUint8(f, 0);
+    f += 1; // host OS
+    header.setUint32(f, 0);
+    f += 4; // file crc
+    header.setUint32(f, 0);
+    f += 4; // file time
+    header.setUint8(f, 29);
+    f += 1; // unpack version
+    header.setUint8(f, 0x30);
+    f += 1; // method: stored
+    header.setUint16(f, nameBytes.length + nameSizeOvershoot);
+    f += 2;
+    header.setUint32(f, 0x20);
+    f += 4; // attributes
     f += extras; // high sizes / salt live between attributes and name
     header.buffer.asUint8List().setRange(f, f + nameBytes.length, nameBytes);
     builder.add(header.buffer.asUint8List());
