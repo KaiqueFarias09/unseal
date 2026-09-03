@@ -5,6 +5,7 @@ export 'comic.dart';
 export 'epub.dart';
 export 'fb2.dart';
 export 'mobi.dart';
+export 'src/features/calibre/calibre_database.dart';
 export 'src/features/cfi/epub_cfi.dart';
 export 'src/features/cfi/epub_cfi_resolver.dart';
 export 'src/features/detection/format_detector.dart';
