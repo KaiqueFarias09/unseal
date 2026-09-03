@@ -2,22 +2,17 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('readEpubMetadata fast path', () {
-    final files = Directory('test/resources/epub')
-        .listSync()
-        .whereType<File>()
-        .where((final file) => file.path.endsWith('.epub'))
-        .toList();
+    final files = Directory(
+      'test/resources/epub',
+    ).listSync().whereType<File>().where((final file) => file.path.endsWith('.epub')).toList();
 
     for (final file in files) {
       test('reads metadata of ${file.uri.pathSegments.last}', () {
-        final archive = ZipDecoder().decodeBytes(
-          File(file.path).readAsBytesSync(),
-        );
+        final archive = ZipDecoder().decodeBytes(File(file.path).readAsBytesSync());
         final metadata = readEpubMetadata(archive);
 
         expect(metadata.format, BookFormat.epub);
@@ -38,10 +33,9 @@ void main() {
 
   group('cover precedence', () {
     test('every fixture resolves a cover or degrades gracefully', () {
-      final files = Directory('test/resources/epub')
-          .listSync()
-          .whereType<File>()
-          .where((final file) => file.path.endsWith('.epub'));
+      final files = Directory(
+        'test/resources/epub',
+      ).listSync().whereType<File>().where((final file) => file.path.endsWith('.epub'));
 
       for (final file in files) {
         final book = parseEpubBook(File(file.path).readAsBytesSync());

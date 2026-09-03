@@ -9,12 +9,7 @@ class TextFile extends BookFile {
   /// Creates a new [TextFile].
   ///
   /// Requires [content], [name], [path], and [type] to be non-null.
-  TextFile({
-    required this.content,
-    required super.name,
-    required super.type,
-    required super.path,
-  });
+  TextFile({required this.content, required super.name, required super.type, required super.path});
 
   /// The text content of the file.
   final String content;

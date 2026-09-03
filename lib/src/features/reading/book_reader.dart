@@ -4,15 +4,16 @@ import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:e_livre/src/features/comic/utils/parse_comic_book.dart';
 import 'package:e_livre/src/features/detection/format_detector.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
-import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
 import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart';
 import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
 import 'package:e_livre/src/features/fb2/utils/parse_fb2_book.dart';
 import 'package:e_livre/src/features/mobi/utils/parse_mobi_book.dart';
+import 'package:e_livre/src/foundation/entities/book_metadata.dart';
+import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
+
 import '../../platform/io/book_path_reader.dart'
     if (dart.library.html) '../../platform/web/book_path_reader.dart';
 import '../../platform/io/isolate_runner.dart'
@@ -96,14 +97,12 @@ abstract final class BookReader {
     );
   }
 
-  static bool _isEpubArchive(final Archive archive) => archive.files.any(
-        (final file) => file.isFile && file.name == 'META-INF/container.xml',
-      );
+  static bool _isEpubArchive(final Archive archive) =>
+      archive.files.any((final file) => file.isFile && file.name == 'META-INF/container.xml');
 
-  static ArchiveFile? _fb2Entry(final Archive archive) =>
-      archive.files.firstWhereOrNull(
-        (final file) => file.isFile && file.name.toLowerCase().endsWith('.fb2'),
-      );
+  static ArchiveFile? _fb2Entry(final Archive archive) => archive.files.firstWhereOrNull(
+    (final file) => file.isFile && file.name.toLowerCase().endsWith('.fb2'),
+  );
 
   static bool _hasFb2Entry(final Archive archive) => _fb2Entry(archive) != null;
 

@@ -17,5 +17,4 @@ Future<T> withBookPath<T>(
 Future<T?> readBookSidecar<T>(
   final String sourcePath,
   final T Function(String content) parse,
-) async =>
-    null;
+) async => null;

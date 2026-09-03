@@ -176,11 +176,7 @@ int? _blockElementLength(final List<int> units, final int start) {
   return close + closing.length;
 }
 
-bool _matchesName(
-  final List<int> units,
-  final int at,
-  final List<int> lowerName,
-) {
+bool _matchesName(final List<int> units, final int at, final List<int> lowerName) {
   if (at + lowerName.length > units.length) {
     return false;
   }
@@ -196,11 +192,7 @@ bool _matchesName(
 ///
 /// Returns the decoded text and the number of code units consumed, or
 /// `null` when the '&' opens no known entity (literal text).
-(String, int)? _decodeEntity(
-  final String html,
-  final List<int> units,
-  final int start,
-) {
+(String, int)? _decodeEntity(final String html, final List<int> units, final int start) {
   for (final entry in _namedEntities.entries) {
     if (html.startsWith(entry.key, start)) {
       return (entry.value, entry.key.length);
@@ -217,9 +209,7 @@ bool _matchesName(
       }
       if (end > digits + 1 && end < units.length && units[end] == _semicolon) {
         return (
-          String.fromCharCode(
-            int.parse(html.substring(digits + 1, end), radix: 16),
-          ),
+          String.fromCharCode(int.parse(html.substring(digits + 1, end), radix: 16)),
           end + 1 - start,
         );
       }
@@ -231,10 +221,7 @@ bool _matchesName(
       end++;
     }
     if (end > digits && end < units.length && units[end] == _semicolon) {
-      return (
-        String.fromCharCode(int.parse(html.substring(digits, end))),
-        end + 1 - start,
-      );
+      return (String.fromCharCode(int.parse(html.substring(digits, end))), end + 1 - start);
     }
   }
   return null;
@@ -262,27 +249,8 @@ const List<int> _commentOpen = <int>[0x21, 0x2D, 0x2D]; // !--
 const List<int> _commentClose = <int>[0x2D, 0x2D, 0x3E]; // -->
 const List<int> _scriptName = <int>[0x73, 0x63, 0x72, 0x69, 0x70, 0x74];
 const List<int> _styleName = <int>[0x73, 0x74, 0x79, 0x6C, 0x65];
-const List<int> _scriptClose = <int>[
-  0x3C,
-  0x2F,
-  0x73,
-  0x63,
-  0x72,
-  0x69,
-  0x70,
-  0x74,
-  0x3E,
-];
-const List<int> _styleClose = <int>[
-  0x3C,
-  0x2F,
-  0x73,
-  0x74,
-  0x79,
-  0x6C,
-  0x65,
-  0x3E,
-];
+const List<int> _scriptClose = <int>[0x3C, 0x2F, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x3E];
+const List<int> _styleClose = <int>[0x3C, 0x2F, 0x73, 0x74, 0x79, 0x6C, 0x65, 0x3E];
 
 /// The RegExp `\s` set (ECMAScript): ASCII whitespace, NBSP, Zs
 /// category separators, line/paragraph separators and ZWNBSP.
@@ -341,11 +309,7 @@ int _indexOf(final List<int> units, final int from, final List<int> pattern) {
   return -1;
 }
 
-int _indexOfIgnoreCase(
-  final List<int> units,
-  final int from,
-  final List<int> lowercasePattern,
-) {
+int _indexOfIgnoreCase(final List<int> units, final int from, final List<int> lowercasePattern) {
   for (var i = from; i + lowercasePattern.length <= units.length; i++) {
     var matched = true;
     for (var j = 0; j < lowercasePattern.length; j++) {

@@ -38,10 +38,7 @@ class PdbHeader implements PdbRecordAccess {
     if (recordCount == 0 || 78 + recordCount * 8 > bytes.length) {
       throw const InvalidBookException('Invalid PDB record table.');
     }
-    offsets = List<int>.generate(
-      recordCount,
-      (final i) => view.getUint32(78 + i * 8),
-    );
+    offsets = List<int>.generate(recordCount, (final i) => view.getUint32(78 + i * 8));
   }
 
   late final Uint8List _bytes;

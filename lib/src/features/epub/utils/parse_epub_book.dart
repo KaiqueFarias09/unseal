@@ -3,8 +3,6 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
 import 'package:e_livre/src/features/epub/entities/book/book.dart';
 import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
 import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
@@ -15,6 +13,8 @@ import 'package:e_livre/src/features/epub/utils/get_book_cover.dart';
 import 'package:e_livre/src/features/epub/utils/get_epub_root_file_path.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
 import 'package:e_livre/src/features/epub/utils/process_package.dart';
+import 'package:e_livre/src/foundation/entities/book/files.dart';
+import 'package:e_livre/src/foundation/entities/book_metadata.dart';
 
 /// Parses an EPUB from raw [bytes].
 EpubBook parseEpubBook(final Uint8List bytes) {
@@ -29,11 +29,7 @@ EpubBook parseEpubArchive(final Archive archive) {
   final package = parsePackage(convert.utf8.decode(rootFile));
   final navigation = getEpubNavigation(package, archive, rootFilePath);
 
-  final files = extractFiles(
-    archive.files,
-    package.manifest.items,
-    rootFilePath,
-  );
+  final files = extractFiles(archive.files, package.manifest.items, rootFilePath);
   final cover = getBookCover(package, archive, files.images, rootFilePath);
 
   return EpubBook(
@@ -54,10 +50,7 @@ BookMetadata readEpubMetadata(final Archive archive) {
   final rootFile = _getRootFile(archive, rootFilePath).content as List<int>;
 
   final package = parsePackage(convert.utf8.decode(rootFile));
-  return epubBookMetadata(
-    package,
-    getBookCover(package, archive, const [], rootFilePath),
-  );
+  return epubBookMetadata(package, getBookCover(package, archive, const [], rootFilePath));
 }
 
 ArchiveFile _getRootFile(final Archive archive, final String? rootFilePath) {

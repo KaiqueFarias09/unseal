@@ -1,5 +1,5 @@
 /// Public, format-agnostic eLivre API.
-library e_livre;
+library;
 
 export 'comic.dart';
 export 'epub.dart';

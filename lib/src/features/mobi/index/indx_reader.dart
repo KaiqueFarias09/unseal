@@ -52,10 +52,7 @@ class Cncx {
           if (end > raw.length) {
             end = raw.length;
           }
-          strings[pos + recordOffset] = decodeBytes(
-            Uint8List.sublistView(raw, start, end),
-            codec,
-          );
+          strings[pos + recordOffset] = decodeBytes(Uint8List.sublistView(raw, start, end), codec);
         }
         pos += consumed + length;
       }
@@ -98,24 +95,18 @@ typedef IndxTable = LinkedHashMap<String, Map<int, List<int>>>;
   if (header.ncncx > 0) {
     final off = index + header.count + 1;
     if (off + header.ncncx <= recordCount) {
-      cncx = Cncx(
-        List<Uint8List>.generate(header.ncncx, (final i) => recordAt(off + i)),
-        codec,
-      );
+      cncx = Cncx(List<Uint8List>.generate(header.ncncx, (final i) => recordAt(off + i)), codec);
     }
   }
 
   var tagSectionStart = header.tagxOffset;
-  if (tagSectionStart + 4 > data.length ||
-      !_hasMagic(data, tagSectionStart, 'TAGX')) {
+  if (tagSectionStart + 4 > data.length || !_hasMagic(data, tagSectionStart, 'TAGX')) {
     final found = _findMagic(data, 'TAGX', 184);
     if (found > -1) {
       tagSectionStart = found;
     }
   }
-  final (controlByteCount, tags) = _parseTagxSection(
-    Uint8List.sublistView(data, tagSectionStart),
-  );
+  final (controlByteCount, tags) = _parseTagxSection(Uint8List.sublistView(data, tagSectionStart));
 
   for (var i = index + 1; i <= index + header.count && i < recordCount; i++) {
     _parseIndexRecord(table, recordAt(i), controlByteCount, tags, codec);
@@ -203,11 +194,7 @@ void _parseIndexRecord(
     if (consumed >= rec.length) {
       continue;
     }
-    final tagMap = _getTagMap(
-      controlByteCount,
-      tags,
-      Uint8List.sublistView(rec, consumed),
-    );
+    final tagMap = _getTagMap(controlByteCount, tags, Uint8List.sublistView(rec, consumed));
     table[ident] = tagMap;
   }
 }
@@ -230,8 +217,7 @@ Map<int, List<int>> _getTagMap(
   final Uint8List data,
 ) {
   final pending = <(int, int, int?, int?)>[];
-  final controlLength =
-      controlByteCount < data.length ? controlByteCount : data.length;
+  final controlLength = controlByteCount < data.length ? controlByteCount : data.length;
   var controlBytes = data.sublist(0, controlLength);
   var rest = Uint8List.sublistView(data, controlLength);
 

@@ -23,11 +23,7 @@ class _Page {
 /// Parses a comic book (CBZ zip or CBR rar) from raw [bytes].
 ComicBook parseComicBook(final Uint8List bytes) {
   final (pages, comicInfo) = _readPages(bytes);
-  return _build(
-    pages,
-    comicInfo,
-    _cbz(bytes) ? BookFormat.cbz : BookFormat.cbr,
-  );
+  return _build(pages, comicInfo, _cbz(bytes) ? BookFormat.cbz : BookFormat.cbr);
 }
 
 /// Reads only the metadata of a comic book from [bytes].
@@ -50,8 +46,7 @@ BookMetadata readComicMetadata(final Uint8List bytes) {
   );
 }
 
-bool _cbz(final Uint8List bytes) =>
-    bytes.length > 2 && bytes[0] == 0x50 && bytes[1] == 0x4B;
+bool _cbz(final Uint8List bytes) => bytes.length > 2 && bytes[0] == 0x50 && bytes[1] == 0x4B;
 
 (List<_Page>, ComicInfo?) _readPages(final Uint8List bytes) {
   final pages = <_Page>[];
@@ -68,9 +63,7 @@ bool _cbz(final Uint8List bytes) =>
           ? Uint8List.sublistView(content)
           : Uint8List.fromList(content as List<int>);
       if (entry.name.toLowerCase() == 'comicinfo.xml') {
-        comicInfo = ComicInfo.parse(
-          convert.utf8.decode(data, allowMalformed: true),
-        );
+        comicInfo = ComicInfo.parse(convert.utf8.decode(data, allowMalformed: true));
         continue;
       }
       if (sniffImageType(data) != null) {
@@ -83,9 +76,7 @@ bool _cbz(final Uint8List bytes) =>
         continue;
       }
       if (entry.name.toLowerCase() == 'comicinfo.xml' && entry.isStored) {
-        comicInfo = ComicInfo.parse(
-          convert.utf8.decode(entry.data, allowMalformed: true),
-        );
+        comicInfo = ComicInfo.parse(convert.utf8.decode(entry.data, allowMalformed: true));
         continue;
       }
       if (!entry.isStored) {
@@ -107,22 +98,13 @@ bool _cbz(final Uint8List bytes) =>
   return (pages, comicInfo);
 }
 
-ComicBook _build(
-  final List<_Page> pages,
-  final ComicInfo? comicInfo,
-  final BookFormat format,
-) {
+ComicBook _build(final List<_Page> pages, final ComicInfo? comicInfo, final BookFormat format) {
   final images = <BinaryFile>[];
   for (final page in pages) {
     final type = sniffImageType(page.bytes)!;
     final name = page.name.split('/').last;
     images.add(
-      BinaryFile(
-        content: page.bytes,
-        name: name,
-        type: type.fileExtension,
-        path: page.name,
-      ),
+      BinaryFile(content: page.bytes, name: name, type: type.fileExtension, path: page.name),
     );
   }
 
@@ -143,12 +125,7 @@ ComicBook _build(
     ),
   );
 
-  return ComicBook(
-    cover: cover,
-    metadata: coverMetadata,
-    pages: images,
-    format: format,
-  );
+  return ComicBook(cover: cover, metadata: coverMetadata, pages: images, format: format);
 }
 
 /// Compares strings with embedded numbers by their numeric value so

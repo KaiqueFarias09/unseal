@@ -16,17 +16,14 @@ class ComicBook extends Book {
     required this.metadata,
     required this.pages,
     required super.format,
-  })  : files = Files(
-          images: pages,
-          css: const [],
-          html: const [],
-          fonts: const [],
-          others: const [],
-        ),
-        navigation = Navigation(
-          title: metadata.title ?? '',
-          navPoints: const [],
-        );
+  }) : files = Files(
+         images: pages,
+         css: const [],
+         html: const [],
+         fonts: const [],
+         others: const [],
+       ),
+       navigation = Navigation(title: metadata.title ?? '', navPoints: const []);
 
   /// The cover image, or an empty file when none was found.
   final BinaryFile cover;
@@ -52,7 +49,6 @@ class ComicBook extends Book {
   /// The comic pages in reading order.
   @override
   List<ReadingOrderItem> get readingOrder => <ReadingOrderItem>[
-        for (final page in pages)
-          ReadingOrderItem(name: page.path, isHtml: false),
-      ];
+    for (final page in pages) ReadingOrderItem(name: page.path, isHtml: false),
+  ];
 }

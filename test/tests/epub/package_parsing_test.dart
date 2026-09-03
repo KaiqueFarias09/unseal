@@ -50,9 +50,7 @@ void main() {
       title: 'A First Course in Linear Algebra',
       subject: 'education',
       language: 'en',
-      identifiers: [
-        'https://github.com/IDPF/edupub/tree/master/samples/linear-algebra',
-      ],
+      identifiers: ['https://github.com/IDPF/edupub/tree/master/samples/linear-algebra'],
       uniqueIdentifierValue: '63912178-abce-4816-b882-930cb32d6207',
       rights: [
         'This work is shared with the public using the GNU Free Documentation License, Version 1.2.',
@@ -150,8 +148,7 @@ void main() {
       file: 'test/resources/epub/sample1.epub',
       uniqueIdentifier: 'uuid_id',
       version: '2.0',
-      title:
-          "The Geography of Bliss: One Grump's Search for the Happiest Places in the World",
+      title: "The Geography of Bliss: One Grump's Search for the Happiest Places in the World",
       subject: 'TRV000000',
       language: 'en',
       identifiers: ['9780446511070', '488e41dd-11d3-45e4-b776-173d26db6306'],
@@ -176,9 +173,7 @@ void main() {
       final rootFilePath = getEpubRootFilePath(archive);
       final rootFile = _getRootFile(archive, rootFilePath);
 
-      final epubPackage = parsePackage(
-        convert.utf8.decode(rootFile.content as List<int>),
-      );
+      final epubPackage = parsePackage(convert.utf8.decode(rootFile.content as List<int>));
 
       expect(epubPackage.uniqueIdentifier, book.uniqueIdentifier);
       expect(epubPackage.version, book.version);

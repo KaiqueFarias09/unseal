@@ -157,11 +157,7 @@ class HuffReader {
       final end = start + length;
       _dictionary.add(
         _DictionaryEntry(
-          Uint8List.sublistView(
-            cdic,
-            start,
-            end > cdic.length ? cdic.length : end,
-          ),
+          Uint8List.sublistView(cdic, start, end > cdic.length ? cdic.length : end),
           cached,
         ),
       );

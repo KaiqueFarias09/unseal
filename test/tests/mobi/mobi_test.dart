@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/mobi/utils/parse_mobi_book.dart';
 import 'package:test/test.dart';
 
 const String aliceTitle = "Alice's Adventures in Wonderland";
@@ -80,9 +79,7 @@ void main() {
       // index.html + one part per chapter.
       expect(book.files.html.length, greaterThanOrEqualTo(10));
       expect(book.files.html.first.name, 'index.html');
-      final chapter = book.files.html.firstWhere(
-        (final file) => file.name == 'part0001.html',
-      );
+      final chapter = book.files.html.firstWhere((final file) => file.name == 'part0001.html');
       expect(chapter.content, contains('Rabbit-Hole'));
     });
 
@@ -102,9 +99,7 @@ void main() {
       }
       // Links point to rebuilt part files.
       final links = book.files.html
-          .expand(
-            (final file) => RegExp('href="part[^"]*"').allMatches(file.content),
-          )
+          .expand((final file) => RegExp('href="part[^"]*"').allMatches(file.content))
           .length;
       expect(links, greaterThan(0));
     });
@@ -145,9 +140,7 @@ void main() {
 
   group('readMobiMetadata fast path', () {
     test('reads metadata without extracting content', () {
-      final metadata = readMobiMetadata(
-        _read('test/resources/mobi/alice-old.mobi'),
-      );
+      final metadata = readMobiMetadata(_read('test/resources/mobi/alice-old.mobi'));
       expect(metadata.title, aliceTitle);
       expect(metadata.authors, ['Lewis Carroll']);
       expect(metadata.cover, isNotNull);
@@ -155,9 +148,7 @@ void main() {
     });
 
     test('reads AZW3 metadata', () {
-      final metadata = readMobiMetadata(
-        _read('test/resources/mobi/alice-kf8.azw3'),
-      );
+      final metadata = readMobiMetadata(_read('test/resources/mobi/alice-kf8.azw3'));
       expect(metadata.format, BookFormat.azw3);
       expect(metadata.title, aliceTitle);
       expect(metadata.cover, isNotNull);
@@ -165,5 +156,4 @@ void main() {
   });
 }
 
-Uint8List _read(final String path) =>
-    Uint8List.fromList(File(path).readAsBytesSync());
+Uint8List _read(final String path) => Uint8List.fromList(File(path).readAsBytesSync());

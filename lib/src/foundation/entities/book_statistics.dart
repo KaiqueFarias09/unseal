@@ -32,6 +32,5 @@ final class BookStatistics {
   }
 
   @override
-  String toString() =>
-      'BookStatistics(words: $wordCount, characters: $characterCount)';
+  String toString() => 'BookStatistics(words: $wordCount, characters: $characterCount)';
 }

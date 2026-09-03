@@ -21,21 +21,21 @@ enum ImageType {
 extension ImageTypeX on ImageType {
   /// The IANA MIME type for this image format.
   String get mimeType => switch (this) {
-        ImageType.jpeg => 'image/jpeg',
-        ImageType.png => 'image/png',
-        ImageType.gif => 'image/gif',
-        ImageType.webp => 'image/webp',
-        ImageType.bmp => 'image/bmp',
-      };
+    ImageType.jpeg => 'image/jpeg',
+    ImageType.png => 'image/png',
+    ImageType.gif => 'image/gif',
+    ImageType.webp => 'image/webp',
+    ImageType.bmp => 'image/bmp',
+  };
 
   /// The usual file extension (without leading dot) for this format.
   String get fileExtension => switch (this) {
-        ImageType.jpeg => 'jpg',
-        ImageType.png => 'png',
-        ImageType.gif => 'gif',
-        ImageType.webp => 'webp',
-        ImageType.bmp => 'bmp',
-      };
+    ImageType.jpeg => 'jpg',
+    ImageType.png => 'png',
+    ImageType.gif => 'gif',
+    ImageType.webp => 'webp',
+    ImageType.bmp => 'bmp',
+  };
 }
 
 /// Detects the image format of [bytes] from its magic bytes.
@@ -67,10 +67,7 @@ ImageType? sniffImageType(final Uint8List bytes) {
   }
 
   // GIF: GIF87a / GIF89a
-  if (bytes[0] == 0x47 &&
-      bytes[1] == 0x49 &&
-      bytes[2] == 0x46 &&
-      bytes[3] == 0x38) {
+  if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38) {
     return ImageType.gif;
   }
 

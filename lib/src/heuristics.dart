@@ -9,7 +9,7 @@ library;
 /// (open if preceded by start/whitespace/opening punctuation, close
 /// otherwise), `--` becomes an em dash and `...` an ellipsis.
 String smartenPunctuation(final String text) {
-  var out = text.replaceAll('...', '…').replaceAll('--', '—');
+  final out = text.replaceAll('...', '…').replaceAll('--', '—');
   final quote = StringBuffer();
   var previous = '\n';
   for (var i = 0; i < out.length; i++) {
@@ -31,15 +31,9 @@ String smartenPunctuation(final String text) {
 /// Normalizes common scene-break markers (`* * *`, `***`, `# # #`,
 /// `-=-=`) to a single canonical marker. Parity: calibre heuristic
 /// scene-break detection (calibre.ebooks.heuristics).
-String normalizeSceneBreaks(
-  final String html, {
-  final String marker = '• • •',
-}) {
+String normalizeSceneBreaks(final String html, {final String marker = '• • •'}) {
   return html.replaceAllMapped(
-    RegExp(
-      r'<p[^>]*>\s*(?:[*&#•\-=_]\s*){3,}[*&#•\-=_]?\s*<\/p>',
-      caseSensitive: false,
-    ),
+    RegExp(r'<p[^>]*>\s*(?:[*&#•\-=_]\s*){3,}[*&#•\-=_]?\s*<\/p>', caseSensitive: false),
     (final _) => '<p>$marker</p>',
   );
 }
@@ -95,7 +89,7 @@ List<ChapterGuess> guessChapters(final String text) {
 /// hard line breaks".
 String unwrapHardLineBreaks(final String text) {
   // A hyphen at the break is a soft hyphenation: join without it.
-  var out = text.replaceAllMapped(
+  final out = text.replaceAllMapped(
     RegExp('([a-z\\u00C0-\\u024F])\\-[ \\t]*\\n([a-z\\u00C0-\\u024F])'),
     (final m) => '${m.group(1)}${m.group(2)}',
   );

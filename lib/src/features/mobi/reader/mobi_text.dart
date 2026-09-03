@@ -38,9 +38,7 @@ Uint8List extractMobiText({
   } else if (header.compressionType == 1) {
     unpack = (final data) => data;
   } else {
-    throw MobiException(
-      'Unknown compression algorithm: ${header.compressionType}',
-    );
+    throw MobiException('Unknown compression algorithm: ${header.compressionType}');
   }
 
   final builder = BytesBuilder(copy: false);

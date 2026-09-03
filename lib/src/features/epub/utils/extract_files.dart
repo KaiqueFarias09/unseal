@@ -1,11 +1,11 @@
 import 'dart:convert' as convert;
 
 import 'package:archive/archive.dart';
+import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
+import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/src/foundation/entities/book/files.dart';
 import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
 import 'package:e_livre/src/foundation/entities/file/text_file.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
-import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 
 /// Extracts various types of files from an EPUB archive.
 ///
@@ -17,18 +17,11 @@ Files extractFiles(
   final List<ManifestItem> items, [
   final String? rootFilePath,
 ]) {
-  final imageItems = items.where(
-    (final item) => item.mediaType.contains('image/'),
-  );
-  final cssItems = items.where(
-    (final item) => item.mediaType.contains('text/css'),
-  );
-  final htmlItems = items.where(
-    (final item) => item.mediaType.contains('application/xhtml+xml'),
-  );
+  final imageItems = items.where((final item) => item.mediaType.contains('image/'));
+  final cssItems = items.where((final item) => item.mediaType.contains('text/css'));
+  final htmlItems = items.where((final item) => item.mediaType.contains('application/xhtml+xml'));
   final fontItems = items.where(
-    (final item) =>
-        item.mediaType.contains('font') || item.mediaType.contains('opentype'),
+    (final item) => item.mediaType.contains('font') || item.mediaType.contains('opentype'),
   );
   final otherItems = items.where(
     (final item) =>
@@ -100,16 +93,12 @@ Iterable<ArchiveFile> _resolveEntries(
     if (!file.isFile) {
       continue;
     }
-    filesByPath.putIfAbsent(
-      normalizeZipPath(file.name).toLowerCase(),
-      () => file,
-    );
+    filesByPath.putIfAbsent(normalizeZipPath(file.name).toLowerCase(), () => file);
   }
 
   final resolved = <ArchiveFile>[];
   for (final item in items) {
-    final match =
-        filesByPath[resolveItemPath(rootFilePath, item.path).toLowerCase()];
+    final match = filesByPath[resolveItemPath(rootFilePath, item.path).toLowerCase()];
     if (match != null) {
       resolved.add(match);
     }

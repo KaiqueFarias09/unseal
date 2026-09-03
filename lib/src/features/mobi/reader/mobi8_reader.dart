@@ -1,9 +1,5 @@
 import "dart:typed_data";
 
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/entities/file/text_file.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
@@ -13,6 +9,10 @@ import 'package:e_livre/src/features/mobi/reader/mobi_text.dart';
 import 'package:e_livre/src/features/mobi/utils/containers.dart';
 import 'package:e_livre/src/features/mobi/utils/decint.dart';
 import 'package:e_livre/src/features/mobi/utils/fonts.dart';
+import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
+import 'package:e_livre/src/foundation/entities/file/text_file.dart';
+import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
+import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 
 /// A rebuilt KF8 XHTML file: name plus its span in the raw text.
 class Mobi8Part {
@@ -25,13 +25,7 @@ class Mobi8Part {
 }
 
 class _Elem {
-  const _Elem(
-    this.insertPos,
-    this.tocText,
-    this.fileNumber,
-    this.startPos,
-    this.length,
-  );
+  const _Elem(this.insertPos, this.tocText, this.fileNumber, this.startPos, this.length);
 
   /// Insert position inside the skeleton (the div entry ident).
   final int insertPos;
@@ -181,10 +175,7 @@ class Mobi8Reader {
       final sectionCount = view.getUint32(8);
       final table = <(int, int)>[];
       for (var i = 0; i < sectionCount; i++) {
-        table.add((
-          view.getUint32(sectionStart + i * 8),
-          view.getUint32(sectionStart + i * 8 + 4),
-        ));
+        table.add((view.getUint32(sectionStart + i * 8), view.getUint32(sectionStart + i * 8 + 4)));
       }
       _flowTable = table;
     }
@@ -198,14 +189,7 @@ class Mobi8Reader {
         final start = tag6.isNotEmpty ? tag6[0] : 0;
         final skeletonLength = tag6.length > 1 ? tag6[1] : 0;
         _divCounts[fileNumber] = tagMap[1]?.first ?? 0;
-        _parts.add(
-          Mobi8Part(
-            fileNumber,
-            _partName(fileNumber),
-            start,
-            start + skeletonLength,
-          ),
-        );
+        _parts.add(Mobi8Part(fileNumber, _partName(fileNumber), start, start + skeletonLength));
         fileNumber++;
       }
     }
@@ -228,20 +212,14 @@ class Mobi8Reader {
     }
   }
 
-  String _partName(final int fileNumber) => fileNumber == 0
-      ? 'index.html'
-      : 'part${fileNumber.toString().padLeft(4, '0')}.html';
+  String _partName(final int fileNumber) =>
+      fileNumber == 0 ? 'index.html' : 'part${fileNumber.toString().padLeft(4, '0')}.html';
 
   void _buildParts() {
-    final flowSlices =
-        _flowTable.isEmpty ? <(int, int)>[(0, _rawText.length)] : _flowTable;
+    final flowSlices = _flowTable.isEmpty ? <(int, int)>[(0, _rawText.length)] : _flowTable;
     final flows = <Uint8List>[
       for (final (start, end) in flowSlices)
-        Uint8List.sublistView(
-          _rawText,
-          start,
-          end > _rawText.length ? _rawText.length : end,
-        ),
+        Uint8List.sublistView(_rawText, start, end > _rawText.length ? _rawText.length : end),
     ];
     // Flow 0 is the XHTML text; the rest are css/svg flows.
     final text = flows.first;
@@ -259,8 +237,7 @@ class Mobi8Reader {
         final divEnd = basePtr + elem.length;
         final div = Uint8List.sublistView(text, basePtr, divEnd);
 
-        final headEnd =
-            insertPos < skeleton.length ? insertPos : skeleton.length;
+        final headEnd = insertPos < skeleton.length ? insertPos : skeleton.length;
         final head = Uint8List.sublistView(skeleton, 0, headEnd);
         final tail = insertPos < skeleton.length
             ? Uint8List.sublistView(skeleton, insertPos)
@@ -268,10 +245,9 @@ class Mobi8Reader {
         final brokenTail = _firstGtBeforeLt(tail);
         final brokenHead = _lastGtBeforeLt(head);
         if (brokenTail || brokenHead) {
-          final aid =
-              i == 0 && elem.tocText != null && elem.tocText!.length > 14
-                  ? elem.tocText!.substring(12, elem.tocText!.length - 2)
-                  : '';
+          final aid = i == 0 && elem.tocText != null && elem.tocText!.length > 14
+              ? elem.tocText!.substring(12, elem.tocText!.length - 2)
+              : '';
           final tagStart = _locateTagByAid(skeleton, aid);
           if (tagStart != null) {
             insertPos = tagStart + 1 + elem.startPos - part.start;
@@ -319,9 +295,7 @@ class Mobi8Reader {
       final gt = _indexOfByte(block, 0x3E, lt + 1);
       if (gt == -1) break;
       final tag = String.fromCharCodes(block.sublist(lt, gt + 1));
-      if (RegExp(
-        '\\said\\s*=\\s*["\']${RegExp.escape(aid)}["\']',
-      ).hasMatch(tag)) {
+      if (RegExp('\\said\\s*=\\s*["\']${RegExp.escape(aid)}["\']').hasMatch(tag)) {
         return lt;
       }
       i = gt + 1;
@@ -330,8 +304,7 @@ class Mobi8Reader {
   }
 
   void _classifyFlows() {
-    final flowSlices =
-        _flowTable.isEmpty ? <(int, int)>[(0, _rawText.length)] : _flowTable;
+    final flowSlices = _flowTable.isEmpty ? <(int, int)>[(0, _rawText.length)] : _flowTable;
     for (var j = 1; j < flowSlices.length; j++) {
       final (start, end) = flowSlices[j];
       final slice = Uint8List.sublistView(
@@ -352,9 +325,7 @@ class Mobi8Reader {
           _flows.add(_Flow(j, 'svg', 'svg$number.svg', stripped));
         }
       } else if (asText.contains('[CDATA[')) {
-        _flows.add(
-          _Flow(j, 'css', null, '<style type="text/css">\n$asText\n</style>\n'),
-        );
+        _flows.add(_Flow(j, 'css', null, '<style type="text/css">\n$asText\n</style>\n'));
       } else {
         _flows.add(_Flow(j, 'css', 'flow$number.css', asText));
       }
@@ -367,8 +338,7 @@ class Mobi8Reader {
       for (var i = start; i < end && i < pdb.count; i++) {
         final fnameIdx = i - start + 1;
         final data = pdb.record(i);
-        final type =
-            data.length >= 4 ? String.fromCharCodes(data.sublist(0, 4)) : '';
+        final type = data.length >= 4 ? String.fromCharCodes(data.sublist(0, 4)) : '';
         String? href;
 
         if (const {
@@ -388,20 +358,11 @@ class Mobi8Reader {
           // Ignored record kinds.
         } else if (type == 'FONT') {
           final font = decodeFontRecord(data);
-          final name =
-              'font${fnameIdx.toString().padLeft(5, '0')}.${font.extension}';
+          final name = 'font${fnameIdx.toString().padLeft(5, '0')}.${font.extension}';
           href = name;
-          _fonts.add(
-            BinaryFile(
-              content: font.data,
-              name: name,
-              type: font.extension,
-              path: name,
-            ),
-          );
+          _fonts.add(BinaryFile(content: font.data, name: name, type: font.extension, path: name));
         } else if (type == 'CONT') {
-          container =
-              _hasMagic(data, 'CONTBOUNDARY') ? null : MobiContainer(data);
+          container = _hasMagic(data, 'CONTBOUNDARY') ? null : MobiContainer(data);
         } else if (type == 'CRES') {
           if (container != null) {
             final image = container.loadImage(data);
@@ -411,12 +372,7 @@ class Mobi8Reader {
                   'image${container.resourceIndex.toString().padLeft(5, '0')}.${sniffed.fileExtension}';
               href = name;
               _images.add(
-                BinaryFile(
-                  content: image,
-                  name: name,
-                  type: sniffed.fileExtension,
-                  path: name,
-                ),
+                BinaryFile(content: image, name: name, type: sniffed.fileExtension, path: name),
               );
             }
           }
@@ -425,16 +381,10 @@ class Mobi8Reader {
         } else if (container == null) {
           final sniffed = sniffImageType(data);
           if (sniffed != null) {
-            final name =
-                'image${fnameIdx.toString().padLeft(5, '0')}.${sniffed.fileExtension}';
+            final name = 'image${fnameIdx.toString().padLeft(5, '0')}.${sniffed.fileExtension}';
             href = name;
             _images.add(
-              BinaryFile(
-                content: data,
-                name: name,
-                type: sniffed.fileExtension,
-                path: name,
-              ),
+              BinaryFile(content: data, name: name, type: sniffed.fileExtension, path: name),
             );
           }
         }
@@ -446,9 +396,7 @@ class Mobi8Reader {
 
   Mobi8Assembly _expandMarkup() {
     // 1. Resolve internal pos:fid links, then decode to strings.
-    var parts = <String>[
-      for (final bytes in _partBytes) _updateInternalLinks(bytes),
-    ];
+    var parts = <String>[for (final bytes in _partBytes) _updateInternalLinks(bytes)];
 
     // 2. Strip kindlegen aid/cid attributes (keeping linked ones as id).
     parts = parts.map(_removeKindleAids).toList();
@@ -468,9 +416,7 @@ class Mobi8Reader {
     final html = <TextFile>[];
     for (var i = 0; i < parts.length; i++) {
       final name = _partName(i);
-      html.add(
-        TextFile(name: name, type: 'html', path: name, content: parts[i]),
-      );
+      html.add(TextFile(name: name, type: 'html', path: name, content: parts[i]));
     }
 
     final css = <TextFile>[];
@@ -479,12 +425,7 @@ class Mobi8Reader {
       if (flow.filename == null) continue;
       if (flow.kind == 'css') {
         css.add(
-          TextFile(
-            name: flow.filename!,
-            type: 'css',
-            path: flow.filename!,
-            content: flow.content,
-          ),
+          TextFile(name: flow.filename!, type: 'css', path: flow.filename!, content: flow.content),
         );
       } else {
         svgImages.add(
@@ -516,12 +457,7 @@ class Mobi8Reader {
   }
 
   Navigation _buildToc() {
-    final entries = readNcx(
-      _kf8Record,
-      _kf8RecordCount,
-      header.ncxIndex,
-      header.codec,
-    );
+    final entries = readNcx(_kf8Record, _kf8RecordCount, header.ncxIndex, header.codec);
     for (final entry in entries) {
       final posFid = entry.posFid;
       if (posFid != null && posFid.length >= 2) {
@@ -569,10 +505,7 @@ class Mobi8Reader {
   String _updateInternalLinks(final Uint8List part) {
     final asText = decodeBytes(part, header.codec);
     return asText.replaceAllMapped(_kindlePosFidPattern, (final match) {
-      final resolved = _resolveByPosFid(
-        parseBase32(match.group(1)!),
-        parseBase32(match.group(2)!),
-      );
+      final resolved = _resolveByPosFid(parseBase32(match.group(1)!), parseBase32(match.group(2)!));
       if (resolved == null) {
         return '"#"';
       }
@@ -594,9 +527,7 @@ class Mobi8Reader {
   }
 
   String _updateFlowLinks(final String content) {
-    var result = content.replaceAllMapped(_flowImageTagPattern, (
-      final tagMatch,
-    ) {
+    var result = content.replaceAllMapped(_flowImageTagPattern, (final tagMatch) {
       final tag = tagMatch.group(1)!;
       return tag.replaceFirstMapped(
         _kindleEmbedQuotedPattern,
@@ -763,19 +694,12 @@ final RegExp _kindleEmbedQuotedPattern = RegExp(
   '''['"]kindle:embed:([0-9A-V]+)[^"']*['"]''',
   caseSensitive: false,
 );
-final RegExp _cssUrlPattern = RegExp(
-  r'url\((.*?)\)',
-  caseSensitive: false,
-  dotAll: true,
-);
+final RegExp _cssUrlPattern = RegExp(r'url\((.*?)\)', caseSensitive: false, dotAll: true);
 final RegExp _kindleEmbedMimePattern = RegExp(
   r'''kindle:embed:([0-9A-V]+)\?mime=image/[^\)]*''',
   caseSensitive: false,
 );
-final RegExp _kindleEmbedPattern = RegExp(
-  'kindle:embed:([0-9A-V]+)',
-  caseSensitive: false,
-);
+final RegExp _kindleEmbedPattern = RegExp('kindle:embed:([0-9A-V]+)', caseSensitive: false);
 final RegExp _kindleFlowCssPattern = RegExp(
   r'''kindle:flow:([0-9A-V]+)\?mime=text/css[^\)]*''',
   caseSensitive: false,
@@ -785,10 +709,7 @@ final RegExp _flowRefPattern = RegExp(
   r'''['"]kindle:flow:([0-9A-V]+)\?mime=([^'"]+)['"]''',
   caseSensitive: false,
 );
-final RegExp _imgTagPattern = RegExp(
-  r'(<(?:img|image)\b[^>]*>)',
-  caseSensitive: false,
-);
+final RegExp _imgTagPattern = RegExp(r'(<(?:img|image)\b[^>]*>)', caseSensitive: false);
 final RegExp _kindleEmbedWrappedPattern = RegExp(
   '''[('"]kindle:embed:([0-9A-V]+)[^'")]*[)'"]''',
   caseSensitive: false,
@@ -799,10 +720,7 @@ final RegExp _styledTagPattern = RegExp(
 );
 final RegExp _xmlDeclarationPattern = RegExp(r'<\?xml[^>]*>');
 final RegExp _svgOpenTagPattern = RegExp('<svg[^>]*>', caseSensitive: false);
-final RegExp _svgImagePattern = RegExp(
-  '<(?:svg:)?image[^>]*>',
-  caseSensitive: false,
-);
+final RegExp _svgImagePattern = RegExp('<(?:svg:)?image[^>]*>', caseSensitive: false);
 final RegExp _idAttrPattern = RegExp(r'''\sid\s*=\s*['"]([^'"]+)['"]''');
 final RegExp _nameAttrPattern = RegExp(r'''\sname\s*=\s*['"]([^'"]+)['"]''');
 final RegExp _aidAttrPattern = RegExp(r'''\said\s*=\s*['"]([^'"]+)['"]''');
@@ -878,8 +796,7 @@ String _stripAidAttributes(final String part, final Set<String> linkedAids) {
     if (c1 != _a && c1 != _c) {
       continue;
     }
-    if (_asciiLowerCase(units[i + 2]) != _i ||
-        _asciiLowerCase(units[i + 3]) != _d) {
+    if (_asciiLowerCase(units[i + 2]) != _i || _asciiLowerCase(units[i + 3]) != _d) {
       continue;
     }
     var k = i + 4;
@@ -957,18 +874,10 @@ bool _isMarkupWhitespace(final int codeUnit) =>
     codeUnit == 0xFEFF;
 
 bool _isUnknownMarker(final Uint8List data) =>
-    data.length >= 4 &&
-    data[0] == 0xE9 &&
-    data[1] == 0x8E &&
-    data[2] == 0x0D &&
-    data[3] == 0x0A;
+    data.length >= 4 && data[0] == 0xE9 && data[1] == 0x8E && data[2] == 0x0D && data[3] == 0x0A;
 
 bool _isPlaceholder(final Uint8List data) =>
-    data.length == 4 &&
-    data[0] == 0xA0 &&
-    data[1] == 0xA0 &&
-    data[2] == 0xA0 &&
-    data[3] == 0xA0;
+    data.length == 4 && data[0] == 0xA0 && data[1] == 0xA0 && data[2] == 0xA0 && data[3] == 0xA0;
 
 int _indexOfByte(final Uint8List data, final int byte, final int from) {
   for (var i = from < 0 ? 0 : from; i < data.length; i++) {
@@ -977,12 +886,7 @@ int _indexOfByte(final Uint8List data, final int byte, final int from) {
   return -1;
 }
 
-int _lastIndexOfByte(
-  final Uint8List data,
-  final int byte,
-  final int from,
-  final int to,
-) {
+int _lastIndexOfByte(final Uint8List data, final int byte, final int from, final int to) {
   for (var i = to - 1; i >= from; i--) {
     if (data[i] == byte) return i;
   }

@@ -20,36 +20,26 @@ EpubPackage parsePackage(final String xml) {
   final document = XmlDocument.parse(xml);
   final namespaceUri = document.rootElement.namespaceUri;
 
-  final package =
-      document.findElements('package', namespace: namespaceUri).firstOrNull;
+  final package = document.findElements('package', namespace: namespaceUri).firstOrNull;
   _validate(package, 'package');
   final version = package!.getAttribute('version')?.trim() ?? '2.0';
 
-  final metadataElement =
-      package.findElements('metadata', namespace: namespaceUri).firstOrNull;
+  final metadataElement = package.findElements('metadata', namespace: namespaceUri).firstOrNull;
   _validate(metadataElement, 'metadata');
 
-  final manifestElement =
-      package.findElements('manifest', namespace: namespaceUri).firstOrNull;
+  final manifestElement = package.findElements('manifest', namespace: namespaceUri).firstOrNull;
   _validate(manifestElement, 'manifest');
-  final spineElement =
-      package.findElements('spine', namespace: namespaceUri).firstOrNull;
+  final spineElement = package.findElements('spine', namespace: namespaceUri).firstOrNull;
   _validate(spineElement, 'spine');
 
-  final uniqueIdentifierProperty =
-      package.getAttribute('unique-identifier') ?? 'uuid_id';
+  final uniqueIdentifierProperty = package.getAttribute('unique-identifier') ?? 'uuid_id';
 
-  final metadata = _parseMetadata(
-    metadataElement!,
-    version,
-    uniqueIdentifierProperty,
-  );
+  final metadata = _parseMetadata(metadataElement!, version, uniqueIdentifierProperty);
   final manifestItems = _parseManifestItems(manifestElement!, namespaceUri);
   final spine = _parseSpine(spineElement!);
 
   final xmlns = package.getAttribute('xmlns');
-  final guideElement =
-      package.findElements('guide', namespace: namespaceUri).firstOrNull;
+  final guideElement = package.findElements('guide', namespace: namespaceUri).firstOrNull;
   final guide = guideElement != null ? _parseGuide(guideElement) : null;
 
   if (_isEpub2(version)) {
@@ -63,9 +53,10 @@ EpubPackage parsePackage(final String xml) {
       guide: guide,
     );
   } else {
-    final tocElement = manifestElement.findElements('item').firstWhereOrNull(
-          (final element) =>
-              element.getAttribute('properties')?.contains('nav') == true,
+    final tocElement = manifestElement
+        .findElements('item')
+        .firstWhereOrNull(
+          (final element) => element.getAttribute('properties')?.contains('nav') == true,
         );
 
     final tocPath = tocElement?.getAttribute('id') ?? spine.tocId;
@@ -119,25 +110,18 @@ Metadata _parseMetadata(
   final creator = getElementText('dc:creator');
   final date =
       metadataElement.findElements('dc:date').firstOrNull?.innerText.trim() ??
-          (metadataElement
-                  .findElements('meta')
-                  .firstWhereOrNull(
-                    (final element) =>
-                        element.getAttribute('property') == 'dc:date',
-                  )
-                  ?.innerText
-                  .trim() ??
-              '');
-  final publisher = metadataElement
-          .findElements('dc:publisher')
-          .firstOrNull
-          ?.innerText
-          .trim() ??
+      (metadataElement
+              .findElements('meta')
+              .firstWhereOrNull((final element) => element.getAttribute('property') == 'dc:date')
+              ?.innerText
+              .trim() ??
+          '');
+  final publisher =
+      metadataElement.findElements('dc:publisher').firstOrNull?.innerText.trim() ??
       (metadataElement
               .findElements('meta')
               .firstWhereOrNull(
-                (final element) =>
-                    element.getAttribute('property') == 'dc:publisher',
+                (final element) => element.getAttribute('property') == 'dc:publisher',
               )
               ?.innerText
               .trim() ??
@@ -153,11 +137,11 @@ Metadata _parseMetadata(
       .map((final e) => e.innerText.trim())
       .toList();
 
-  final uniqueIdentifierValue = metadataElement
+  final uniqueIdentifierValue =
+      metadataElement
           .findElements('dc:identifier')
           .firstWhereOrNull(
-            (final element) =>
-                element.getAttribute('id') == uniqueIdentifierProperty,
+            (final element) => element.getAttribute('id') == uniqueIdentifierProperty,
           )
           ?.innerText
           .trim() ??
@@ -191,8 +175,7 @@ Metadata _parseMetadata(
     }
     if (name == 'calibre:series' || property == 'calibre:series') {
       series ??= value;
-    } else if (name == 'calibre:series_index' ||
-        property == 'calibre:series_index') {
+    } else if (name == 'calibre:series_index' || property == 'calibre:series_index') {
       seriesIndex ??= value;
     } else if (property == 'group-position' && !_isEpub2(version)) {
       seriesIndex ??= value;
@@ -218,30 +201,27 @@ Metadata _parseMetadata(
     );
   }
 
-  final educationalRole = metadataElement
+  final educationalRole =
+      metadataElement
           .findElements('meta')
           .firstWhereOrNull(
-            (final element) =>
-                element.getAttribute('property') == 'schema:educationalRole',
+            (final element) => element.getAttribute('property') == 'schema:educationalRole',
           )
           ?.innerText
           .trim() ??
       '';
-  final typicalAgeRange = metadataElement
+  final typicalAgeRange =
+      metadataElement
           .findElements('meta')
           .firstWhereOrNull(
-            (final element) =>
-                element.getAttribute('property') == 'schema:typicalAgeRange',
+            (final element) => element.getAttribute('property') == 'schema:typicalAgeRange',
           )
           ?.innerText
           .trim() ??
       '';
   final accessibilityFeatures = metadataElement
       .findElements('meta')
-      .where(
-        (final element) =>
-            element.getAttribute('property') == 'schema:accessibilityFeature',
-      )
+      .where((final element) => element.getAttribute('property') == 'schema:accessibilityFeature')
       .map((final e) => e.innerText.trim())
       .toList();
 
@@ -261,51 +241,44 @@ Metadata _parseMetadata(
     seriesIndex: seriesIndex,
     schemaOrgs: metadataElement
         .findElements('meta')
-        .where(
-          (final element) => element.getAttribute('property') == 'schema:org',
-        )
+        .where((final element) => element.getAttribute('property') == 'schema:org')
         .map((final e) => e.innerText.trim())
         .toList(),
     accessibilitySummaries: metadataElement
         .findElements('meta')
-        .where(
-          (final element) => element.getAttribute('property') == 'a11y:summary',
-        )
+        .where((final element) => element.getAttribute('property') == 'a11y:summary')
         .map((final e) => e.innerText.trim())
         .toList(),
     educationalRole: educationalRole,
     typicalAgeRange: typicalAgeRange,
     accessibilityFeatures: accessibilityFeatures,
     uniqueIdentifierValue: uniqueIdentifierValue,
-    modified: metadataElement
+    modified:
+        metadataElement
             .findElements('meta')
-            .where(
-              (final element) =>
-                  element.getAttribute('property') == 'dcterms:modified',
-            )
+            .where((final element) => element.getAttribute('property') == 'dcterms:modified')
             .firstOrNull
             ?.innerText
             .trim() ??
         '',
-    rendition: metadataElement
+    rendition:
+        metadataElement
+            .findElements('meta')
+            .firstWhereOrNull((final element) => element.getAttribute('property') == 'rendition')
+            ?.innerText
+            .trim() ??
+        '',
+    belongsToCollection:
+        metadataElement
             .findElements('meta')
             .firstWhereOrNull(
-              (final element) =>
-                  element.getAttribute('property') == 'rendition',
+              (final element) => element.getAttribute('property') == 'belongs-to-collection',
             )
             ?.innerText
             .trim() ??
         '',
-    belongsToCollection: metadataElement
-            .findElements('meta')
-            .firstWhereOrNull(
-              (final element) =>
-                  element.getAttribute('property') == 'belongs-to-collection',
-            )
-            ?.innerText
-            .trim() ??
-        '',
-    sourceOf: metadataElement
+    sourceOf:
+        metadataElement
             .findElements('meta')
             .firstWhereOrNull(
               (final element) =>
@@ -315,12 +288,11 @@ Metadata _parseMetadata(
             ?.innerText
             .trim() ??
         '',
-    recordIdentifier: metadataElement
+    recordIdentifier:
+        metadataElement
             .findElements('meta')
             .firstWhereOrNull(
-              (final element) =>
-                  element.getAttribute('property') ==
-                  'dcterms:recordIdentifier',
+              (final element) => element.getAttribute('property') == 'dcterms:recordIdentifier',
             )
             ?.innerText
             .trim() ??
@@ -332,15 +304,12 @@ List<ManifestItem> _parseManifestItems(
   final XmlElement manifestElement,
   final String? namespaceUri,
 ) {
-  return manifestElement.findElements('item', namespace: namespaceUri).map((
-    final itemElement,
-  ) {
+  return manifestElement.findElements('item', namespace: namespaceUri).map((final itemElement) {
     return ManifestItem(
       path: itemElement.getAttribute('href')!,
       id: itemElement.getAttribute('id')!,
       mediaType: itemElement.getAttribute('media-type')!,
-      properties:
-          itemElement.getAttribute('properties')?.split(' ').toList() ?? [],
+      properties: itemElement.getAttribute('properties')?.split(' ').toList() ?? [],
     );
   }).toList();
 }
@@ -357,9 +326,7 @@ Spine _parseSpine(final XmlElement spineElement) {
 
 Guide? _parseGuide(final XmlElement guideElement) {
   return Guide(
-    references: guideElement.findElements('reference').map((
-      final referenceElement,
-    ) {
+    references: guideElement.findElements('reference').map((final referenceElement) {
       return Reference(
         href: referenceElement.getAttribute('href')!,
         title: referenceElement.getAttribute('title')!,

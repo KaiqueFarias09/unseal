@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:e_livre/src/features/mobi/header/exth_header.dart';
 import 'package:e_livre/src/features/mobi/utils/decint.dart';
+import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 
 /// The `null` record index sentinel used by MOBI headers.
 const int nullIndex = 0xFFFFFFFF;
@@ -46,9 +46,7 @@ class MobiHeader {
     codec = codepage == 65001 ? 'utf-8' : 'cp1252';
 
     const maxHeaderLength = 500;
-    if (ident == 'TEXTREAD' ||
-        headerLength < 0xE4 ||
-        headerLength > maxHeaderLength) {
+    if (ident == 'TEXTREAD' || headerLength < 0xE4 || headerLength > maxHeaderLength) {
       extraFlags = 0;
     } else if (0xF2 + 2 <= record0.length) {
       extraFlags = view.getUint16(0xF2);
@@ -68,10 +66,7 @@ class MobiHeader {
     final titleLength = view.getUint32(0x58);
     final titleEnd = titleOffset + titleLength;
     title = titleEnd < record0.length && titleLength > 0
-        ? decodeBytes(
-            Uint8List.sublistView(record0, titleOffset, titleEnd),
-            codec,
-          ).trim()
+        ? decodeBytes(Uint8List.sublistView(record0, titleOffset, titleEnd), codec).trim()
         : '';
 
     langCode = view.getUint32(0x5C);
@@ -80,11 +75,7 @@ class MobiHeader {
 
     final exthFlag = view.getUint32(0x80);
     exth = (exthFlag & 0x40) != 0
-        ? ExthHeader.parse(
-            Uint8List.sublistView(record0, 16 + headerLength),
-            codec,
-            title,
-          )
+        ? ExthHeader.parse(Uint8List.sublistView(record0, 16 + headerLength), codec, title)
         : null;
 
     ncxIndex = record0.length >= 0xF8 ? view.getUint32(0xF4) : nullIndex;
@@ -181,9 +172,7 @@ class MobiHeader {
 
   /// Index of the first non-text record, bounded to the file.
   int get firstNonTextRecordIndex =>
-      firstImageIndex == -1 || firstImageIndex == nullIndex
-          ? textRecordCount + 1
-          : firstImageIndex;
+      firstImageIndex == -1 || firstImageIndex == nullIndex ? textRecordCount + 1 : firstImageIndex;
 }
 
 /// Validates that [header] is not DRM protected.
@@ -193,8 +182,6 @@ void assertNotDrm(final MobiHeader header, final String bookName) {
     if (name.isEmpty) {
       name = header.exth?.string(503) ?? header.title;
     }
-    throw DrmProtectedException(
-      name.isEmpty ? 'This MOBI book is DRM protected.' : name,
-    );
+    throw DrmProtectedException(name.isEmpty ? 'This MOBI book is DRM protected.' : name);
   }
 }

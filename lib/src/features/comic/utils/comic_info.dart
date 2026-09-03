@@ -29,10 +29,7 @@ class ComicInfo {
 
     final series = value('Series');
     final writers = _splitList(value('Writer'));
-    final genres = [
-      ..._splitList(value('Genre')),
-      ..._splitList(value('Tags')),
-    ];
+    final genres = [..._splitList(value('Genre')), ..._splitList(value('Tags'))];
 
     return ComicInfo(
       metadata: BookMetadata(

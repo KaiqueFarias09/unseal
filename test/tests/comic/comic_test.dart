@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/comic/utils/parse_comic_book.dart';
 import 'package:e_livre/src/features/comic/utils/rar_reader.dart';
 import 'package:test/test.dart';
 
@@ -62,10 +61,7 @@ void main() {
       final book = parseComicBook(cbr);
       expect(book.format, BookFormat.cbr);
       expect(book.pageCount, 2);
-      expect(book.pages.map((final page) => page.name).toList(), [
-        '001.jpg',
-        '002.jpg',
-      ]);
+      expect(book.pages.map((final page) => page.name).toList(), ['001.jpg', '002.jpg']);
     });
 
     test('detects the RAR signature', () {
@@ -85,8 +81,7 @@ void main() {
   });
 
   test('archives without pages throw', () {
-    final archive = Archive()
-      ..addFile(ArchiveFile('note.txt', 3, 'abc'.codeUnits));
+    final archive = Archive()..addFile(ArchiveFile('note.txt', 3, 'abc'.codeUnits));
     expect(
       () => parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive)!)),
       throwsA(isA<ComicException>()),
@@ -95,9 +90,9 @@ void main() {
 }
 
 Uint8List _png() => base64.decode(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'
-      'YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-    );
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'
+  'YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+);
 
 Uint8List _buildCbz() {
   const comicInfo = '''
@@ -118,13 +113,7 @@ Uint8List _buildCbz() {
     ..addFile(ArchiveFile('page2.png', png.length, png))
     ..addFile(ArchiveFile('page10.png', png.length, png))
     ..addFile(ArchiveFile('page1.png', png.length, png))
-    ..addFile(
-      ArchiveFile(
-        'ComicInfo.xml',
-        comicInfo.codeUnits.length,
-        comicInfo.codeUnits,
-      ),
-    );
+    ..addFile(ArchiveFile('ComicInfo.xml', comicInfo.codeUnits.length, comicInfo.codeUnits));
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 

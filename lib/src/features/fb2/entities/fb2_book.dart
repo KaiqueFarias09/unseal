@@ -37,8 +37,7 @@ class Fb2Book extends Book {
   List<String> get creators => metadata.authors;
 
   /// The book language code.
-  String get language =>
-      metadata.languages.isEmpty ? '' : metadata.languages.first;
+  String get language => metadata.languages.isEmpty ? '' : metadata.languages.first;
 
   /// The book publisher.
   String? get publisher => metadata.publisher;

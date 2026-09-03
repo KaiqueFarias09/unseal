@@ -45,10 +45,7 @@ void main() {
 
   group('extractPlainText — script and style blocks', () {
     test('removes script blocks', () {
-      expect(
-        extractPlainText('<p>a</p><script>evil()</script><p>b</p>'),
-        'a b',
-      );
+      expect(extractPlainText('<p>a</p><script>evil()</script><p>b</p>'), 'a b');
     });
 
     test('removes style blocks', () {
@@ -65,10 +62,7 @@ void main() {
     });
 
     test('does not treat <scriptx> as a script block', () {
-      expect(
-        extractPlainText('<scriptx>not a script</scriptx>'),
-        'not a script',
-      );
+      expect(extractPlainText('<scriptx>not a script</scriptx>'), 'not a script');
     });
 
     test('unterminated block still drops its opening tag', () {
@@ -76,10 +70,7 @@ void main() {
     });
 
     test('block content may span lines', () {
-      expect(
-        extractPlainText('<script>\nvar a = 1;\nvar b = 2;\n</script>x'),
-        'x',
-      );
+      expect(extractPlainText('<script>\nvar a = 1;\nvar b = 2;\n</script>x'), 'x');
     });
   });
 
@@ -149,10 +140,7 @@ void main() {
   group('extractPlainText — whitespace', () {
     test('collapses runs and trims edges', () {
       expect(extractPlainText('<p>a\n\t  b</p>'), 'a b');
-      expect(
-        extractPlainText('  leading and trailing  '),
-        'leading and trailing',
-      );
+      expect(extractPlainText('  leading and trailing  '), 'leading and trailing');
       expect(extractPlainText('\t\n\r mix'), 'mix');
     });
 

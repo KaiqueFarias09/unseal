@@ -1,8 +1,8 @@
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
 import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
+import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
 
 /// Resolves the manifest item that holds the cover image.
 ///
@@ -17,9 +17,7 @@ ManifestItem? resolveCoverItem(final EpubPackage package) {
   final items = package.manifest.items;
 
   final propertyCover = items.firstWhereOrNull(
-    (final item) =>
-        item.properties.contains('cover-image') &&
-        item.mediaType.contains('image/'),
+    (final item) => item.properties.contains('cover-image') && item.mediaType.contains('image/'),
   );
   if (propertyCover != null) {
     return propertyCover;
@@ -27,9 +25,7 @@ ManifestItem? resolveCoverItem(final EpubPackage package) {
 
   final coverId = package.metadata.coverId;
   if (coverId != null && coverId.isNotEmpty) {
-    final metaCover = items.firstWhereOrNull(
-      (final item) => item.id == coverId,
-    );
+    final metaCover = items.firstWhereOrNull((final item) => item.id == coverId);
     if (metaCover != null) {
       return metaCover;
     }
@@ -40,18 +36,14 @@ ManifestItem? resolveCoverItem(final EpubPackage package) {
   );
   if (guideReference != null) {
     final href = normalizeZipPath(guideReference.href.split('#').first);
-    final guideCover = items.firstWhereOrNull(
-      (final item) => normalizeZipPath(item.path) == href,
-    );
+    final guideCover = items.firstWhereOrNull((final item) => normalizeZipPath(item.path) == href);
     if (guideCover != null) {
       return guideCover;
     }
   }
 
   return items.firstWhereOrNull(
-    (final item) =>
-        item.id.toLowerCase().contains('cover') &&
-        item.mediaType.contains('image/'),
+    (final item) => item.id.toLowerCase().contains('cover') && item.mediaType.contains('image/'),
   );
 }
 
@@ -75,9 +67,7 @@ BinaryFile getBookCover(
 
   final resolvedPath = resolveItemPath(rootFilePath, coverItem.path);
   final fromImages = images.firstWhereOrNull(
-    (final image) =>
-        normalizeZipPath(image.path).toLowerCase() ==
-        resolvedPath.toLowerCase(),
+    (final image) => normalizeZipPath(image.path).toLowerCase() == resolvedPath.toLowerCase(),
   );
   if (fromImages != null) {
     return fromImages;

@@ -12,10 +12,7 @@ void main() {
 
     test('should throw exception when file does not exist', () async {
       const path = '/path/to/nonexistent/file.epub';
-      expect(
-        BookReader.openFromPath(path),
-        throwsA(isA<FileSystemException>()),
-      );
+      expect(BookReader.openFromPath(path), throwsA(isA<FileSystemException>()));
     });
 
     final directory = Directory('test/resources/epub');

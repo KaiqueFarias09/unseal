@@ -27,8 +27,7 @@ abstract final class BookFormatDetector {
   static DetectedFormat detect(final Uint8List bytes) => detectFormat(bytes);
 
   /// Resolves the concrete MOBI-family format represented by [bytes].
-  static BookFormat refineMobi(final Uint8List bytes) =>
-      refineMobiFormat(bytes);
+  static BookFormat refineMobi(final Uint8List bytes) => refineMobiFormat(bytes);
 }
 
 /// Sniffs the book format of [bytes] from its magic bytes.
@@ -43,20 +42,14 @@ abstract final class BookFormatDetector {
 /// (Topaz, KFX, PDF) and for unrecognized data.
 DetectedFormat detectFormat(final Uint8List bytes) {
   if (bytes.isEmpty) {
-    throw const FormatNotSupportedException(
-      'Cannot detect format of empty bytes.',
-    );
+    throw const FormatNotSupportedException('Cannot detect format of empty bytes.');
   }
 
   if (_startsWith(bytes, _tpzMagic)) {
-    throw const FormatNotSupportedException(
-      'Amazon Topaz books (.azw1/.tpz) are not supported.',
-    );
+    throw const FormatNotSupportedException('Amazon Topaz books (.azw1/.tpz) are not supported.');
   }
   if (_startsWith(bytes, _kfxMagic)) {
-    throw const FormatNotSupportedException(
-      'Amazon KFX books are not supported.',
-    );
+    throw const FormatNotSupportedException('Amazon KFX books are not supported.');
   }
   if (_startsWith(bytes, _pdfMagic)) {
     throw const FormatNotSupportedException('PDF books are not supported.');
@@ -138,10 +131,7 @@ bool _looksLikeFictionBook(final Uint8List bytes) {
   // <FictionBook root or an <?xml prologue followed by <FictionBook
   // within the first bytes of the document.
   var start = 0;
-  if (bytes.length >= 3 &&
-      bytes[0] == 0xEF &&
-      bytes[1] == 0xBB &&
-      bytes[2] == 0xBF) {
+  if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
     start = 3;
   }
   while (start < bytes.length &&
@@ -151,10 +141,7 @@ bool _looksLikeFictionBook(final Uint8List bytes) {
           bytes[start] == 0x09)) {
     start++;
   }
-  final window = bytes.sublist(
-    start,
-    bytes.length < start + 1024 ? bytes.length : start + 1024,
-  );
+  final window = bytes.sublist(start, bytes.length < start + 1024 ? bytes.length : start + 1024);
   if (window.isEmpty) {
     return false;
   }

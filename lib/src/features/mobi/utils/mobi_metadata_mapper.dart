@@ -1,12 +1,12 @@
+import 'package:e_livre/src/features/mobi/header/exth_header.dart';
+import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
+import 'package:e_livre/src/features/mobi/utils/langcodes.dart';
 import 'package:e_livre/src/foundation/entities/book_cover.dart';
 import 'package:e_livre/src/foundation/entities/book_format.dart';
 import 'package:e_livre/src/foundation/entities/book_metadata.dart';
 import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
 import 'package:e_livre/src/foundation/utils/image_size.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
-import 'package:e_livre/src/features/mobi/header/exth_header.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/utils/langcodes.dart';
 
 /// Maps a MOBI [header] (+ optional PDB name) into [BookMetadata].
 BookMetadata mobiBookMetadata(
@@ -32,9 +32,7 @@ BookMetadata mobiBookMetadata(
       continue;
     }
     final match = RegExp(r'^([^,]+?),\s+([^,]+)$').firstMatch(trimmed);
-    authors.add(
-      match != null ? '${match.group(2)} ${match.group(1)}' : trimmed,
-    );
+    authors.add(match != null ? '${match.group(2)} ${match.group(1)}' : trimmed);
   }
 
   final languages = <String>[];
@@ -49,15 +47,13 @@ BookMetadata mobiBookMetadata(
   }
 
   var publisher = exth?.string(ExthIds.publisher, codec)?.trim();
-  if (publisher != null &&
-      (publisher.isEmpty || publisher.toLowerCase() == 'unknown')) {
+  if (publisher != null && (publisher.isEmpty || publisher.toLowerCase() == 'unknown')) {
     publisher = null;
   }
 
   final isbn = exth?.string(ExthIds.isbn, codec)?.trim();
   final hasIsbn = isbn != null && RegExp(r'^[\dXx\-]{10,17}$').hasMatch(isbn);
-  final cleanIsbn =
-      hasIsbn ? isbn.replaceAll(RegExp(r'[-\s]'), '').toUpperCase() : null;
+  final cleanIsbn = hasIsbn ? isbn.replaceAll(RegExp(r'[-\s]'), '').toUpperCase() : null;
 
   final subjects = <String>[];
   for (final raw in exth?.strings(ExthIds.subject, codec) ?? const <String>[]) {
@@ -90,8 +86,7 @@ BookMetadata mobiBookMetadata(
   }
 
   return BookMetadata(
-    format: formatOverride ??
-        (header.mobiVersion == 8 ? BookFormat.azw3 : BookFormat.mobi),
+    format: formatOverride ?? (header.mobiVersion == 8 ? BookFormat.azw3 : BookFormat.mobi),
     title: title.isEmpty ? null : title,
     authors: authors,
     languages: languages,
@@ -115,12 +110,7 @@ BookCover? _coverFrom(final BinaryFile? coverFile) {
     return null;
   }
   final size = imageSize(coverFile.content);
-  return BookCover(
-    bytes: coverFile.content,
-    type: type,
-    width: size?.width,
-    height: size?.height,
-  );
+  return BookCover(bytes: coverFile.content, type: type, width: size?.width, height: size?.height);
 }
 
 DateTime? _parseMobiDate(final String? raw) {
@@ -135,9 +125,7 @@ DateTime? _parseMobiDate(final String? raw) {
   if (direct != null) {
     return direct;
   }
-  final match = RegExp(
-    r'^(\d{4})(?:[-/.](\d{1,2}))?(?:[-/.](\d{1,2}))?',
-  ).firstMatch(trimmed);
+  final match = RegExp(r'^(\d{4})(?:[-/.](\d{1,2}))?(?:[-/.](\d{1,2}))?').firstMatch(trimmed);
   if (match == null) {
     return null;
   }

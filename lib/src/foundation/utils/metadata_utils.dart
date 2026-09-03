@@ -7,14 +7,9 @@ import 'package:e_livre/src/foundation/entities/book_metadata.dart';
 /// Identifiers are merged per key (overlay keys win). The [overlay]
 /// format and cover win only when present; otherwise the base ones
 /// are kept.
-BookMetadata mergeBookMetadata(
-  final BookMetadata base,
-  final BookMetadata overlay,
-) {
+BookMetadata mergeBookMetadata(final BookMetadata base, final BookMetadata overlay) {
   return BookMetadata(
-    format: overlay.cover != null || overlay.title != null
-        ? overlay.format
-        : base.format,
+    format: overlay.cover != null || overlay.title != null ? overlay.format : base.format,
     title: _pick(overlay.title, base.title),
     authors: _pickList(overlay.authors, base.authors),
     languages: _pickList(overlay.languages, base.languages),
@@ -36,10 +31,7 @@ BookMetadata mergeBookMetadata(
 /// Mirrors Calibre's fallback pattern: `Title - Author.ext` where the
 /// title part may contain dashes but the author may not. Files that
 /// do not match are returned unchanged.
-BookMetadata applyFilenameFallback(
-  final BookMetadata metadata,
-  final String filePath,
-) {
+BookMetadata applyFilenameFallback(final BookMetadata metadata, final String filePath) {
   final hasTitle = metadata.title != null && metadata.title!.isNotEmpty;
   final hasAuthors = metadata.authors.isNotEmpty;
   if (hasTitle && hasAuthors) {

@@ -115,7 +115,7 @@ void _runMetadataUtilityBenchmarks(final BookMetadata template) {
   const bareMetadata = BookMetadata(format: BookFormat.epub);
   const fallbackPath = '/books/Dune - Frank Herbert.epub';
   final statistics = BookStatistics.fromTexts([
-    if (plainTextSample case final text?) text,
+    ?plainTextSample,
   ]);
 
   group.add(

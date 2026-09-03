@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
+import 'package:e_livre/src/features/mobi/utils/fonts.dart';
 import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
 import 'package:e_livre/src/foundation/entities/navigation/nav_point.dart';
 import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
-import 'package:e_livre/src/features/mobi/utils/fonts.dart';
 
 /// Inserts `<a id="fileposN">` anchors at the target positions of
 /// `filepos` links, operating on raw markup bytes so positions keep
@@ -75,19 +75,13 @@ final RegExp _fileposAttrPattern = RegExp(
   r"""\sfilepos\s*=\s*["']?(\d+)["']?""",
   caseSensitive: false,
 );
-final RegExp _pageBreakPattern = RegExp(
-  r'<\s*/?\s*mbp:pagebreak[^>]*>',
-  caseSensitive: false,
-);
+final RegExp _pageBreakPattern = RegExp(r'<\s*/?\s*mbp:pagebreak[^>]*>', caseSensitive: false);
 final RegExp _malformedClosingPattern = RegExp('</([a-zA-Z]+)<');
 final RegExp _tocAnchorPattern = RegExp(
   r"""<a[^>]+href\s*=\s*["']#filepos(\d+)["'][^>]*>(.*?)</a>""",
   dotAll: true,
 );
-final RegExp _separatorTagsPattern = RegExp(
-  '<(br|/p|p|/div|div)[^>]*>',
-  caseSensitive: false,
-);
+final RegExp _separatorTagsPattern = RegExp('<(br|/p|p|/div|div)[^>]*>', caseSensitive: false);
 final RegExp _anyTagPattern = RegExp('<[^>]*>');
 
 /// Applies MOBI 6 markup conversions to decoded HTML:
@@ -113,10 +107,7 @@ String processMobi6Html(final String html, final Map<int, String> imageNames) {
   result = result.replaceAll(' filepos-id=', ' id=');
 
   // Page breaks.
-  result = result.replaceAll(
-    _pageBreakPattern,
-    '<div class="mbp_pagebreak"></div>',
-  );
+  result = result.replaceAll(_pageBreakPattern, '<div class="mbp_pagebreak"></div>');
 
   // Light cleanup of malformed closings seen in the wild.
   result = result.replaceAll('</</', '</');
@@ -178,14 +169,7 @@ Mobi6Resources extractMobi6Resources({
     }
     final name = 'image${_padded(imageIndex)}.${type.fileExtension}';
     imageNames[imageIndex] = name;
-    images.add(
-      BinaryFile(
-        content: data,
-        name: name,
-        type: type.fileExtension,
-        path: name,
-      ),
-    );
+    images.add(BinaryFile(content: data, name: name, type: type.fileExtension, path: name));
   }
 
   return Mobi6Resources(images, fonts, imageNames);
@@ -222,8 +206,8 @@ Navigation deriveMobi6Navigation(final String html, final String title) {
   var bestLength = 1;
   var runStart = 0;
   for (var i = 1; i <= matches.length; i++) {
-    final continues = i < matches.length &&
-        _onlySeparators(html, matches[i - 1].end, matches[i].start);
+    final continues =
+        i < matches.length && _onlySeparators(html, matches[i - 1].end, matches[i].start);
     if (continues) {
       continue;
     }
@@ -255,8 +239,7 @@ bool _onlySeparators(final String html, final int from, final int to) {
   if (to - from > 80) {
     return false;
   }
-  final between =
-      html.substring(from, to).replaceAll(_separatorTagsPattern, '').trim();
+  final between = html.substring(from, to).replaceAll(_separatorTagsPattern, '').trim();
   if (between.length > 2) {
     // Allow thin separators like '. ' or '-'.
     return false;
@@ -287,10 +270,7 @@ bool _isKnownNonImageRecord(final Uint8List data) {
     return false;
   }
   // The Mobipocket 'unknown' marker: e9 8e 0d 0a.
-  if (data[0] == 0xE9 &&
-      data[1] == 0x8E &&
-      data[2] == 0x0D &&
-      data[3] == 0x0A) {
+  if (data[0] == 0xE9 && data[1] == 0x8E && data[2] == 0x0D && data[3] == 0x0A) {
     return true;
   }
   for (final magic in _nonImageMagics) {
@@ -313,8 +293,7 @@ bool _hasMagicBytes(final Uint8List data, final String magic) {
   return true;
 }
 
-List<int> _asciiPattern(final String text) =>
-    text.codeUnits.map((final c) => c).toList();
+List<int> _asciiPattern(final String text) => text.codeUnits.map((final c) => c).toList();
 
 Uint8List _ascii(final String text) => Uint8List.fromList(text.codeUnits);
 
@@ -357,12 +336,7 @@ int _indexOfByte(final Uint8List data, final int byte, final int from) {
   return -1;
 }
 
-int _lastIndexOfByte(
-  final Uint8List data,
-  final int byte,
-  final int from,
-  final int to,
-) {
+int _lastIndexOfByte(final Uint8List data, final int byte, final int from, final int to) {
   for (var i = to - 1; i >= from; i--) {
     if (data[i] == byte) {
       return i;

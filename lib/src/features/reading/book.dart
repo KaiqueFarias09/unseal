@@ -1,3 +1,4 @@
+import 'package:e_livre/e_livre.dart' show EpubBook, MobiBook, Fb2Book, ComicBook;
 import 'package:e_livre/src/foundation/entities/book/files.dart';
 import 'package:e_livre/src/foundation/entities/book/reading_order_item.dart';
 import 'package:e_livre/src/foundation/entities/book_format.dart';
@@ -45,6 +46,6 @@ abstract class Book {
   /// with an explicit order (the EPUB spine) override it, and comics
   /// list their pages with `isHtml: false`.
   List<ReadingOrderItem> get readingOrder => <ReadingOrderItem>[
-        for (final file in files.html) ReadingOrderItem(name: file.path),
-      ];
+    for (final file in files.html) ReadingOrderItem(name: file.path),
+  ];
 }

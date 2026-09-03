@@ -82,11 +82,7 @@ class _BodyConverter {
     }
   }
 
-  String _convertBody(
-    final XmlElement body,
-    final String fileName,
-    final String title,
-  ) {
+  String _convertBody(final XmlElement body, final String fileName, final String title) {
     final buffer = StringBuffer();
     buffer.write('<!DOCTYPE html>\n<html>\n<head>');
     buffer.write('<meta charset="utf-8"/>');
@@ -269,11 +265,7 @@ class _BodyConverter {
     }
   }
 
-  void _convertInline(
-    final XmlElement element,
-    final StringBuffer out,
-    final String fileName,
-  ) {
+  void _convertInline(final XmlElement element, final StringBuffer out, final String fileName) {
     switch (element.name.local) {
       case 'emphasis':
         out.write('<em>');
@@ -310,15 +302,9 @@ class _BodyConverter {
     }
   }
 
-  void _writeLink(
-    final XmlElement element,
-    final StringBuffer out,
-    final String fileName,
-  ) {
-    final href = element.getAttribute(
-          'href',
-          namespace: 'http://www.w3.org/1999/xlink',
-        ) ??
+  void _writeLink(final XmlElement element, final StringBuffer out, final String fileName) {
+    final href =
+        element.getAttribute('href', namespace: 'http://www.w3.org/1999/xlink') ??
         element.getAttribute('l:href') ??
         element.getAttribute('href') ??
         '';
@@ -353,10 +339,8 @@ class _BodyConverter {
   }
 
   void _writeImage(final XmlElement element, final StringBuffer out) {
-    final href = element.getAttribute(
-          'href',
-          namespace: 'http://www.w3.org/1999/xlink',
-        ) ??
+    final href =
+        element.getAttribute('href', namespace: 'http://www.w3.org/1999/xlink') ??
         element.getAttribute('l:href') ??
         '';
     if (!href.startsWith('#') || href.length < 2) {
@@ -381,10 +365,7 @@ class _BodyConverter {
   }
 }
 
-String _escapeText(final String raw) => raw
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+String _escapeText(final String raw) =>
+    raw.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
-String _escapeAttr(final String raw) =>
-    _escapeText(raw).replaceAll('"', '&quot;');
+String _escapeAttr(final String raw) => _escapeText(raw).replaceAll('"', '&quot;');

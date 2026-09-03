@@ -32,10 +32,7 @@ ImageSize? imageSize(final Uint8List bytes) {
     return null;
   }
   // PNG: IHDR
-  if (bytes[0] == 0x89 &&
-      bytes[1] == 0x50 &&
-      bytes[2] == 0x4E &&
-      bytes[3] == 0x47) {
+  if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
     if (bytes.length < 24) {
       return null;
     }
@@ -45,10 +42,7 @@ ImageSize? imageSize(final Uint8List bytes) {
   // GIF: logical screen descriptor
   if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
     final view = ByteData.sublistView(bytes);
-    return ImageSize(
-      view.getUint16(6, Endian.little),
-      view.getUint16(8, Endian.little),
-    );
+    return ImageSize(view.getUint16(6, Endian.little), view.getUint16(8, Endian.little));
   }
   // BMP: DIB header
   if (bytes[0] == 0x42 && bytes[1] == 0x4D) {
@@ -108,9 +102,7 @@ ImageSize? _jpegSize(final Uint8List bytes) {
       }
       return ImageSize(view.getUint16(i + 7), view.getUint16(i + 5));
     }
-    if (marker == 0xD8 ||
-        marker == 0x01 ||
-        (marker >= 0xD0 && marker <= 0xD7)) {
+    if (marker == 0xD8 || marker == 0x01 || (marker >= 0xD0 && marker <= 0xD7)) {
       i += 2;
       continue;
     }
@@ -137,10 +129,7 @@ ImageSize? _webpSize(final Uint8List bytes) {
     case 'VP8 ':
       // Lossy keyframe: 3-byte frame tag, 3-byte start code,
       // then 14-bit width/height.
-      if (bytes.length < 30 ||
-          bytes[23] != 0x9D ||
-          bytes[24] != 0x01 ||
-          bytes[25] != 0x2A) {
+      if (bytes.length < 30 || bytes[23] != 0x9D || bytes[24] != 0x01 || bytes[25] != 0x2A) {
         return null;
       }
       final view = ByteData.sublistView(bytes);

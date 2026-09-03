@@ -34,14 +34,16 @@ List<RarEntry> readRarEntries(final Uint8List bytes) {
   if (bytes.length < 8) {
     throw const ComicException('File is too small to be a RAR archive.');
   }
-  final isRar4 = bytes[0] == 0x52 &&
+  final isRar4 =
+      bytes[0] == 0x52 &&
       bytes[1] == 0x61 &&
       bytes[2] == 0x72 &&
       bytes[3] == 0x21 &&
       bytes[4] == 0x1A &&
       bytes[5] == 0x07 &&
       bytes[6] == 0x00;
-  final isRar5 = bytes[0] == 0x52 &&
+  final isRar5 =
+      bytes[0] == 0x52 &&
       bytes[1] == 0x61 &&
       bytes[2] == 0x72 &&
       bytes[3] == 0x21 &&
@@ -107,9 +109,7 @@ List<RarEntry> _readRar4(final Uint8List bytes) {
           name: name,
           isDirectory: isDirectory,
           isStored: stored,
-          data: hasData
-              ? Uint8List.sublistView(bytes, dataStart, dataEnd)
-              : Uint8List(0),
+          data: hasData ? Uint8List.sublistView(bytes, dataStart, dataEnd) : Uint8List(0),
         ),
       );
       if (!isDirectory && flags & 0x8000 != 0) {
@@ -185,18 +185,13 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
       final stored = method == 0;
       final dataStart = headerEnd;
       final dataEnd = dataStart + dataSize;
-      final hasData = stored &&
-          !isDirectory &&
-          dataEnd <= bytes.length &&
-          unpackedSize == dataSize;
+      final hasData = stored && !isDirectory && dataEnd <= bytes.length && unpackedSize == dataSize;
       entries.add(
         RarEntry(
           name: name,
           isDirectory: isDirectory,
           isStored: stored,
-          data: hasData
-              ? Uint8List.sublistView(bytes, dataStart, dataEnd)
-              : Uint8List(0),
+          data: hasData ? Uint8List.sublistView(bytes, dataStart, dataEnd) : Uint8List(0),
         ),
       );
     }

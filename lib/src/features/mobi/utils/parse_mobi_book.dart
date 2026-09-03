@@ -1,11 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book_format.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/entities/file/text_file.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 import 'package:e_livre/src/features/mobi/entities/mobi_book.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
@@ -14,6 +8,12 @@ import 'package:e_livre/src/features/mobi/reader/mobi8_reader.dart';
 import 'package:e_livre/src/features/mobi/reader/mobi_text.dart';
 import 'package:e_livre/src/features/mobi/utils/decint.dart';
 import 'package:e_livre/src/features/mobi/utils/mobi_metadata_mapper.dart';
+import 'package:e_livre/src/foundation/entities/book/files.dart';
+import 'package:e_livre/src/foundation/entities/book_format.dart';
+import 'package:e_livre/src/foundation/entities/book_metadata.dart';
+import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
+import 'package:e_livre/src/foundation/entities/file/text_file.dart';
+import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 
 class _MobiLayout {
   const _MobiLayout(
@@ -51,17 +51,8 @@ BookMetadata readMobiMetadata(final Uint8List bytes) {
   final pdb = PdbHeader.parse(bytes);
   final header = MobiHeader.parse(pdb.record(0), pdb.ident);
   final format = _detectFormat(pdb, header);
-  final cover = _readCoverRecord(
-    pdb,
-    header.firstImageIndex,
-    header.exth?.coverOffset,
-  );
-  return mobiBookMetadata(
-    header,
-    pdbName: pdb.name,
-    coverFile: cover,
-    formatOverride: format,
-  );
+  final cover = _readCoverRecord(pdb, header.firstImageIndex, header.exth?.coverOffset);
+  return mobiBookMetadata(header, pdbName: pdb.name, coverFile: cover, formatOverride: format);
 }
 
 BookFormat _detectFormat(final PdbHeader pdb, final MobiHeader header) {
@@ -78,24 +69,14 @@ BookFormat _detectFormat(final PdbHeader pdb, final MobiHeader header) {
 }
 
 bool _hasBoundary(final Uint8List record) =>
-    record.length >= 8 &&
-    String.fromCharCodes(record.sublist(0, 8)) == 'BOUNDARY';
+    record.length >= 8 && String.fromCharCodes(record.sublist(0, 8)) == 'BOUNDARY';
 
 _MobiLayout _resolveLayout(final PdbHeader pdb, final MobiHeader header) {
   if (header.mobiVersion == 8 && header.skelIndex != nullIndex) {
     // Standalone KF8 (AZW3).
-    return _MobiLayout(
-        true,
-        header,
-        1,
-        [
-          (
-            _firstResourceIndex(
-                header.firstImageIndex, header.textRecordCount, 1),
-            pdb.count,
-          ),
-        ],
-        null);
+    return _MobiLayout(true, header, 1, [
+      (_firstResourceIndex(header.firstImageIndex, header.textRecordCount, 1), pdb.count),
+    ], null);
   }
 
   final k8i = header.exth?.kf8HeaderIndex;
@@ -105,45 +86,17 @@ _MobiLayout _resolveLayout(final PdbHeader pdb, final MobiHeader header) {
       final kf8Header = MobiHeader.parse(pdb.record(k8i), pdb.ident);
       final kf8FirstImage = kf8Header.firstImageIndex + k8i;
       final textOffset = k8i + 1;
-      return _MobiLayout(
-          true,
-          kf8Header,
-          textOffset,
-          [
-            (
-              _firstResourceIndex(
-                header.firstImageIndex,
-                header.textRecordCount,
-                1,
-              ),
-              k8i - 1,
-            ),
-            (
-              _firstResourceIndex(
-                kf8FirstImage,
-                kf8Header.textRecordCount,
-                textOffset,
-              ),
-              pdb.count,
-            ),
-          ],
-          kf8Header.huffOffset + k8i);
+      return _MobiLayout(true, kf8Header, textOffset, [
+        (_firstResourceIndex(header.firstImageIndex, header.textRecordCount, 1), k8i - 1),
+        (_firstResourceIndex(kf8FirstImage, kf8Header.textRecordCount, textOffset), pdb.count),
+      ], kf8Header.huffOffset + k8i);
     }
   }
 
   // Plain MOBI 6.
-  return _MobiLayout(
-      false,
-      header,
-      1,
-      [
-        (
-          _firstResourceIndex(
-              header.firstImageIndex, header.textRecordCount, 1),
-          pdb.count,
-        ),
-      ],
-      null);
+  return _MobiLayout(false, header, 1, [
+    (_firstResourceIndex(header.firstImageIndex, header.textRecordCount, 1), pdb.count),
+  ], null);
 }
 
 int _firstResourceIndex(
@@ -157,11 +110,7 @@ int _firstResourceIndex(
   return textRecordCount + firstTextRecord;
 }
 
-MobiBook _parseKf8(
-  final PdbHeader pdb,
-  final MobiHeader header,
-  final _MobiLayout layout,
-) {
+MobiBook _parseKf8(final PdbHeader pdb, final MobiHeader header, final _MobiLayout layout) {
   final reader = Mobi8Reader(
     pdb: pdb,
     header: header,
@@ -182,11 +131,7 @@ MobiBook _parseKf8(
     }
   }
   if (cover.isEmpty) {
-    final fallback = _readCoverRecord(
-      pdb,
-      header.firstImageIndex,
-      header.exth?.coverOffset,
-    );
+    final fallback = _readCoverRecord(pdb, header.firstImageIndex, header.exth?.coverOffset);
     if (fallback != null) {
       cover = fallback;
     }
@@ -220,9 +165,11 @@ MobiBook _parseMobi6(final PdbHeader pdb, final MobiHeader header) {
     processed.add(i);
   }
   if (header.compressionType == 0x4448) {
-    for (var i = header.huffOffset;
-        i < header.huffOffset + header.huffRecordCount && i < pdb.count;
-        i++) {
+    for (
+      var i = header.huffOffset;
+      i < header.huffOffset + header.huffRecordCount && i < pdb.count;
+      i++
+    ) {
       processed.add(i);
     }
   }
@@ -235,14 +182,8 @@ MobiBook _parseMobi6(final PdbHeader pdb, final MobiHeader header) {
   );
 
   final anchored = addFileposAnchors(rawHtml);
-  final html = processMobi6Html(
-    decodeBytes(anchored, header.codec),
-    resources.imageNames,
-  );
-  final navigation = deriveMobi6Navigation(
-    html,
-    header.exth?.title ?? header.title,
-  );
+  final html = processMobi6Html(decodeBytes(anchored, header.codec), resources.imageNames);
+  final navigation = deriveMobi6Navigation(html, header.exth?.title ?? header.title);
 
   BinaryFile cover = BinaryFile.empty();
   final coverOffset = header.exth?.coverOffset;
@@ -264,12 +205,7 @@ MobiBook _parseMobi6(final PdbHeader pdb, final MobiHeader header) {
     }
   }
 
-  final htmlFile = TextFile(
-    name: 'index.html',
-    type: 'html',
-    path: 'index.html',
-    content: html,
-  );
+  final htmlFile = TextFile(name: 'index.html', type: 'html', path: 'index.html', content: html);
 
   return MobiBook(
     navigation: navigation,
@@ -303,12 +239,7 @@ BinaryFile? _readCoverRecord(
       continue;
     }
     final name = 'cover.${type.fileExtension}';
-    return BinaryFile(
-      content: data,
-      name: name,
-      type: type.fileExtension,
-      path: name,
-    );
+    return BinaryFile(content: data, name: name, type: type.fileExtension, path: name);
   }
   return null;
 }

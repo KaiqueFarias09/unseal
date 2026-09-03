@@ -1,5 +1,3 @@
-library e_livre_tests;
-
 import 'tests/comic/comic_test.dart' as comic_test;
 import 'tests/comic/rar_test.dart' as rar_test;
 import 'tests/core/detection_test.dart' as detection_test;

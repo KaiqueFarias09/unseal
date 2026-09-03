@@ -9,20 +9,14 @@ import 'package:test/test.dart';
 void main() {
   group('smartenPunctuation', () {
     test('opens quotes after whitespace and closes before it', () {
-      expect(
-        smartenPunctuation('She said "hello" to me'),
-        'She said “hello” to me',
-      );
+      expect(smartenPunctuation('She said "hello" to me'), 'She said “hello” to me');
       expect(smartenPunctuation("'Twas the night"), '\u2018Twas the night');
       expect(smartenPunctuation("the boy's book"), 'the boy\u2019s book');
     });
 
     test('dashes and ellipses', () {
       expect(smartenPunctuation('wait--what'), 'wait\u2014what');
-      expect(
-        smartenPunctuation('and then... nothing'),
-        'and then\u2026 nothing',
-      );
+      expect(smartenPunctuation('and then... nothing'), 'and then\u2026 nothing');
     });
 
     test('leaves existing typography alone', () {
@@ -38,10 +32,7 @@ void main() {
     });
 
     test('leaves normal paragraphs alone', () {
-      expect(
-        normalizeSceneBreaks('<p>once * twice</p>'),
-        '<p>once * twice</p>',
-      );
+      expect(normalizeSceneBreaks('<p>once * twice</p>'), '<p>once * twice</p>');
     });
   });
 

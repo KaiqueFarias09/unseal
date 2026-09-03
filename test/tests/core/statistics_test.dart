@@ -2,14 +2,13 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/fb2/utils/parse_fb2_book.dart';
-import 'package:e_livre/src/features/mobi/utils/parse_mobi_book.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('extractPlainText', () {
     test('strips tags and decodes entities', () {
-      const html = '<p>Hello&nbsp;<b>world</b> &amp; friends!</p>'
+      const html =
+          '<p>Hello&nbsp;<b>world</b> &amp; friends!</p>'
           '<script>evil()</script>';
       expect(extractPlainText(html), 'Hello world & friends!');
     });
@@ -33,9 +32,7 @@ void main() {
 
   group('BookStatistics', () {
     test('MOBI statistics are computed from the content', () {
-      final book = parseMobiBook(
-        File('test/resources/mobi/alice-old.mobi').readAsBytesSync(),
-      );
+      final book = parseMobiBook(File('test/resources/mobi/alice-old.mobi').readAsBytesSync());
       final statistics = book.statistics;
       expect(statistics.wordCount, greaterThan(20000));
       expect(statistics.characterCount, greaterThan(statistics.wordCount));
@@ -49,9 +46,7 @@ void main() {
 
     test('FB2 statistics are computed from the content', () {
       final book = parseFb2Book(
-        Uint8List.fromList(
-          File('test/resources/fb2/alice.fb2').readAsBytesSync(),
-        ),
+        Uint8List.fromList(File('test/resources/fb2/alice.fb2').readAsBytesSync()),
       );
       expect(book.statistics.wordCount, greaterThan(20000));
     });

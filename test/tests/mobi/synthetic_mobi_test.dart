@@ -4,17 +4,16 @@ import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
 import 'package:e_livre/src/features/mobi/header/exth_header.dart';
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/utils/containers.dart';
-import 'package:e_livre/src/features/mobi/utils/parse_mobi_book.dart';
 import 'package:test/test.dart';
 
 import 'mobi_fixture_builder.dart';
 
 void main() {
   group('HUFF-compressed MOBI', () {
-    const html = '<html><head><title>T</title></head>'
+    const html =
+        '<html><head><title>T</title></head>'
         '<body><p>Hello from HUFF</p></body></html>';
     final textRecord = Uint8List.fromList(convert.utf8.encode(html));
     // Records: 0 header, 1 text (identity-compressed), 2..3 HUFF
@@ -43,9 +42,7 @@ void main() {
 
     test('extracts resources and the cover', () {
       final parsed = parseMobiBook(book);
-      expect(parsed.files.images.map((final image) => image.name), [
-        'image00001.png',
-      ]);
+      expect(parsed.files.images.map((final image) => image.name), ['image00001.png']);
       expect(parsed.files.images.single.content, tinyPng);
       expect(parsed.cover.content, tinyPng);
     });
@@ -64,9 +61,7 @@ void main() {
     });
 
     test('rejects other resource types', () {
-      final container = MobiContainer(
-        buildContRecord(mime: 'application/x-font-otf'),
-      );
+      final container = MobiContainer(buildContRecord(mime: 'application/x-font-otf'));
       expect(container.isImageContainer, isFalse);
       expect(container.loadImage(buildCresRecord(tinyPng)), isNull);
     });
@@ -85,15 +80,10 @@ void main() {
   });
 
   group('KF8 with CONT/CRES image containers', () {
-    final original = File(
-      'test/resources/mobi/alice-kf8.azw3',
-    ).readAsBytesSync();
+    final original = File('test/resources/mobi/alice-kf8.azw3').readAsBytesSync();
 
     test('unwraps container images into the image list', () {
-      final injected = appendPdbRecords(original, [
-        buildContRecord(),
-        buildCresRecord(tinyPng),
-      ]);
+      final injected = appendPdbRecords(original, [buildContRecord(), buildCresRecord(tinyPng)]);
       final book = parseMobiBook(injected);
       final unwrapped = book.files.images
           .where((final image) => image.content.length == tinyPng.length)
@@ -110,9 +100,7 @@ void main() {
       ]);
       final book = parseMobiBook(injected);
       expect(
-        book.files.images.where(
-          (final image) => image.content.length == tinyPng.length,
-        ),
+        book.files.images.where((final image) => image.content.length == tinyPng.length),
         isEmpty,
       );
     });
@@ -137,10 +125,7 @@ void main() {
     }
 
     test('uncompressed text records pass through', () {
-      final book = buildBook(
-        1,
-        Uint8List.fromList(convert.utf8.encode('<p>plain</p>#')),
-      );
+      final book = buildBook(1, Uint8List.fromList(convert.utf8.encode('<p>plain</p>#')));
       // The trailing '#' marker is dropped from the stream.
       expect(book.files.html.single.content, '<p>plain</p>');
     });
@@ -199,9 +184,7 @@ void main() {
           encryptionType: 2,
           exthFlags: 0x40,
           title: 'Old Title',
-          exth: buildExth([
-            (503, Uint8List.fromList(convert.utf8.encode('DRM Book'))),
-          ]),
+          exth: buildExth([(503, Uint8List.fromList(convert.utf8.encode('DRM Book')))]),
         ),
         'BOOKMOBI',
       );
@@ -222,16 +205,12 @@ void main() {
         buildMobiRecord0(encryptionType: 1, title: 'Paid Title'),
         'BOOKMOBI',
       );
-      expect(
-        () => assertNotDrm(header, ''),
-        throwsA(isA<DrmProtectedException>()),
-      );
+      expect(() => assertNotDrm(header, ''), throwsA(isA<DrmProtectedException>()));
     });
   });
 
   group('ExthHeader', () {
-    Uint8List u32(final int value) =>
-        (ByteData(4)..setUint32(0, value)).buffer.asUint8List();
+    Uint8List u32(final int value) => (ByteData(4)..setUint32(0, value)).buffer.asUint8List();
 
     test('keeps truncated record content instead of throwing', () {
       final declared = buildExth([(100, Uint8List(100))]);
@@ -250,21 +229,13 @@ void main() {
     });
 
     test('exposes thumbnail offset and fake cover flag', () {
-      final exth = ExthHeader.parse(
-        buildExth([(202, u32(7)), (203, u32(1))]),
-        'utf-8',
-        '',
-      );
+      final exth = ExthHeader.parse(buildExth([(202, u32(7)), (203, u32(1))]), 'utf-8', '');
       expect(exth.thumbnailOffset, 7);
       expect(exth.hasFakeCover, isTrue);
     });
 
     test('cover offset of 0xFFFFFFFF counts as absent', () {
-      final exth = ExthHeader.parse(
-        buildExth([(201, u32(0xFFFFFFFF))]),
-        'utf-8',
-        '',
-      );
+      final exth = ExthHeader.parse(buildExth([(201, u32(0xFFFFFFFF))]), 'utf-8', '');
       expect(exth.coverOffset, isNull);
     });
   });

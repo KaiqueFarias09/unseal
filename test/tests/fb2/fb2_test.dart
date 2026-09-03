@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/fb2/utils/parse_fb2_book.dart';
 import 'package:test/test.dart';
 
 const String aliceTitle = "Alice's Adventures in Wonderland";
@@ -72,15 +71,9 @@ void main() {
     test('builds navigation from section titles', () {
       expect(book.navigation.navPoints, hasLength(2));
       expect(book.navigation.navPoints.first.label, 'Capítulo Um');
-      expect(
-        book.navigation.navPoints.first.content,
-        startsWith('index.html#'),
-      );
+      expect(book.navigation.navPoints.first.content, startsWith('index.html#'));
       expect(book.navigation.navPoints.first.subNavPoints, hasLength(1));
-      expect(
-        book.navigation.navPoints.first.subNavPoints.first.label,
-        'Seção aninhada',
-      );
+      expect(book.navigation.navPoints.first.subNavPoints.first.label, 'Seção aninhada');
     });
 
     test('converts emphasis, poems and inline styles', () {
@@ -92,27 +85,23 @@ void main() {
     });
 
     test('rewrites note links to the notes body file', () {
-      final index = book.files.html
-          .firstWhere((final file) => file.name == 'index.html')
-          .content;
+      final index = book.files.html.firstWhere((final file) => file.name == 'index.html').content;
       expect(index, contains('href="notes.html#n1"'));
-      final notes = book.files.html
-          .firstWhere((final file) => file.name == 'notes.html')
-          .content;
+      final notes = book.files.html.firstWhere((final file) => file.name == 'notes.html').content;
       expect(notes, contains('id="n1"'));
     });
   });
 }
 
-Uint8List _read(final String path) =>
-    Uint8List.fromList(File(path).readAsBytesSync());
+Uint8List _read(final String path) => Uint8List.fromList(File(path).readAsBytesSync());
 
 // 1x1 transparent PNG binary as base64.
 const String _pngBase64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'
     'YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
-const String _syntheticFb2 = '''
+const String _syntheticFb2 =
+    '''
 <?xml version="1.0" encoding="utf-8"?>
 <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"
   xmlns:l="http://www.w3.org/1999/xlink">

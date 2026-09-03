@@ -65,16 +65,8 @@ class ExthHeader {
   ExthHeader._(this._records, this.title);
 
   /// Parses the EXTH block ([raw] starts at the `EXTH` magic).
-  factory ExthHeader.parse(
-    final Uint8List raw,
-    final String codec,
-    final String headerTitle,
-  ) {
-    if (raw.length < 12 ||
-        raw[0] != 0x45 ||
-        raw[1] != 0x58 ||
-        raw[2] != 0x54 ||
-        raw[3] != 0x48) {
+  factory ExthHeader.parse(final Uint8List raw, final String codec, final String headerTitle) {
+    if (raw.length < 12 || raw[0] != 0x45 || raw[1] != 0x58 || raw[2] != 0x54 || raw[3] != 0x48) {
       throw const MobiException('Invalid EXTH header.');
     }
     final view = ByteData.sublistView(raw);
@@ -116,8 +108,7 @@ class ExthHeader {
   final String title;
 
   /// All raw payloads stored for [id].
-  List<Uint8List> rawValues(final int id) =>
-      _records[id] ?? const <Uint8List>[];
+  List<Uint8List> rawValues(final int id) => _records[id] ?? const <Uint8List>[];
 
   /// The first payload for [id] decoded with [codec].
   String? string(final int id, [final String codec = 'utf-8']) {

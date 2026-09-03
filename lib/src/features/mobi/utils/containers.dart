@@ -59,11 +59,7 @@ class MobiContainer {
     return null;
   }
 
-  static bool _isMimeImage(
-    final Uint8List data,
-    final int start,
-    final int length,
-  ) {
+  static bool _isMimeImage(final Uint8List data, final int start, final int length) {
     const mime = 'application/image';
     if (length != mime.length) {
       return false;

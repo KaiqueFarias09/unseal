@@ -1,11 +1,11 @@
+import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
+import 'package:e_livre/src/features/mobi/utils/mobi_metadata_mapper.dart';
 import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/book/files.dart';
 import 'package:e_livre/src/foundation/entities/book_metadata.dart';
 import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
 import 'package:e_livre/src/foundation/entities/file/text_file.dart';
 import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/utils/mobi_metadata_mapper.dart';
 
 /// A chapter of a MOBI 6 book, split from its single HTML stream at
 /// the table of contents anchors.
@@ -71,8 +71,7 @@ class MobiBook extends Book {
   List<String> get creators => metadata.authors;
 
   /// The book language code.
-  String get language =>
-      metadata.languages.isEmpty ? '' : metadata.languages.first;
+  String get language => metadata.languages.isEmpty ? '' : metadata.languages.first;
 
   /// The book publisher.
   String? get publisher => metadata.publisher;
@@ -125,11 +124,8 @@ class MobiBook extends Book {
     // Each anchor marks the start of its chapter's content.
     for (var i = 0; i < boundaries.length; i++) {
       final start = boundaries[i].$1;
-      final end =
-          i + 1 < boundaries.length ? boundaries[i + 1].$1 : html.length;
-      chapters.add(
-        _chapter(index++, boundaries[i].$2, html.substring(start, end)),
-      );
+      final end = i + 1 < boundaries.length ? boundaries[i + 1].$1 : html.length;
+      chapters.add(_chapter(index++, boundaries[i].$2, html.substring(start, end)));
     }
     return chapters;
   }

@@ -2,12 +2,12 @@ import 'dart:convert' as convert;
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/foundation/entities/navigation/nav_point.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
 import 'package:e_livre/src/features/epub/entities/package/epub_3_package.dart';
 import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
 import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
+import 'package:e_livre/src/foundation/entities/navigation/nav_point.dart';
+import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
 import 'package:xml/xml.dart';
 
 /// Retrieves the navigation (table of contents) of an EPUB.
@@ -27,22 +27,17 @@ Navigation getEpubNavigation(
 
   final tocManifestItem = package.manifest.items.firstWhere(
     (final element) => element.id == tocId,
-    orElse: () => throw EpubException(
-      'EPUB parsing error: TOC item $tocId not found in EPUB manifest.',
-    ),
+    orElse: () =>
+        throw EpubException('EPUB parsing error: TOC item $tocId not found in EPUB manifest.'),
   );
 
   final tocFileEntryPath = resolveItemPath(rootFilePath, tocManifestItem.path);
   final tocFileEntry = findArchiveFile(archive, tocFileEntryPath);
   if (tocFileEntry == null) {
-    throw EpubException(
-      'EPUB parsing error: TOC file $tocFileEntryPath not found in archive.',
-    );
+    throw EpubException('EPUB parsing error: TOC file $tocFileEntryPath not found in archive.');
   }
 
-  final document = XmlDocument.parse(
-    convert.utf8.decode(tocFileEntry.content as List<int>),
-  );
+  final document = XmlDocument.parse(convert.utf8.decode(tocFileEntry.content as List<int>));
 
   final isNcx = document.rootElement.name.local == 'ncx';
   return isNcx ? _navigationFromNcx(document) : _navigationFromNavDoc(document);
@@ -56,7 +51,8 @@ String? _navDocumentId(final EpubPackage package) {
 }
 
 Navigation _navigationFromNcx(final XmlDocument document) {
-  final title = document
+  final title =
+      document
           .findAllElements('docTitle')
           .firstOrNull
           ?.findElements('text')
@@ -74,7 +70,8 @@ Navigation _navigationFromNcx(final XmlDocument document) {
 }
 
 NavPoint _navPointFromNcx(final XmlElement element) {
-  final label = element
+  final label =
+      element
           .findElements('navLabel')
           .firstOrNull
           ?.findElements('text')
@@ -82,8 +79,7 @@ NavPoint _navPointFromNcx(final XmlElement element) {
           ?.value
           ?.trim() ??
       '';
-  final content =
-      element.findElements('content').firstOrNull?.getAttribute('src') ?? '';
+  final content = element.findElements('content').firstOrNull?.getAttribute('src') ?? '';
 
   return NavPoint(
     classAttribute: element.getAttribute('class') ?? '',
@@ -91,8 +87,7 @@ NavPoint _navPointFromNcx(final XmlElement element) {
     playOrder: element.getAttribute('playOrder') ?? '',
     label: label,
     content: content,
-    subNavPoints:
-        element.findElements('navPoint').map(_navPointFromNcx).toList(),
+    subNavPoints: element.findElements('navPoint').map(_navPointFromNcx).toList(),
   );
 }
 
@@ -106,8 +101,7 @@ Navigation _navigationFromNavDoc(final XmlDocument document) {
   // Prefer the nav element typed as `toc`; fall back to the first nav.
   XmlElement? navElement;
   for (final candidate in document.findAllElements('nav')) {
-    final type =
-        candidate.getAttribute('epub:type') ?? candidate.getAttribute('type');
+    final type = candidate.getAttribute('epub:type') ?? candidate.getAttribute('type');
     if (type == 'toc') {
       navElement = candidate;
       break;
@@ -119,8 +113,7 @@ Navigation _navigationFromNavDoc(final XmlDocument document) {
   }
 
   final list = navElement.findElements('ol').firstOrNull;
-  final navPoints =
-      list == null ? <NavPoint>[] : _navPointsFromNavList(list, 0);
+  final navPoints = list == null ? <NavPoint>[] : _navPointsFromNavList(list, 0);
 
   return Navigation(title: title, navPoints: navPoints);
 }

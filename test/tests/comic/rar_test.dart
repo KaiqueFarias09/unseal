@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/comic/utils/parse_comic_book.dart';
 import 'package:e_livre/src/features/comic/utils/rar_reader.dart';
 import 'package:test/test.dart';
 
@@ -11,22 +10,14 @@ import 'package:test/test.dart';
 void main() {
   group('RAR 4 optional header fields', () {
     test('skips the 64-bit size fields (flag 0x0100)', () {
-      final archive = buildRar4(
-        ['high.jpg'],
-        flags: 0x8000 | 0x0100,
-        withHighSizes: true,
-      );
+      final archive = buildRar4(['high.jpg'], flags: 0x8000 | 0x0100, withHighSizes: true);
       final entries = readRarEntries(archive);
       expect(entries.single.name, 'high.jpg');
       expect(entries.single.data, tinyJpegPage);
     });
 
     test('skips the encryption salt (flag 0x0200)', () {
-      final archive = buildRar4(
-        ['salt.jpg'],
-        flags: 0x8000 | 0x0200,
-        withSalt: true,
-      );
+      final archive = buildRar4(['salt.jpg'], flags: 0x8000 | 0x0200, withSalt: true);
       final entries = readRarEntries(archive);
       expect(entries.single.name, 'salt.jpg');
       expect(entries.single.isStored, isTrue);
@@ -42,10 +33,7 @@ void main() {
     test('reads stored entries behind a main header', () {
       final archive = buildRar5(['002.jpg', '001.jpg']);
       final entries = readRarEntries(archive);
-      expect(entries.map((final entry) => entry.name).toList(), [
-        '002.jpg',
-        '001.jpg',
-      ]);
+      expect(entries.map((final entry) => entry.name).toList(), ['002.jpg', '001.jpg']);
       expect(entries.every((final entry) => entry.isStored), isTrue);
       expect(entries.first.data, tinyJpegPage);
     });
@@ -63,25 +51,18 @@ void main() {
     });
 
     test('marks directory entries', () {
-      final entries = readRarEntries(
-        buildRar5(['chapter1/'], fileFlags: 0x0001),
-      );
+      final entries = readRarEntries(buildRar5(['chapter1/'], fileFlags: 0x0001));
       expect(entries.single.isDirectory, isTrue);
       expect(entries.single.data, isEmpty);
     });
 
     test('stops at the end-of-archive block', () {
-      final entries = readRarEntries(
-        buildRar5(['001.jpg'], trailingGarbage: true),
-      );
+      final entries = readRarEntries(buildRar5(['001.jpg'], trailingGarbage: true));
       expect(entries, hasLength(1));
     });
 
     test('rejects non-RAR and truncated buffers', () {
-      expect(
-        () => readRarEntries(Uint8List(4)),
-        throwsA(isA<ComicException>()),
-      );
+      expect(() => readRarEntries(Uint8List(4)), throwsA(isA<ComicException>()));
       expect(
         () => readRarEntries(Uint8List.fromList('NOTARAR!'.codeUnits)),
         throwsA(isA<ComicException>()),
@@ -107,18 +88,7 @@ void main() {
   });
 }
 
-final Uint8List tinyJpegPage = Uint8List.fromList([
-  0xFF,
-  0xD8,
-  0xFF,
-  0xE0,
-  0,
-  1,
-  2,
-  3,
-  0xFF,
-  0xD9,
-]);
+final Uint8List tinyJpegPage = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, 0, 1, 2, 3, 0xFF, 0xD9]);
 
 /// Builds a RAR 4 archive with stored entries.
 Uint8List buildRar4(
@@ -223,9 +193,7 @@ Uint8List buildRar5(
   _addRar5Block(builder, type: 5, headerFlags: 0);
 
   final archive = builder.takeBytes();
-  return trailingGarbage
-      ? Uint8List.fromList([...archive, 0xDE, 0xAD, 0xBE, 0xEF])
-      : archive;
+  return trailingGarbage ? Uint8List.fromList([...archive, 0xDE, 0xAD, 0xBE, 0xEF]) : archive;
 }
 
 void _addRar5Block(

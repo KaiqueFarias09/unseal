@@ -1,18 +1,18 @@
 import 'dart:typed_data';
 
+import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
+import 'package:e_livre/src/features/epub/epub_document.dart';
+import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart';
+import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';
+import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
 import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/book/files.dart';
+import 'package:e_livre/src/foundation/entities/book/reading_order_item.dart';
 import 'package:e_livre/src/foundation/entities/book_format.dart';
 import 'package:e_livre/src/foundation/entities/book_metadata.dart';
 import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
 import 'package:e_livre/src/foundation/entities/file/text_file.dart';
-import 'package:e_livre/src/foundation/entities/book/reading_order_item.dart';
 import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
-import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart';
-import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';
-import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
-import 'package:e_livre/src/features/epub/epub_document.dart';
 
 /// A parsed EPUB 2.0 / 3.0 book.
 class EpubBook extends Book implements EpubDocument {
@@ -60,9 +60,7 @@ class EpubBook extends Book implements EpubDocument {
   @override
   List<ReadingOrderItem> get readingOrder => spinePaths == null
       ? super.readingOrder
-      : <ReadingOrderItem>[
-          for (final path in spinePaths!) ReadingOrderItem(name: path),
-        ];
+      : <ReadingOrderItem>[for (final path in spinePaths!) ReadingOrderItem(name: path)];
 
   /// The format-agnostic metadata of this book.
   @override

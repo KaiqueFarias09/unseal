@@ -12,9 +12,7 @@ void main() {
     });
 
     test('detects MOBI family', () {
-      final bytes = File(
-        'test/resources/mobi/alice-old.mobi',
-      ).readAsBytesSync();
+      final bytes = File('test/resources/mobi/alice-old.mobi').readAsBytesSync();
       expect(detectFormat(bytes), DetectedFormat.mobiFamily);
     });
 
@@ -52,10 +50,7 @@ void main() {
     });
 
     test('rejects empty bytes', () {
-      expect(
-        () => detectFormat(Uint8List(0)),
-        throwsA(isA<FormatNotSupportedException>()),
-      );
+      expect(() => detectFormat(Uint8List(0)), throwsA(isA<FormatNotSupportedException>()));
     });
 
     test('refines mobi versus azw3', () {
@@ -68,47 +63,30 @@ void main() {
 
   group('sniffImageType', () {
     test('sniffs jpeg', () {
-      expect(
-        sniffImageType(Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0])),
-        ImageType.jpeg,
-      );
+      expect(sniffImageType(Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0])), ImageType.jpeg);
     });
 
     test('sniffs png', () {
       expect(
-        sniffImageType(
-          Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
-        ),
+        sniffImageType(Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])),
         ImageType.png,
       );
     });
 
     test('sniffs gif', () {
-      expect(
-        sniffImageType(Uint8List.fromList('GIF89a'.codeUnits)),
-        ImageType.gif,
-      );
+      expect(sniffImageType(Uint8List.fromList('GIF89a'.codeUnits)), ImageType.gif);
     });
 
     test('sniffs bmp', () {
-      expect(
-        sniffImageType(Uint8List.fromList([0x42, 0x4D, 0x00, 0x01])),
-        ImageType.bmp,
-      );
+      expect(sniffImageType(Uint8List.fromList([0x42, 0x4D, 0x00, 0x01])), ImageType.bmp);
     });
 
     test('sniffs webp', () {
-      expect(
-        sniffImageType(Uint8List.fromList('RIFF0000WEBP'.codeUnits)),
-        ImageType.webp,
-      );
+      expect(sniffImageType(Uint8List.fromList('RIFF0000WEBP'.codeUnits)), ImageType.webp);
     });
 
     test('returns null for non-image data', () {
-      expect(
-        sniffImageType(Uint8List.fromList([0x00, 0x01, 0x02, 0x03])),
-        isNull,
-      );
+      expect(sniffImageType(Uint8List.fromList([0x00, 0x01, 0x02, 0x03])), isNull);
     });
   });
 }

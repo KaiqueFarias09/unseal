@@ -3,10 +3,7 @@ import 'package:test/test.dart';
 import 'package:xml/xml.dart';
 
 void main() {
-  Fb2Bodies convertBodiesFrom(
-    final String xml, [
-    final Map<String, String> binaries = const {},
-  ]) {
+  Fb2Bodies convertBodiesFrom(final String xml, [final Map<String, String> binaries = const {}]) {
     final root = XmlDocument.parse(
       '<FictionBook xmlns:l="http://www.w3.org/1999/xlink">$xml</FictionBook>',
     ).rootElement;
@@ -47,10 +44,7 @@ void main() {
       final result = convertBodiesFrom('''
 <body><table><tr><th><p>h</p></th><td><p>d</p></td></tr></table></body>''');
       final html = result.files['index.html'] ?? '';
-      expect(
-        html,
-        contains('<table><tr><th><p>h</p></th><td><p>d</p></td></tr></table>'),
-      );
+      expect(html, contains('<table><tr><th><p>h</p></th><td><p>d</p></td></tr></table>'));
     });
 
     test('keeps unknown leaf text and recurses unknown containers', () {
@@ -62,9 +56,7 @@ void main() {
     });
 
     test('style elements keep their inline content', () {
-      final result = convertBodiesFrom(
-        '<body><p>a <style>styled</style> b</p></body>',
-      );
+      final result = convertBodiesFrom('<body><p>a <style>styled</style> b</p></body>');
       expect(result.files['index.html'] ?? '', contains('a styled b'));
     });
   });
@@ -86,9 +78,7 @@ void main() {
     });
 
     test('keeps CDATA sections as text', () {
-      final result = convertBodiesFrom(
-        '<body><p><![CDATA[raw <b> text]]></p></body>',
-      );
+      final result = convertBodiesFrom('<body><p><![CDATA[raw <b> text]]></p></body>');
       expect(result.files['index.html'] ?? '', contains('raw &lt;b&gt; text'));
     });
 
@@ -110,17 +100,12 @@ void main() {
       final result = convertBodiesFrom('''
 <body><p>see <a l:href="#n1">note</a></p></body>
 <body name="notes"><section id="n1"><title>Note</title></section></body>''');
-      expect(
-        result.files['index.html'] ?? '',
-        contains('href="notes.html#n1"'),
-      );
+      expect(result.files['index.html'] ?? '', contains('href="notes.html#n1"'));
       expect(result.files['notes.html'], isNotNull);
     });
 
     test('missing targets fall back to a local anchor', () {
-      final result = convertBodiesFrom(
-        '<body><p><a l:href="#gone">x</a></p></body>',
-      );
+      final result = convertBodiesFrom('<body><p><a l:href="#gone">x</a></p></body>');
       expect(result.files['index.html'] ?? '', contains('href="#gone"'));
     });
 
@@ -128,16 +113,11 @@ void main() {
       final result = convertBodiesFrom(
         '<body><p><a l:href="https://example.com/a?b=1">site</a></p></body>',
       );
-      expect(
-        result.files['index.html'] ?? '',
-        contains('href="https://example.com/a?b=1"'),
-      );
+      expect(result.files['index.html'] ?? '', contains('href="https://example.com/a?b=1"'));
     });
 
     test('links without href render as typed spans', () {
-      final result = convertBodiesFrom(
-        '<body><p><a type="note">x</a></p></body>',
-      );
+      final result = convertBodiesFrom('<body><p><a type="note">x</a></p></body>');
       expect(
         result.files['index.html'] ?? '',
         contains('<span class="fb2-a" data-type="note">x</span>'),
@@ -147,10 +127,9 @@ void main() {
 
   group('images', () {
     test('resolve binary references through the extension map', () {
-      final result = convertBodiesFrom(
-        '<body><p><image l:href="#cover.jpg"/></p></body>',
-        {'cover.jpg': 'cover.jpg.jpg'},
-      );
+      final result = convertBodiesFrom('<body><p><image l:href="#cover.jpg"/></p></body>', {
+        'cover.jpg': 'cover.jpg.jpg',
+      });
       expect(
         result.files['index.html'] ?? '',
         contains('<img src="cover.jpg.jpg" alt="cover.jpg"/>'),
@@ -187,9 +166,7 @@ void main() {
     });
 
     test('generates ids for sections without one', () {
-      final result = convertBodiesFrom(
-        '<body><section><title>T</title><p>t</p></section></body>',
-      );
+      final result = convertBodiesFrom('<body><section><title>T</title><p>t</p></section></body>');
       expect(result.navigation.navPoints.single.id, 'fb2-section-1');
     });
 

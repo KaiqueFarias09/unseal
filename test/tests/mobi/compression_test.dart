@@ -30,22 +30,12 @@ void main() {
       // pair word = (distance << 3) | (length - 3); distance <= output len.
       // Output 'ABCD' (4 bytes) then copy distance=4, length=3+1=4.
       // pair = (4 << 3) | 1 = 33 = 0x21 -> bytes 0x80, 0x21.
-      final data = Uint8List.fromList([
-        0x04,
-        0x41,
-        0x42,
-        0x43,
-        0x44,
-        0x80,
-        0x21,
-      ]);
+      final data = Uint8List.fromList([0x04, 0x41, 0x42, 0x43, 0x44, 0x80, 0x21]);
       expect(decompressPalmdoc(data), 'ABCDABCD'.codeUnits);
     });
 
     test('decompresses real book text', () {
-      final bytes = File(
-        'test/resources/mobi/alice-old.mobi',
-      ).readAsBytesSync();
+      final bytes = File('test/resources/mobi/alice-old.mobi').readAsBytesSync();
       final pdb = PdbHeader.parse(bytes);
       final header = MobiHeader.parse(pdb.record(0), pdb.ident);
       expect(header.compressionType, 2); // PalmDoc
@@ -60,14 +50,9 @@ void main() {
       final sections = <Uint8List>[buildHuffHeader(), buildCdic()];
       final reader = HuffReader(sections);
 
-      final payload = Uint8List.fromList(
-        'Alice was beginning to get very tired'.codeUnits,
-      );
+      final payload = Uint8List.fromList('Alice was beginning to get very tired'.codeUnits);
       final unpacked = reader.unpack(payload);
-      expect(
-        String.fromCharCodes(unpacked),
-        'Alice was beginning to get very tired',
-      );
+      expect(String.fromCharCodes(unpacked), 'Alice was beginning to get very tired');
     });
   });
 }

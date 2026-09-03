@@ -45,14 +45,8 @@ void main() {
 
     test('identifiers merge per key', () {
       final merged = mergeBookMetadata(
-        const BookMetadata(
-          format: BookFormat.epub,
-          identifiers: {'uuid': 'u1', 'asin': 'a1'},
-        ),
-        const BookMetadata(
-          format: BookFormat.epub,
-          identifiers: {'uuid': 'u2'},
-        ),
+        const BookMetadata(format: BookFormat.epub, identifiers: {'uuid': 'u1', 'asin': 'a1'}),
+        const BookMetadata(format: BookFormat.epub, identifiers: {'uuid': 'u2'}),
       );
       expect(merged.identifiers['uuid'], 'u2');
       expect(merged.identifiers['asin'], 'a1');
@@ -89,11 +83,7 @@ void main() {
 
     test('existing metadata is preserved', () {
       final metadata = applyFilenameFallback(
-        const BookMetadata(
-          format: BookFormat.epub,
-          title: 'Real',
-          authors: ['A'],
-        ),
+        const BookMetadata(format: BookFormat.epub, title: 'Real', authors: ['A']),
         '/books/Fake - Name.epub',
       );
       expect(metadata.title, 'Real');

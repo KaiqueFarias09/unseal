@@ -24,11 +24,7 @@ import 'dart:typed_data';
 ///
 /// The first byte holds the length, followed by that many bytes
 /// decoded with [codec]. Returns the string and bytes consumed.
-(String, int) decodeIndexString(
-  final Uint8List raw,
-  final String codec, [
-  final int start = 0,
-]) {
+(String, int) decodeIndexString(final Uint8List raw, final String codec, [final int start = 0]) {
   if (start >= raw.length) {
     return ('', 0);
   }
@@ -41,10 +37,7 @@ import 'dart:typed_data';
     // ORDT entries map through the '?' fallback table; every byte
     // becomes '?' when unknown — approximate with '?' per byte pair
     // semantics by returning a printable-char projection.
-    return (
-      String.fromCharCodes(bytes.where((final b) => b > 0x20 && b < 0x7F)),
-      consumed,
-    );
+    return (String.fromCharCodes(bytes.where((final b) => b > 0x20 && b < 0x7F)), consumed);
   }
   return (decodeBytes(bytes, codec), consumed);
 }
@@ -99,10 +92,7 @@ final List<int> _cp1252CodeUnits = List<int>.generate(256, (final byte) {
 });
 
 String _cp1252(final Uint8List bytes) {
-  final codeUnits = List<int>.generate(
-    bytes.length,
-    (final i) => _cp1252CodeUnits[bytes[i]],
-  );
+  final codeUnits = List<int>.generate(bytes.length, (final i) => _cp1252CodeUnits[bytes[i]]);
   return String.fromCharCodes(codeUnits);
 }
 

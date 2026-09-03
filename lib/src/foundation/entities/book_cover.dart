@@ -5,12 +5,7 @@ import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 /// A book cover: raw bytes plus the detected image type.
 final class BookCover {
   /// Creates a [BookCover].
-  const BookCover({
-    required this.bytes,
-    required this.type,
-    this.width,
-    this.height,
-  });
+  const BookCover({required this.bytes, required this.type, this.width, this.height});
 
   /// The raw image bytes.
   final Uint8List bytes;
@@ -31,6 +26,7 @@ final class BookCover {
   String get fileExtension => type.fileExtension;
 
   @override
-  String toString() => 'BookCover(type: ${type.name}, bytes: ${bytes.length}, '
+  String toString() =>
+      'BookCover(type: ${type.name}, bytes: ${bytes.length}, '
       'size: ${width ?? '?'}x${height ?? '?'})';
 }
