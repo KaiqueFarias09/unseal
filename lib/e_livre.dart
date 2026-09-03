@@ -8,6 +8,7 @@ export 'mobi.dart';
 export 'src/features/detection/format_detector.dart';
 export 'src/features/reading/book.dart';
 export 'src/features/reading/book_reader.dart';
+export 'src/features/search/book_search.dart';
 export 'src/foundation/entities/entities.dart';
 export 'src/foundation/exceptions/elivre_exception.dart';
 export 'src/foundation/utils/image_size.dart';
