@@ -11,6 +11,9 @@ BookMetadata mergeBookMetadata(final BookMetadata base, final BookMetadata overl
   return BookMetadata(
     format: overlay.cover != null || overlay.title != null ? overlay.format : base.format,
     title: _pick(overlay.title, base.title),
+    titleSort: _pick(overlay.titleSort, base.titleSort),
+    authorSort: _pick(overlay.authorSort, base.authorSort),
+    bookProducer: _pick(overlay.bookProducer, base.bookProducer),
     authors: _pickList(overlay.authors, base.authors),
     languages: _pickList(overlay.languages, base.languages),
     publisher: _pick(overlay.publisher, base.publisher),

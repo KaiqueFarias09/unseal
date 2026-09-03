@@ -33,6 +33,9 @@ BookMetadata epubBookMetadata(final EpubPackage package, [final BinaryFile? cove
     rights: metadata.rights?.firstOrNull,
     series: _seriesOf(package),
     seriesIndex: parseSeriesIndex(metadata.seriesIndex),
+    titleSort: metadata.titleSort,
+    authorSort: metadata.authorSort,
+    bookProducer: metadata.bookProducer,
     identifiers: identifiers,
     cover: _coverFrom(coverFile),
   );

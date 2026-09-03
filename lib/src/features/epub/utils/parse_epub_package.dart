@@ -157,7 +157,12 @@ Metadata _parseMetadata(
   // Series: calibre writes <meta name="calibre:series" content="..."/>
   // (EPUB 2) or <meta property="calibre:series"> (EPUB 3); EPUB 3
   // collections use belongs-to-collection + group-position.
-  final metaElements = metadataElement.findElements('meta');
+  // Real-world files write these metas both bare and `opf:`-prefixed,
+  // so both spellings are collected.
+  final metaElements = <XmlElement>[
+    ...metadataElement.findElements('meta', namespace: _opfNamespace),
+    ...metadataElement.findElements('meta'),
+  ];
   String? series;
   String? seriesIndex;
   for (final meta in metaElements) {
@@ -179,6 +184,22 @@ Metadata _parseMetadata(
     }
   }
 
+  // Sort keys and producer, following Calibre's conventions: the sort
+  // forms live on `file-as` (attribute or refines meta) or the
+  // `calibre:title_sort` / `calibre:author_sort` metas; the producer is
+  // the `dc:contributor` carrying the `bkp` role (attribute or the
+  // `marc:relators` refines). DC elements are looked up by namespace
+  // since the `dc:` prefix is not guaranteed.
+  final titleElement = metadataElement.findElements('title', namespace: _dcNamespace).firstOrNull;
+  final creatorElement = metadataElement.findElements('creator', namespace: _dcNamespace).firstOrNull;
+  final titleSort =
+      _fileAsOf(titleElement, metaElements) ??
+      _normalize(_namedMeta(metaElements, 'calibre:title_sort'));
+  final authorSort =
+      _fileAsOf(creatorElement, metaElements) ??
+      _normalize(_namedMeta(metaElements, 'calibre:author_sort'));
+  final bookProducer = _bookProducerOf(metadataElement, metaElements);
+
   if (_isEpub2(version)) {
     return Epub2Metadata(
       rights: rights,
@@ -195,6 +216,9 @@ Metadata _parseMetadata(
       coverId: coverId,
       series: series,
       seriesIndex: seriesIndex,
+      titleSort: titleSort,
+      authorSort: authorSort,
+      bookProducer: bookProducer,
     );
   }
 
@@ -294,6 +318,9 @@ Metadata _parseMetadata(
             ?.innerText
             .trim() ??
         '',
+    titleSort: titleSort,
+    authorSort: authorSort,
+    bookProducer: bookProducer,
   );
 }
 
@@ -336,3 +363,90 @@ Guide? _parseGuide(final XmlElement guideElement) {
 }
 
 bool _isEpub2(final String version) => double.parse(version) < 3.0;
+
+const String _opfNamespace = 'http://www.idpf.org/2007/opf';
+const String _dcNamespace = 'http://purl.org/dc/elements/1.1/';
+
+/// An OPF-namespaced (or plain) attribute by local name, trimmed.
+///
+/// Real-world files spell these attributes `opf:file-as`, `ns4:role`,
+/// plain `file-as`, ... so the prefix must not matter.
+String? _opfAttribute(final XmlElement element, final String localName) {
+  final namespaced = element.getAttribute(localName, namespace: _opfNamespace);
+  if (namespaced != null && namespaced.trim().isNotEmpty) return namespaced.trim();
+  final plain = element.getAttribute(localName);
+  if (plain != null && plain.trim().isNotEmpty) return plain.trim();
+
+  return null;
+}
+
+/// The sort form carried on [element]: its `file-as` attribute, or a
+/// `file-as` refine targeted at it (`<meta refines="#id"
+/// property="file-as">…</meta>`).
+String? _fileAsOf(final XmlElement? element, final List<XmlElement> metaElements) {
+  if (element == null) return null;
+  final direct = _opfAttribute(element, 'file-as');
+  if (direct != null) return _normalize(direct);
+
+  final id = element.getAttribute('id');
+  if (id == null || id.isEmpty) return null;
+  for (final meta in metaElements) {
+    if (meta.getAttribute('refines') != '#$id') continue;
+    if (meta.getAttribute('property') != 'file-as') continue;
+    final value = _normalize(meta.innerText.trim());
+    if (value != null) return value;
+  }
+
+  return null;
+}
+
+/// Value of `<meta name="[name]" content="…"/>`.
+String? _namedMeta(final Iterable<XmlElement> metaElements, final String name) {
+  for (final meta in metaElements) {
+    if (meta.getAttribute('name') != name) continue;
+    final value = (meta.getAttribute('content') ?? meta.innerText).trim();
+    if (value.isNotEmpty) return value;
+  }
+
+  return null;
+}
+
+/// Text of the `dc:contributor` carrying the `bkp` (book producer)
+/// role, either as an attribute or as a `marc:relators` refines.
+String? _bookProducerOf(final XmlElement metadataElement, final List<XmlElement> metaElements) {
+  for (final contributor in metadataElement.findElements(
+    'contributor',
+    namespace: _dcNamespace,
+  )) {
+    final role = _opfAttribute(contributor, 'role');
+    final isProducer = role?.toLowerCase() == 'bkp' || _refinesRoleIsBkp(contributor, metaElements);
+    if (!isProducer) continue;
+    final value = contributor.innerText.trim();
+    if (value.isNotEmpty) return value;
+  }
+
+  return null;
+}
+
+/// Whether a `role` refine on [element] resolves to `bkp`.
+bool _refinesRoleIsBkp(final XmlElement element, final List<XmlElement> metaElements) {
+  final id = element.getAttribute('id');
+  if (id == null || id.isEmpty) return false;
+  for (final meta in metaElements) {
+    if (meta.getAttribute('refines') != '#$id') continue;
+    if (meta.getAttribute('property') != 'role') continue;
+    final scheme = meta.getAttribute('scheme');
+    if (scheme != null && scheme != 'marc:relators') continue;
+    if (meta.innerText.trim().toLowerCase() == 'bkp') return true;
+  }
+
+  return false;
+}
+
+/// Calibre treats `Unknown` as an absent value.
+String? _normalize(final String? value) {
+  if (value == null || value.isEmpty) return null;
+  if (value.toLowerCase() == 'unknown') return null;
+
+  return value;
+}

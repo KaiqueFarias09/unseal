@@ -23,15 +23,24 @@ BookMetadata mobiBookMetadata(
   }
 
   // Authors: EXTH 100; Amazon stores `Last, First` — flip when clear.
+  // The raw `Last, First` form doubles as the sort key (this is how
+  // Calibre derives `author_sort` from MOBI files).
   final authors = <String>[];
+  final authorSortCandidates = <String>[];
   for (final raw in exth?.strings(ExthIds.author, codec) ?? const <String>[]) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) {
       continue;
     }
     final match = RegExp(r'^([^,]+?),\s+([^,]+)$').firstMatch(trimmed);
-    authors.add(match != null ? '${match.group(2)} ${match.group(1)}' : trimmed);
+    if (match != null) {
+      authors.add('${match.group(2)} ${match.group(1)}');
+      authorSortCandidates.add(trimmed);
+    } else {
+      authors.add(trimmed);
+    }
   }
+  final authorSort = authorSortCandidates.isEmpty ? null : authorSortCandidates.join(' & ');
 
   final languages = <String>[];
   final exthLanguage = exth?.string(ExthIds.language, codec)?.trim();
@@ -86,6 +95,8 @@ BookMetadata mobiBookMetadata(
   return BookMetadata(
     format: formatOverride ?? (header.mobiVersion == 8 ? BookFormat.azw3 : BookFormat.mobi),
     title: title.isEmpty ? null : title,
+    authorSort: authorSort,
+    bookProducer: _nonEmpty(exth?.string(ExthIds.bookProducer, codec)),
     authors: authors,
     languages: languages,
     publisher: publisher,
@@ -108,6 +119,11 @@ BookCover? _coverFrom(final BinaryFile? coverFile) {
 
   return BookCover(bytes: coverFile.content, type: type, width: size?.width, height: size?.height);
 }
+
+/// Nulls out blank and `Unknown` strings coming from optional EXTH
+/// records (Calibre treats `Unknown` as an absent value).
+String? _nonEmpty(final String? value) =>
+    value == null || value.isEmpty || value.toLowerCase() == 'unknown' ? null : value;
 
 DateTime? _parseMobiDate(final String? raw) {
   if (raw == null) return null;

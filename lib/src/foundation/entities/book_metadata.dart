@@ -9,7 +9,9 @@ final class BookMetadata {
   /// Creates a [BookMetadata].
   const BookMetadata({
     required this.format,
+    this.authorSort,
     this.authors = const <String>[],
+    this.bookProducer,
     this.cover,
     this.description,
     this.identifiers = const <String, String>{},
@@ -22,13 +24,21 @@ final class BookMetadata {
     this.seriesIndex,
     this.subjects = const <String>[],
     this.title,
+    this.titleSort,
   });
 
   /// Author names, in display order.
   final List<String> authors;
 
+  /// Author string used for sorting (e.g. `Last, First`), when the
+  /// source format carries one explicitly.
+  final String? authorSort;
+
   /// The format the metadata was extracted from.
   final BookFormat format;
+
+  /// Tool or person that produced the file (e.g. `calibre (9.4.0)`).
+  final String? bookProducer;
 
   /// Additional identifiers keyed by scheme (e.g. `asin`, `uuid`).
   final Map<String, String> identifiers;
@@ -67,10 +77,17 @@ final class BookMetadata {
   /// Book title, when available.
   final String? title;
 
+  /// Title string used for sorting (title without leading articles),
+  /// when the source format carries one explicitly.
+  final String? titleSort;
+
   /// Returns a copy with the provided fields replaced.
   BookMetadata copyWith({
     final BookFormat? format,
     final String? title,
+    final String? titleSort,
+    final String? authorSort,
+    final String? bookProducer,
     final List<String>? authors,
     final List<String>? languages,
     final String? publisher,
@@ -87,6 +104,9 @@ final class BookMetadata {
     return BookMetadata(
       format: format ?? this.format,
       title: title ?? this.title,
+      titleSort: titleSort ?? this.titleSort,
+      authorSort: authorSort ?? this.authorSort,
+      bookProducer: bookProducer ?? this.bookProducer,
       authors: authors ?? this.authors,
       languages: languages ?? this.languages,
       publisher: publisher ?? this.publisher,

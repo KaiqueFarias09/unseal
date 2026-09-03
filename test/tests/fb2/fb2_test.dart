@@ -49,6 +49,12 @@ void main() {
   group('synthetic document', () {
     final book = parseFb2Book(Uint8List.fromList(utf8.encode(_syntheticFb2)));
 
+    test('leaves sort keys and producer null (FB2 carries none)', () {
+      expect(book.metadata.titleSort, isNull);
+      expect(book.metadata.authorSort, isNull);
+      expect(book.metadata.bookProducer, isNull);
+    });
+
     test('maps title-info and publish-info metadata', () {
       final metadata = book.metadata;
       expect(metadata.title, 'Test Book');

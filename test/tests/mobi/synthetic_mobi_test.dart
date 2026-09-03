@@ -239,4 +239,52 @@ void main() {
       expect(exth.coverOffset, isNull);
     });
   });
+
+  group('sort keys and book producer', () {
+    Uint8List buildBook(final List<(int, Uint8List)> exthRecords) {
+      return buildPdb('Synthetic', [
+        buildMobiRecord0(
+          textRecordCount: 1,
+          exthFlags: 0x40,
+          exth: buildExth(exthRecords),
+        ),
+        Uint8List.fromList(
+          convert.utf8.encode('<html><head><title>T</title></head><body><p>x</p></body></html>'),
+        ),
+      ]);
+    }
+
+    test('maps EXTH 108 to the producer and keeps the Last, First sort form', () {
+      final metadata = BookReader.readMetadataSync(
+        buildBook([
+          (100, Uint8List.fromList(convert.utf8.encode('Carroll, Lewis'))),
+          (108, Uint8List.fromList(convert.utf8.encode('calibre (9.4.0)'))),
+        ]),
+      );
+      expect(metadata.authors, ['Lewis Carroll']);
+      expect(metadata.authorSort, 'Carroll, Lewis');
+      expect(metadata.bookProducer, 'calibre (9.4.0)');
+      expect(metadata.titleSort, isNull); // MOBI files carry no title sort
+    });
+
+    test('joins multiple author sort keys with an ampersand', () {
+      final metadata = BookReader.readMetadataSync(
+        buildBook([
+          (100, Uint8List.fromList(convert.utf8.encode('Carroll, Lewis'))),
+          (100, Uint8List.fromList(convert.utf8.encode('Tenniel, John'))),
+        ]),
+      );
+      expect(metadata.authors, ['Lewis Carroll', 'John Tenniel']);
+      expect(metadata.authorSort, 'Carroll, Lewis & Tenniel, John');
+    });
+
+    test('plain author names carry no sort key', () {
+      final metadata = BookReader.readMetadataSync(
+        buildBook([(100, Uint8List.fromList(convert.utf8.encode('Lewis Carroll')))]),
+      );
+      expect(metadata.authors, ['Lewis Carroll']);
+      expect(metadata.authorSort, isNull);
+      expect(metadata.bookProducer, isNull);
+    });
+  });
 }

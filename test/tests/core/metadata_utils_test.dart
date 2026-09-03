@@ -60,6 +60,45 @@ void main() {
       );
       expect(merged.cover, same(baseCover));
     });
+
+    test('sort keys and producer merge like scalar fields', () {
+      final merged = mergeBookMetadata(
+        const BookMetadata(format: BookFormat.epub, authorSort: 'Kept, Author'),
+        const BookMetadata(
+          format: BookFormat.epub,
+          titleSort: 'New Sort',
+          bookProducer: 'calibre (9.4.0)',
+        ),
+      );
+      expect(merged.titleSort, 'New Sort');
+      expect(merged.authorSort, 'Kept, Author');
+      expect(merged.bookProducer, 'calibre (9.4.0)');
+    });
+  });
+
+  group('BookMetadata.copyWith', () {
+    const metadata = BookMetadata(format: BookFormat.epub, title: 'T');
+
+    test('overrides the provided fields and keeps the rest', () {
+      final copy = metadata.copyWith(
+        title: 'T2',
+        titleSort: 'S',
+        authorSort: 'A, B',
+        bookProducer: 'calibre',
+      );
+      expect(copy.title, 'T2');
+      expect(copy.titleSort, 'S');
+      expect(copy.authorSort, 'A, B');
+      expect(copy.bookProducer, 'calibre');
+      expect(copy.format, BookFormat.epub);
+    });
+
+    test('sort keys survive a copy that does not touch them', () {
+      final copy = metadata.copyWith(titleSort: 'S', authorSort: 'A, B').copyWith();
+      expect(copy.titleSort, 'S');
+      expect(copy.authorSort, 'A, B');
+      expect(copy.bookProducer, isNull);
+    });
   });
 
   group('applyFilenameFallback', () {

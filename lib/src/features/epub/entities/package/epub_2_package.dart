@@ -37,6 +37,9 @@ class Epub2Metadata extends Metadata {
     super.coverId,
     super.series,
     super.seriesIndex,
+    super.titleSort,
+    super.authorSort,
+    super.bookProducer,
   });
 
   @override

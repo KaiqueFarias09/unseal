@@ -36,6 +36,9 @@ abstract class Metadata {
     this.coverId,
     this.series,
     this.seriesIndex,
+    this.titleSort,
+    this.authorSort,
+    this.bookProducer,
   });
 
   String title;
@@ -58,6 +61,16 @@ abstract class Metadata {
 
   /// Series position from `calibre:series_index` (or `group-position`).
   String? seriesIndex;
+
+  /// Sort form of the title, from `opf:file-as` or `calibre:title_sort`.
+  String? titleSort;
+
+  /// Sort form of the author (`Last, First`), from `opf:file-as`
+  /// or `calibre:author_sort`.
+  String? authorSort;
+
+  /// Producer recorded as the `dc:contributor` with role `bkp`.
+  String? bookProducer;
 }
 
 abstract class Manifest {
