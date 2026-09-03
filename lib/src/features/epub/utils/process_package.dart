@@ -46,8 +46,10 @@ Navigation _navigationFromNcx(final XmlDocument document) {
           .firstOrNull
           ?.findElements('text')
           .firstOrNull
-          ?.value
-          ?.trim() ??
+          // `innerText`, not `value`: XmlElement.value is always null
+          // in package:xml.
+          ?.innerText
+          .trim() ??
       '';
   final navMap = document.findAllElements('navMap').firstOrNull;
   final rootPoints = navMap == null
@@ -64,8 +66,8 @@ NavPoint _navPointFromNcx(final XmlElement element) {
           .firstOrNull
           ?.findElements('text')
           .firstOrNull
-          ?.value
-          ?.trim() ??
+          ?.innerText
+          .trim() ??
       '';
   final content = element.findElements('content').firstOrNull?.getAttribute('src') ?? '';
 
