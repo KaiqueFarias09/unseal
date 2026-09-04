@@ -13,6 +13,7 @@ export 'src/features/detection/format_detector.dart';
 export 'src/features/opds/opds_feed.dart';
 export 'src/features/reading/book.dart';
 export 'src/features/reading/book_reader.dart';
+export 'src/features/reading/worker_book_reader.dart';
 export 'src/features/search/book_search.dart';
 export 'src/features/text/document_text.dart';
 export 'src/foundation/entities/entities.dart';

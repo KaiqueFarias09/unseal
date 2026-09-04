@@ -118,10 +118,7 @@ String authorToAuthorSort(
   final sauthor = removeBracketedText(author).trim();
   if (method == AuthorSortMethod.comma && sauthor.contains(',')) return author;
 
-  final tokens = sauthor
-      .split(RegExp(r'\s+'))
-      .where((final token) => token.isNotEmpty)
-      .toList();
+  final tokens = sauthor.split(RegExp(r'\s+')).where((final token) => token.isNotEmpty).toList();
   if (tokens.length < 2) return author;
 
   final lowerTokens = tokens.map((final token) => token.toLowerCase()).toSet();

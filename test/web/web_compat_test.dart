@@ -11,6 +11,8 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/features/epub/entities/book/book.dart';
+import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:test/test.dart';
 
 import '../tests/mobi/mobi_fixture_builder.dart';
@@ -153,6 +155,21 @@ void main() {
       expect(book, isA<ComicBook>());
       expect((book as ComicBook).pageCount, 2);
       expect(book.readingOrder.every((final item) => !item.isHtml), isTrue);
+    });
+  });
+
+  group('worker wire codec on the browser', () {
+    test('round-trips a parsed book through the wire', () async {
+      final book = await BookReader.openFromBytes(buildSyntheticEpub()) as EpubBook;
+      final (json, blobs) = encodeBookWire(book);
+      final channel = decodeJson(encodeJson(json));
+      final decoded = decodeBookWire(channel, blobs) as EpubBook;
+
+      expect(decoded.metadata.title, book.metadata.title);
+      expect(decoded.files.html.single.content, book.files.html.single.content);
+      expect(decoded.navigation.navPoints.single.label, 'Chapter One');
+      expect(decoded.cover.content, book.cover.content);
+      expect(decoded.spinePaths, book.spinePaths);
     });
   });
 

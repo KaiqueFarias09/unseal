@@ -5,10 +5,8 @@ import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// Runs book parsing away from the caller on isolate-supporting runtimes.
-Future<Book> parseBookInBackground(
-  final Book Function() parse,
-  final Uint8List bytes,
-) => _run(parse);
+Future<Book> parseBookInBackground(final Book Function() parse, final Uint8List bytes) =>
+    _run(parse);
 
 /// Runs metadata extraction away from the caller on isolate-supporting runtimes.
 Future<BookMetadata> readMetadataInBackground(
