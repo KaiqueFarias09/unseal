@@ -31,7 +31,8 @@ dependencies, one API.
 - Comics: CBZ (with `ComicInfo.xml` metadata) and CBR (RAR 4/5 with
   stored entries), pages in natural order, first page as cover.
 - Parsing runs in a background isolate when available (Flutter apps
-  stay responsive); falls back to synchronous parsing on the web.
+  stay responsive); on the web an opt-in web worker does the same,
+  with inline parsing as the fallback.
 
 ## Getting started
 
@@ -101,6 +102,63 @@ final mobi = parseMobiBook(bytes);            // MOBI / AZW3
 final fb2 = parseFb2Book(bytes);              // FB2 / FB2.zip
 final comic = parseComicBook(bytes);          // CBZ / CBR
 ```
+
+## Web support
+
+The library is pure Dart and runs on every target: native (VM),
+JavaScript and WebAssembly. Everything is driven by bytes, so the
+browser flow is `fetch` (or a file picker) straight into the reader:
+
+```dart
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
+import 'dart:typed_data';
+
+import 'package:web/web.dart' as web;
+import 'package:e_livre/e_livre.dart';
+
+Future<Uint8List> fetchBookBytes(String url) async {
+  final promise = globalContext.callMethod('fetch'.toJS, url.toJS) as JSPromise<web.Response>;
+  final response = await promise.toDart;
+  final buffer = await response.arrayBuffer().toDart;
+
+  return JSUint8Array(buffer).toDart;
+}
+
+final book = await BookReader.openFromBytes(await fetchBookBytes('books/wonderland.epub'));
+```
+
+Path-backed APIs (`openFromPath`, `readMetadataFromPath`) have no
+meaning in a browser and reject with `UnsupportedError` there; the
+Calibre sidecar lookup is filesystem-only and skips itself on the web.
+`dart test test/web --platform chrome` runs a compatibility suite
+against a real browser.
+
+### Web worker parsing
+
+Without extra setup, parsing runs on the browser's main thread and a
+big book can freeze the UI while it decompresses. Ship the bundled
+worker entry point to move it off-thread:
+
+```sh
+dart compile js web/e_livre_worker.dart -o <your-web-root>/e_livre_worker.js
+```
+
+```dart
+import 'package:e_livre/e_livre.dart';
+
+void main() {
+  WorkerBookReader.configure(Uri.parse('e_livre_worker.js'));
+  runApp(const MyApp());
+}
+```
+
+`BookReader.openFromBytes` and `readMetadataFromBytes` then run inside
+the worker: the main thread only receives the finished book. Parse
+failures throw exactly like the inline path; if the worker script is
+unreachable or the host blocks workers, parsing silently falls back
+to the main thread. Native runtimes ignore the configuration — they
+already use a background isolate.
 
 ## Error handling
 
