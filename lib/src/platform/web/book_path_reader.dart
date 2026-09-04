@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 /// Web has no local filesystem path source for a book.
-Future<Uint8List> readBookPath(final String value) {
+Future<Uint8List> readBookPath(final String value) async {
   throw UnsupportedError('Opening a book from a path is not supported on web');
 }
 
@@ -9,7 +9,7 @@ Future<Uint8List> readBookPath(final String value) {
 Future<T> withBookPath<T>(
   final String value,
   final Future<T> Function(Uint8List bytes, String sourcePath) operation,
-) {
+) async {
   throw UnsupportedError('Opening a book from a path is not supported on web');
 }
 
