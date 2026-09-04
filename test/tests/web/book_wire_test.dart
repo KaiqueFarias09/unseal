@@ -7,16 +7,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/comic/entities/comic_book.dart';
-import 'package:e_livre/src/features/comic/exceptions/comic_exception.dart';
-import 'package:e_livre/src/features/epub/entities/book/book.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_3_package.dart';
-import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart';
-import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
-import 'package:e_livre/src/features/fb2/entities/fb2_book.dart';
-import 'package:e_livre/src/features/fb2/exceptions/fb2_exception.dart';
-import 'package:e_livre/src/features/mobi/entities/mobi_book.dart';
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
 import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:test/test.dart';

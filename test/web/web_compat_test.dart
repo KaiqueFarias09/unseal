@@ -11,7 +11,6 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/epub/entities/book/book.dart';
 import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:test/test.dart';
 
@@ -104,10 +103,8 @@ Uint8List buildSyntheticEpub() => _zip([
   ('ch1.xhtml', _utf8(_chapterContent), false),
 ]);
 
-Uint8List buildSyntheticCbz() => _zip([
-  ('page01.jpg', tinyJpeg, false),
-  ('page02.jpg', tinyJpeg, false),
-]);
+Uint8List buildSyntheticCbz() =>
+    _zip([('page01.jpg', tinyJpeg, false), ('page02.jpg', tinyJpeg, false)]);
 
 void main() {
   group('parsing on the browser runtime', () {
@@ -131,10 +128,12 @@ void main() {
     });
 
     test('opens a synthetic MOBI', () async {
-      final book = await BookReader.openFromBytes(buildPdb('SyntheticMobiWeb', [
-        buildMobiRecord0(textRecordCount: 1, title: 'Synthetic Mobi Web'),
-        _utf8('<html><body><p>Mobi on the web.</p></body></html>'),
-      ]));
+      final book = await BookReader.openFromBytes(
+        buildPdb('SyntheticMobiWeb', [
+          buildMobiRecord0(textRecordCount: 1, title: 'Synthetic Mobi Web'),
+          _utf8('<html><body><p>Mobi on the web.</p></body></html>'),
+        ]),
+      );
 
       expect(book, isA<MobiBook>());
       expect(book.metadata.title, 'Synthetic Mobi Web');
@@ -175,17 +174,11 @@ void main() {
 
   group('path-backed APIs on the browser', () {
     test('openFromPath throws UnsupportedError', () {
-      expect(
-        BookReader.openFromPath('books/sample.epub'),
-        throwsUnsupportedError,
-      );
+      expect(BookReader.openFromPath('books/sample.epub'), throwsUnsupportedError);
     });
 
     test('readMetadataFromPath throws UnsupportedError', () {
-      expect(
-        BookReader.readMetadataFromPath('books/sample.epub'),
-        throwsUnsupportedError,
-      );
+      expect(BookReader.readMetadataFromPath('books/sample.epub'), throwsUnsupportedError);
     });
   });
 }
