@@ -1,5 +1,28 @@
 ## Unreleased
 
+### Added
+
+- **Search modes**: `BookSearch.search` gains `mode`
+  (`SearchMode.contains` default, `wholeWords`, `regex`,
+  `proximity`) and `nearChars`, porting Calibre's query handling.
+  Whole-word wraps every token in word boundaries under the same
+  tolerant leniency; regex compiles the query verbatim (multiline,
+  throwing `FormatException` when invalid); proximity (Calibre's
+  "near") requires every word inside a window of `nearChars`
+  characters (default 60), with a trailing all-digits query token
+  overriding the interval. Soft-hyphen tolerance now also folds
+  straight quotes onto curly ones and collapses whitespace runs
+  like `text_to_regex`.
+- **RTL metadata**: the EPUB spine's `page-progression-direction`
+  attribute is parsed onto `Spine.pageProgressionDirection`
+  (`'rtl'`/`'ltr'`, null when undeclared), so readers can mirror
+  page flow for RTL books.
+
+### Performance
+
+- Search no longer rescans `files.html` linearly for every section
+  (O(n²) → map lookup).
+
 ### Fixed
 
 - **KF8 books with image containers no longer crash**: `MobiContainer`

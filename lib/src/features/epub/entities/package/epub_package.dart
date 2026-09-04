@@ -104,10 +104,14 @@ class ManifestItem {
 }
 
 class Spine {
-  Spine({required this.tocId, required this.items});
+  Spine({required this.tocId, required this.items, this.pageProgressionDirection});
 
   String? tocId;
   List<String> items;
+
+  /// EPUB3 spine `page-progression-direction`: `'rtl'` or `'ltr'`.
+  /// Null means the book declares no direction (treated as LTR).
+  String? pageProgressionDirection;
 
   @override
   String toString() {

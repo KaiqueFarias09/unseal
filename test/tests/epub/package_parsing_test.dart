@@ -203,8 +203,7 @@ void main() {
   }
 
   test('parsePackage tolerates guide references without title', () {
-    const opf =
-        '''
+    const opf = '''
 <?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -233,6 +232,28 @@ void main() {
     expect(guide.references.first.title, isEmpty);
     expect(guide.references.first.href, 'chapter1.xhtml');
     expect(guide.references.last.title, 'Contents');
+  });
+
+  test('reads the spine page-progression-direction', () {
+    const opf = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">urn:uuid:progression-test</dc:identifier>
+    <dc:title>Progression Test</dc:title>
+    <dc:language>ar</dc:language>
+  </metadata>
+  <manifest>
+    <item id="ch1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine toc="ch1" page-progression-direction="rtl">
+    <itemref idref="ch1"/>
+  </spine>
+</package>
+''';
+
+    final epubPackage = parsePackage(opf);
+    expect(epubPackage.spine.pageProgressionDirection, 'rtl');
   });
 }
 
