@@ -26,7 +26,7 @@ void main() {
 
     test('simple CFI serialization escapes id assertions', () {
       final cfi = EpubCfi.simple(steps: [2, 4, 2], charOffset: 1, idAssertion: r'we^ird[id];');
-      final serialized = cfi.serialize();
+      final serialized = cfi.encode();
       expect(serialized, r'epubcfi(/2/4/2:1[we^^ird^[id^]^;])');
       final parsed = EpubCfi.parse(serialized);
       expect(parsed.idAssertion, cfi.idAssertion);

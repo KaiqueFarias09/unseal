@@ -198,9 +198,6 @@ final class EpubCfi {
     return buf.toString();
   }
 
-  /// Alias of [encode], keeping the Calibre-reader style naming.
-  String serialize() => encode();
-
   @override
   String toString() => encode();
 }
