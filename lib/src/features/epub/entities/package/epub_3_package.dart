@@ -40,6 +40,10 @@ class Epub3Metadata extends Metadata {
     required this.belongsToCollection,
     required this.sourceOf,
     required this.recordIdentifier,
+    this.mediaDuration = '',
+    this.mediaActiveClass = '',
+    this.mediaPlaybackActiveClass = '',
+    this.narrator = '',
     super.coverId,
     super.series,
     super.seriesIndex,
@@ -58,6 +62,21 @@ class Epub3Metadata extends Metadata {
   String belongsToCollection;
   String sourceOf;
   String recordIdentifier;
+
+  /// Total overlay duration from `<meta property="media:duration">`
+  /// (EPUB 3 media overlays).
+  String mediaDuration;
+
+  /// CSS class the reading system toggles on the currently narrated
+  /// element (`media:active-class`).
+  String mediaActiveClass;
+
+  /// CSS class applied while playback is active
+  /// (`media:playback-active-class`).
+  String mediaPlaybackActiveClass;
+
+  /// Narrator of the audio narration (`dc:narrator`).
+  String narrator;
 }
 
 class Epub3Manifest extends Manifest {

@@ -320,6 +320,16 @@ Metadata _parseMetadata(
             ?.innerText
             .trim() ??
         '',
+    mediaDuration: _propertyMeta(metaElements, 'media:duration'),
+    mediaActiveClass: _propertyMeta(metaElements, 'media:active-class'),
+    mediaPlaybackActiveClass: _propertyMeta(metaElements, 'media:playback-active-class'),
+    narrator:
+        metadataElement
+            .findElements('narrator', namespace: _dcNamespace)
+            .firstOrNull
+            ?.innerText
+            .trim() ??
+        '',
     titleSort: titleSort,
     authorSort: authorSort,
     bookProducer: bookProducer,
@@ -336,6 +346,7 @@ List<ManifestItem> _parseManifestItems(
       id: itemElement.getAttribute('id')!,
       mediaType: itemElement.getAttribute('media-type')!,
       properties: itemElement.getAttribute('properties')?.split(' ').toList() ?? [],
+      mediaOverlay: itemElement.getAttribute('media-overlay'),
     );
   }).toList();
 }
@@ -425,6 +436,18 @@ String? _namedMeta(final Iterable<XmlElement> metaElements, final String name) {
   }
 
   return null;
+}
+
+/// Value of the first `<meta property="[property]">…</meta>` (EPUB 3
+/// metadata, e.g. `media:duration`).
+String _propertyMeta(final Iterable<XmlElement> metaElements, final String property) {
+  for (final meta in metaElements) {
+    if (meta.getAttribute('property') != property) continue;
+    final value = meta.innerText.trim();
+    if (value.isNotEmpty) return value;
+  }
+
+  return '';
 }
 
 /// Whether a `role` refine on [element] resolves to `bkp`.

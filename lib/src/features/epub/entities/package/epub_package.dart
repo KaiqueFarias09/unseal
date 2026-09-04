@@ -85,12 +85,17 @@ class ManifestItem {
     required this.id,
     required this.mediaType,
     this.properties = const [],
+    this.mediaOverlay,
   });
 
   String path;
   String id;
   String mediaType;
   List<String> properties;
+
+  /// EPUB 3 `media-overlay` attribute: the manifest id of the SMIL
+  /// document narrating this item (media overlays).
+  String? mediaOverlay;
 
   @override
   String toString() {
