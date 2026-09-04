@@ -14,10 +14,16 @@ import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
 
+// Platform selection: the web default keeps WASM runtimes (where
+// neither dart:html nor dart:io exist) compiling against the stubs,
+// dart:html pins DDC/dart2js browsers away from the native variant,
+// and dart:io claims every native runtime.
 import '../../platform/io/book_path_reader.dart'
-    if (dart.library.html) '../../platform/web/book_path_reader.dart';
-import '../../platform/io/isolate_runner.dart'
-    if (dart.library.html) '../../platform/web/isolate_runner.dart';
+    if (dart.library.html) '../../platform/web/book_path_reader.dart'
+    if (dart.library.io) '../../platform/io/book_path_reader.dart';
+import '../../platform/web/background_parse.dart'
+    if (dart.library.html) '../../platform/web/background_parse.dart'
+    if (dart.library.io) '../../platform/io/background_parse.dart';
 import 'book.dart';
 
 /// Reads supported ebook formats and selects their format adapter.
@@ -26,7 +32,7 @@ abstract final class BookReader {
   static Future<Book> openFromBytes(final Uint8List bytes) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
-    return runInBackground(() => parseBook(bytes));
+    return parseBookInBackground(() => parseBook(bytes), bytes);
   }
 
   /// Parses the book at [path].
@@ -52,7 +58,7 @@ abstract final class BookReader {
   static Future<BookMetadata> readMetadataFromBytes(final Uint8List bytes) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
-    return runInBackground(() => readMetadataSync(bytes));
+    return readMetadataInBackground(() => readMetadataSync(bytes), bytes);
   }
 
   /// Reads only metadata from the book at [path].
