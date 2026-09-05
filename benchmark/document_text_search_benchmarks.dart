@@ -141,6 +141,19 @@ void _runBookSearchGroup() {
     SearchMode.contains,
     coldSamples: 16,
   );
+  // Same query through the Unicode whole-word boundaries — the
+  // regression timing for the boundary rewrite (zero-width ASCII `\b`
+  // replaced by a trailing lookahead plus a per-candidate leading
+  // check, so the `\p{...}` classes stay out of the scan path).
+  _addSearch(
+    group,
+    'alice.epub',
+    alice,
+    () => BookReader.parseBook(epubAlice.bytes),
+    'the',
+    SearchMode.wholeWords,
+    coldSamples: 12,
+  );
   _addSearch(
     group,
     'alice.epub',
