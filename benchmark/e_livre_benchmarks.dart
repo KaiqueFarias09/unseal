@@ -14,6 +14,7 @@ import 'dart:io';
 import 'benchmark_harness.dart';
 import 'book_wire_benchmarks.dart';
 import 'calibre_scale_benchmarks.dart';
+import 'cfi_benchmarks.dart';
 import 'detection_benchmarks.dart';
 import 'document_text_search_benchmarks.dart';
 import 'getters_benchmarks.dart';
@@ -45,6 +46,7 @@ Future<void> main(final List<String> arguments) async {
   runBookWireBenchmarks();
   runDocumentTextSearchBenchmarks();
   runUtilityBenchmarks();
+  runCfiBenchmarks();
   runCalibreScaleBenchmarks();
 
   // The real-corpus scan runs last: it is the slowest group and only
