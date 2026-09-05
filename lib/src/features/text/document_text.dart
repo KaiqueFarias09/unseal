@@ -13,6 +13,8 @@
 /// it.
 library;
 
+import 'package:e_livre/src/foundation/entities/file/text_file.dart';
+
 /// Extracts the canonical document text of an HTML/XHTML [html]
 /// source.
 ///
@@ -407,6 +409,26 @@ int _findGtEnding(
   }
   return -1;
 }
+
+/// Returns the document text of [file], memoized per instance.
+///
+/// [TextFile] instances are stable per parsed book — parsers create
+/// them once and expose them through the final `Files.html` list — and
+/// immutable (`content` is final), so the computed text is cached in
+/// an [Expando] keyed by the instance. Search and other repeated
+/// consumers hit the memo instead of re-running the scan.
+String documentTextOf(final TextFile file) {
+  final cached = _documentTextCache[file];
+  if (cached != null) {
+    return cached;
+  }
+  final computed = documentText(file.content);
+  _documentTextCache[file] = computed;
+  return computed;
+}
+
+/// Memoized document text keyed by [TextFile] instance.
+final Expando<String> _documentTextCache = Expando<String>();
 
 /// Decodes a single entity body (without `&` and `;`).
 String? decodeEntity(final String body) {
