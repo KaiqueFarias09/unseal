@@ -48,7 +48,12 @@ class EpubCfiDocument {
   final List<XmlNode> _textNodes;
 
   /// The concatenated document text (the offset space).
-  String get text {
+  ///
+  /// Computed once on first access: the XML tree is parsed once and
+  /// never mutated afterwards, so the join cannot change.
+  late final String text = _joinTextNodes();
+
+  String _joinTextNodes() {
     final buffer = StringBuffer();
     for (final textNode in _textNodes) {
       buffer.write((textNode as XmlText).value);
