@@ -156,6 +156,87 @@ void main() {
       });
     });
 
+    group('Unicode word boundaries', () {
+      // Deliberate divergence from Calibre's current viewer: word
+      // boundaries see Unicode word characters (letters, numbers,
+      // underscore), not just ASCII.
+      test('finds Cyrillic whole words, not inflections', () {
+        final book = buildEpubFixture(
+          '<html><body><p>Слово о слове, и ещё одно слово здесь.</p></body></html>',
+        );
+        // The capitalised 'Слово' and the standalone 'слово' match;
+        // the inflected 'слове' does not.
+        expect(book.search('слово', mode: SearchMode.wholeWords).matches, hasLength(2));
+      });
+
+      test('rejects Cyrillic matches inside longer words', () {
+        final book = buildEpubFixture(
+          '<html><body><p>слово словосочетание слово</p></body></html>',
+        );
+        expect(book.search('слово', mode: SearchMode.wholeWords).matches, hasLength(2));
+      });
+
+      test('finds Arabic whole words', () {
+        final book = buildEpubFixture('<html><body><p>في الكتاب الكبيرة الكتاب</p></body></html>');
+        expect(book.search('الكتاب', mode: SearchMode.wholeWords).matches, hasLength(2));
+      });
+
+      test('finds words with accented edge letters', () {
+        final book = buildEpubFixture('<html><body><p>é ação é</p></body></html>');
+        expect(book.search('ação', mode: SearchMode.wholeWords).matches, hasLength(1));
+      });
+
+      test('treats adjacent CJK characters as one word run', () {
+        final book = buildEpubFixture('<html><body><p>これは 漢字 です</p></body></html>');
+        // Every CJK character is a word character, so adjacent CJK
+        // characters form a single run: a lone han character inside
+        // the run 漢字 is not a whole word...
+        expect(book.search('漢', mode: SearchMode.wholeWords).matches, isEmpty);
+        // ...while the full run is.
+        expect(book.search('漢字', mode: SearchMode.wholeWords).matches, hasLength(1));
+      });
+
+      test('addresses offsets at the token text (Cyrillic)', () {
+        final book = buildEpubFixture(
+          '<html><body><p>Слово о слове, и ещё одно слово здесь.</p></body></html>',
+        );
+        final text = documentTextOf(book.files.html.single);
+        final results = book.search('слово', mode: SearchMode.wholeWords);
+        expect(results.matches, hasLength(2));
+        for (final match in results.matches) {
+          // Offsets address the token itself, not the consumed
+          // boundary prefix (an off-by-one would pull in whitespace
+          // or punctuation).
+          expect(text.substring(match.start, match.end).toLowerCase(), 'слово');
+          expect(match.snippet, contains('слово'));
+        }
+      });
+
+      test('addresses offsets at the token text (Latin)', () {
+        final book = buildEpubFixture('<html><body><p>the theme they hold the</p></body></html>');
+        final text = documentTextOf(book.files.html.single);
+        final results = book.search('the', mode: SearchMode.wholeWords);
+        expect(results.matches, hasLength(2));
+        for (final match in results.matches) {
+          expect(text.substring(match.start, match.end), 'the');
+        }
+      });
+
+      test('finds Cyrillic words in proximity mode', () {
+        final book = buildEpubFixture(
+          '<html><body><p>кот и пёс сидели рядом, а кот с пёсом дружили</p></body></html>',
+        );
+        // The whole word 'пёс' forms a window with 'кот'; the
+        // inflected 'пёсом' must not count as 'пёс'.
+        final results = book.search('кот пёс', mode: SearchMode.proximity);
+        expect(results.matches, hasLength(1));
+        final text = documentTextOf(book.files.html.single);
+        final window = text.substring(results.matches.single.start, results.matches.single.end);
+        expect(window, contains('кот'));
+        expect(window, contains('пёс'));
+      });
+    });
+
     group('regex mode', () {
       test('matches the raw pattern', () {
         final book = parseFixture('<html><body><p>foo123 bar456 baz</p></body></html>');

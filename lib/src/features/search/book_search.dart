@@ -13,8 +13,18 @@ enum SearchMode {
 
   /// Every whitespace-separated token must occur as a whole word;
   /// tokens keep the [SearchMode.contains] leniency and are joined by
-  /// whitespace runs. Word boundaries use ECMAScript `\b` semantics
-  /// (like Calibre's browser viewer, not the Python `regex` module).
+  /// whitespace runs. Word boundaries are Unicode-aware: a word
+  /// character is any letter (`\p{L}`), number (`\p{N}`) or
+  /// underscore — the `\w` class of the Python `re` module that
+  /// Calibre's legacy viewer effectively used for whole-word search
+  /// (the same legacy viewer this mode's design follows).
+  ///
+  /// This is a deliberate, documented divergence from Calibre's
+  /// current browser viewer, whose ASCII ECMAScript `\b` finds zero
+  /// matches for words whose first or last letter is non-ASCII
+  /// (Cyrillic, Arabic, Greek, CJK, accented Latin, …). The legacy
+  /// viewer and Calibre's DB full-text search were Unicode-aware;
+  /// e_livre follows them, not the current viewer's regression.
   wholeWords,
 
   /// The query is a regular expression, always multiline
@@ -26,7 +36,10 @@ enum SearchMode {
   /// must occur in the given order, each word starting within
   /// `nearChars` characters of the previous one. A trailing
   /// all-digits token in the query overrides the interval
-  /// (`alpha beta 120` searches within 120 characters).
+  /// (`alpha beta 120` searches within 120 characters). Words are
+  /// matched with the same Unicode whole-word boundaries as
+  /// [SearchMode.wholeWords] — a deliberate divergence from the ASCII
+  /// `\b` of Calibre's current viewer (see [SearchMode.wholeWords]).
   proximity,
 }
 
@@ -143,6 +156,15 @@ extension BookSearch on Book {
         if (requiredWords != null && !_windowHasAllWords(candidate, requiredWords)) {
           continue;
         }
+        // The token span is group 1, the match's suffix (only a
+        // zero-width lookahead follows it), so its start is recovered
+        // from the two lengths.
+        final start = compiled.tokenSpanGroup
+            ? candidate.start + candidate.group(0)!.length - candidate.group(1)!.length
+            : candidate.start;
+        if (compiled.tokenSpanGroup && _insideWord(text, start)) {
+          continue;
+        }
         if (results.length >= maxMatches) {
           truncated = true;
           break;
@@ -151,9 +173,9 @@ extension BookSearch on Book {
           SearchMatch(
             sectionIndex: sectionIndex,
             sectionName: section.name,
-            start: candidate.start,
+            start: start,
             end: candidate.end,
-            snippet: _snippet(text, candidate.start, candidate.end, contextChars),
+            snippet: _snippet(text, start, candidate.end, contextChars),
           ),
         );
       }
@@ -182,10 +204,21 @@ extension BookSearch on Book {
 /// A compiled query: the candidate pattern plus, for proximity
 /// searches, the word patterns every candidate window must contain.
 final class _CompiledQuery {
-  const _CompiledQuery(this.pattern, this.requiredWords);
+  const _CompiledQuery(this.pattern, this.requiredWords, {this.tokenSpanGroup = false});
 
   final RegExp pattern;
+
   final List<RegExp>? requiredWords;
+
+  /// Whether [pattern] is a Unicode whole-word scan: group 1 captures
+  /// the token span of a match (the match's suffix — only a zero-width
+  /// [_wordBoundaryAhead] follows it), so a [SearchMatch.start] is
+  /// `match.start + match.group(0).length - match.group(1).length`,
+  /// its end is `match.end`, and the boundary-behind is verified per
+  /// candidate with [_insideWord] — kept out of the scan pattern
+  /// because a `\p{...}` class in the per-position scan path makes
+  /// the regex engine's automaton an order of magnitude slower.
+  final bool tokenSpanGroup;
 }
 
 /// Default proximity interval in characters. Parity: Calibre
@@ -195,6 +228,56 @@ const int _defaultNearChars = 60;
 /// Optional separators between query characters: soft hyphens and
 /// zero-width characters inserted by typesetting.
 const String _invisibleSeparators = r'[\u00AD\u200B\u200C\u200D]?';
+
+/// A character that is not a Unicode word character: anything outside
+/// `\p{L}` (letters), `\p{N}` (numbers) and `_` — the negated image
+/// of the Python `re` `\w` class (see [SearchMode.wholeWords]).
+const String _nonWordChar = r'[^\p{L}\p{N}_]';
+
+/// A single Unicode word character, anchored. Only ever run on the
+/// one or two code units preceding a candidate match — never on the
+/// scanned text (see [_insideWord]).
+final RegExp _wordChar = RegExp(r'^[\p{L}\p{N}_]$', unicode: true);
+
+/// Consumed boundary-behind prefix: string start or one non-word
+/// character. Used where the scanned string is tiny (the proximity
+/// required-word patterns run against the candidate window only); the
+/// whole-text scan patterns use the per-candidate [_insideWord] check
+/// instead (see [_CompiledQuery.tokenSpanGroup]).
+const String _wordBoundaryBehind = '(?:^|$_nonWordChar)';
+
+/// Zero-width boundary after a whole-word token: a non-word character
+/// or the end of the text. Kept as a lookahead in the scan patterns —
+/// it runs once per candidate, where a boundary-behind class would
+/// run once per scanned position.
+const String _wordBoundaryAhead = '(?=$_nonWordChar|\$)';
+
+/// Whether a token starting at [index] in [text] sits inside a longer
+/// word — i.e. whether the character before [index] is a Unicode word
+/// character. This is the per-candidate image of a consumed
+/// boundary-behind prefix (`(?:^|$_nonWordChar)`), evaluated in Dart
+/// rather than in the scan pattern so the `\p{...}` classes never
+/// take part in the per-position scan (see [_CompiledQuery]).
+bool _insideWord(final String text, final int index) {
+  if (index == 0) {
+    return false;
+  }
+  final unit = text.codeUnitAt(index - 1);
+  if (unit < 0x80) {
+    // ASCII fast path: `_`, digits, A-Z, a-z.
+    return unit == 0x5F ||
+        (unit >= 0x30 && unit <= 0x39) ||
+        (unit >= 0x41 && unit <= 0x5A) ||
+        (unit >= 0x61 && unit <= 0x7A);
+  }
+  var from = index - 1;
+  if (unit >= 0xDC00 && unit <= 0xDFFF && from > 0) {
+    // A low surrogate may be the back half of an astral (surrogate
+    // pair) character; test the whole pair as one code point.
+    from -= 1;
+  }
+  return _wordChar.hasMatch(text.substring(from, index));
+}
 
 _CompiledQuery _compile(
   final String trimmed, {
@@ -206,19 +289,30 @@ _CompiledQuery _compile(
   switch (mode) {
     case SearchMode.contains:
       return _CompiledQuery(
-        _joinTokens([_tokenPattern(trimmed, tolerant: tolerant)], caseSensitive: caseSensitive),
+        RegExp(_tokenPattern(trimmed, tolerant: tolerant), caseSensitive: caseSensitive),
         null,
       );
     case SearchMode.wholeWords:
-      // Parity: calibre pyj/read_book/search_worker.pyj:232-237 —
-      // split on whitespace, wrap each token in word boundaries,
-      // join with whitespace runs.
+      // Divergence from calibre pyj/read_book/search_worker.pyj:232-237:
+      // the viewer splits on whitespace and wraps each token in ASCII
+      // `\b`, which never matches words with non-ASCII edge letters.
+      // e_livre instead wraps the whole token phrase in Unicode word
+      // boundaries: the zero-width non-word lookahead behind the
+      // phrase stays in the pattern, the boundary-behind is verified
+      // per candidate with [_insideWord] (a look-behind is no option
+      // — dart2js support for it is browser-dependent — and a
+      // consumed-prefix class in the scan path makes matching an
+      // order of magnitude slower). Interior tokens need no
+      // boundaries of their own: the whitespace runs joining them are
+      // non-word characters on both sides.
       final tokens = trimmed.split(RegExp(r'\s+'))..removeWhere((final token) => token.isEmpty);
+      final phrase = tokens
+          .map((final token) => _tokenPattern(token, tolerant: tolerant))
+          .join(r'\s+');
       return _CompiledQuery(
-        _joinTokens([
-          for (final token in tokens) r'\b' + _tokenPattern(token, tolerant: tolerant) + r'\b',
-        ], caseSensitive: caseSensitive),
+        RegExp('($phrase)$_wordBoundaryAhead', caseSensitive: caseSensitive, unicode: true),
         null,
+        tokenSpanGroup: true,
       );
     case SearchMode.regex:
       // Parity: calibre gui2/viewer/search.py:133-146 — verbatim
@@ -232,33 +326,47 @@ _CompiledQuery _compile(
           'follow them with a number of characters.',
         );
       }
-      // Parity: calibre gui2/viewer/search.py:148-160 — a candidate
-      // window regex joins an any-word alternation with `.{1,N}`
-      // (dotAll), then every word pattern is verified inside the
-      // window, so all words occur in the given order within N
-      // characters of each other.
+      // Divergence from calibre gui2/viewer/search.py:148-160 — the
+      // same two-phase structure (an any-word candidate window joined
+      // by gaps, then every word verified inside the window), but
+      // with Unicode word boundaries instead of ASCII `\b`: gaps
+      // whose first and last characters are non-word (the image of
+      // the old `\b` + `.{1,N}` + `\b` trio, consuming what the
+      // zero-width boundaries checked), a zero-width non-word
+      // lookahead behind the window's last word, and the window's
+      // leading boundary verified per candidate with [_insideWord]
+      // (dotAll preserved).
       final alternation = near.words
-          .map((final word) => r'\b' + _tokenPattern(word, tolerant: tolerant) + r'\b')
+          .map((final word) => '(?:${_tokenPattern(word, tolerant: tolerant)})')
           .join('|');
-      final joiner = '.{1,${near.interval}}';
       final candidate = RegExp(
-        [for (var i = 0; i < near.words.length; i++) '(?:$alternation)'].join(joiner),
+        '(${List.filled(near.words.length, '(?:$alternation)').join(_proximityGap(near.interval))})'
+        '$_wordBoundaryAhead',
         dotAll: true,
         caseSensitive: caseSensitive,
+        unicode: true,
       );
       final words = <RegExp>[
         for (final word in near.words)
           RegExp(
-            r'\b' + _tokenPattern(word, tolerant: tolerant) + r'\b',
+            '$_wordBoundaryBehind(${_tokenPattern(word, tolerant: tolerant)})$_wordBoundaryAhead',
             caseSensitive: caseSensitive,
+            unicode: true,
           ),
       ];
-      return _CompiledQuery(candidate, words);
+      return _CompiledQuery(candidate, words, tokenSpanGroup: true);
   }
 }
 
-RegExp _joinTokens(final List<String> tokens, {required final bool caseSensitive}) {
-  return RegExp(tokens.join(r'\s+'), caseSensitive: caseSensitive);
+/// The consumed gap between two proximity words: 1..[interval]
+/// characters whose first and last are not word characters — the
+/// consumed image of the previous `\b` + `.{1,interval}` + `\b`
+/// trio, where the boundaries were zero-width.
+String _proximityGap(final int interval) {
+  if (interval <= 1) {
+    return _nonWordChar;
+  }
+  return '$_nonWordChar(?:.{0,${interval - 2}}$_nonWordChar)?';
 }
 
 /// Parses Calibre's near query: a trailing all-digits token is the
@@ -279,7 +387,8 @@ RegExp _joinTokens(final List<String> tokens, {required final bool caseSensitive
 /// Whether [candidate] contains a match of every [requiredWords].
 /// Parity: calibre gui2/viewer/search.py:429-439 (the two-phase
 /// check that keeps windows honest when the any-word alternation
-/// repeats a word).
+/// repeats a word); the word patterns themselves are Unicode-boundary
+/// wrapped like the whole-word mode.
 bool _windowHasAllWords(final RegExpMatch candidate, final List<RegExp> requiredWords) {
   final window = candidate.group(0)!;
   for (final word in requiredWords) {
