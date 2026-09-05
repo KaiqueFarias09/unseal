@@ -235,9 +235,44 @@ void main() {
   });
 
   test('reads the spine page-progression-direction', () {
-    const opf = '''
+    for (final version in ['2.0', '3.0']) {
+      final epubPackage = parsePackage(_packageWithSpineDirection('rtl', version: version));
+      expect(epubPackage.spine.pageProgressionDirection, PageProgressionDirection.rtl);
+      expect(epubPackage.spine.pageProgressionDirection.name, 'rtl');
+    }
+  });
+
+  test('reads an explicit ltr spine page-progression-direction', () {
+    final epubPackage = parsePackage(_packageWithSpineDirection('ltr'));
+
+    expect(epubPackage.spine.pageProgressionDirection, PageProgressionDirection.ltr);
+  });
+
+  test('a missing spine page-progression-direction degrades to unspecified', () {
+    final epubPackage = parsePackage(_packageWithSpineDirection(null));
+
+    expect(epubPackage.spine.pageProgressionDirection, PageProgressionDirection.unspecified);
+  });
+
+  test(
+    'the default and malformed spine page-progression-direction values degrade to unspecified',
+    () {
+      for (final value in ['default', 'RTL', 'bogus']) {
+        final epubPackage = parsePackage(_packageWithSpineDirection(value));
+
+        expect(
+          epubPackage.spine.pageProgressionDirection,
+          PageProgressionDirection.unspecified,
+          reason: 'attribute value "$value"',
+        );
+      }
+    },
+  );
+}
+
+const String _spineDirectionPackageTemplate = '''
 <?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
+<package xmlns="http://www.idpf.org/2007/opf" version="%VERSION%" unique-identifier="uid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="uid">urn:uuid:progression-test</dc:identifier>
     <dc:title>Progression Test</dc:title>
@@ -246,15 +281,18 @@ void main() {
   <manifest>
     <item id="ch1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
   </manifest>
-  <spine toc="ch1" page-progression-direction="rtl">
+  <spine toc="ch1"%PPD_ATTRIBUTE%>
     <itemref idref="ch1"/>
   </spine>
 </package>
 ''';
 
-    final epubPackage = parsePackage(opf);
-    expect(epubPackage.spine.pageProgressionDirection, 'rtl');
-  });
+String _packageWithSpineDirection(final String? direction, {final String version = '3.0'}) {
+  final attribute = direction == null ? '' : ' page-progression-direction="$direction"';
+
+  return _spineDirectionPackageTemplate
+      .replaceFirst('%VERSION%', version)
+      .replaceFirst('%PPD_ATTRIBUTE%', attribute);
 }
 
 void _checkCommonMetadataProperties(
