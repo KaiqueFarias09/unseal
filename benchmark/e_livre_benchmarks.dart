@@ -20,6 +20,7 @@ import 'document_text_search_benchmarks.dart';
 import 'getters_benchmarks.dart';
 import 'library_corpus_benchmarks.dart';
 import 'metadata_benchmarks.dart';
+import 'mobi_compression_benchmarks.dart';
 import 'parsing_benchmarks.dart';
 import 'utils_benchmarks.dart';
 
@@ -42,6 +43,7 @@ Future<void> main(final List<String> arguments) async {
   runDetectionBenchmarks();
   await runParsingBenchmarks();
   await runMetadataBenchmarks();
+  runMobiCompressionBenchmarks();
   runGetterBenchmarks();
   runBookWireBenchmarks();
   runDocumentTextSearchBenchmarks();
