@@ -15,6 +15,7 @@ import 'benchmark_harness.dart';
 import 'book_wire_benchmarks.dart';
 import 'calibre_scale_benchmarks.dart';
 import 'detection_benchmarks.dart';
+import 'document_text_search_benchmarks.dart';
 import 'getters_benchmarks.dart';
 import 'library_corpus_benchmarks.dart';
 import 'metadata_benchmarks.dart';
@@ -42,6 +43,7 @@ Future<void> main(final List<String> arguments) async {
   await runMetadataBenchmarks();
   runGetterBenchmarks();
   runBookWireBenchmarks();
+  runDocumentTextSearchBenchmarks();
   runUtilityBenchmarks();
   runCalibreScaleBenchmarks();
 
