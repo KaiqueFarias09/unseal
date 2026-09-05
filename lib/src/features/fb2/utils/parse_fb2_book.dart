@@ -343,20 +343,33 @@ String _extensionFromMime(final String mime) {
   }
 }
 
+/// Namespace of the FB2 coverpage reference: fixed URI, arbitrary prefix.
+const String _xlinkNamespace = 'http://www.w3.org/1999/xlink';
+
 String? _coverId(final XmlElement root) {
   for (final titleInfo in root.findAllElements('title-info')) {
     for (final coverpage in titleInfo.findElements('coverpage')) {
       for (final image in coverpage.findElements('image')) {
-        final href =
-            image.getAttribute('href', namespace: 'http://www.w3.org/1999/xlink') ??
-            image.getAttribute('l:href') ??
-            '';
+        final href = _imageHref(image) ?? '';
         if (href.startsWith('#') && href.length > 1) return href.substring(1);
       }
     }
   }
 
   return null;
+}
+
+/// Reads the reference of a coverpage `<image>` element.
+///
+/// Per the FB2 specification the reference is an xlink reference: the
+/// namespace URI is fixed while the prefix is arbitrary (`xlink:href`,
+/// `l:href`, ...). Prefer the resolved xlink namespace; when the
+/// binding is unavailable — the `<description>` metadata slice does
+/// not inherit the root-level prefix declarations — fall back to the
+/// `href` local name in any namespace.
+String? _imageHref(final XmlElement image) {
+  return image.getAttribute('href', namespace: _xlinkNamespace) ??
+      image.getAttribute('href', namespace: '*');
 }
 
 BookMetadata _mapMetadata(final XmlElement root, final Map<String, BinaryFile> binaries) {
