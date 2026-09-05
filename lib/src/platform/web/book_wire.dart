@@ -7,6 +7,7 @@ import 'package:e_livre/src/features/epub/entities/book/book.dart';
 import 'package:e_livre/src/features/epub/entities/package/epub_2_package.dart';
 import 'package:e_livre/src/features/epub/entities/package/epub_3_package.dart';
 import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
+import 'package:e_livre/src/features/epub/entities/package/page_progression_direction.dart';
 import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart';
 import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
 import 'package:e_livre/src/features/fb2/entities/fb2_book.dart';
@@ -433,7 +434,7 @@ Map<String, Object?> _encodePackage(final EpubPackage package) => <String, Objec
   'spine': <String, Object?>{
     'tocId': package.spine.tocId,
     'items': List<String>.of(package.spine.items),
-    'pageProgressionDirection': package.spine.pageProgressionDirection,
+    'pageProgressionDirection': package.spine.pageProgressionDirection.name,
   },
   'guide': package.guide == null
       ? null
@@ -555,7 +556,9 @@ ManifestItem _decodeManifestItem(final Map<String, Object?> json) => ManifestIte
 Spine _decodeSpine(final Map<String, Object?> json) => Spine(
   tocId: json['tocId'] as String?,
   items: (json['items'] as List<Object?>).cast<String>(),
-  pageProgressionDirection: json['pageProgressionDirection'] as String?,
+  pageProgressionDirection: PageProgressionDirection.fromName(
+    json['pageProgressionDirection'] as String?,
+  ),
 );
 
 Reference _decodeReference(final Map<String, Object?> json) => Reference(

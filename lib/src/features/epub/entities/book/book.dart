@@ -1,12 +1,14 @@
 import 'dart:typed_data';
 
 import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
+import 'package:e_livre/src/features/epub/entities/package/page_progression_direction.dart';
 import 'package:e_livre/src/features/epub/epub_document.dart';
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
 import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/src/foundation/utils/rtl_languages.dart';
 
 /// A parsed EPUB 2.0 / 3.0 book.
 class EpubBook extends Book implements EpubDocument {
@@ -81,6 +83,23 @@ class EpubBook extends Book implements EpubDocument {
 
   /// The EPUB version (`2.0` or `3.0`).
   String get version => package.version;
+
+  /// The page-flow direction a reader should honor for this book.
+  ///
+  /// Precedence mirrors Calibre's
+  /// `set_page_progression_direction_if_needed`: the spine's declared
+  /// `page-progression-direction` wins; when the book declares no
+  /// direction, `rtl` is inferred from the book's primary language
+  /// ([isRtlLanguage]); books that declare neither stay
+  /// [PageProgressionDirection.unspecified].
+  PageProgressionDirection get effectivePageProgressionDirection {
+    final declared = package.spine.pageProgressionDirection;
+    if (declared != PageProgressionDirection.unspecified) return declared;
+
+    return isRtlLanguage(language)
+        ? PageProgressionDirection.rtl
+        : PageProgressionDirection.unspecified;
+  }
 
   /// Reads an EPUB book from the provided [bytes].
   static Future<EpubBook> fromBytes(final List<int> bytes) {

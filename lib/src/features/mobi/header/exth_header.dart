@@ -69,6 +69,14 @@ class ExthHeader {
     return index;
   }
 
+  /// Page progression direction (EXTH 527): `ltr`, `rtl` or `default`
+  /// when the record carries a value, null otherwise. Mirrors
+  /// Calibre, which copies the raw EXTH string through.
+  String? get pageProgressionDirection => _nonEmpty(ExthIds.pageProgressionDirection);
+
+  /// Primary writing mode (EXTH 525) when the record carries a value.
+  String? get primaryWritingMode => _nonEmpty(ExthIds.primaryWritingMode);
+
   /// Thumbnail record offset (EXTH 202).
   int? get thumbnailOffset => int32(ExthIds.thumbnailOffset);
 
@@ -96,6 +104,16 @@ class ExthHeader {
       (_records[id] ?? const <Uint8List>[])
           .map((final value) => decodeBytes(value, codec))
           .toList();
+
+  /// The first payload for [id] decoded and trimmed; null when absent
+  /// or empty.
+  String? _nonEmpty(final int id) {
+    final value = string(id);
+    if (value == null) return null;
+    final trimmed = value.trim();
+
+    return trimmed.isEmpty ? null : trimmed;
+  }
 }
 
 /// Well-known EXTH record ids.
@@ -129,6 +147,12 @@ abstract final class ExthIds {
 
   /// Language code string.
   static const int language = 524;
+
+  /// Page progression direction (`ltr`, `rtl` or `default`).
+  static const int pageProgressionDirection = 527;
+
+  /// Primary writing mode.
+  static const int primaryWritingMode = 525;
 
   /// Publication date.
   static const int publishDate = 106;
