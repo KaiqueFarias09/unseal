@@ -83,7 +83,7 @@ extension EpubCfiResolver on EpubBook {
       );
     }
 
-    final document = EpubCfiDocument.parse(file.content);
+    final document = _documentOf(this, file);
     final steps = <int>[for (final step in documentSegment.steps) step.index];
     final localOffset = EpubCfi.simple(
       steps: steps,
@@ -125,7 +125,7 @@ extension EpubCfiResolver on EpubBook {
     // The file-local steps come from the document model; the spine
     // segment is prepended so the CFI addresses the whole book:
     // /6 is the spine element, /2N the N-th itemref.
-    final document = EpubCfiDocument.parse(file.content);
+    final document = _documentOf(this, file);
     if (offsetInText < 0 || offsetInText > document.text.length) {
       throw RangeError.range(offsetInText, 0, document.text.length, 'offsetInText');
     }
@@ -144,3 +144,29 @@ String _excerpt(final String text, final int offset) {
   final to = (offset + 24).clamp(0, text.length);
   return text.substring(from, to);
 }
+
+/// Parsed section documents of the books seen so far, keyed by book.
+///
+/// A Dart extension cannot add fields to [EpubBook] and the
+/// foundation entities must not depend on features, so the cache
+/// lives here, inside the cfi feature, and hangs off the book
+/// through an [Expando]: entries die with their book instance and
+/// different book instances never share documents.
+///
+/// Invalidation is not needed: books are parsed once and immutable
+/// afterwards — `TextFile.content` is final and neither
+/// `resolveCfi` nor `buildEpubCfi` mutates the parsed tree of an
+/// [EpubCfiDocument] — so a document parsed for a (book, section)
+/// pair stays correct forever.
+final Expando<Map<String, EpubCfiDocument>> _documentCaches =
+    Expando<Map<String, EpubCfiDocument>>();
+
+/// The per-book document cache of [book], created on first use.
+Map<String, EpubCfiDocument> _documentsOf(final EpubBook book) =>
+    _documentCaches[book] ??= <String, EpubCfiDocument>{};
+
+/// The parsed document model of [file] for [book], parsing and
+/// caching on first access. Section paths are unique inside a book,
+/// so the file path identifies the section.
+EpubCfiDocument _documentOf(final EpubBook book, final TextFile file) =>
+    _documentsOf(book).putIfAbsent(file.path, () => EpubCfiDocument.parse(file.content));

@@ -7,6 +7,10 @@
 // target offsets and the pre-parsed CFIs of the resolve targets — is
 // computed untimed before registration, so the timed bodies measure
 // only the CFI work itself.
+//
+// `resolveCfi` / `buildEpubCfi` come in pairs: the plain entry parses
+// the section XML on every call, the `· cached` entry is pre-touched
+// untimed and hits the per-book section document cache.
 
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
@@ -227,6 +231,14 @@ void _addResolveBenchmarks(
       continue;
     }
     group.add('resolveCfi — ${target.label}', () => book.resolveCfi(target.cfi));
+    // Pre-touch so the cached entry below hits the warm document
+    // cache instead of re-parsing the section XML.
+    book.resolveCfi(target.cfi);
+    group.add(
+      'resolveCfi — ${target.label} · cached',
+      () => book.resolveCfi(target.cfi),
+      note: 'section document cached',
+    );
   }
 }
 
@@ -259,6 +271,14 @@ void _addBuildBenchmarks(
       'buildEpubCfi — ${target.label} · $percent% into text',
       () => book.buildEpubCfi(contentIndex: target.contentIndex, offsetInText: target.offset),
     );
+    // Pre-touch so the cached entry below hits the warm document
+    // cache instead of re-parsing the section XML.
+    book.buildEpubCfi(contentIndex: target.contentIndex, offsetInText: target.offset);
+    group.add(
+      'buildEpubCfi — ${target.label} · $percent% into text · cached',
+      () => book.buildEpubCfi(contentIndex: target.contentIndex, offsetInText: target.offset),
+      note: 'section document cached',
+    );
   }
 }
 
@@ -289,6 +309,25 @@ void _addRoundtripBenchmark(
     }
     return last;
   }, note: '${targets.length} positions per run');
+  // Pre-touch every section so the cached round trip below never
+  // parses section XML.
+  for (final target in targets) {
+    book.buildEpubCfi(contentIndex: target.contentIndex, offsetInText: target.offset);
+  }
+  group.add(
+    'roundtrip build → parse → resolve · cached',
+    () {
+      Object? last;
+      for (final target in targets) {
+        final cfi = EpubCfi.parse(
+          book.buildEpubCfi(contentIndex: target.contentIndex, offsetInText: target.offset),
+        );
+        last = book.resolveCfi(cfi);
+      }
+      return last;
+    },
+    note: '${targets.length} positions, section documents cached',
+  );
 }
 
 /// The longest book-level CFI buildable from the fixture, found by
