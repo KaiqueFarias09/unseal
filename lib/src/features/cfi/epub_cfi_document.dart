@@ -11,15 +11,23 @@ import 'package:xml/xml.dart';
 class EpubCfiDocument {
   EpubCfiDocument._(this._body, this._textNodes);
 
+  /// Entities XML resolves natively (decoded into text nodes exactly
+  /// like [decodeEntity] would); everything else is pre-decoded.
+  static const Set<String> _xmlPredefinedEntities = <String>{'lt', 'gt', 'amp', 'quot', 'apos'};
+
   /// Parses [xhtml] and indexes its text nodes. Named HTML entities
   /// that XML cannot resolve are decoded first (same entity table as
-  /// [documentText]).
+  /// [documentText]); the five XML predefined ones stay escaped so the
+  /// parser decodes them itself — unescaping `&lt;`/`&amp;` here would
+  /// inject raw `<`/`&` into the parser's view and turn escaped text
+  /// (a literal `&lt;http://…&gt;` citation, say) into bogus markup.
   factory EpubCfiDocument.parse(final String xhtml) {
     var source = xhtml;
-    // Named entities beyond the XML five would fail the XML parser.
     source = source.replaceAllMapped(
       RegExp(r'&([a-zA-Z][a-zA-Z0-9]{1,31});'),
-      (final match) => decodeEntity(match.group(1)!) ?? match.group(0)!,
+      (final match) => _xmlPredefinedEntities.contains(match.group(1)!)
+          ? match.group(0)!
+          : (decodeEntity(match.group(1)!) ?? match.group(0)!),
     );
     final doc = XmlDocument.parse(source);
     final body = doc.findAllElements('body').first;

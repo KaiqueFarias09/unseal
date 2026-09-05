@@ -68,6 +68,46 @@ void main() {
     });
   });
 
+  group('EpubCfiDocument messy real-world text', () {
+    // Regression: the Shakespeare complete-works edition carries a
+    // Mobipocket artifact — escaped markup as literal text — and the
+    // Dracula Oxford edition escapes a URL in a footnote. Decoding
+    // `&lt;`/`&amp;` before the XML parse turned both into bogus tags
+    // (XmlParserException), so those books silently lost CFI support.
+    const pseudoMarkup =
+        '<html><body><p>word &lt;&lt;span id="filepos0042723319"&gt; more</p></body></html>';
+    const escapedUrl =
+        '<html><body><p>collected at &lt;http://fleursdumal.org/poem/186&gt;. End</p></body></html>';
+
+    test('escaped pseudo-markup stays text and matches documentText', () {
+      final document = EpubCfiDocument.parse(pseudoMarkup);
+      expect(document.text, contains('<<span id="filepos0042723319">'));
+      expect(document.text, documentText(pseudoMarkup));
+    });
+
+    test('escaped URL parses and round-trips', () {
+      final document = EpubCfiDocument.parse(escapedUrl);
+      expect(document.text, contains('<http://fleursdumal.org/poem/186>'));
+      final at = document.indexOfText('fleursdumal')!;
+      expect(document.offsetForCfi(document.cfiForOffset(at)), at);
+    });
+
+    test('entities the XML parser cannot resolve still decode', () {
+      const html = '<html><body><p>a&nbsp;b — done.</p></body></html>';
+      final document = EpubCfiDocument.parse(html);
+      expect(document.text, 'a\u00A0b — done.');
+      expect(document.text, documentText(html));
+    });
+
+    test('offset-space parity on mixed predefined and named entities', () {
+      const html =
+          '<html><body><p>calibre &amp; eLivre &lt;always&gt;, '
+          'say &quot;hi&quot;/&apos;bye&apos;&nbsp;– done.</p></body></html>';
+      final document = EpubCfiDocument.parse(html);
+      expect(document.text, documentText(html));
+    });
+  });
+
   group('EpubCfi.compare (calibre cfi_sort_key)', () {
     test('compares steps before offsets', () {
       final early = EpubCfi.simple(steps: [2, 4], charOffset: 100);
