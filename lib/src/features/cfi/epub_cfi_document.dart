@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:e_livre/src/features/cfi/epub_cfi.dart';
 import 'package:e_livre/src/features/text/document_text.dart';
+import 'package:html/dom.dart' as dom;
+import 'package:html/parser.dart' as html;
 import 'package:xml/xml.dart';
 
 /// Position/lookup over the parsed tree of one XHTML file. Text
@@ -15,12 +17,23 @@ class EpubCfiDocument {
   /// like [decodeEntity] would); everything else is pre-decoded.
   static const Set<String> _xmlPredefinedEntities = <String>{'lt', 'gt', 'amp', 'quot', 'apos'};
 
+  static final RegExp _numericEntityPattern = RegExp(r'&(#[0-9]+|#[xX][0-9a-fA-F]+);');
+
   /// Parses [xhtml] and indexes its text nodes. Named HTML entities
   /// that XML cannot resolve are decoded first (same entity table as
   /// [documentText]); the five XML predefined ones stay escaped so the
   /// parser decodes them itself — unescaping `&lt;`/`&amp;` here would
   /// inject raw `<`/`&` into the parser's view and turn escaped text
   /// (a literal `&lt;http://…&gt;` citation, say) into bogus markup.
+  ///
+  /// Real publisher content is often tag soup (stray `&`, bare `<`,
+  /// unclosed void elements, mismatched close tags) that strict XML
+  /// rejects. Those sections fall back to an HTML5 parse — the same
+  /// policy as Calibre
+  /// (`calibre/ebooks/oeb/parse_utils.py html5_parse`: content
+  /// documents go through `html5_parser`, never strict XML) — and the
+  /// repaired tree is converted to the XML node model the CFI queries
+  /// already speak.
   factory EpubCfiDocument.parse(final String xhtml) {
     var source = xhtml;
     source = source.replaceAllMapped(
@@ -29,8 +42,71 @@ class EpubCfiDocument {
           ? match.group(0)!
           : (decodeEntity(match.group(1)!) ?? match.group(0)!),
     );
-    final doc = XmlDocument.parse(source);
-    final body = doc.findAllElements('body').first;
+    // Numeric C1 refs: [documentText] pins them to U+FFFD, but strict
+    // XML would decode them to the raw control and the HTML5 fallback
+    // to the Windows-1252 glyph — substitute the pinned character so
+    // every path agrees.
+    source = source.replaceAllMapped(_numericEntityPattern, (final match) {
+      final decoded = decodeEntity(match.group(1)!);
+      return decoded == '\uFFFD' ? '\uFFFD' : match.group(0)!;
+    });
+    try {
+      final doc = XmlDocument.parse(source);
+      final body = doc.findAllElements('body').first;
+      return EpubCfiDocument._(body, _indexTextNodes(body));
+    } on XmlException {
+      return EpubCfiDocument._html5Fallback(source);
+    }
+  }
+
+  /// HTML5 fallback for tag-soup content documents.
+  ///
+  /// Every `&` still in [source] is either one of the five XML
+  /// predefined entities (kept for the tokenizer to decode into text,
+  /// matching [documentText]) or an unknown/bare form [documentText]
+  /// keeps literal — re-escape those so the HTML5 tokenizer keeps them
+  /// literal too instead of decoding half the HTML4 entity table.
+  /// Stray `<` needs no repair: the tokenizer emits it as text, and
+  /// void elements and mismatched close tags follow the spec's tree
+  /// construction, which is exactly what a browser (and Calibre's
+  /// viewer) would see.
+  factory EpubCfiDocument._html5Fallback(final String source) {
+    final repaired = source.replaceAllMapped(
+      RegExp(r'&(?!(?:lt|gt|amp|quot|apos);)'),
+      (final _) => '&amp;',
+    );
+    final document = html.parse(repaired);
+    final body = _convertElement(document.body);
+    return EpubCfiDocument._(body, _indexTextNodes(body));
+  }
+
+  /// Converts an HTML DOM subtree into the XML node model.
+  static XmlElement _convertElement(final dom.Element? element) {
+    if (element == null) {
+      return XmlElement(XmlName('body'));
+    }
+    return XmlElement(
+      XmlName(element.localName ?? ''),
+      [
+        for (final entry in element.attributes.entries)
+          XmlAttribute(XmlName(entry.key.toString()), entry.value.toString()),
+      ],
+      [for (final child in element.nodes) _convertNode(child)],
+    );
+  }
+
+  static XmlNode _convertNode(final dom.Node node) {
+    if (node is dom.Element) {
+      return _convertElement(node);
+    }
+    if (node is dom.Text) {
+      return XmlText(node.data);
+    }
+    // Comments and the rest contribute no text on either side.
+    return XmlText('');
+  }
+
+  static List<XmlNode> _indexTextNodes(final XmlElement body) {
     final textNodes = <XmlNode>[];
     void walk(final XmlNode node) {
       for (final child in node.children) {
@@ -49,7 +125,7 @@ class EpubCfiDocument {
     }
 
     walk(body);
-    return EpubCfiDocument._(body, textNodes);
+    return textNodes;
   }
 
   final XmlElement _body;
