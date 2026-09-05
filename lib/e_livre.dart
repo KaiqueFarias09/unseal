@@ -22,5 +22,6 @@ export 'src/foundation/utils/image_size.dart';
 export 'src/foundation/utils/image_sniffer.dart';
 export 'src/foundation/utils/metadata_utils.dart';
 export 'src/foundation/utils/plain_text.dart';
+export 'src/foundation/utils/rtl_languages.dart';
 export 'src/foundation/utils/sort_keys.dart';
 export 'src/heuristics.dart';
