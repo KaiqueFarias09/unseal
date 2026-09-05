@@ -11,6 +11,7 @@ import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/utils/image_size.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
+import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 import 'package:xml/xml.dart';
 
 /// Parses an FB2 book from raw [bytes] (plain XML or zipped FB2).
@@ -96,7 +97,10 @@ BookMetadata _readDocumentMetadata(final List<int> bytes) {
   // slices instead of building the DOM for the whole document (and
   // base64-decoding every image).
   final typed = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
-  final sliced = _readSlicedMetadata(typed);
+  // Sniff once: the declaration lives at the document start, while
+  // both the fast metadata path and the cover slice see only parts.
+  final encoding = sniffXmlEncoding(typed);
+  final sliced = _readSlicedMetadata(typed, encoding);
   if (sliced != null) return sliced;
 
   final document = _parseXml(bytes);
@@ -107,18 +111,16 @@ BookMetadata _readDocumentMetadata(final List<int> bytes) {
 /// Metadata read over the `<description>` slice, or `null` when the
 /// document does not match the expected shape (caller falls back to
 /// the full parse).
-BookMetadata? _readSlicedMetadata(final Uint8List bytes) {
+BookMetadata? _readSlicedMetadata(final Uint8List bytes, final XmlEncoding encoding) {
   final description = _sliceElement(bytes, 0, _descriptionOpen, _descriptionClose);
   if (description == null) return null;
   try {
-    final wrapper = XmlDocument.parse(
-      '<m>${convert.utf8.decode(description.$1, allowMalformed: true)}</m>',
-    );
+    final wrapper = XmlDocument.parse('<m>${decodeXmlTextAs(description.$1, encoding)}</m>');
     final root = wrapper.rootElement;
     final coverId = _coverId(root);
     final binaries = <String, BinaryFile>{};
     if (coverId != null) {
-      final binary = _sliceCoverBinary(bytes, coverId);
+      final binary = _sliceCoverBinary(bytes, coverId, encoding);
       if (binary != null) {
         binaries[coverId] = binary;
       }
@@ -150,7 +152,11 @@ BookMetadata? _readSlicedMetadata(final Uint8List bytes) {
 }
 
 /// Finds the `<binary id="[coverId]">` element and decodes its image.
-BinaryFile? _sliceCoverBinary(final Uint8List bytes, final String coverId) {
+BinaryFile? _sliceCoverBinary(
+  final Uint8List bytes,
+  final String coverId,
+  final XmlEncoding encoding,
+) {
   var from = 0;
   while (true) {
     final open = _indexOfAscii(bytes, from, _binaryOpen);
@@ -159,18 +165,12 @@ BinaryFile? _sliceCoverBinary(final Uint8List bytes, final String coverId) {
     final tagEnd = _indexOfByte(bytes, open, _greaterThan);
     if (tagEnd == -1) return null;
 
-    final tag = convert.utf8.decode(
-      Uint8List.sublistView(bytes, open, tagEnd + 1),
-      allowMalformed: true,
-    );
+    final tag = decodeXmlTextAs(Uint8List.sublistView(bytes, open, tagEnd + 1), encoding);
     if (_attributeValue(tag, 'id') == coverId) {
       final close = _indexOfAscii(bytes, tagEnd, _binaryClose);
       if (close == -1) return null;
 
-      final text = convert.utf8.decode(
-        Uint8List.sublistView(bytes, tagEnd + 1, close),
-        allowMalformed: true,
-      );
+      final text = decodeXmlTextAs(Uint8List.sublistView(bytes, tagEnd + 1, close), encoding);
 
       return _decodeBinary(coverId, _attributeValue(tag, 'content-type') ?? 'image/jpeg', text);
     }
@@ -274,13 +274,12 @@ int _indexOfByte(final Uint8List bytes, final int from, final int byte) {
 }
 
 XmlDocument _parseXml(final List<int> bytes) {
-  // FB2 files may declare arbitrary encodings; the xml package only
-  // accepts UTF-16 when the input is typed — decode as UTF-8 with
-  // replacement, the overwhelmingly common case.
-  final raw = convert.utf8.decode(bytes, allowMalformed: true);
-  final withoutBom = raw.startsWith('\uFEFF') ? raw.substring(1) : raw;
+  // FB2 files may declare (or omit, or mislabel) any encoding; decode
+  // with the Calibre-style BOM/declaration/detection policy, which
+  // never throws and replaces undecodable bytes with U+FFFD.
+  final raw = decodeXmlText(bytes);
   try {
-    return XmlDocument.parse(withoutBom);
+    return XmlDocument.parse(raw);
   } on XmlException catch (error) {
     throw Fb2Exception('Invalid FB2 document: $error');
   }
