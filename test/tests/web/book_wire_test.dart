@@ -16,7 +16,7 @@ Uint8List _bytes(final String name) =>
 
 /// Encodes [book] exactly the way the worker does, including the MOBI
 /// record 0 slice taken from the source [bytes].
-(Map<String, Object?>, List<Uint8List>) encode(final Book book, final Uint8List bytes) {
+(Map<String, Object?>, List<Object>) encode(final Book book, final Uint8List bytes) {
   Uint8List? record0;
   String? ident;
   if (book is MobiBook) {

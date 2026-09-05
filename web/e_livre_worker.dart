@@ -21,9 +21,10 @@ import 'package:web/web.dart' as web;
 ///
 /// The worker answers two requests — `parse` (whole book) and
 /// `metadata` (fast path) — and replies with a JSON wire payload plus
-/// the binary blobs it references. Parse failures travel back as
-/// typed errors; infrastructure failures (script unreachable, worker
-/// killed) make the main thread fall back to inline parsing.
+/// the blob list it references (binary bytes and text strings side by
+/// side). Parse failures travel back as typed errors; infrastructure
+/// failures (script unreachable, worker killed) make the main thread
+/// fall back to inline parsing.
 void main() {
   globalContext.setProperty('onmessage'.toJS, _handle.toJS);
 }
@@ -44,7 +45,7 @@ void _handle(final web.MessageEvent event) {
         String? ident;
         if (book.format == BookFormat.mobi || book.format == BookFormat.azw3) {
           final pdb = PdbHeader.parse(bytes);
-          record0 = pdb.record(0);
+          record0 = mobiWireRecord0(bytes);
           ident = pdb.ident;
         }
         final (json, blobs) = encodeBookWire(book, mobiRecord0: record0, mobiIdent: ident);
@@ -68,15 +69,18 @@ void _reply(
   final int id,
   final String kind,
   final Map<String, Object?> json,
-  final List<Uint8List> blobs,
+  final List<Object> blobs,
 ) {
   final message = JSObject();
   message.setProperty(wireKeyId.toJS, id.toJS);
   message.setProperty(wireKeyKind.toJS, kind.toJS);
   message.setProperty(wireKeyJson.toJS, encodeJson(json).toJS);
-  final blobArray = JSArray<JSUint8Array>.withLength(blobs.length);
+  // The blob list carries Uint8List entries and String entries side
+  // by side; each one crosses as its native structured-clone type.
+  final blobArray = JSArray<JSAny?>.withLength(blobs.length);
   for (var i = 0; i < blobs.length; i++) {
-    blobArray[i] = blobs[i].toJS;
+    final blob = blobs[i];
+    blobArray[i] = blob is Uint8List ? blob.toJS : (blob as String).toJS;
   }
   message.setProperty(wireKeyBlobs.toJS, blobArray);
   globalContext.callMethod('postMessage'.toJS, message);

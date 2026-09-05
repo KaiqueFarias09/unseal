@@ -14,6 +14,7 @@ import 'package:e_livre/src/features/fb2/exceptions/fb2_exception.dart';
 import 'package:e_livre/src/features/mobi/entities/mobi_book.dart';
 import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
+import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
 import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
@@ -49,7 +50,11 @@ const String wireKeyKind = 'kind';
 /// Wire protocol key: the JSON half of a wire payload.
 const String wireKeyJson = 'json';
 
-/// Wire protocol key: the binary half of a wire payload.
+/// Wire protocol key: the blob half of a wire payload — the flat list
+/// of payloads the JSON map references by index. Entries are
+/// [Uint8List] (binary content) or [String] (text content); structured
+/// clone carries both natively, so text crosses without a UTF-8
+/// round-trip.
 const String wireKeyBlobs = 'blobs';
 
 /// Wire protocol key: exception type name on error replies.
@@ -59,20 +64,24 @@ const String wireKeyType = 'type';
 const String wireKeyMessage = 'message';
 
 /// Encodes a fully parsed [book] into a structured-clone-friendly
-/// wire payload: a JSON map plus the binary payloads it references by
-/// index.
+/// wire payload: a JSON map holding the structure plus the flat blob
+/// list it references by index. Binary content crosses as
+/// [Uint8List] entries and text content (HTML/CSS file bodies) as
+/// [String] entries — structured clone carries both natively, so the
+/// bodies never travel inside the JSON map (no jsonEncode pass over
+/// the HTML, no escaping overhead) and need no UTF-8 round-trip.
 ///
 /// MOBI / AZW3 books cross as their parsing inputs ([mobiRecord0] +
 /// [mobiIdent], the record 0 slice the original parser consumed)
 /// instead of an encoded header; the receiving side re-parses it,
 /// which is microsecond-cheap against the megabytes of decompression
 /// the worker already absorbed.
-(Map<String, Object?>, List<Uint8List>) encodeBookWire(
+(Map<String, Object?>, List<Object>) encodeBookWire(
   final Book book, {
   final Uint8List? mobiRecord0,
   final String? mobiIdent,
 }) {
-  final blobs = <Uint8List>[];
+  final blobs = <Object>[];
   final json = <String, Object?>{
     'format': book.format.name,
     'navigation': _encodeNavigation(book.navigation),
@@ -116,14 +125,14 @@ const String wireKeyMessage = 'message';
 }
 
 /// Encodes format-agnostic [metadata] into a wire payload.
-(Map<String, Object?>, List<Uint8List>) encodeMetadataWire(final BookMetadata metadata) {
-  final blobs = <Uint8List>[];
+(Map<String, Object?>, List<Object>) encodeMetadataWire(final BookMetadata metadata) {
+  final blobs = <Object>[];
 
   return (_encodeMetadata(metadata, blobs), blobs);
 }
 
 /// Decodes a [Book] wire payload produced by [encodeBookWire].
-Book decodeBookWire(final Map<String, Object?> json, final List<Uint8List> blobs) {
+Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
   final format = BookFormat.values.byName(json['format'] as String);
   final navigation = _decodeNavigation(json['navigation'] as Map<String, Object?>);
   final files = _decodeFiles(json['files'] as Map<String, Object?>, blobs);
@@ -148,7 +157,7 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Uint8List> blobs
       navigation: navigation,
       files: files,
       cover: cover,
-      header: MobiHeader.parse(blobs[mobi['record0'] as int], mobi['ident'] as String),
+      header: MobiHeader.parse(blobs[mobi['record0'] as int] as Uint8List, mobi['ident'] as String),
       format: format,
     );
   }
@@ -168,8 +177,31 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Uint8List> blobs
 
 /// Decodes a [BookMetadata] wire payload produced by
 /// [encodeMetadataWire].
-BookMetadata decodeMetadataWire(final Map<String, Object?> json, final List<Uint8List> blobs) =>
+BookMetadata decodeMetadataWire(final Map<String, Object?> json, final List<Object> blobs) =>
     _decodeMetadata(json, blobs);
+
+/// The PDB record slice the MOBI parser consumed as its header.
+///
+/// Plain MOBI 6 and standalone KF8 (AZW3) books parse record 0, but a
+/// joint MOBI 6 + KF8 file parses the KF8 header found past the
+/// BOUNDARY record (EXTH 121), so the wire must cross that slice —
+/// crossing raw record 0 would make the receiving side re-parse the
+/// wrong half (wrong flavor, wrong chapter and resource indexes).
+Uint8List mobiWireRecord0(final Uint8List bytes) {
+  final pdb = PdbHeader.parse(bytes);
+  final header = MobiHeader.parse(pdb.record(0), pdb.ident);
+  if (header.mobiVersion != 8 || header.skelIndex == nullIndex) {
+    final k8i = header.exth?.kf8HeaderIndex;
+    if (k8i != null && k8i >= 1 && k8i - 1 < pdb.count) {
+      final boundary = pdb.record(k8i - 1);
+      if (boundary.length >= 8 && String.fromCharCodes(boundary.sublist(0, 8)) == 'BOUNDARY') {
+        return pdb.record(k8i);
+      }
+    }
+  }
+
+  return pdb.record(0);
+}
 
 /// Rebuilds the exception hierarchy behind a worker error reply:
 /// known [ELivreException] subtypes come back with their own type,
@@ -244,42 +276,23 @@ NavPoint _decodeNavPoint(final Map<String, Object?> json) => NavPoint(
   ],
 );
 
-Map<String, Object?> _encodeFiles(final Files files, final List<Uint8List> blobs) =>
-    <String, Object?>{
-      'html': <Object?>[for (final file in files.html) _encodeTextFile(file)],
-      'css': <Object?>[for (final file in files.css) _encodeTextFile(file)],
-      'images': <Object?>[for (final file in files.images) _encodeBinaryFile(file, blobs)],
-      'fonts': <Object?>[for (final file in files.fonts) _encodeBinaryFile(file, blobs)],
-      'others': <Object?>[for (final file in files.others) _encodeBinaryFile(file, blobs)],
-    };
+Map<String, Object?> _encodeFiles(final Files files, final List<Object> blobs) => <String, Object?>{
+  'html': <Object?>[for (final file in files.html) _encodeTextFile(file, blobs)],
+  'css': <Object?>[for (final file in files.css) _encodeTextFile(file, blobs)],
+  'images': <Object?>[for (final file in files.images) _encodeBinaryFile(file, blobs)],
+  'fonts': <Object?>[for (final file in files.fonts) _encodeBinaryFile(file, blobs)],
+  'others': <Object?>[for (final file in files.others) _encodeBinaryFile(file, blobs)],
+};
 
-Files _decodeFiles(final Map<String, Object?> json, final List<Uint8List> blobs) => Files(
-  html: _decodeTextFiles(json['html'] as List<Object?>),
-  css: _decodeTextFiles(json['css'] as List<Object?>),
+Files _decodeFiles(final Map<String, Object?> json, final List<Object> blobs) => Files(
+  html: _decodeTextFiles(json['html'] as List<Object?>, blobs),
+  css: _decodeTextFiles(json['css'] as List<Object?>, blobs),
   images: _decodeBinaryFiles(json['images'] as List<Object?>, blobs),
   fonts: _decodeBinaryFiles(json['fonts'] as List<Object?>, blobs),
   others: _decodeBinaryFiles(json['others'] as List<Object?>, blobs),
 );
 
-Map<String, Object?> _encodeTextFile(final TextFile file) => <String, Object?>{
-  'path': file.path,
-  'name': file.name,
-  'type': file.type,
-  'content': file.content,
-};
-
-TextFile _decodeTextFile(final Map<String, Object?> json) => TextFile(
-  path: json['path'] as String,
-  name: json['name'] as String,
-  type: json['type'] as String,
-  content: json['content'] as String,
-);
-
-List<TextFile> _decodeTextFiles(final List<Object?> json) => <TextFile>[
-  for (final file in json) _decodeTextFile(file as Map<String, Object?>),
-];
-
-Map<String, Object?> _encodeBinaryFile(final BinaryFile file, final List<Uint8List> blobs) =>
+Map<String, Object?> _encodeTextFile(final TextFile file, final List<Object> blobs) =>
     <String, Object?>{
       'path': file.path,
       'name': file.name,
@@ -287,34 +300,55 @@ Map<String, Object?> _encodeBinaryFile(final BinaryFile file, final List<Uint8Li
       'blob': _pushBlob(blobs, file.content),
     };
 
-BinaryFile _decodeBinaryFile(final Map<String, Object?>? json, final List<Uint8List> blobs) =>
+TextFile _decodeTextFile(final Map<String, Object?> json, final List<Object> blobs) => TextFile(
+  path: json['path'] as String,
+  name: json['name'] as String,
+  type: json['type'] as String,
+  content: blobs[json['blob'] as int] as String,
+);
+
+List<TextFile> _decodeTextFiles(final List<Object?> json, final List<Object> blobs) => <TextFile>[
+  for (final file in json) _decodeTextFile(file as Map<String, Object?>, blobs),
+];
+
+Map<String, Object?> _encodeBinaryFile(final BinaryFile file, final List<Object> blobs) =>
+    <String, Object?>{
+      'path': file.path,
+      'name': file.name,
+      'type': file.type,
+      'blob': _pushBlob(blobs, file.content),
+    };
+
+BinaryFile _decodeBinaryFile(final Map<String, Object?>? json, final List<Object> blobs) =>
     json == null
     ? BinaryFile.empty()
     : BinaryFile(
         path: json['path'] as String,
         name: json['name'] as String,
         type: json['type'] as String,
-        content: blobs[json['blob'] as int],
+        content: blobs[json['blob'] as int] as Uint8List,
       );
 
-List<BinaryFile> _decodeBinaryFiles(final List<Object?> json, final List<Uint8List> blobs) =>
+List<BinaryFile> _decodeBinaryFiles(final List<Object?> json, final List<Object> blobs) =>
     <BinaryFile>[for (final file in json) _decodeBinaryFile(file as Map<String, Object?>, blobs)];
 
 List<ArchiveEntry> _decodeArchiveEntries(final List<Object?> json) => <ArchiveEntry>[
   for (final entry in json)
     ArchiveEntry(
       path: (entry as Map<String, Object?>)['path'] as String,
-      size: (entry as Map<String, Object?>)['size'] as int,
+      size: entry['size'] as int,
     ),
 ];
 
-int _pushBlob(final List<Uint8List> blobs, final Uint8List bytes) {
-  blobs.add(bytes);
+/// Appends a blob payload (binary bytes or a text string) and returns
+/// the index the JSON map must reference.
+int _pushBlob(final List<Object> blobs, final Object payload) {
+  blobs.add(payload);
 
   return blobs.length - 1;
 }
 
-Map<String, Object?> _encodeMetadata(final BookMetadata metadata, final List<Uint8List> blobs) =>
+Map<String, Object?> _encodeMetadata(final BookMetadata metadata, final List<Object> blobs) =>
     <String, Object?>{
       'format': metadata.format.name,
       'title': metadata.title,
@@ -342,7 +376,7 @@ Map<String, Object?> _encodeMetadata(final BookMetadata metadata, final List<Uin
             },
     };
 
-BookMetadata _decodeMetadata(final Map<String, Object?> json, final List<Uint8List> blobs) {
+BookMetadata _decodeMetadata(final Map<String, Object?> json, final List<Object> blobs) {
   final cover = json['cover'] as Map<String, Object?>?;
 
   return BookMetadata(
@@ -365,7 +399,7 @@ BookMetadata _decodeMetadata(final Map<String, Object?> json, final List<Uint8Li
     cover: cover == null
         ? null
         : BookCover(
-            bytes: blobs[cover['blob'] as int],
+            bytes: blobs[cover['blob'] as int] as Uint8List,
             type: ImageType.values.byName(cover['type'] as String),
             width: cover['width'] as int?,
             height: cover['height'] as int?,
@@ -381,6 +415,7 @@ Map<String, Object?> _encodePackage(final EpubPackage package) => <String, Objec
   'tocId': package is Epub3Package ? package.tocId : null,
   'metadata': _encodePackageMetadata(package),
   'manifest': <String, Object?>{
+    'kind': package.manifest is Epub3Manifest ? 3 : 2,
     'items': <Object?>[
       for (final item in package.manifest.items)
         <String, Object?>{
@@ -418,7 +453,7 @@ Map<String, Object?> _encodePackageMetadata(final EpubPackage package) {
   final metadata = package.metadata;
 
   return <String, Object?>{
-    'kind': package is Epub3Package ? 3 : 2,
+    'kind': metadata is Epub3Metadata ? 3 : 2,
     'title': metadata.title,
     'date': metadata.date,
     'language': metadata.language,
@@ -457,16 +492,21 @@ Map<String, Object?> _encodePackageMetadata(final EpubPackage package) {
 
 EpubPackage _decodePackage(final Map<String, Object?> json) {
   final isEpub3 = json['kind'] == 3;
+  // Manifest and metadata flavors travel with their own kind: a real
+  // file can mix them (an EPUB 3 package may carry an EPUB 2 manifest
+  // when its items declare no `properties`), so they never inherit the
+  // package flavor.
   final manifestJson = json['manifest'] as Map<String, Object?>;
-  final manifest = isEpub3
+  final manifest = manifestJson['kind'] == 3
       ? Epub3Manifest(
           items: _decodeManifestItems(manifestJson['items'] as List<Object?>),
           properties: (manifestJson['properties'] as String?) ?? '',
         )
       : Epub2Manifest(items: _decodeManifestItems(manifestJson['items'] as List<Object?>));
-  final metadata = isEpub3
-      ? _decodeEpub3Metadata(json['metadata'] as Map<String, Object?>)
-      : _decodeEpub2Metadata(json['metadata'] as Map<String, Object?>);
+  final metadataJson = json['metadata'] as Map<String, Object?>;
+  final metadata = metadataJson['kind'] == 3
+      ? _decodeEpub3Metadata(metadataJson)
+      : _decodeEpub2Metadata(metadataJson);
   final guideJson = json['guide'] as Map<String, Object?>?;
   final guide = guideJson == null
       ? null

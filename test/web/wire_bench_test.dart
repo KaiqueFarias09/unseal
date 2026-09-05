@@ -6,9 +6,10 @@ library;
 // Times [encodeBookWire] and [decodeBookWire] over a synthetic
 // in-memory EPUB, mirrors of the VM measurements in
 // benchmark/book_wire_benchmarks.dart, and asserts the roundtrip
-// keeps the book's semantic content. The numbers are printed to the
-// test runner's stdout because the browser suite has no benchmark
-// harness.
+// keeps the book's semantic content — including the text payloads,
+// which cross the wire as String entries of the blob list instead of
+// JSON-escaped map values. The numbers are printed to the test
+// runner's stdout because the browser suite has no benchmark harness.
 //
 // dart2js notes honored here: records are destructured positionally
 // (named-field patterns fail to compile) and lists are never
@@ -39,6 +40,7 @@ const String _opfContent = '''
   </metadata>
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="css1" href="styles.css" media-type="text/css"/>
     <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
     <item id="img1" href="images/pic.jpg" media-type="image/jpeg"/>
   </manifest>
@@ -73,10 +75,12 @@ const String _ncxContent = '''
 
 const String _chapterContent = '''
 <html xmlns="http://www.w3.org/1999/xhtml">
-  <head><title>Chapter One</title></head>
+  <head><title>Chapter One</title><link rel="stylesheet" type="text/css" href="styles.css"/></head>
   <body><p>Hello from the wire bench.</p><img src="images/pic.jpg" alt="pic"/></body>
 </html>
 ''';
+
+const String _cssContent = 'body { font-family: serif; } p { margin: 0; }';
 
 const int _iterations = 20;
 
@@ -97,6 +101,7 @@ Uint8List buildWireBenchEpub() => _zip([
   ('META-INF/container.xml', _utf8(_containerContent), false),
   ('content.opf', _utf8(_opfContent), false),
   ('toc.ncx', _utf8(_ncxContent), false),
+  ('styles.css', _utf8(_cssContent), false),
   ('ch1.xhtml', _utf8(_chapterContent), false),
   ('images/pic.jpg', tinyJpeg, false),
 ]);
@@ -126,10 +131,18 @@ void main() {
     var decoded = decodeBookWire(json, blobs);
     final decodeMicros = _time(_iterations, () => decoded = decodeBookWire(json, blobs));
 
-    var blobBytes = 0;
+    var binaryBytes = 0;
+    var textBytes = 0;
+    var textEntries = 0;
     for (final blob in blobs) {
-      blobBytes += blob.length;
+      if (blob is Uint8List) {
+        binaryBytes += blob.length;
+      } else if (blob is String) {
+        textEntries++;
+        textBytes += convert.utf8.encode(blob).length;
+      }
     }
+    final blobBytes = binaryBytes + textBytes;
     final jsonBytes = convert.utf8.encode(encodeJson(json)).length;
     final wireBytes = jsonBytes + blobBytes;
     final factor = (wireBytes / bytes.length).toStringAsFixed(2);
@@ -153,7 +166,8 @@ void main() {
     );
     // ignore: avoid_print, the browser runner has no benchmark harness
     print(
-      'wire payload: json $jsonBytes B + blobs $blobBytes B = '
+      'wire payload: json $jsonBytes B + blobs $blobBytes B '
+      '(${blobs.length - textEntries} binary + $textEntries text) = '
       '$wireBytes B ($factor× file)',
     );
 
@@ -167,7 +181,8 @@ void main() {
     expect(roundtrip.metadata.title, book.metadata.title);
     expect(roundtrip.metadata.authors, book.metadata.authors);
     expect(roundtrip.navigation.navPoints.single.label, 'Chapter One');
-    expect(roundtrip.files.html.single.content, contains('Hello from the wire bench.'));
+    expect(roundtrip.files.html.single.path, book.files.html.single.path);
+    expect(roundtrip.files.html.single.content, book.files.html.single.content);
     expect(roundtrip.files.images.single.content, tinyJpeg);
     expect(roundtrip.spinePaths, book.spinePaths);
     expect(roundtrip.package.manifest.items.length, book.package.manifest.items.length);
@@ -175,6 +190,178 @@ void main() {
     expect(roundtrip.archiveEntries.length, book.archiveEntries.length);
     expect(decoded, isA<EpubBook>());
   });
+
+  test('text bodies cross as blob-list strings, not JSON map values', () {
+    final bytes = buildWireBenchEpub();
+    final book = BookReader.parseBook(bytes) as EpubBook;
+    final (json, blobs) = encodeBookWire(book);
+
+    final filesJson = json['files'] as Map<String, Object?>;
+    final htmlEntry = (filesJson['html'] as List<Object?>).single as Map<String, Object?>;
+    expect(htmlEntry.containsKey('content'), isFalse, reason: 'bodies must not ride the JSON map');
+    expect(htmlEntry['blob'], isA<int>());
+    final textBlob = blobs[htmlEntry['blob'] as int] as String;
+    expect(textBlob, book.files.html.single.content);
+    expect(textBlob, contains('Hello from the wire bench.'));
+
+    final cssEntry = (filesJson['css'] as List<Object?>).single as Map<String, Object?>;
+    expect(blobs[cssEntry['blob'] as int] as String, book.files.css.single.content);
+  });
+
+  test('keeps empty text content across the wire', () {
+    final book =
+        BookReader.parseBook(_syntheticEpub(title: 'Empty Bodies', chapters: [('ch1.xhtml', '')]))
+            as EpubBook;
+
+    final (json, blobs) = encodeBookWire(book);
+    final roundtrip = decodeBookWire(decodeJson(encodeJson(json)), blobs) as EpubBook;
+
+    expect(roundtrip.files.html.single.content, isEmpty);
+    expect(roundtrip.files.html.single.path, book.files.html.single.path);
+  });
+
+  test('keeps unicode, emoji and multi-KB bodies across the wire', () {
+    final body =
+        '<html><body><p>Ünïcødé — 中文 📚🦋 '
+        '${'lorem ipsum dolor sit amet ' * 200}</p></body></html>';
+    final book =
+        BookReader.parseBook(
+              _syntheticEpub(title: 'Ünïcødé — 中文 📚', chapters: [('ch1.xhtml', body)]),
+            )
+            as EpubBook;
+    expect(book.files.html.single.content.length, greaterThan(5000));
+
+    final (json, blobs) = encodeBookWire(book);
+    final roundtrip = decodeBookWire(decodeJson(encodeJson(json)), blobs) as EpubBook;
+
+    expect(roundtrip.metadata.title, 'Ünïcødé — 中文 📚');
+    expect(roundtrip.files.html.single.content, book.files.html.single.content);
+    expect(roundtrip.navigation.title, book.navigation.title);
+  });
+
+  test('round-trips many small sections', () {
+    final chapters = <(String, String)>[
+      for (var i = 1; i <= 40; i++)
+        ('ch$i.xhtml', '<html><body><p>Section $i body.</p></body></html>'),
+    ];
+    final book =
+        BookReader.parseBook(_syntheticEpub(title: 'Many Sections', chapters: chapters))
+            as EpubBook;
+
+    final (json, blobs) = encodeBookWire(book);
+    final roundtrip = decodeBookWire(decodeJson(encodeJson(json)), blobs) as EpubBook;
+
+    expect(roundtrip.files.html, hasLength(40));
+    expect(
+      [for (final file in roundtrip.files.html) file.content],
+      [for (final file in book.files.html) file.content],
+    );
+    expect(roundtrip.spinePaths, book.spinePaths);
+  });
+
+  test('round-trips a book with zero html', () {
+    final book =
+        BookReader.parseBook(
+              _syntheticEpub(
+                title: 'No Html',
+                chapters: const [],
+                styles: [('style.css', 'body{color:red}')],
+              ),
+            )
+            as EpubBook;
+
+    expect(book.files.html, isEmpty);
+    final (json, blobs) = encodeBookWire(book);
+    final roundtrip = decodeBookWire(decodeJson(encodeJson(json)), blobs) as EpubBook;
+
+    expect(roundtrip.files.html, isEmpty);
+    expect(roundtrip.files.css.single.content, 'body{color:red}');
+    expect(roundtrip.metadata.title, 'No Html');
+  });
+  test('keeps the package, manifest and metadata flavors', () {
+    for (final version in ['2.0', '3.0']) {
+      final book =
+          BookReader.parseBook(
+                _syntheticEpub(
+                  title: 'Flavors $version',
+                  chapters: [('ch1.xhtml', '<html><body><p>Flavor probe.</p></body></html>')],
+                  version: version,
+                ),
+              )
+              as EpubBook;
+
+      final (json, blobs) = encodeBookWire(book);
+      final roundtrip = decodeBookWire(decodeJson(encodeJson(json)), blobs) as EpubBook;
+
+      expect(roundtrip.package.runtimeType, book.package.runtimeType, reason: version);
+      expect(
+        roundtrip.package.manifest.runtimeType,
+        book.package.manifest.runtimeType,
+        reason: version,
+      );
+      expect(
+        roundtrip.package.metadata.runtimeType,
+        book.package.metadata.runtimeType,
+        reason: version,
+      );
+    }
+  });
+}
+
+/// Builds a minimal EPUB in memory with the given [chapters]
+/// (path, body) and optional [styles], one spine entry per chapter.
+Uint8List _syntheticEpub({
+  required final String title,
+  required final List<(String, String)> chapters,
+  final List<(String, String)> styles = const <(String, String)>[],
+  final String version = '2.0',
+}) {
+  final manifestItems = <String>[
+    '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>',
+    for (final (index, _) in chapters.indexed)
+      '<item id="ch$index" href="${chapters[index].$1}" media-type="application/xhtml+xml"/>',
+    for (final (index, _) in styles.indexed)
+      '<item id="css$index" href="${styles[index].$1}" media-type="text/css"/>',
+  ];
+  final opf =
+      '''
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    version="$version" unique-identifier="uid">
+  <metadata>
+    <dc:title>$title</dc:title>
+    <dc:language>en</dc:language>
+    <dc:identifier id="uid">urn:uuid:synthetic</dc:identifier>
+  </metadata>
+  <manifest>${manifestItems.join()}</manifest>
+  <spine toc="ncx">${chapters.indexed.map((final e) => '<itemref idref="ch${e.$1}"/>').join()}</spine>
+</package>
+''';
+  final ncx =
+      '''
+<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head><meta name="dtb:uid" content="urn:uuid:synthetic"/></head>
+  <docTitle><text>$title</text></docTitle>
+  <navMap>${chapters.indexed.map((final e) {
+        final index = e.$1;
+        final href = e.$2.$1;
+        return '<navPoint id="np$index" playOrder="${index + 1}">'
+            '<navLabel><text>Section $index</text></navLabel>'
+            '<content src="$href"/></navPoint>';
+      }).join()}</navMap>
+</ncx>
+''';
+
+  return _zip([
+    ('mimetype', _utf8('application/epub+zip'), true),
+    ('META-INF/container.xml', _utf8(_containerContent), false),
+    ('content.opf', _utf8(opf), false),
+    ('toc.ncx', _utf8(ncx), false),
+    for (final (path, body) in chapters) (path, _utf8(body), false),
+    for (final (path, css) in styles) (path, _utf8(css), false),
+  ]);
 }
 
 String _perOp(final int totalMicros) {

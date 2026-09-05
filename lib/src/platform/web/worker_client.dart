@@ -113,10 +113,12 @@ final class WorkerClient {
         case wireReplyBook:
         case wireReplyMetadata:
           final json = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
-          final blobs = <Uint8List>[
-            for (final blob
-                in (data.getProperty(wireKeyBlobs.toJS) as JSArray<JSUint8Array>).toDart)
-              blob.toDart,
+          // Blobs hold Uint8List entries and String entries side by
+          // side; each element is converted on its own (a wholesale
+          // downcast breaks under dart2js).
+          final blobs = <Object>[
+            for (final blob in (data.getProperty(wireKeyBlobs.toJS) as JSArray<JSAny?>).toDart)
+              blob.isA<JSUint8Array>() ? (blob as JSUint8Array).toDart : (blob as JSString).toDart,
           ];
           completer.complete(
             kind == wireReplyBook ? decodeBookWire(json, blobs) : decodeMetadataWire(json, blobs),

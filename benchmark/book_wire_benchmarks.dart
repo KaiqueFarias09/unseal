@@ -1,17 +1,21 @@
 // Benchmarks for the web worker wire codec
 // (package:e_livre/src/platform/web/book_wire.dart).
 //
-// The codec is what a parsed book pays to cross the worker -> main
-// thread boundary: [encodeBookWire] flattens a parsed [Book] into a
-// JSON map plus the binary blobs it references by index, and
+// The codec is what a parsed book crosses the worker -> main
+// thread boundary with: [encodeBookWire] flattens a parsed [Book]
+// into a JSON map holding the structure plus a flat blob list it
+// references by index — binary content crosses as Uint8List entries
+// and text content (HTML/CSS bodies) as String entries, so the file
+// bodies never travel JSON-escaped inside the map — and
 // [decodeBookWire] rebuilds the object graph on the receiving side.
 // EPUB books cross as the full package graph; MOBI crosses as its
 // parsing inputs (record 0 slice + ident), so the measured decode
 // includes the record-0 header re-parse the worker protocol performs.
 //
 // Each row's extra column reports the encoded payload size (JSON
-// string bytes + blob bytes, exactly what travels over postMessage)
-// against the original file bytes.
+// string bytes + blob bytes, exactly what travels over postMessage;
+// text blobs measured at their UTF-8 size) against the original file
+// bytes.
 
 import 'dart:convert' as convert;
 import 'dart:typed_data';
@@ -47,6 +51,16 @@ void _addGraphWire(final BenchmarkGroup group, final BookFixture fixture) {
     note: note,
   );
   group.add(
+    'worker reply — ${fixture.label}',
+    () {
+      final (replyJson, _) = encodeBookWire(book);
+
+      return encodeJson(replyJson);
+    },
+    inputBytes: fixture.bytes.length,
+    note: note,
+  );
+  group.add(
     'decodeBookWire — ${fixture.label}',
     () => decodeBookWire(json, blobs),
     inputBytes: fixture.bytes.length,
@@ -54,19 +68,29 @@ void _addGraphWire(final BenchmarkGroup group, final BookFixture fixture) {
   );
 }
 
-/// Times the MOBI wire shapes: encode with the record 0 slice + ident,
-/// the decode-side header re-parse, and the full roundtrip.
+/// Times the MOBI wire shapes: encode with the header slice + ident
+/// the worker crosses, the decode-side header re-parse, and the full
+/// roundtrip.
 void _addMobiWire(final BenchmarkGroup group, final BookFixture fixture) {
   final book = BookReader.parseBook(fixture.bytes) as MobiBook;
-  final pdb = PdbHeader.parse(fixture.bytes);
-  final record0 = pdb.record(0);
-  final ident = pdb.ident;
+  final record0 = mobiWireRecord0(fixture.bytes);
+  final ident = PdbHeader.parse(fixture.bytes).ident;
   final (json, blobs) = encodeBookWire(book, mobiRecord0: record0, mobiIdent: ident);
   final note = _wireNote(json, blobs, fixture.bytes.length);
 
   group.add(
     'encodeBookWire — ${fixture.label}',
     () => encodeBookWire(book, mobiRecord0: record0, mobiIdent: ident),
+    inputBytes: fixture.bytes.length,
+    note: note,
+  );
+  group.add(
+    'worker reply — ${fixture.label}',
+    () {
+      final (replyJson, _) = encodeBookWire(book, mobiRecord0: record0, mobiIdent: ident);
+
+      return encodeJson(replyJson);
+    },
     inputBytes: fixture.bytes.length,
     note: note,
   );
@@ -89,16 +113,17 @@ void _addMobiWire(final BenchmarkGroup group, final BookFixture fixture) {
 }
 
 /// Sizes the wire payload the way the worker transport does (JSON
-/// string plus the indexed blobs) and compares it to the file bytes.
-String _wireNote(
-  final Map<String, Object?> json,
-  final List<Uint8List> blobs,
-  final int fileBytes,
-) {
+/// string plus the indexed blobs, text counted at its UTF-8 size) and
+/// compares it to the file bytes.
+String _wireNote(final Map<String, Object?> json, final List<Object> blobs, final int fileBytes) {
   final jsonBytes = convert.utf8.encode(encodeJson(json)).length;
   var blobBytes = 0;
   for (final blob in blobs) {
-    blobBytes += blob.length;
+    if (blob is Uint8List) {
+      blobBytes += blob.length;
+    } else if (blob is String) {
+      blobBytes += convert.utf8.encode(blob).length;
+    }
   }
   final total = jsonBytes + blobBytes;
   final factor = (total / fileBytes).toStringAsFixed(fileBytes < total ? 2 : 3);
