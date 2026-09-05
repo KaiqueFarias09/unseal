@@ -354,7 +354,9 @@ List<ManifestItem> _parseManifestItems(
 Spine _parseSpine(final XmlElement spineElement) {
   return Spine(
     tocId: spineElement.getAttribute('toc'),
-    pageProgressionDirection: spineElement.getAttribute('page-progression-direction'),
+    pageProgressionDirection: PageProgressionDirection.fromSpineValue(
+      spineElement.getAttribute('page-progression-direction'),
+    ),
     items: spineElement
         .findElements('itemref')
         .map((final itemrefElement) => itemrefElement.getAttribute('idref')!)

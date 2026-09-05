@@ -1,5 +1,7 @@
 // Base classes
 
+import 'package:e_livre/src/features/epub/entities/package/page_progression_direction.dart';
+
 abstract class EpubPackage {
   EpubPackage({
     required this.version,
@@ -104,14 +106,19 @@ class ManifestItem {
 }
 
 class Spine {
-  Spine({required this.tocId, required this.items, this.pageProgressionDirection});
+  Spine({
+    required this.tocId,
+    required this.items,
+    this.pageProgressionDirection = PageProgressionDirection.unspecified,
+  });
 
   String? tocId;
   List<String> items;
 
-  /// EPUB3 spine `page-progression-direction`: `'rtl'` or `'ltr'`.
-  /// Null means the book declares no direction (treated as LTR).
-  String? pageProgressionDirection;
+  /// The spine `page-progression-direction` attribute: `.ltr` or
+  /// `.rtl` when the book declares its page flow, `.unspecified` when
+  /// the attribute is absent, `default`, or malformed.
+  PageProgressionDirection pageProgressionDirection;
 
   @override
   String toString() {
