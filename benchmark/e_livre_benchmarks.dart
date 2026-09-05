@@ -13,6 +13,7 @@ import 'dart:io';
 
 import 'benchmark_harness.dart';
 import 'book_wire_benchmarks.dart';
+import 'calibre_scale_benchmarks.dart';
 import 'detection_benchmarks.dart';
 import 'getters_benchmarks.dart';
 import 'library_corpus_benchmarks.dart';
@@ -42,6 +43,8 @@ Future<void> main(final List<String> arguments) async {
   runGetterBenchmarks();
   runBookWireBenchmarks();
   runUtilityBenchmarks();
+  runCalibreScaleBenchmarks();
+
   // The real-corpus scan runs last: it is the slowest group and only
   // active when ELIVRE_BENCH_LIBRARY points at a library.
   await runLibraryCorpusBenchmarks();
