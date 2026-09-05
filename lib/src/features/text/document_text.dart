@@ -34,8 +34,11 @@ import 'package:e_livre/src/foundation/entities/file/text_file.dart';
 ///   A CDATA section collapses to the two characters `$1` — an
 ///   artifact of the old `replaceAll(…, r'$1')` whose replacement
 ///   Dart does not interpolate — and must stay for offset stability;
-/// * an unterminated `<` stays literal text; declarations (`<!…>`)
-///   and tags (`<…>`) run to the next effective `>`;
+/// * `<` opens a tag only before an ASCII letter or `/` (HTML5
+///   tokenizer rule — the same view a WebView DOM takes); elsewhere
+///   (`a < b > c`) it stays literal text. Declarations (`<!…>`) and
+///   tags (`<…>`) run to the next effective `>`, and a `<` left with
+///   no effective `>` ahead stays literal;
 /// * named and numeric entities are decoded with the exact edge
 ///   semantics of [decodeEntity] (NUL/C1 → U+FFFD, invalid numerics
 ///   and unknown names stay literal). Because entities were decoded
@@ -191,8 +194,13 @@ String documentText(final String html) {
       }
       // Pass 5: tags '<…>' up to the next effective '>' (declarations
       // were already removed at that point, so their '>' does not
-      // count).
-      if (!isTagExhausted) {
+      // count). HTML5 tokenizer rule: '<' only opens a tag before an
+      // ASCII letter or '/'; before anything else (digit, whitespace,
+      // another '<', end of input) it is literal text — a browser DOM
+      // keeps 'a < b > c' intact, so the offset space does too.
+      final next = i + 1 < end ? units[i + 1] : -1;
+      final opensTag = _isAlpha(next) || next == _slash || next == _question;
+      if (!isTagExhausted && opensTag) {
         final gt = _findGtEnding(units, i + 1, end, isDeclarationSkipping: true);
         if (gt != -1) {
           i = gt + 1;
@@ -200,7 +208,7 @@ String documentText(final String html) {
         }
         isTagExhausted = true;
       }
-      // Unterminated '<': literal text.
+      // Unterminated '<' or a '<' that opens no tag: literal text.
       writeUnit(unit);
       i++;
       continue;
@@ -481,6 +489,7 @@ const Map<String, String> _namedEntities = <String, String>{
   'szlig': '\u00DF',
 };
 
+const int _slash = 0x2F;
 const int _lessThan = 0x3C;
 const int _greaterThan = 0x3E;
 const int _ampersand = 0x26;
@@ -488,6 +497,7 @@ const int _hash = 0x23;
 const int _lowerX = 0x78;
 const int _upperX = 0x58;
 const int _bang = 0x21;
+const int _question = 0x3F;
 const int _semicolon = 0x3B;
 const int _dollar = 0x24;
 const int _digitOne = 0x31;

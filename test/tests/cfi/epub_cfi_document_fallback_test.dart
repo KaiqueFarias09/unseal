@@ -11,6 +11,7 @@ void main() {
   group('EpubCfiDocument HTML5 fallback', () {
     const soups = <String, String>{
       'bare ampersand': '<html><body><p>AT&T and R&D; labs</p></body></html>',
+      'stray less-than': '<html><body><p>3 < 4 and a < b, done.</p></body></html>',
       'unclosed void elements':
           '<html><body><p>one<br>two<img src="a.png">three<hr>four</p></body></html>',
       'mismatched close tags':
@@ -48,13 +49,10 @@ void main() {
       );
     });
 
-    test('stray < stays text in the tree', () {
-      // The HTML5 tokenizer (and therefore the CFI tree, like any
-      // browser DOM) keeps `< ` as literal text. documentText's legacy
-      // regex strip (`<[^>]*>`) instead eats to the next `>` — a known
-      // divergence with zero occurrences across the 3,351-section
-      // real corpus (probe-verified), so the two offset spaces agree
-      // wherever it matters today.
+    test('stray < agrees between the tree and documentText', () {
+      // Both the HTML5 tokenizer and documentText keep '< ' as literal
+      // text, so the CFI and search offset spaces stay aligned even in
+      // tag-soup sections.
       const source = '<html><body><p>3 < 4 and a < b, done.</p></body></html>';
       expect(EpubCfiDocument.parse(source).text, '3 < 4 and a < b, done.');
     });

@@ -94,12 +94,16 @@ void main() {
         expect(documentText('<!x no gt ever'), '<!x no gt ever');
       });
 
-      test('a tag runs to the next > even across text and markup', () {
-        expect(documentText('a < b > c'), 'a  c');
-        expect(documentText('2 < 3 and 5 > 4'), '2  4');
-        expect(documentText('a<<b>c'), 'ac');
-        expect(documentText('<<script>x</script>p>'), '');
-        expect(documentText('<<!--x-->p>'), '');
+      test('a < before a non-tag character stays literal text', () {
+        // HTML5 tokenizer rule: only <letter> and </ open markup, so a
+        // browser DOM keeps these strings intact — and so does the
+        // offset space now.
+        expect(documentText('a < b > c'), 'a < b > c');
+        expect(documentText('2 < 3 and 5 > 4'), '2 < 3 and 5 > 4');
+        expect(documentText('a<<b>c'), 'a<c');
+        // The second < still opens real markup (and a removed block):
+        expect(documentText('<<script>x</script>p>'), '<p>');
+        expect(documentText('<<!--x-->p>'), '<p>');
       });
     });
 
