@@ -307,19 +307,85 @@ int _indexOfIgnoreCase(final List<int> units, final int from, final List<int> lo
   return -1;
 }
 
-/// Counts whitespace-separated words in [text].
+/// Counts words in [text] the way Calibre does for its reading-time
+/// estimates.
+///
+/// Two rules combine into one count:
+///
+/// * every Asian code point — anything strictly above U+3000 — counts
+///   exactly one word. Chinese, Japanese and Korean characters carry
+///   no spaces, so per-character counting is the only meaningful
+///   estimate for them. The ideographic space U+3000 itself is *not*
+///   Asian (it is whitespace); and
+/// * the remaining text is whitespace-split the way Python's
+///   `str.split` splits (the ASCII whitespace set plus NBSP, the
+///   Unicode separator ranges and the ideographic space), so Latin
+///   and other spaced scripts keep their word count.
+///
+/// Quirks inherited from Calibre on purpose, so both tools agree:
+///
+/// * CJK punctuation (、。「」…) sits above U+3000 and therefore also
+///   counts one word per mark — a mild over-count;
+/// * space-less scripts such as Thai, Lao or Khmer stay
+///   whitespace-split, so a whole unbroken run counts as one word —
+///   an under-count;
+/// * astral code points (emoji, rare hanzi) are above U+3000 too and
+///   count one word each.
 int countWords(final String text) {
-  var count = 0;
+  final units = text.codeUnits;
+  final length = units.length;
+  var nonAsianWords = 0;
+  var asianChars = 0;
   var isInWord = false;
-  for (final codeUnit in text.codeUnits) {
-    final isSpace = codeUnit == 0x20 || (codeUnit >= 0x09 && codeUnit <= 0x0D);
-    if (isSpace) {
+  var i = 0;
+  while (i < length) {
+    var rune = units[i];
+    // Decode surrogate pairs so an astral code point counts once, not
+    // twice; a lone surrogate falls through with its own — Asian —
+    // code unit value.
+    if (_isHighSurrogate(rune) && i + 1 < length && _isLowSurrogate(units[i + 1])) {
+      rune = 0x10000 + ((rune - 0xD800) << 10) + (units[i + 1] - 0xDC00);
+      i += 2;
+    } else {
+      i++;
+    }
+
+    if (rune > _ideographicSpace) {
+      asianChars++;
+      isInWord = false;
+    } else if (_isSplitWhitespace(rune)) {
       isInWord = false;
     } else if (!isInWord) {
       isInWord = true;
-      count++;
+      nonAsianWords++;
     }
   }
 
-  return count;
+  return nonAsianWords + asianChars;
 }
+
+const int _ideographicSpace = 0x3000;
+
+bool _isHighSurrogate(final int unit) => unit >= 0xD800 && unit <= 0xDBFF;
+
+bool _isLowSurrogate(final int unit) => unit >= 0xDC00 && unit <= 0xDFFF;
+
+/// The whitespace set Python's `str.split` splits on, restricted to
+/// code points at or below U+3000 (everything above counts as Asian
+/// anyway). Deliberately *not* the ECMAScript `\s` set used by
+/// [extractPlainText]: this set adds the file/group/record/unit
+/// separators and NEL, and drops ZWNBSP, so [countWords] matches
+/// Calibre's Python split exactly.
+bool _isSplitWhitespace(final int rune) =>
+    rune == 0x20 ||
+    (rune >= 0x09 && rune <= 0x0D) ||
+    (rune >= 0x1C && rune <= 0x1F) ||
+    rune == 0x85 ||
+    rune == 0xA0 ||
+    rune == 0x1680 ||
+    (rune >= 0x2000 && rune <= 0x200A) ||
+    rune == 0x2028 ||
+    rune == 0x2029 ||
+    rune == 0x202F ||
+    rune == 0x205F ||
+    rune == 0x3000;
