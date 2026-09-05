@@ -13,6 +13,7 @@ import 'dart:io';
 
 import 'benchmark_harness.dart';
 import 'detection_benchmarks.dart';
+import 'document_text_search_benchmarks.dart';
 import 'getters_benchmarks.dart';
 import 'metadata_benchmarks.dart';
 import 'parsing_benchmarks.dart';
@@ -39,6 +40,7 @@ Future<void> main(final List<String> arguments) async {
   await runMetadataBenchmarks();
   runGetterBenchmarks();
   runUtilityBenchmarks();
+  runDocumentTextSearchBenchmarks();
 
   printFooter(total.elapsed);
 }
