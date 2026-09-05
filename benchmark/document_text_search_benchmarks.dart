@@ -2,21 +2,23 @@
 // full-text search built on it ([BookSearch.search]).
 //
 // [documentText] is the shared character offset space of search, CFI
-// and reading positions; its implementation is a multi-pass regex
-// pipeline (~7 replaceAll passes). The first group pairs it against
-// [extractPlainText] — the hand-optimized single-pass text utility —
-// on the exact same input, then times [documentText] on individual
-// sections of a real multi-section book so the per-KB cost is visible.
+// and reading positions; its implementation is a single-pass scanner
+// that bulk-copies text spans between markup. The first group pairs it
+// against [extractPlainText] — the single-pass text utility — on the
+// exact same input (cold compute, then [documentTextOf]'s Expando
+// memo), then times [documentText] on individual sections of a real
+// multi-section book so the per-KB cost is visible.
 //
-// `BookSearch.search` has no text cache: every call re-runs
-// [documentText] over every HTML section in reading order before any
-// pattern is matched. The notes and the double-call line below make
-// that rebuild cost visible.
+// `BookSearch.search` memoizes the document text of every section
+// ([documentTextOf]), so each pair below separates the cold first
+// search (fresh parse, every section scanned) from the warm repeat
+// (memo hits, pattern matching only).
 
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
 
@@ -42,15 +44,32 @@ void runDocumentTextSearchBenchmarks() {
 void _runDocumentTextGroup() {
   final group = BenchmarkGroup('documentText');
 
-  // Deliberate A/B: the same chapter through the multi-pass regex
-  // pipeline and through the single-pass utility.
+  // Deliberate A/B: the same chapter through the single-pass scanner
+  // and through the single-pass whitespace-collapsing utility, plus
+  // the memoized accessor built on [documentText].
   final html = largestHtmlFile;
   if (html != null) {
     group.add(
       'documentText(html) — chapter (${formatBytes(html.content.length)})',
       () => documentText(html.content),
       inputBytes: html.content.length,
-      note: 'multi-pass regex pipeline; search/CFI offset space',
+      note: 'single-pass scanner; search/CFI offset space',
+    );
+    group.addFirstAccess<TextFile>(
+      'documentTextOf — first access (same chapter)',
+      24,
+      () => TextFile(content: html.content, name: html.name, type: html.type, path: html.path),
+      documentTextOf,
+      note: 'fresh TextFile before each access (untimed); cold compute',
+    );
+    // The memo entry must exist before the timed cached run below;
+    // the returned value is deliberately unused.
+    // ignore: unnecessary_statements
+    documentTextOf(html); // Pre-touch for the cached benchmark below.
+    group.add(
+      'documentTextOf — cached (same chapter)',
+      () => documentTextOf(html),
+      note: 'memoized Expando<TextFile> hit',
     );
     group.add(
       'extractPlainText(html) — same chapter (${formatBytes(html.content.length)})',
@@ -66,7 +85,8 @@ void _runDocumentTextGroup() {
 /// Times [documentText] on individual sections of the real-corpus
 /// Shakespeare EPUB: the largest section plus four around the median
 /// content length, each row carrying its own input size so the
-/// per-KB cost can be compared across section sizes.
+/// per-KB cost can be compared across section sizes, then the whole
+/// book through the memoized accessor.
 ///
 /// Parsing and section selection happen untimed.
 void _addRealCorpusSectionBenchmarks(final BenchmarkGroup group) {
@@ -86,33 +106,67 @@ void _addRealCorpusSectionBenchmarks(final BenchmarkGroup group) {
       note: 'html section $rank of ${sections.length}',
     );
   }
+  for (final section in sections) {
+    // Every section must be memoized before the timed warm run below;
+    // the returned values are deliberately unused.
+    // ignore: unnecessary_statements
+    documentTextOf(section);
+  }
+  group.add(
+    'documentTextOf — shakespeare all sections cached '
+    '(${formatBytes(_htmlContentLength(book))})',
+    () => <Object>[for (final section in sections) documentTextOf(section)],
+    inputBytes: _htmlContentLength(book),
+    note: 'memo hits over ${sections.length} sections',
+  );
 }
 
 /// Times [BookSearch.search] once per mode on Alice (a handful of
 /// sections) and on the real-corpus Shakespeare EPUB (hundreds of
-/// sections). Every line's note reports what the untimed probe found
-/// and states the rebuild-per-call cost.
+/// sections). Every mode is measured cold (fresh parse per sample,
+/// untimed; the first search computes the document text of every
+/// section) and warm (the per-section memo is already filled, so only
+/// pattern matching runs). The notes report what the untimed probe
+/// found.
 void _runBookSearchGroup() {
   final group = BenchmarkGroup('BookSearch.search');
   final alice = BookReader.parseBook(epubAlice.bytes);
 
-  _addSearch(group, alice, 'alice.epub', 'the', SearchMode.contains);
-  _addSearch(group, alice, 'alice.epub', 'rabbit', SearchMode.wholeWords);
-  _addSearch(group, alice, 'alice.epub', r'Al*c[ae]', SearchMode.regex);
-  _addSearch(group, alice, 'alice.epub', 'white rabbit', SearchMode.proximity);
-
-  // Two identical calls per sample: the total should come out ~2x the
-  // single-call line above, proving nothing is cached between calls.
-  final htmlBytes = _htmlContentLength(alice);
-  group.add(
-    'alice.epub — contains "the", twice per sample',
-    () {
-      final first = alice.search('the');
-      final second = alice.search('the');
-      return <Object>[first, second];
-    },
-    inputBytes: htmlBytes,
-    note: '~2x the single call above means documentText is not cached',
+  _addSearch(
+    group,
+    'alice.epub',
+    alice,
+    () => BookReader.parseBook(epubAlice.bytes),
+    'the',
+    SearchMode.contains,
+    coldSamples: 16,
+  );
+  _addSearch(
+    group,
+    'alice.epub',
+    alice,
+    () => BookReader.parseBook(epubAlice.bytes),
+    'rabbit',
+    SearchMode.wholeWords,
+    coldSamples: 12,
+  );
+  _addSearch(
+    group,
+    'alice.epub',
+    alice,
+    () => BookReader.parseBook(epubAlice.bytes),
+    r'Al*c[ae]',
+    SearchMode.regex,
+    coldSamples: 12,
+  );
+  _addSearch(
+    group,
+    'alice.epub',
+    alice,
+    () => BookReader.parseBook(epubAlice.bytes),
+    'white rabbit',
+    SearchMode.proximity,
+    coldSamples: 12,
   );
 
   _addRealCorpusSearchBenchmarks(group);
@@ -126,29 +180,75 @@ void _addRealCorpusSearchBenchmarks(final BenchmarkGroup group) {
   }
   // Rare words so a full scan of every section happens before the
   // result cap can truncate the run (the notes report match counts).
-  _addSearch(group, book, 'shakespeare', 'zephyr', SearchMode.contains);
-  _addSearch(group, book, 'shakespeare', 'moiety', SearchMode.wholeWords);
-  _addSearch(group, book, 'shakespeare', r'Zeph[a-z]+', SearchMode.regex);
-  _addSearch(group, book, 'shakespeare', 'moiety dowry', SearchMode.proximity);
+  _addSearch(
+    group,
+    'shakespeare',
+    book,
+    () => BookReader.parseBook(_shakespeareEpubBytes()!) as EpubBook,
+    'zephyr',
+    SearchMode.contains,
+    coldSamples: 6,
+  );
+  _addSearch(
+    group,
+    'shakespeare',
+    book,
+    () => BookReader.parseBook(_shakespeareEpubBytes()!) as EpubBook,
+    'moiety',
+    SearchMode.wholeWords,
+    coldSamples: 6,
+  );
+  _addSearch(
+    group,
+    'shakespeare',
+    book,
+    () => BookReader.parseBook(_shakespeareEpubBytes()!) as EpubBook,
+    r'Zeph[a-z]+',
+    SearchMode.regex,
+    coldSamples: 6,
+  );
+  _addSearch(
+    group,
+    'shakespeare',
+    book,
+    () => BookReader.parseBook(_shakespeareEpubBytes()!) as EpubBook,
+    'moiety dowry',
+    SearchMode.proximity,
+    coldSamples: 6,
+  );
 }
 
+/// Adds the cold/warm search pair for one query: cold measures the
+/// first search on a freshly parsed book (parse untimed), warm the
+/// repeat on the pre-probed instance whose section texts are already
+/// memoized.
 void _addSearch(
   final BenchmarkGroup group,
-  final Book book,
   final String label,
+  final Book book,
+  final Book Function() rebuildBook,
   final String query,
-  final SearchMode mode,
-) {
-  // Untimed probe: warms the code path up and documents the outcome.
+  final SearchMode mode, {
+  required final int coldSamples,
+}) {
+  // Untimed probe: documents the outcome and fills the memo for the
+  // warm variant below.
   final probe = book.search(query, mode: mode);
   final matches = '${probe.matches.length} match${probe.matches.length == 1 ? '' : 'es'}';
+  group.addFirstAccess<Book>(
+    '$label — ${mode.name} "$query" (cold)',
+    coldSamples,
+    rebuildBook,
+    (final fresh) => fresh.search(query, mode: mode),
+    note:
+        '$matches${probe.truncated ? ' (capped at maxMatches)' : ''} · '
+        'first search computes documentText for all sections',
+  );
   group.add(
-    '$label — ${mode.name} "$query"',
+    '$label — ${mode.name} "$query" (warm)',
     () => book.search(query, mode: mode),
     inputBytes: probe.truncated ? null : _htmlContentLength(book),
-    note:
-        '$matches${probe.truncated ? ' (capped at maxMatches)' : ''} · every call '
-        'rebuilds documentText for all sections (no cache)',
+    note: '$matches · documentText memoized per section',
   );
 }
 
@@ -162,7 +262,8 @@ EpubBook? _shakespeareEpub() {
   final book = libraryRoot == null ? null : findLibraryBook(_shakespeareFileName);
   if (book != null) {
     try {
-      _shakespeareBook = BookReader.parseBook(book.read()) as EpubBook;
+      _shakespeareBytes = book.read();
+      _shakespeareBook = BookReader.parseBook(_shakespeareBytes!) as EpubBook;
     } on Object catch (error) {
       stdout.writeln('[${book.name}] skipped — parsing failed: $error');
     }
@@ -170,7 +271,11 @@ EpubBook? _shakespeareEpub() {
   return _shakespeareBook;
 }
 
+/// The cached bytes of the real-corpus book, for fresh cold parses.
+Uint8List? _shakespeareEpubBytes() => _shakespeareBytes;
+
 EpubBook? _shakespeareBook;
+Uint8List? _shakespeareBytes;
 bool _shakespeareResolved = false;
 
 /// Total HTML content size of [book], as a throughput hint.

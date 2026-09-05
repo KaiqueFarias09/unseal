@@ -137,7 +137,7 @@ extension BookSearch on Book {
       final file = htmlByPath[section.name];
       if (file == null) continue;
 
-      final text = documentText(file.content);
+      final text = documentTextOf(file);
       final requiredWords = compiled.requiredWords;
       for (final candidate in compiled.pattern.allMatches(text)) {
         if (requiredWords != null && !_windowHasAllWords(candidate, requiredWords)) {
