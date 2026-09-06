@@ -29,8 +29,8 @@ void main() {
 
       expect(book.navigation.navPoints, hasLength(2));
       expect(book.navigation.navPoints.first.label, 'Chapter One');
-      expect(book.navigation.navPoints.first.content, 'page_1');
-      expect(book.navigation.navPoints[1].content, 'page_2');
+      expect(book.navigation.navPoints.first.content, 'page_1.html#page_1');
+      expect(book.navigation.navPoints[1].content, 'page_2.html#page_2');
     });
 
     test('metadata-only read skips the page walk', () {
@@ -120,7 +120,7 @@ void main() {
       expect(pdf.metadata.title, book.metadata.title);
       expect(pdf.metadata.isbn, '9783161484100');
       expect(pdf.navigation.navPoints, hasLength(2));
-      expect(pdf.navigation.navPoints[1].content, 'page_2');
+      expect(pdf.navigation.navPoints[1].content, 'page_2.html#page_2');
       expect(pdf.hasTextLayer, isFalse);
     });
   });

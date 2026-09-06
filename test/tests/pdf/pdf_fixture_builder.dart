@@ -325,3 +325,62 @@ PdfFixtureBuilder textPageFixture() {
     ..addStreamObject(12, '', _toUnicodeCMap.codeUnits)
     ..trailerExtra = ' /Info 3 0 R';
 }
+
+const String _paragraphContent =
+    'BT /F1 12 Tf 72 720 Td (It was the best of times, it was the worst of times, it was the age) Tj ET\n'
+    'BT /F1 12 Tf 72 705 Td (of wisdom, it was the age of foolishness, it was the epoch of belief,) Tj ET\n'
+    'BT /F1 12 Tf 72 690 Td (it was the epoch of incredulity, it was the season of Light,) Tj ET\n'
+    'BT /F1 12 Tf 72 660 Td (A second paragraph starts here and runs along another line of) Tj ET\n'
+    'BT /F1 12 Tf 72 645 Td (text that keeps the paragraph together through the unwrap rule.) Tj ET\n'
+    'BT /F1 14 Tf 250 610 Td (CHAPTER I) Tj ET\n';
+
+/// A one-page fixture with two coalescible paragraphs (same left,
+/// line-space gaps) and a centered chapter heading.
+PdfFixtureBuilder paragraphPageFixture() {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R >> >> >>',
+    )
+    ..addStreamObject(7, '', _paragraphContent.codeUnits)
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica '
+      '/Encoding /WinAnsiEncoding /FirstChar 32 /LastChar 126 >>',
+    );
+}
+
+/// A six-page fixture where every page repeats a running header and a
+/// numbered footer around body text.
+PdfFixtureBuilder headerFooterFixture() {
+  final fixture = PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    );
+  final kids = <String>[];
+  for (var i = 0; i < 6; i++) {
+    final page = 20 + i;
+    final contents = 40 + i;
+    kids.add('$page 0 R');
+    fixture.addObject(
+      page,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents $contents 0 R '
+      '/Resources << /Font << /F1 9 0 R >> >> >>',
+    );
+    final body = StringBuffer()
+      ..write('BT /F1 12 Tf 72 755 Td (A Tale of Two Cities) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 700 Td (Body line one of page $i with plenty of width) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 685 Td (Body line two continues the same paragraph) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 670 Td (Body line three closes the paragraph fully.) Tj ET\n')
+      ..write('BT /F1 12 Tf 250 60 Td (Page ${i + 1}) Tj ET\n');
+    fixture.addStreamObject(contents, '', body.toString().codeUnits);
+  }
+  fixture.addObject(2, '<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${kids.length} >>');
+
+  return fixture;
+}

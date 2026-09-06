@@ -8,6 +8,7 @@ import '../reader/pdf_content_stream.dart';
 import '../reader/pdf_metadata.dart';
 import '../reader/pdf_outline.dart';
 import '../reader/pdf_page_tree.dart';
+import '../reflow/pdf_reflow.dart';
 
 /// Parses a PDF document from raw [bytes].
 ///
@@ -44,12 +45,14 @@ PdfBook parsePdfBook(final Uint8List bytes) {
   }
 
   final metadata = PdfMetadataReader.read(document);
+  final (pageFiles, canonicalPageTexts) = PdfReflow.apply(pageTexts, pages);
   final book = PdfBook(
     bytes: bytes,
     metadata: metadata,
     pages: pages,
-    pageTexts: pageTexts,
+    pageTexts: canonicalPageTexts,
     extractedImages: images,
+    pageFiles: pageFiles,
     navigation: PdfOutlineReader.read(document, pages),
   );
 

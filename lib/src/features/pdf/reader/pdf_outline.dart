@@ -66,8 +66,10 @@ class PdfOutlineReader {
       playOrder: '${counter.current}',
       label: label,
       // The reflowed page HTML anchors its first block with
-      // id="page_N" (1-based), matching the Calibre href scheme.
-      content: 'page_${pageIndex + 1}',
+      // id="page_N" (1-based), matching the Calibre href scheme;
+      // the section path plus that fragment is what navTargetOf
+      // resolves.
+      content: 'page_${pageIndex + 1}.html#page_${pageIndex + 1}',
       subNavPoints: children,
     );
   }

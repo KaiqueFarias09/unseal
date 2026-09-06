@@ -308,16 +308,22 @@ class PdfTextExtractor {
     final ctm = gstate.ctm;
     final width = (ctm.a.abs() + ctm.c.abs());
     final height = (ctm.b.abs() + ctm.d.abs());
-    if (images.length < 256) {
-      images.add(PdfImageBox(name: name, x: ctm.e, y: ctm.f, width: width, height: height));
-    }
-
-    if (onImage == null) return;
     final filter = document.resolve(stream.dictionary['Filter']);
     final isDct = filter is PdfName && filter.value == 'DCTDecode';
-    if (!isDct) return;
     final number = entry is PdfIndirectRef ? entry.objectNumber : 0;
-    if (number != 0) onImage(number, stream.bytes);
+
+    // Only DCTDecode (JPEG) images leave a file the HTML can point
+    // at; other placements still record their geometry.
+    final path = isDct && number != 0 ? 'images/pdf-image-$number.jpg' : '';
+    if (images.length < 256) {
+      images.add(
+        PdfImageBox(name: name, x: ctm.e, y: ctm.f, width: width, height: height, path: path),
+      );
+    }
+
+    if (onImage != null && isDct && number != 0) {
+      onImage(number, stream.bytes);
+    }
   }
 
   PdfPageText _toPageText(
@@ -481,8 +487,9 @@ class PdfTextExtractor {
   }
 
   double _num(final List<Object?> operands, {final int index = 0, final double fallback = 0}) {
-    if (index < operands.length && operands[index] is num)
+    if (index < operands.length && operands[index] is num) {
       return (operands[index] as num).toDouble();
+    }
 
     return fallback;
   }

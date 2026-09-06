@@ -79,6 +79,7 @@ class PdfImageBox {
     required this.y,
     required this.width,
     required this.height,
+    this.path = '',
   });
 
   /// The resource name the content stream drew (`/XObject` entry).
@@ -95,4 +96,8 @@ class PdfImageBox {
 
   /// Height in points.
   final double height;
+
+  /// The extracted file path when the image left a readable file
+  /// (JPEG passthrough); empty when the codec stayed unsupported.
+  final String path;
 }
