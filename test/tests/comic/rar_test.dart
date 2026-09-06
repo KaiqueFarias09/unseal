@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
@@ -16,11 +17,21 @@ void main() {
       expect(entries.single.data, tinyJpegPage);
     });
 
-    test('skips the encryption salt (flag 0x0200)', () {
-      final archive = buildRar4(['salt.jpg'], flags: 0x8000 | 0x0200, withSalt: true);
+    test('skips the encryption salt (flag 0x0400)', () {
+      final archive = buildRar4(['salt.jpg'], flags: 0x8000 | 0x0400, withSalt: true);
       final entries = readRarEntries(archive);
       expect(entries.single.name, 'salt.jpg');
       expect(entries.single.isStored, isTrue);
+    });
+
+    test('decodes the real RAR 4 method-29 CBR pages', () {
+      final bytes = File(
+        'test/resources/books/comic/american-beauty-trading-cards-1909.cbr',
+      ).readAsBytesSync();
+      final pages = readRarEntries(bytes).where((final entry) => !entry.isDirectory).toList();
+
+      expect(pages, hasLength(24));
+      expect(pages.every((final page) => sniffImageType(page.data) == ImageType.jpeg), isTrue);
     });
 
     test('stops when a file name runs past the buffer', () {
@@ -106,31 +117,31 @@ Uint8List buildRar4(
     final extras = (withHighSizes ? 8 : 0) + (withSalt ? 8 : 0);
     final header = ByteData(32 + nameBytes.length + extras);
     var f = 0;
-    header.setUint16(f, 0);
+    header.setUint16(f, 0, Endian.little);
     f += 2; // crc (unchecked)
     header.setUint8(f, 0x74);
     f += 1; // file header
-    header.setUint16(f, flags);
+    header.setUint16(f, flags, Endian.little);
     f += 2;
-    header.setUint16(f, header.lengthInBytes);
+    header.setUint16(f, header.lengthInBytes, Endian.little);
     f += 2;
-    header.setUint32(f, tinyJpegPage.length);
+    header.setUint32(f, tinyJpegPage.length, Endian.little);
     f += 4; // packed
-    header.setUint32(f, tinyJpegPage.length);
+    header.setUint32(f, tinyJpegPage.length, Endian.little);
     f += 4; // unpacked
     header.setUint8(f, 0);
     f += 1; // host OS
-    header.setUint32(f, 0);
+    header.setUint32(f, 0, Endian.little);
     f += 4; // file crc
-    header.setUint32(f, 0);
+    header.setUint32(f, 0, Endian.little);
     f += 4; // file time
     header.setUint8(f, 29);
     f += 1; // unpack version
     header.setUint8(f, 0x30);
     f += 1; // method: stored
-    header.setUint16(f, nameBytes.length + nameSizeOvershoot);
+    header.setUint16(f, nameBytes.length + nameSizeOvershoot, Endian.little);
     f += 2;
-    header.setUint32(f, 0x20);
+    header.setUint32(f, 0x20, Endian.little);
     f += 4; // attributes
     f += extras; // high sizes / salt live between attributes and name
     header.buffer.asUint8List().setRange(f, f + nameBytes.length, nameBytes);
@@ -143,8 +154,8 @@ Uint8List buildRar4(
   if (nameSizeOvershoot == 0) {
     final end = ByteData(7);
     end.setUint8(2, 0x7B);
-    end.setUint16(3, 0x4000);
-    end.setUint16(5, 7);
+    end.setUint16(3, 0x4000, Endian.little);
+    end.setUint16(5, 7, Endian.little);
     builder.add(end.buffer.asUint8List());
   }
 

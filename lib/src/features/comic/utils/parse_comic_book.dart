@@ -76,15 +76,15 @@ bool _cbz(final Uint8List bytes) => bytes.length > 2 && bytes[0] == 0x50 && byte
       if (entry.isDirectory) {
         continue;
       }
-      if (entry.name.toLowerCase() == 'comicinfo.xml' && entry.isStored) {
-        comicInfo = ComicInfo.parse(convert.utf8.decode(entry.data, allowMalformed: true));
-        continue;
-      }
-      if (!entry.isStored) {
+      if (!entry.isStored && entry.data.isEmpty) {
         throw ComicException(
           'RAR entry "${entry.name}" is compressed; only stored (uncompressed) '
-          'CBR archives are supported.',
+          'and ordinary RAR 2.9/3.x CBR archives are supported.',
         );
+      }
+      if (entry.name.toLowerCase() == 'comicinfo.xml') {
+        comicInfo = ComicInfo.parse(convert.utf8.decode(entry.data, allowMalformed: true));
+        continue;
       }
 
       if (sniffImageType(entry.data) != null) {

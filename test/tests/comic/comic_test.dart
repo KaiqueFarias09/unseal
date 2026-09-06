@@ -127,31 +127,31 @@ Uint8List _buildCbr({final int method = 0x30}) {
     final headSize = 32 + nameBytes.length;
     final header = ByteData(headSize);
     var f = 0;
-    header.setUint16(f, 0);
+    header.setUint16(f, 0, Endian.little);
     f += 2; // crc (unchecked)
     header.setUint8(f, 0x74);
     f += 1; // file header
-    header.setUint16(f, 0x8000);
+    header.setUint16(f, 0x8000, Endian.little);
     f += 2; // long block
-    header.setUint16(f, headSize);
+    header.setUint16(f, headSize, Endian.little);
     f += 2;
-    header.setUint32(f, data.length);
+    header.setUint32(f, data.length, Endian.little);
     f += 4; // packed
-    header.setUint32(f, data.length);
+    header.setUint32(f, data.length, Endian.little);
     f += 4; // unpacked
     header.setUint8(f, 0);
     f += 1; // host OS
-    header.setUint32(f, 0);
+    header.setUint32(f, 0, Endian.little);
     f += 4; // file crc
-    header.setUint32(f, 0);
+    header.setUint32(f, 0, Endian.little);
     f += 4; // file time
     header.setUint8(f, 29);
     f += 1; // unpack version
     header.setUint8(f, method);
     f += 1; // method
-    header.setUint16(f, nameBytes.length);
+    header.setUint16(f, nameBytes.length, Endian.little);
     f += 2;
-    header.setUint32(f, 0x20);
+    header.setUint32(f, 0x20, Endian.little);
     f += 4; // attributes
     final headerBytes = header.buffer.asUint8List();
     headerBytes.setRange(f, f + nameBytes.length, nameBytes);
@@ -168,8 +168,8 @@ Uint8List _buildCbr({final int method = 0x30}) {
   // End of archive block.
   final end = ByteData(7);
   end.setUint8(2, 0x7B);
-  end.setUint16(3, 0x4000);
-  end.setUint16(5, 7);
+  end.setUint16(3, 0x4000, Endian.little);
+  end.setUint16(5, 7, Endian.little);
   builder.add(end.buffer.asUint8List());
 
   return builder.takeBytes();
