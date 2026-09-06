@@ -19,6 +19,7 @@ import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
 import 'package:e_livre/src/features/pdf/entities/pdf_book.dart';
 import 'package:e_livre/src/features/pdf/entities/pdf_page.dart';
+import 'package:e_livre/src/features/pdf/entities/pdf_page_text.dart';
 import 'package:e_livre/src/features/pdf/exceptions/pdf_exception.dart';
 import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/features/search/book_search.dart';
@@ -182,9 +183,10 @@ const String wireKeyLocation = 'location';
     json['metadata'] = _encodeMetadata(book.metadata, blobs);
     // The reflowed pages already crossed through the generic files
     // section; the PDF extension carries what re-derivation cannot:
-    // the original bytes (facsimile mode re-serves them) and the
-    // per-page geometry (facsimile scaling). Extraction never re-runs
-    // on the receiving side.
+    // the original bytes (facsimile mode re-serves them), the
+    // per-page geometry (facsimile scaling) and the canonical text
+    // lines (the facsimile text layer). Extraction never re-runs on
+    // the receiving side.
     json['pdf'] = <String, Object?>{
       'bytes': _pushBlob(blobs, book.bytes),
       'pages': <Object?>[
@@ -194,6 +196,23 @@ const String wireKeyLocation = 'location';
             'mediaBox': page.mediaBox,
             'cropBox': page.cropBox,
             'rotate': page.rotate,
+          },
+      ],
+      'pageTexts': <Object?>[
+        for (final pageText in book.pageTexts)
+          <String, Object?>{
+            'lines': <Object?>[
+              for (final line in pageText.lines)
+                <String, Object?>{
+                  't': line.text,
+                  'x': line.x,
+                  'y': line.y,
+                  'w': line.width,
+                  'h': line.height,
+                  's': line.fontSize,
+                  'r': line.rotated,
+                },
+            ],
           },
       ],
     };
@@ -263,6 +282,23 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
             mediaBox: _doubleList(entry['mediaBox']),
             cropBox: entry['cropBox'] == null ? null : _doubleList(entry['cropBox']),
             rotate: (entry['rotate'] as int?) ?? 0,
+          ),
+      ],
+      pageTexts: <PdfPageText>[
+        for (final pageText in pdf['pageTexts'] as List<Object?>? ?? const <Object?>[])
+          PdfPageText(
+            lines: <PdfTextLine>[
+              for (final line in (pageText as Map<String, Object?>)['lines'] as List<Object?>)
+                PdfTextLine(
+                  text: (line as Map<String, Object?>)['t'] as String,
+                  x: (line['x'] as num).toDouble(),
+                  y: (line['y'] as num).toDouble(),
+                  width: (line['w'] as num).toDouble(),
+                  height: (line['h'] as num).toDouble(),
+                  fontSize: (line['s'] as num).toDouble(),
+                  rotated: line['r'] as bool? ?? false,
+                ),
+            ],
           ),
       ],
       navigation: navigation,

@@ -264,3 +264,64 @@ PdfFixtureBuilder twoPageFixture({final bool withOutline = true}) {
 
   return fixture;
 }
+
+const String _toUnicodeCMap =
+    '/CIDInit /ProcSet findresource begin\n'
+    '12 dict begin\n'
+    'begincmap\n'
+    '/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n'
+    '/CMapName /Adobe-Identity-UCS def\n'
+    '/CMapType 2 def\n'
+    '1 begincodespacerange\n'
+    '<0000> <FFFF>\n'
+    'endcodespacerange\n'
+    '2 beginbfchar\n'
+    '<0001> <0048>\n'
+    '<0002> <0069>\n'
+    'endbfchar\n'
+    'endcmap\n'
+    'CMapName currentdict /CMap defineresource pop\n'
+    'end\n'
+    'end';
+
+const String _textContent =
+    'BT /F1 12 Tf 72 720 Td (Hello world) Tj ET\n'
+    'BT /F1 12 Tf 72 700 Td [(The) -40 (quick)] TJ ET\n'
+    'BT /F1 12 Tf 72 680 Td 14 TL (First) Tj T* (Second) Tj ET\n'
+    'BT /F1 12 Tf 72 650 Td (Left) Tj ET\n'
+    'BT /F1 12 Tf 300 650 Td (Right) Tj ET\n'
+    'BT /F2 12 Tf 72 600 Td <00010002> Tj ET\n';
+
+/// A one-page fixture exercising the text extractor: a simple
+/// Type1 font, a Type0/CID font with ToUnicode, Tj, TJ with kerning,
+/// T* leading and the run-gap space join.
+PdfFixtureBuilder textPageFixture() {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(3, '<</Title (Text Page)>>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R /F2 10 0 R >> >> >>',
+    )
+    ..addStreamObject(7, '', _textContent.codeUnits)
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica '
+      '/Encoding /WinAnsiEncoding /FirstChar 32 /LastChar 126 >>',
+    )
+    ..addObject(
+      10,
+      '<< /Type /Font /Subtype /Type0 /BaseFont /Test-Identity '
+      '/Encoding /Identity-H /DescendantFonts [11 0 R] /ToUnicode 12 0 R >>',
+    )
+    ..addObject(
+      11,
+      '<< /Type /Font /Subtype /CIDFontType2 /BaseFont /Test-Identity '
+      '/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> '
+      '/DW 500 >>',
+    )
+    ..addStreamObject(12, '', _toUnicodeCMap.codeUnits)
+    ..trailerExtra = ' /Info 3 0 R';
+}
