@@ -1,18 +1,21 @@
 import 'dart:typed_data';
 
-/// A parsed ToUnicode CMap: character code to Unicode string.
+/// A parsed CMap: character code to Unicode string (ToUnicode) and
+/// character code to CID (embedded `/Encoding` CMaps of Type0 fonts).
 ///
 /// Reads the `begincodespacerange` / `beginbfchar` / `beginbfrange`
 /// blocks of a ToUnicode stream (PDF 32000-1:2008 §9.10.3), all
 /// three `bfrange` destination forms (single base value, per-code
-/// array, and the plain range form). The byte width a code occupies
-/// comes from the code space; `Identity-*` CMaps without a code
-/// space fall back to 2 bytes.
+/// array, and the plain range form), plus the `begincidrange` block
+/// (§9.7.4.2) that maps codes onto CIDs. The byte width a code
+/// occupies comes from the code space; `Identity-*` CMaps without a
+/// code space fall back to 2 bytes.
 class PdfCMap {
   /// Parses a CMap [program] (the decoded stream text).
   factory PdfCMap.parse(final String program) {
     var codeBytes = 2;
     final map = <int, String>{};
+    final cids = <int, int>{};
     final tokens = _tokenize(program);
     for (var i = 0; i < tokens.length; i++) {
       final token = tokens[i];
@@ -29,6 +32,28 @@ class PdfCMap {
               codeBytes = low.bytes.length;
               seen++;
               cursor += 2;
+            } else {
+              break;
+            }
+          }
+        case 'begincidrange':
+          final count = _intBefore(tokens, i) ?? 0;
+          var cursor = i + 1;
+          var seen = 0;
+          while (cursor + 2 < tokens.length && seen < count) {
+            final low = tokens[cursor];
+            final high = tokens[cursor + 1];
+            final base = tokens[cursor + 2];
+            if (low is _Hex && high is _Hex && base is _Int) {
+              final start = _codeOf(low.bytes);
+              final end = _codeOf(high.bytes);
+              if (end >= start && end - start <= 65535) {
+                for (var code = start; code <= end; code++) {
+                  cids[code] = base.value + code - start;
+                }
+              }
+              seen++;
+              cursor += 3;
             } else {
               break;
             }
@@ -81,16 +106,21 @@ class PdfCMap {
       }
     }
 
-    return PdfCMap._(codeBytes, map);
+    return PdfCMap._(codeBytes, map, cids);
   }
 
-  const PdfCMap._(this.codeBytes, this.map);
+  const PdfCMap._(this.codeBytes, this.map, this.cidMap);
 
   /// Bytes per character code (1, 2 or 4).
   final int codeBytes;
 
   /// Character code to Unicode string.
   final Map<int, String> map;
+
+  /// Character code to CID (from a `begincidrange` block, as found in
+  /// the embedded `/Encoding` CMap of a Type0 font); empty when the
+  /// program carries none.
+  final Map<int, int> cidMap;
 
   /// Reads the [codeBytes] code starting at [offset] in [bytes];
   /// null when the buffer ends mid-code.
