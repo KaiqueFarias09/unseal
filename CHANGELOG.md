@@ -2,6 +2,47 @@
 
 ### Added
 
+- **Book locators**: a versioned, format-neutral `BookLocator` union
+  (`TextLocator` in the `documentText` space with optional
+  `TextQuote` relocation context, `CfiLocator` carrying an EPUB CFI,
+  `PageLocator` for comics and future PDF), with a JSON codec
+  (`locatorToJson`/`locatorFromJson`, envelope versioned via `v`),
+  `eLv1` interop (`textLocatorFromELv1`/`eLv1Of`, grammar identical
+  to the viewer's serialized positions), `SearchMatch.toTextLocator`,
+  and pure fuzzy relocation (`relocateTextLocator`) that re-anchors
+  a quote after edition drift, preferring the original section and
+  scoring context agreement.
+- **EPUB CFI ranges**: `buildEpubCfiRange(contentIndex, startOffset,
+  endOffset)` emits the spec's three-path range form (boundary
+  subpaths relative to the leading path, round-tripping through
+  `EpubCfi.tryParse`), and `resolveCfi` accepts ranges — the new
+  `EpubCfiLocation.endCharOffset` carries the exclusive range end
+  (null for points; cross-section ranges resolve to null).
+- **TOC target resolution**: `parseNavContent` parses raw
+  `NavPoint.content` strings (EPUB href/fragment, MOBI `filepos`,
+  bare fragments) and `NavResolution.navTargetOf` /
+  `resolveNavigation` resolve them to `NavTarget` positions
+  (section index plus, for EPUB anchors, a `documentText` offset).
+- **Book progression**: `BookProgression.of(book)` measures
+  per-section character totals and exposes `fractionOf` /
+  `sectionFraction` (0..1, clamped) for reading progress and
+  cross-device position sync; non-text books fall back to section
+  indexing.
+- **Portable annotations**: `HighlightRecord`/`BookmarkRecord` value
+  types (Calibre palette or custom colors, decorations, notes,
+  dual CFI), a versioned tolerant JSON codec
+  (`encodeAnnotations`/`decodeAnnotations`, `formatVersion: 1`,
+  eLv1 bookmark interop on decode) and Calibre-parity merges
+  (`mergeHighlights`/`mergeBookmarks` — newest timestamp wins per
+  identity, ties keep local, survivors re-sorted by position;
+  behavioral re-expression of `annotations.pyj`).
+- **Worker search and CFI ops**: the web worker keeps the resident
+  parsed book and answers `search`/`cfiResolve`/`cfiBuild`
+  (`WorkerBookReader.searchInWorker` and friends), with the op
+  handling factored into the pure `runWorkerOp`; the main-thread
+  client tracks residency and returns null for inline fallback,
+  `FormatException` crosses the wire typed, and native runtimes keep
+  these ops on the calling thread.
 - **Search modes**: `BookSearch.search` gains `mode`
   (`SearchMode.contains` default, `wholeWords`, `regex`,
   `proximity`) and `nearChars`, porting Calibre's query handling.

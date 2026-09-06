@@ -288,6 +288,7 @@ Map<String, Object?>? encodeCfiLocationWire(final EpubCfiLocation? location) => 
         'contentIndex': location.contentIndex,
         'contentPath': location.contentPath,
         'charOffset': location.charOffset,
+        'endCharOffset': location.endCharOffset,
         'textExcerpt': location.textExcerpt,
         'elementTrail': List<String>.of(location.elementTrail),
       };
@@ -300,6 +301,7 @@ EpubCfiLocation? decodeCfiLocationWire(final Map<String, Object?>? json) => json
         contentIndex: json['contentIndex'] as int,
         contentPath: json['contentPath'] as String,
         charOffset: json['charOffset'] as int?,
+        endCharOffset: json['endCharOffset'] as int?,
         textExcerpt: json['textExcerpt'] as String?,
         elementTrail: (json['elementTrail'] as List<Object?>?)?.cast<String>() ?? const <String>[],
       );

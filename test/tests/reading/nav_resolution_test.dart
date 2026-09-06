@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/reading/nav_resolution.dart';
 import 'package:test/test.dart';
 
 import '../mobi/mobi_fixture_builder.dart';

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/reading/book_progression.dart';
 import 'package:test/test.dart';
 
 import 'synthetic_books.dart';
