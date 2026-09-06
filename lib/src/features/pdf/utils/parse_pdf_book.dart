@@ -28,15 +28,15 @@ PdfBook parsePdfBook(final Uint8List bytes) {
     pageTexts.add(
       extractor.extract(
         page,
-        onImage: (final objectNumber, final jpegBytes) {
+        onImage: (final objectNumber, final imageBytes, final extension) {
           if (seenImages.contains(objectNumber) || seenImages.length >= 128) return;
           seenImages.add(objectNumber);
           images.add(
             BinaryFile(
-              content: jpegBytes,
-              name: 'pdf-image-$objectNumber.jpg',
-              type: 'jpg',
-              path: 'images/pdf-image-$objectNumber.jpg',
+              content: imageBytes,
+              name: 'pdf-image-$objectNumber.$extension',
+              type: extension,
+              path: 'images/pdf-image-$objectNumber.$extension',
             ),
           );
         },

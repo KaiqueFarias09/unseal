@@ -3,8 +3,11 @@ import 'dart:typed_data';
 
 import '../entities/pdf_page.dart';
 import '../entities/pdf_page_text.dart';
+import '../exceptions/pdf_exception.dart';
 import '../header/pdf_document.dart';
 import '../header/pdf_object.dart';
+import '../utils/pdf_bitmap.dart';
+import '../utils/pdf_stream_filters.dart';
 import 'pdf_font.dart';
 
 /// Extracts the text and image placements of PDF pages by
@@ -31,11 +34,13 @@ class PdfTextExtractor {
   /// number to key by).
   final Expando<PdfFont> _directFonts = Expando<PdfFont>();
 
-  /// Extracts [page]'s text; [onImage] receives each DCTDecode
-  /// (JPEG) image drawn on any page, deduplicated by object number.
+  /// Extracts [page]'s text; [onImage] receives each drawable
+  /// image (JPEG passthrough or a decoded bitmap as PNG) drawn on
+  /// any page, deduplicated by object number, with the file
+  /// extension it should carry.
   PdfPageText extract(
     final PdfPage page, {
-    final void Function(int objectNumber, Uint8List bytes)? onImage,
+    final void Function(int objectNumber, Uint8List bytes, String extension)? onImage,
   }) {
     final runs = <_Run>[];
     final images = <PdfImageBox>[];
@@ -121,7 +126,7 @@ class PdfTextExtractor {
     final PdfDictionary? resources,
     final List<_Run> runs,
     final List<PdfImageBox> images,
-    final void Function(int objectNumber, Uint8List bytes)? onImage,
+    final void Function(int objectNumber, Uint8List bytes, String extension)? onImage,
   ) {
     final lexer = _ContentLexer(content);
     final operands = <Object?>[];
@@ -314,7 +319,7 @@ class PdfTextExtractor {
     final PdfDictionary? resources,
     final _GraphicsState gstate,
     final List<PdfImageBox> images,
-    final void Function(int objectNumber, Uint8List bytes)? onImage,
+    final void Function(int objectNumber, Uint8List bytes, String extension)? onImage,
   ) {
     final xobjects = document.resolve(resources?['XObject']);
     if (xobjects is! PdfDictionary) return;
@@ -328,22 +333,67 @@ class PdfTextExtractor {
     final ctm = gstate.ctm;
     final width = (ctm.a.abs() + ctm.c.abs());
     final height = (ctm.b.abs() + ctm.d.abs());
-    final filter = document.resolve(stream.dictionary['Filter']);
-    final isDct = filter is PdfName && filter.value == 'DCTDecode';
     final number = entry is PdfIndirectRef ? entry.objectNumber : 0;
 
-    // Only DCTDecode (JPEG) images leave a file the HTML can point
-    // at; other placements still record their geometry.
-    final path = isDct && number != 0 ? 'images/pdf-image-$number.jpg' : '';
+    // DCTDecode (JPEG) leaves a file the HTML can point at
+    // byte-for-byte; the bitmap codecs decode here to a grayscale
+    // PNG. Undecodable placements still record their geometry.
+    String extension = '';
+    Uint8List? imageBytes;
+    if (number != 0) {
+      final lastFilter = _lastFilterName(stream);
+      if (lastFilter == 'DCTDecode') {
+        extension = 'jpg';
+        imageBytes = stream.bytes;
+      } else if (lastFilter == 'CCITTFaxDecode' || lastFilter == 'JBIG2Decode') {
+        try {
+          final packed = decodePdfStream(stream, document.resolve);
+          final bitmap = PdfBitmap.fromPacked(
+            width: _imageDimension(stream, 'Width', 'W'),
+            height: _imageDimension(stream, 'Height', 'H'),
+            packed: packed,
+          );
+          extension = 'png';
+          imageBytes = bitmap.toPngBytes();
+        } on PdfException {
+          // Degrade to geometry-only, like every unsupported image.
+        }
+      }
+    }
+
+    final path = extension.isEmpty ? '' : 'images/pdf-image-$number.$extension';
     if (images.length < 256) {
       images.add(
         PdfImageBox(name: name, x: ctm.e, y: ctm.f, width: width, height: height, path: path),
       );
     }
 
-    if (onImage != null && isDct && number != 0) {
-      onImage(number, stream.bytes);
+    if (onImage != null && imageBytes != null) {
+      onImage(number, imageBytes, extension);
     }
+  }
+
+  /// The innermost filter name of an image stream's `/Filter` (a
+  /// bare name or an array), null when the stream is unfiltered.
+  String? _lastFilterName(final PdfStream stream) {
+    final filter = document.resolve(stream.dictionary['Filter'] ?? const PdfNull());
+    if (filter is PdfName) return filter.value;
+    if (filter is PdfArray) {
+      String? last;
+      for (final item in filter.items) {
+        if (item is PdfName) last = item.value;
+      }
+      return last;
+    }
+    return null;
+  }
+
+  int _imageDimension(final PdfStream stream, final String long, final String short) {
+    final value = document.resolve(
+      stream.dictionary[long] ?? stream.dictionary[short] ?? const PdfNull(),
+    );
+    if (value is PdfNumber) return value.intValue;
+    return 0;
   }
 
   PdfPageText _toPageText(

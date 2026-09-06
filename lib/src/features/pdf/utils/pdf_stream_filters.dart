@@ -4,6 +4,8 @@ import 'package:archive/archive.dart';
 
 import '../exceptions/pdf_exception.dart';
 import '../header/pdf_object.dart';
+import 'pdf_ccitt.dart';
+import 'pdf_jbig2.dart';
 
 /// Applies a stream's `/Filter` chain (and `/DecodeParms` predictors)
 /// to its raw bytes.
@@ -56,12 +58,29 @@ Uint8List decodePdfStream(
         data = _ascii85Decode(data);
       case 'RunLengthDecode':
         data = _runLengthDecode(data);
+      case 'CCITTFaxDecode':
+        data = decodeCcittFax(data, parm, resolve);
+      case 'JBIG2Decode':
+        data = decodeJbig2(data, globals: _jbig2Globals(parm, resolve));
       default:
         throw PdfException('PDF stream filter /${name.value} is not supported.');
     }
   }
 
   return data;
+}
+
+/// Resolves the `/JBIG2Globals` reference in the decode parameters
+/// to the referenced stream's bytes (null when absent).
+Uint8List? _jbig2Globals(
+  final PdfObject? parm,
+  final PdfObject? Function(PdfObject object) resolve,
+) {
+  if (parm is! PdfDictionary) return null;
+  final stream = resolve(parm['JBIG2Globals'] ?? const PdfNull());
+  if (stream is PdfStream) return stream.bytes;
+
+  return null;
 }
 
 Uint8List _inflate(final Uint8List data) {
