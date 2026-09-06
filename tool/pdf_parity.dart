@@ -38,6 +38,11 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/features/pdf/header/pdf_document.dart';
+import 'package:e_livre/src/features/pdf/header/pdf_object.dart';
+import 'package:e_livre/src/features/pdf/reader/pdf_page_tree.dart';
+import 'package:e_livre/src/features/pdf/utils/pdf_bitmap.dart';
+import 'package:e_livre/src/features/pdf/utils/pdf_stream_filters.dart';
 import 'package:path/path.dart' as p;
 
 /// Directory scanned when no positional argument is given.
@@ -110,6 +115,8 @@ class _Options {
     required this.jsonPath,
     required this.runMetadata,
     required this.runReflow,
+    required this.runImage,
+    required this.updateGoldens,
     required this.caseInsensitive,
   });
 
@@ -124,6 +131,12 @@ class _Options {
 
   /// Whether the ebook-convert reflow level runs.
   final bool runReflow;
+
+  /// Whether the image-decode parity level runs.
+  final bool runImage;
+
+  /// Whether oracle rasters are (re)written into the goldens directory.
+  final bool updateGoldens;
 
   /// Whether text normalization also casefolds both sides.
   final bool caseInsensitive;
@@ -480,6 +493,8 @@ _CliParse _parseOptions(final List<String> arguments) {
   String? jsonPath;
   var runMetadata = false;
   var runReflow = false;
+  var runImage = false;
+  var updateGoldens = false;
   var caseInsensitive = false;
   String? positional;
 
@@ -498,6 +513,10 @@ _CliParse _parseOptions(final List<String> arguments) {
           runMetadata = true;
         case '--reflow':
           runReflow = true;
+        case '--image':
+          runImage = true;
+        case '--update-goldens':
+          updateGoldens = true;
         case '--case-insensitive':
           caseInsensitive = true;
         case '--json':
@@ -533,6 +552,8 @@ _CliParse _parseOptions(final List<String> arguments) {
       jsonPath: jsonPath,
       runMetadata: runMetadata,
       runReflow: runReflow,
+      runImage: runImage,
+      updateGoldens: updateGoldens,
       caseInsensitive: caseInsensitive,
     ),
     0,
@@ -543,13 +564,17 @@ _CliParse _parseOptions(final List<String> arguments) {
 void _printUsage(final IOSink sink) {
   sink.writeln(
     'usage: dart run tool/pdf_parity.dart [directory] [--json out.json] '
-    '[--metadata] [--reflow] [--case-insensitive]',
+    '[--metadata] [--reflow] [--image] [--update-goldens] [--case-insensitive]',
   );
   sink.writeln('  directory            scanned recursively for .pdf (default: $_defaultDirectory)');
   sink.writeln('  --json <path>        writes the full structured report');
   sink.writeln('  --metadata           compares pdfinfo against readPdfMetadata');
   sink.writeln('  --reflow             compares ebook-convert EPUB text against the');
   sink.writeln('                       canonical page texts via documentText');
+  sink.writeln('  --image              compares CCITT/JBIG2 image decodes against the');
+  sink.writeln('                       pdf.js oracle raster (node, pdfjs-dist 3.11.174)');
+  sink.writeln('  --update-goldens     refreshes the oracle rasters committed under');
+  sink.writeln('                       test/resources/pdf/reference/goldens/');
   sink.writeln('  --case-insensitive   also casefolds both sides before scoring');
 }
 
@@ -1100,6 +1125,312 @@ void _writeJsonReport(final List<_BookReport> books, final _Options options, fin
 }
 
 /// Entry point.
+
+/// --- image parity (--image) -----------------------------------------
+///
+/// Decodes every CCITT/JBIG2 image XObject of the corpus with the
+/// library and compares the raster against pdf.js v3.11.174 (the
+/// oracle in tool/reference/, or a committed golden raster). This is
+/// the ruler for the image codecs the same way pdftotext is the ruler
+/// for text extraction.
+
+class _ImageMetric {
+  const _ImageMetric({
+    required this.file,
+    required this.object,
+    required this.width,
+    required this.height,
+    required this.differing,
+    required this.total,
+    this.error,
+  });
+
+  final String file;
+  final int object;
+  final int width;
+  final int height;
+  final int differing;
+  final int total;
+  final String? error;
+
+  double get agreement => total == 0 ? 0 : 1 - differing / total;
+}
+
+/// Resolves the oracle script relative to this tool.
+final String _oracleScript = 'tool${p.separator}reference${p.separator}pdfjs_image.mjs';
+
+final String _goldensDirectory = p.join('test', 'resources', 'pdf', 'reference', 'goldens');
+
+/// Runs the image parity pass over the given options directory.
+Future<void> _runImageParity(final _Options options) async {
+  final oracleReady =
+      File(
+        p.join(
+          'tool',
+          'reference',
+          'node_modules',
+          'pdfjs-dist',
+          'legacy',
+          'build',
+          'pdf.worker.js',
+        ),
+      ).existsSync() &&
+      File(_oracleScript).existsSync();
+  if (!oracleReady && !options.updateGoldens) {
+    stdout.writeln(
+      'skipped: the pdf.js oracle is not installed '
+      '(npm install --prefix tool/reference brings in pdfjs-dist 3.11.174).',
+    );
+    return;
+  }
+
+  final root = Directory(options.directory);
+  if (!root.existsSync()) {
+    stderr.writeln('error: directory ${options.directory} does not exist.');
+    await stderr.flush();
+    exit(2);
+  }
+  final pdfs = _collectPdfs(root);
+  if (pdfs.isEmpty) {
+    stdout.writeln('no .pdf files found under ${options.directory}.');
+    return;
+  }
+
+  stdout.writeln(
+    'eLivre PDF image parity | ${pdfs.length} file(s) | '
+    'oracle pdf.js 3.11.174 ${oracleReady ? 'live' : 'goldens only'}',
+  );
+
+  final metrics = <_ImageMetric>[];
+  for (final pdf in pdfs) {
+    final relative = p.relative(pdf.path);
+    PdfDocument document;
+    try {
+      document = PdfDocument.parse(pdf.readAsBytesSync());
+    } on PdfException catch (error) {
+      stdout.writeln('scanning $relative... skipped ($error)');
+      continue;
+    }
+    final images = _collectImageXObjects(document);
+    if (images.isEmpty) {
+      stdout.writeln('scanning $relative... no bitmap images');
+      continue;
+    }
+    for (final entry in images.entries) {
+      stdout.write('scanning $relative obj ${entry.key}... ');
+      final metric = await _compareImage(
+        pdf: pdf,
+        document: document,
+        object: entry.key,
+        stream: entry.value,
+        options: options,
+        oracleReady: oracleReady,
+      );
+      if (metric.error != null) {
+        stdout.writeln('ERROR (${metric.error})');
+      } else {
+        stdout.writeln(
+          '${metric.width}x${metric.height}, '
+          'agreement ${(metric.agreement * 100).toStringAsFixed(4)}%',
+        );
+      }
+      metrics.add(metric);
+    }
+  }
+
+  _printImageReport(metrics);
+}
+
+/// The bitmap-filter image XObjects of every page's resources, keyed
+/// by object number.
+Map<int, PdfStream> _collectImageXObjects(final PdfDocument document) {
+  final images = <int, PdfStream>{};
+  for (final page in PdfPageTree.parse(document)) {
+    final resources = document.resolve(page.resources);
+    if (resources is! PdfDictionary) continue;
+    final xobjects = document.resolve(resources['XObject']);
+    if (xobjects is! PdfDictionary) continue;
+    for (final name in xobjects.entries.keys) {
+      final stream = document.resolve(xobjects.entries[name]);
+      if (stream is! PdfStream) continue;
+      final subtype = document.resolve(stream.dictionary['Subtype']);
+      if (subtype is! PdfName || subtype.value != 'Image') continue;
+      final filter = document.resolve(stream.dictionary['Filter'] ?? const PdfNull());
+      final filterName = filter is PdfName
+          ? filter.value
+          : filter is PdfArray && filter.items.isNotEmpty
+          ? (filter.items.last is PdfName ? (filter.items.last as PdfName).value : '')
+          : '';
+      if (filterName != 'CCITTFaxDecode' && filterName != 'JBIG2Decode') continue;
+      final reference = xobjects.entries[name];
+      final number = reference is PdfIndirectRef ? reference.objectNumber : 0;
+      if (number != 0) images[number] = stream;
+    }
+  }
+  return images;
+}
+
+Future<_ImageMetric> _compareImage({
+  required final File pdf,
+  required final PdfDocument document,
+  required final int object,
+  required final PdfStream stream,
+  required final _Options options,
+  required final bool oracleReady,
+}) async {
+  int widthOf(PdfStream target) {
+    for (final key in const ['Width', 'W']) {
+      final value = document.resolve(target.dictionary[key] ?? const PdfNull());
+      if (value is PdfNumber) return value.value.toInt();
+    }
+    return 0;
+  }
+
+  int heightOf(PdfStream target) {
+    for (final key in const ['Height', 'H']) {
+      final value = document.resolve(target.dictionary[key] ?? const PdfNull());
+      if (value is PdfNumber) return value.value.toInt();
+    }
+    return 0;
+  }
+
+  final width = widthOf(stream);
+  final height = heightOf(stream);
+  try {
+    final packed = decodePdfStream(stream, document.resolve);
+    final bitmap = PdfBitmap.fromPacked(width: width, height: height, packed: packed);
+    final ours = bitmap.toGrayBytes();
+
+    final goldenPath = p.join(
+      _goldensDirectory,
+      '${p.basenameWithoutExtension(pdf.path)}-$object.pgm',
+    );
+    List<int> reference;
+    if (options.updateGoldens || oracleReady) {
+      final rasterFile = File(
+        '${Directory.systemTemp.path}/'
+        'elivre-parity-${DateTime.now().microsecondsSinceEpoch}.pgm',
+      );
+      final result = await Process.run('node', <String>[
+        _oracleScript,
+        pdf.path,
+        '$object',
+        rasterFile.path,
+      ]);
+      if (result.exitCode != 0) {
+        return _ImageMetric(
+          file: p.relative(pdf.path),
+          object: object,
+          width: width,
+          height: height,
+          differing: 0,
+          total: 0,
+          error:
+              'oracle failed (exit ${result.exitCode}): '
+              '${(result.stderr as String).trim()}',
+        );
+      }
+      reference = _pgmRaster(rasterFile.readAsBytesSync());
+      if (options.updateGoldens) {
+        final goldenDir = Directory(_goldensDirectory);
+        if (!goldenDir.existsSync()) goldenDir.createSync(recursive: true);
+        File(goldenPath).writeAsBytesSync(reference);
+      }
+    } else {
+      final golden = File(goldenPath);
+      if (!golden.existsSync()) {
+        return _ImageMetric(
+          file: p.relative(pdf.path),
+          object: object,
+          width: width,
+          height: height,
+          differing: 0,
+          total: 0,
+          error: 'no golden raster at $goldenPath',
+        );
+      }
+      reference = _pgmRaster(golden.readAsBytesSync());
+    }
+
+    if (reference.length != ours.length) {
+      return _ImageMetric(
+        file: p.relative(pdf.path),
+        object: object,
+        width: width,
+        height: height,
+        differing: 0,
+        total: 0,
+        error:
+            'raster size mismatch: oracle ${reference.length} px, '
+            'library ${ours.length} px',
+      );
+    }
+    var differing = 0;
+    for (var i = 0; i < reference.length; i++) {
+      if (reference[i] != ours[i]) differing++;
+    }
+    return _ImageMetric(
+      file: p.relative(pdf.path),
+      object: object,
+      width: width,
+      height: height,
+      differing: differing,
+      total: reference.length,
+    );
+  } on PdfException catch (error) {
+    return _ImageMetric(
+      file: p.relative(pdf.path),
+      object: object,
+      width: width,
+      height: height,
+      differing: 0,
+      total: 0,
+      error: '$error',
+    );
+  }
+}
+
+/// Parses the gray raster out of a P5 PGM written by the oracle.
+List<int> _pgmRaster(final List<int> pgm) {
+  final text = String.fromCharCodes(pgm);
+  final headerEnd = text.indexOf('255\n');
+  if (!text.startsWith('P5') || headerEnd < 0) {
+    throw const PdfException('oracle did not produce a P5 PGM raster.');
+  }
+  return pgm.sublist(headerEnd + 4);
+}
+
+void _printImageReport(final List<_ImageMetric> metrics) {
+  final decodable = metrics.where((m) => m.error == null).toList();
+  stdout.writeln();
+  stdout.writeln('  file                        obj    dims        differing  agreement');
+  stdout.writeln('  --------------------------  -----  ----------  ---------  ---------');
+  for (final metric in metrics) {
+    if (metric.error != null) {
+      stdout.writeln('  ${metric.file}  obj ${metric.object}: ERROR ${metric.error}');
+      continue;
+    }
+    final file = metric.file.padRight(25);
+    final obj = metric.object.toString().padLeft(3);
+    final dims = '${metric.width}x${metric.height}'.padLeft(10);
+    final differing = metric.differing.toString().padLeft(9);
+    final agreement = (metric.agreement * 100).toStringAsFixed(4).padLeft(8);
+    stdout.writeln('  $file  $obj  $dims  $differing  $agreement%');
+  }
+  if (decodable.isNotEmpty) {
+    final total = decodable.fold<int>(0, (sum, m) => sum + m.total);
+    final differing = decodable.fold<int>(0, (sum, m) => sum + m.differing);
+    final perfect = decodable.where((m) => m.differing == 0).length;
+    stdout.writeln();
+    stdout.writeln(
+      'image parity: ${decodable.length} image(s), $total px compared, '
+      '$differing differing | mean agreement '
+      '${(100 * (1 - differing / total)).toStringAsFixed(4)}% | '
+      '$perfect/${decodable.length} exact',
+    );
+  }
+}
+
 Future<void> main(final List<String> arguments) async {
   final parsed = _parseOptions(arguments);
   if (parsed.options == null) {
@@ -1110,6 +1441,11 @@ Future<void> main(final List<String> arguments) async {
     return;
   }
   final options = parsed.options!;
+
+  if (options.runImage) {
+    await _runImageParity(options);
+    return;
+  }
 
   if (!Directory(_calibreBundle).existsSync()) {
     stdout.writeln(

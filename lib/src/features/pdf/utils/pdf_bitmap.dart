@@ -5,11 +5,11 @@ import 'package:archive/archive.dart';
 import '../exceptions/pdf_exception.dart';
 
 /// A decoded 1-bit-per-pixel PDF image (CCITT facsimile or JBIG2)
-/// as packed rows: most significant bit first, `1` = black, every
-/// row padded to a whole number of bytes.
-///
-/// This is the normalized form the image codecs' decoders hand
-/// back; PNG packing lives here so neither codec grows an encoder.
+/// as packed rows: most significant bit first, samples in the PDF's
+/// default `/Decode [0 1]` convention (0 = black, 1 = white), every
+/// row padded to a whole number of bytes — exactly what pdf.js's
+/// decoders hand back once `/BlackIs1` and `/Decode` are applied.
+/// PNG packing lives here so neither codec grows an encoder.
 final class PdfBitmap {
   /// Creates a bitmap. [packed] holds [height] rows of
   /// `ceil([width] / 8)` bytes each.
@@ -26,6 +26,12 @@ final class PdfBitmap {
       throw PdfException('PDF image has invalid dimensions ${width}x$height.');
     }
     final needed = strideFor(width) * height;
+    // Corrupt dictionaries can claim absurd geometries; real fax and
+    // scan pages are megabytes, so anything larger degrades instead
+    // of allocating.
+    if (needed > (256 << 20)) {
+      throw PdfException('PDF image is too large to decode: ${width}x$height.');
+    }
     if (packed.length == needed) {
       return PdfBitmap(width: width, height: height, packed: packed);
     }
@@ -62,7 +68,7 @@ final class PdfBitmap {
       final outBase = y * width;
       for (var x = 0; x < width; x++) {
         final bit = (packed[rowBase + (x >> 3)] >> (7 - (x & 7))) & 1;
-        out[outBase + x] = bit == 1 ? 0 : 255;
+        out[outBase + x] = bit == 1 ? 255 : 0;
       }
     }
     return out;

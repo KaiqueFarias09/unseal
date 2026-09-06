@@ -32,3 +32,6 @@ migrate_working_dir/
 .packages
 build/
 .steward/
+
+# Node oracle dependencies (reproducible via package.json + package-lock.json)
+tool/reference/node_modules/
