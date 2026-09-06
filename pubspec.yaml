@@ -32,5 +32,6 @@ dependencies:
   collection: ^1.15.0
   html: ^0.15.7
   path: ^1.8.1
+  pointycastle: ^4.0.0
   web: ^1.1.0
   xml: ^6.0.1

@@ -14,9 +14,12 @@ import '../reflow/pdf_reflow.dart';
 ///
 /// Reads the structure — cross-reference, page tree, metadata and
 /// outline — then extracts every page's text. Reflowed page
-/// documents attach on top of this in the reading layer.
-PdfBook parsePdfBook(final Uint8List bytes) {
-  final document = PdfDocument.parse(bytes);
+/// documents attach on top of this in the reading layer. Encrypted
+/// documents open with [password]; the wrong (or a missing) password
+/// throws [PdfEncryptedException] carrying `requiresNonEmptyPassword`
+/// semantics. Permission flags are exposed, not enforced.
+PdfBook parsePdfBook(final Uint8List bytes, {final String password = ''}) {
+  final document = PdfDocument.parse(bytes, password: password);
   final pages = PdfPageTree.parse(document);
   if (pages.isEmpty) throw const PdfException('PDF document has no pages.');
 
@@ -59,7 +62,8 @@ PdfBook parsePdfBook(final Uint8List bytes) {
   return book;
 }
 
-/// Reads only the metadata of a PDF document from [bytes].
-BookMetadata readPdfMetadata(final Uint8List bytes) {
-  return PdfMetadataReader.read(PdfDocument.parse(bytes));
+/// Reads only the metadata of a PDF document from [bytes], opening
+/// encrypted documents with [password].
+BookMetadata readPdfMetadata(final Uint8List bytes, {final String password = ''}) {
+  return PdfMetadataReader.read(PdfDocument.parse(bytes, password: password));
 }

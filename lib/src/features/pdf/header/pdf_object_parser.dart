@@ -31,19 +31,19 @@ class PdfObjectParser {
 
   /// Reads the `num gen obj` header at [offset].
   ///
-  /// Returns the object number and the byte offset just past the
-  /// `obj` keyword, or null when [offset] does not hold an object
-  /// header.
-  (int, int)? objectHeaderAt(final int offset) {
+  /// Returns the object number, the generation number and the byte
+  /// offset just past the `obj` keyword, or null when [offset] does
+  /// not hold an object header.
+  (int, int, int)? objectHeaderAt(final int offset) {
     _pos = offset;
     final number = _tryReadInt();
     if (number == null) return null;
     _skipSpace();
-    _tryReadInt();
+    final generation = _tryReadInt() ?? 0;
     _skipSpace();
     if (!_consumeKeyword('obj')) return null;
 
-    return (number, _pos);
+    return (number, generation, _pos);
   }
 
   /// Parses the object body starting at [offset].
