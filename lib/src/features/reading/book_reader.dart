@@ -29,20 +29,23 @@ import 'book.dart';
 
 /// Reads supported ebook formats and selects their format adapter.
 abstract final class BookReader {
-  /// Parses the book from [bytes].
-  static Future<Book> openFromBytes(final Uint8List bytes) {
+  /// Parses the book from [bytes], opening encrypted PDFs with
+  /// [password].
+  static Future<Book> openFromBytes(final Uint8List bytes, {final String password = ''}) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
-    return parseBookInBackground(() => parseBook(bytes), bytes);
+    return parseBookInBackground(() => parseBook(bytes, password: password), bytes);
   }
 
-  /// Parses the book at [path].
-  static Future<Book> openFromPath(final String path) {
-    return withBookPath(path, (final bytes, final _) => openFromBytes(bytes));
+  /// Parses the book at [path], opening encrypted PDFs with
+  /// [password].
+  static Future<Book> openFromPath(final String path, {final String password = ''}) {
+    return withBookPath(path, (final bytes, final _) => openFromBytes(bytes, password: password));
   }
 
-  /// Synchronously parses [bytes] with the matching format adapter.
-  static Book parseBook(final Uint8List bytes) {
+  /// Synchronously parses [bytes] with the matching format adapter,
+  /// opening encrypted PDFs with [password].
+  static Book parseBook(final Uint8List bytes, {final String password = ''}) {
     switch (BookFormatDetector.detect(bytes)) {
       case DetectedFormat.epub:
         return _parseZipBook(bytes);
@@ -53,21 +56,29 @@ abstract final class BookReader {
       case DetectedFormat.comic:
         return parseComicBook(bytes);
       case DetectedFormat.pdf:
-        return parsePdfBook(bytes);
+        return parsePdfBook(bytes, password: password);
     }
   }
 
-  /// Reads only metadata from [bytes].
-  static Future<BookMetadata> readMetadataFromBytes(final Uint8List bytes) {
+  /// Reads only metadata from [bytes], opening encrypted PDFs with
+  /// [password].
+  static Future<BookMetadata> readMetadataFromBytes(
+    final Uint8List bytes, {
+    final String password = '',
+  }) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
-    return readMetadataInBackground(() => readMetadataSync(bytes), bytes);
+    return readMetadataInBackground(() => readMetadataSync(bytes, password: password), bytes);
   }
 
-  /// Reads only metadata from the book at [path].
-  static Future<BookMetadata> readMetadataFromPath(final String path) {
+  /// Reads only metadata from the book at [path], opening encrypted
+  /// PDFs with [password].
+  static Future<BookMetadata> readMetadataFromPath(
+    final String path, {
+    final String password = '',
+  }) {
     return withBookPath(path, (final bytes, final sourcePath) async {
-      final metadata = await readMetadataFromBytes(bytes);
+      final metadata = await readMetadataFromBytes(bytes, password: password);
 
       final sidecar = await readBookSidecar(
         sourcePath,
@@ -81,8 +92,9 @@ abstract final class BookReader {
     });
   }
 
-  /// Synchronously reads metadata from [bytes].
-  static BookMetadata readMetadataSync(final Uint8List bytes) {
+  /// Synchronously reads metadata from [bytes], opening encrypted
+  /// PDFs with [password].
+  static BookMetadata readMetadataSync(final Uint8List bytes, {final String password = ''}) {
     switch (BookFormatDetector.detect(bytes)) {
       case DetectedFormat.epub:
         final archive = ZipDecoder().decodeBytes(bytes);
@@ -97,7 +109,7 @@ abstract final class BookReader {
       case DetectedFormat.comic:
         return readComicMetadata(bytes);
       case DetectedFormat.pdf:
-        return readPdfMetadata(bytes);
+        return readPdfMetadata(bytes, password: password);
     }
   }
 

@@ -1,6 +1,9 @@
+import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import '../exceptions/pdf_exception.dart';
+import '../security/pdf_object_decryptor.dart';
+import '../security/pdf_security_handler.dart';
 import '../utils/pdf_stream_filters.dart';
 import 'pdf_object.dart';
 import 'pdf_object_parser.dart';
@@ -45,16 +48,23 @@ final class _ObjectStreamData {
 /// headers when the chain is unusable (the same recovery Poppler
 /// performs). Objects parse lazily on first access and cache.
 ///
-/// Encrypted documents (any `/Encrypt` in the trailer chain) throw
-/// [PdfEncryptedException] at [parse] time.
+/// Encrypted documents authenticate through the standard security
+/// handler (revisions R2-R6, see `PdfSecurityHandler`): [parse]
+/// takes the `password`, tries the empty one first and throws
+/// [PdfEncryptedException] — carrying `requiresNonEmptyPassword`
+/// semantics — when nothing matches. On success every indirect
+/// string and stream decrypts transparently on read; the `/Encrypt`
+/// dictionary itself and cross-reference streams stay clear, and
+/// the library does not enforce the `/P` permission bits.
 class PdfDocument {
-  PdfDocument._(this.bytes, this._entries, this.trailer);
+  PdfDocument._(this.bytes, this._entries, this.trailer, this._security);
 
-  /// Parses the document structure out of [bytes].
+  /// Parses the document structure out of [bytes], opening
+  /// encrypted documents with [password].
   ///
   /// Only the cross-reference layer is read; page trees, content
   /// streams and metadata resolve lazily through [object].
-  static PdfDocument parse(final Uint8List bytes) {
+  static PdfDocument parse(final Uint8List bytes, {final String password = ''}) {
     if (bytes.length < 16 ||
         bytes[0] != 0x25 ||
         bytes[1] != 0x50 ||
@@ -66,7 +76,8 @@ class PdfDocument {
     final entries = <int, _XrefEntry>{};
     final parser = PdfObjectParser(bytes);
     PdfDictionary? trailer;
-    var encrypted = false;
+    PdfDictionary? encryptDictionary;
+    var encryptReference = false;
     final visited = <int>{};
 
     var offset = _startXrefOffset(bytes);
@@ -79,7 +90,7 @@ class PdfDocument {
       final trailerDictionary = _readXrefAt(parser, offset, entries);
       if (trailerDictionary != null) {
         trailer ??= trailerDictionary;
-        if (trailerDictionary.containsKey('Encrypt')) encrypted = true;
+        if (trailerDictionary.containsKey('Encrypt')) encryptReference = true;
         // The hybrid-reference /XRefStm pointer: a cross-reference
         // stream holding type 2 entries the classic table cannot.
         final streamOffset = _intValue(trailerDictionary['XRefStm']);
@@ -89,7 +100,9 @@ class PdfDocument {
             !visited.contains(streamOffset)) {
           visited.add(streamOffset);
           final streamTrailer = _readXrefAt(parser, streamOffset, entries);
-          if (streamTrailer != null && streamTrailer.containsKey('Encrypt')) encrypted = true;
+          if (streamTrailer != null && streamTrailer.containsKey('Encrypt')) {
+            encryptReference = true;
+          }
         }
       }
       offset = _intValue(trailerDictionary?['Prev']);
@@ -100,11 +113,148 @@ class PdfDocument {
       _scanObjects(parser.bytes, entries);
     }
 
-    if (encrypted) throw const PdfEncryptedException();
     if (trailer == null) throw const PdfException('PDF document has no trailer dictionary.');
     if (entries.isEmpty) throw const PdfException('PDF document exposes no indirect objects.');
 
-    return PdfDocument._(bytes, entries, trailer);
+    // Encryption resolves only after the whole chain is merged: the
+    // /Encrypt object itself can sit anywhere in the file, so its
+    // offset comes from the collected entries, never a guess.
+    encryptDictionary ??= _encryptDictionaryOf(trailer, entries, parser);
+    final security = _authenticate(
+      encryptDictionary,
+      trailer,
+      entries,
+      parser,
+      password,
+      encryptReference,
+    );
+
+    return PdfDocument._(bytes, entries, trailer, security);
+  }
+
+  /// Pulls the `/Encrypt` dictionary out of a trailer, following an
+  /// indirect reference through [entries] — the encryption object is
+  /// a plain body object, never encrypted, and its offset is known
+  /// once the whole cross-reference chain has merged.
+  static PdfDictionary? _encryptDictionaryOf(
+    final PdfDictionary trailer,
+    final Map<int, _XrefEntry> entries,
+    final PdfObjectParser parser,
+  ) {
+    final value = trailer['Encrypt'];
+    if (value is PdfDictionary) return value;
+    if (value is PdfIndirectRef) {
+      final header = _headerFor(entries, parser, value.objectNumber);
+
+      return header == null
+          ? null
+          : _parseBody(parser, header) is PdfDictionary
+          ? _parseBody(parser, header) as PdfDictionary
+          : null;
+    }
+
+    return null;
+  }
+
+  /// The `num gen obj` header for [number] from [entries], falling
+  /// back to a whole-file scan when the cross-reference omits it
+  /// (broken writers drop the encryption object from the table).
+  static (int, int, int)? _headerFor(
+    final Map<int, _XrefEntry> entries,
+    final PdfObjectParser parser,
+    final int number,
+  ) {
+    final entry = entries[number];
+    if (entry is _OffsetEntry) {
+      final header = parser.objectHeaderAt(entry.offset);
+      if (header != null && header.$1 == number) return header;
+    }
+
+    return _scanHeader(parser.bytes, number);
+  }
+
+  /// Parses an object body from an already-read [header].
+  static PdfObject _parseBody(final PdfObjectParser parser, final (int, int, int) header) =>
+      parser.parseAt(header.$3);
+
+  /// Scans the whole file for [number]'s object header — the bounded
+  /// tail walk cannot serve here: encryption objects sit anywhere in
+  /// the body, not near the trailer.
+  static (int, int, int)? _scanHeader(final Uint8List bytes, final int number) {
+    final needle = convert.ascii.encode('$number ');
+    for (var pos = 0; pos + needle.length < bytes.length; pos++) {
+      var matched = true;
+      for (var i = 0; i < needle.length; i++) {
+        if (bytes[pos + i] != needle[i]) {
+          matched = false;
+          break;
+        }
+      }
+      if (!matched) continue;
+      final parser = PdfObjectParser(bytes);
+      final header = parser.objectHeaderAt(pos);
+      if (header != null && header.$1 == number) return header;
+    }
+
+    return null;
+  }
+
+  /// Builds the security handler for an encrypted document and
+  /// authenticates [password]: the empty string first (owner-only
+  /// files), then, when non-empty, the given password as user and
+  /// owner. Throws [PdfEncryptedException] enriched with
+  /// `requiresNonEmptyPassword` semantics on failure.
+  static PdfSecurityHandler? _authenticate(
+    final PdfDictionary? encryptDictionary,
+    final PdfDictionary trailer,
+    final Map<int, _XrefEntry> entries,
+    final PdfObjectParser parser,
+    final String password,
+    final bool encryptReference,
+  ) {
+    if (!encryptReference && encryptDictionary == null) return null;
+    if (encryptDictionary == null) {
+      // The trailer references encryption the body does not carry
+      // (a broken incremental update); treat it as unusable rather
+      // than silently decrypting nothing.
+      throw const PdfEncryptedException();
+    }
+
+    final idObject = _trailerIdOf(trailer, entries, parser);
+    final filter = encryptDictionary['Filter'];
+    final isStandard = filter is PdfName && filter.value == 'Standard';
+    final PdfSecurityHandler handler;
+    try {
+      handler = PdfSecurityHandler.of(encryptDictionary, idObject, (final object) => object);
+    } on PdfException {
+      if (!isStandard) rethrow;
+      // A /Standard dictionary too broken to build (missing /R or /O
+      // or /U) still means the document needs a password to open.
+      throw const PdfEncryptedException();
+    }
+    if (handler.authenticate(password)) return handler;
+
+    throw PdfEncryptedException(
+      requiresNonEmptyPassword: password.isEmpty,
+      permissions: handler.permissions,
+    );
+  }
+
+  /// The trailer `/ID` array (indirect in some writers), resolved
+  /// through the collected entries.
+  static PdfObject? _trailerIdOf(
+    final PdfDictionary trailer,
+    final Map<int, _XrefEntry> entries,
+    final PdfObjectParser parser,
+  ) {
+    final value = trailer['ID'];
+    if (value is PdfIndirectRef) {
+      final header = _headerFor(entries, parser, value.objectNumber);
+
+      return header == null ? null : _parseBody(parser, header);
+    }
+
+    return value;
   }
 
   /// The document bytes.
@@ -114,6 +264,18 @@ class PdfDocument {
   final PdfDictionary trailer;
 
   final Map<int, _XrefEntry> _entries;
+
+  /// The authenticated security handler, null for unencrypted
+  /// documents; decrypts every object read through [object].
+  final PdfSecurityHandler? _security;
+
+  /// The security handler behind this document — null when the
+  /// document is unencrypted; exposes `isOwnerAuthenticated` and the
+  /// `/P` permission bits for callers that want them.
+  PdfSecurityHandler? get security => _security;
+
+  /// The lazy per-object decryptor, built on first encrypted read.
+  PdfObjectDecryptor? _decryptor;
 
   final Map<int, PdfObject?> _cache = <int, PdfObject?>{};
 
@@ -129,13 +291,34 @@ class PdfDocument {
     PdfObject? result;
     if (entry is _OffsetEntry) {
       final header = _parser.objectHeaderAt(entry.offset);
-      if (header != null && header.$1 == number) result = _parser.parseAt(header.$2);
+      if (header != null && header.$1 == number) {
+        result = _decryptIfEncrypted(_parser.parseAt(header.$3), number, header.$2);
+      }
     } else if (entry is _ObjectStreamEntry) {
       result = _objectFromStream(entry);
     }
     _cache[number] = result;
 
     return result;
+  }
+
+  /// Applies the security handler's per-object decryption to a
+  /// freshly parsed object; [generation] comes from the object
+  /// header. Unencrypted documents pass through untouched.
+  PdfObject? _decryptIfEncrypted(final PdfObject? parsed, final int number, final int generation) {
+    final handler = _security;
+    if (handler == null || parsed == null) return parsed;
+    final trailerEncrypt = trailer['Encrypt'];
+    final referenceNumber = trailerEncrypt is PdfIndirectRef ? trailerEncrypt.objectNumber : -1;
+    if (number == referenceNumber) {
+      // The /Encrypt dictionary's own strings are never encrypted
+      // (PDF 32000 §7.6.1); it is also already parsed and stored on
+      // the handler, so its cached form stays raw.
+      return parsed;
+    }
+    _decryptor ??= PdfObjectDecryptor.of(handler);
+
+    return _decryptor!.decryptObject(parsed, number, generation);
   }
 
   /// Follows [value] through indirect references until a real object
@@ -228,7 +411,7 @@ class PdfDocument {
 
     final header = parser.objectHeaderAt(offset);
     if (header == null) return null;
-    final object = parser.parseAt(header.$2);
+    final object = parser.parseAt(header.$3);
     if (object is! PdfStream) return null;
 
     return _readXrefStream(object, entries);
