@@ -2,6 +2,34 @@
 
 ### Added
 
+- **PDF encryption (standard security handler)**: revisions 2-6 of
+  the ISO 32000-1 algorithm — RC4 40/128-bit, AES-128 and AES-256
+  (revision 5/6 with the algorithm 2.A key derivation and 2.B hash,
+  including `/Perms` validation) — over a pure-Dart port of the
+  primitives on `pointycastle` (the package's first crypto
+  dependency). `PdfDocument.parse` gained an optional `password`;
+  empty-user-password documents (owner-restricted) open
+  transparently, and every string and stream decrypts before the
+  existing extraction pipeline runs, so encrypted books carry the
+  same text/reflow invariants as plain ones.
+- **CCITTFaxDecode and JBIG2Decode image filters**: pure-Dart ports
+  of pdf.js v3.11.174's `ccitt.js` and `jbig2.js` (G3 1D/2D, G4/MMR
+  with full `/DecodeParms` support; arithmetic (MQ) integer and
+  bitmap decoding, Huffman tables, refinement, pattern dictionaries
+  and halftone regions; `/JBIG2Globals` shared dictionaries). Page
+  images drawn from these XObjects render as grayscale PNGs through
+  `parsePdfBook`'s image callback. Robustness: allocation budgets,
+  decode-decision budgets and bounded symbol loops turn corrupt or
+  hostile streams into clean `PdfException`s (verified by byte-level
+  mutation tests).
+- **Image parity harness**: `tool/pdf_parity.dart --image` measures
+  every CCITT/JBIG2 image XObject's raster against pdf.js
+  v3.11.174 (a Node oracle in `tool/reference/`, or committed PGM
+  goldens). First runs: CCITT corpus **10 images / 1.31M pixels at
+  100.0000%**; JBIG2 arithmetic paths **100.0000%** on
+  `jbig2_symbol_offset` and all 8 `issue12963` page scans (69.5M
+  pixels). The Huffman-coded corner-case fixtures decode with
+  correct dimensions and placement but are not yet pixel-exact.
 - **PDF validation corpus and parity harness**: a Project Gutenberg
   corpus (8 public-domain books, ~3.8 MB, fetched reproducibly by
   `tool/fetch_pdf_corpus.dart`; Gutenberg no longer publishes its own
