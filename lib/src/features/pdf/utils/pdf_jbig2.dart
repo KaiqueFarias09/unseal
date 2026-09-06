@@ -19,8 +19,9 @@ import 'pdf_jbig2_segment.dart';
 
 /// Decodes a JBIG2Decode payload (ITU-T T.88, the embedded
 /// segment format PDFs use — no file header) into packed 1-bit
-/// rows: most significant bit first, `1` = black, rows padded to
-/// whole bytes — the input contract documented on `PdfBitmap`
+/// rows: most significant bit first, in the PDF's default `/Decode
+/// [0 1]` convention (0 = black, 1 = white), rows padded to whole
+/// bytes — the input contract documented on `PdfBitmap`
 /// (utils/pdf_bitmap.dart).
 ///
 /// [globals] carries the resolved bytes of the `/JBIG2Globals`
@@ -28,9 +29,12 @@ import 'pdf_jbig2_segment.dart';
 /// pages) when the image references one.
 ///
 /// Ground truth: pdf.js v3.11.174 `src/core/jbig2.js`
-/// (`Jbig2Image`). Port with parity comments pointing at it.
+/// (`Jbig2Image`) plus the color inversion `jbig2_stream.js` applies
+/// to its output. Port with parity comments pointing at it.
 // pdf.js jbig2_stream.js readBlock: the globals chunk is decoded
-// first, then the image chunk, through one shared visitor.
+// first, then the image chunk, through one shared visitor; the block
+// ends by inverting every byte because JBIG2 encodes black as 1 while
+// the PDF image model wants 0 = black.
 Uint8List decodeJbig2(final Uint8List data, {final Uint8List? globals}) {
   final chunks = <Jbig2Chunk>[
     if (globals != null) Jbig2Chunk(globals, 0, globals.length),
@@ -40,6 +44,9 @@ Uint8List decodeJbig2(final Uint8List data, {final Uint8List? globals}) {
   if (buffer == null) {
     // No PageInformation segment: nothing was ever drawn.
     throw const PdfException('JBIG2 error: no page information segment.');
+  }
+  for (var i = 0; i < buffer.length; i++) {
+    buffer[i] ^= 0xFF;
   }
   return buffer;
 }
