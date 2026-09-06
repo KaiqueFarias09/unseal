@@ -10,6 +10,7 @@ import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
 import 'package:e_livre/src/features/fb2/utils/parse_fb2_book.dart';
 import 'package:e_livre/src/features/mobi/utils/parse_mobi_book.dart';
+import 'package:e_livre/src/features/pdf/utils/parse_pdf_book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
@@ -51,6 +52,8 @@ abstract final class BookReader {
         return parseFb2Book(bytes);
       case DetectedFormat.comic:
         return parseComicBook(bytes);
+      case DetectedFormat.pdf:
+        return parsePdfBook(bytes);
     }
   }
 
@@ -93,6 +96,8 @@ abstract final class BookReader {
         return readFb2Metadata(bytes);
       case DetectedFormat.comic:
         return readComicMetadata(bytes);
+      case DetectedFormat.pdf:
+        return readPdfMetadata(bytes);
     }
   }
 

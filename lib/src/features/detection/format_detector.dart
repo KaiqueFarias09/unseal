@@ -28,6 +28,9 @@ enum DetectedFormat {
 
   /// Comic archive (RAR — CBR).
   comic,
+
+  /// PDF document.
+  pdf,
 }
 
 /// Sniffs the book format of [bytes] from its magic bytes.
@@ -37,9 +40,10 @@ enum DetectedFormat {
 /// * `PK` zip container → [DetectedFormat.epub]
 /// * `BOOKMOBI` / `TEXTREAD` at offset 60 → [DetectedFormat.mobiFamily]
 /// * `<?xml` / `<FictionBook` prologue → [DetectedFormat.fb2]
+/// * `%PDF` header → [DetectedFormat.pdf]
 ///
 /// Throws [FormatNotSupportedException] for known-but-unsupported formats
-/// (Topaz, KFX, PDF) and for unrecognized data.
+/// (Topaz, KFX, RTF) and for unrecognized data.
 DetectedFormat detectFormat(final Uint8List bytes) {
   if (bytes.isEmpty) {
     throw const FormatNotSupportedException('Cannot detect format of empty bytes.');
@@ -50,9 +54,7 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (_startsWith(bytes, _kfxMagic)) {
     throw const FormatNotSupportedException('Amazon KFX books are not supported.');
   }
-  if (_startsWith(bytes, _pdfMagic)) {
-    throw const FormatNotSupportedException('PDF books are not supported.');
-  }
+  if (_startsWith(bytes, _pdfMagic)) return DetectedFormat.pdf;
   if (_startsWith(bytes, _rtfMagic)) {
     throw const FormatNotSupportedException('RTF books are not supported.');
   }

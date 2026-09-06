@@ -17,4 +17,8 @@ enum BookFormat {
 
   /// Comic book RAR archive (stored entries only).
   cbr,
+
+  /// PDF (text extraction + reflow; page-faithful rendering stays
+  /// with the viewer).
+  pdf,
 }

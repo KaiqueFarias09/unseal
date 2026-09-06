@@ -17,6 +17,9 @@ import 'package:e_livre/src/features/mobi/entities/mobi_book.dart';
 import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
+import 'package:e_livre/src/features/pdf/entities/pdf_book.dart';
+import 'package:e_livre/src/features/pdf/entities/pdf_page.dart';
+import 'package:e_livre/src/features/pdf/exceptions/pdf_exception.dart';
 import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/features/search/book_search.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
@@ -175,6 +178,29 @@ const String wireKeyLocation = 'location';
     return (json, blobs);
   }
 
+  if (book is PdfBook) {
+    json['metadata'] = _encodeMetadata(book.metadata, blobs);
+    // The reflowed pages already crossed through the generic files
+    // section; the PDF extension carries what re-derivation cannot:
+    // the original bytes (facsimile mode re-serves them) and the
+    // per-page geometry (facsimile scaling). Extraction never re-runs
+    // on the receiving side.
+    json['pdf'] = <String, Object?>{
+      'bytes': _pushBlob(blobs, book.bytes),
+      'pages': <Object?>[
+        for (final page in book.pages)
+          <String, Object?>{
+            'objectNumber': page.objectNumber,
+            'mediaBox': page.mediaBox,
+            'cropBox': page.cropBox,
+            'rotate': page.rotate,
+          },
+      ],
+    };
+
+    return (json, blobs);
+  }
+
   final storedMetadata = book is Fb2Book
       ? book.metadata
       : book is ComicBook
@@ -222,6 +248,25 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
       cover: cover,
       header: MobiHeader.parse(blobs[mobi['record0'] as int] as Uint8List, mobi['ident'] as String),
       format: format,
+    );
+  }
+
+  final pdf = json['pdf'] as Map<String, Object?>?;
+  if (pdf != null) {
+    return PdfBook(
+      bytes: blobs[pdf['bytes'] as int] as Uint8List,
+      metadata: _decodeMetadata(json['metadata'] as Map<String, Object?>, blobs),
+      pages: <PdfPage>[
+        for (final entry in pdf['pages'] as List<Object?>)
+          PdfPage(
+            objectNumber: (entry as Map<String, Object?>)['objectNumber'] as int,
+            mediaBox: _doubleList(entry['mediaBox']),
+            cropBox: entry['cropBox'] == null ? null : _doubleList(entry['cropBox']),
+            rotate: (entry['rotate'] as int?) ?? 0,
+          ),
+      ],
+      navigation: navigation,
+      pageFiles: files.html,
     );
   }
 
@@ -354,6 +399,10 @@ Exception decodeErrorWire(final String type, final String message) {
       return Fb2Exception(message);
     case 'ComicException':
       return ComicException(message);
+    case 'PdfException':
+      return PdfException(message);
+    case 'PdfEncryptedException':
+      return const PdfEncryptedException();
     default:
       return ELivreException(message);
   }
@@ -367,9 +416,14 @@ BinaryFile _coverOf(final Book book) {
   if (book is MobiBook) return book.cover;
   if (book is Fb2Book) return book.cover;
   if (book is ComicBook) return book.cover;
+  if (book is PdfBook) return book.cover;
 
   throw ArgumentError('Unsupported book type for the wire: ${book.runtimeType}');
 }
+
+List<double> _doubleList(final Object? json) => [
+  for (final value in (json as List<Object?>)) (value as num).toDouble(),
+];
 
 Map<String, Object?> _encodeNavigation(final Navigation navigation) => <String, Object?>{
   'title': navigation.title,

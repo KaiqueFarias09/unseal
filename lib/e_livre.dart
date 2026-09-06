@@ -5,6 +5,7 @@ export 'comic.dart';
 export 'epub.dart';
 export 'fb2.dart';
 export 'mobi.dart';
+export 'pdf.dart';
 export 'src/features/annotations/annotation_codec.dart';
 export 'src/features/annotations/annotation_merge.dart';
 export 'src/features/annotations/bookmark_record.dart';

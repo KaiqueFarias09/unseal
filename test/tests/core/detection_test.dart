@@ -35,11 +35,8 @@ void main() {
       );
     });
 
-    test('rejects PDF books', () {
-      expect(
-        () => detectFormat(Uint8List.fromList('%PDF-1.7 ...'.codeUnits)),
-        throwsA(isA<FormatNotSupportedException>()),
-      );
+    test('detects PDF documents', () {
+      expect(detectFormat(Uint8List.fromList('%PDF-1.7 ...'.codeUnits)), DetectedFormat.pdf);
     });
 
     test('rejects RTF books', () {
