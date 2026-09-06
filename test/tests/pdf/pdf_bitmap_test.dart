@@ -25,26 +25,26 @@ void main() {
       expect(bitmap.packed[2], 0);
     });
 
-    test('toGrayBytes maps 1 to black and 0 to white, MSB first', () {
+    test('toGrayBytes maps 1 to white and 0 to black, MSB first', () {
       final bitmap = PdfBitmap(
         width: 10,
         height: 2,
         packed: Uint8List.fromList([
-          0xC0, 0x00, // row 1: pixels 0 and 1 black
-          0x00, 0x80, // row 2: pixel 8 black
+          0xC0, 0x00, // row 1: pixels 0 and 1 white
+          0x00, 0x80, // row 2: pixel 8 white
         ]),
       );
       final gray = bitmap.toGrayBytes();
       expect(gray, hasLength(20));
-      // Row 1 (0xC0, 0x00): pixels 0 and 1 black.
-      expect(gray[0], 0);
-      expect(gray[1], 0);
-      expect(gray[2], 255);
-      expect(gray[7], 255);
-      // Row 2 (0x00, 0x80): pixel 8 black. Gray output is
+      // Row 1 (0xC0, 0x00): pixels 0 and 1 white.
+      expect(gray[0], 255);
+      expect(gray[1], 255);
+      expect(gray[2], 0);
+      expect(gray[7], 0);
+      // Row 2 (0x00, 0x80): pixel 8 white. Gray output is
       // row-interleaved, so row 2 starts at index 10.
-      expect(gray[18], 0);
-      expect(gray[19], 255);
+      expect(gray[18], 255);
+      expect(gray[19], 0);
     });
 
     test('toPngBytes produces a well-formed grayscale PNG', () {

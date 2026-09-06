@@ -1,0 +1,10 @@
+{
+  "name": "e-livre-pdfjs-reference",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node oracle dependencies for tool/pdf_parity.dart --image (pdf.js v3.11.174).",
+  "type": "commonjs",
+  "dependencies": {
+    "pdfjs-dist": "3.11.174"
+  }
+}
