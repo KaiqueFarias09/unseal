@@ -22,6 +22,7 @@ import 'library_corpus_benchmarks.dart';
 import 'metadata_benchmarks.dart';
 import 'mobi_compression_benchmarks.dart';
 import 'parsing_benchmarks.dart';
+import 'pdf_benchmarks.dart';
 import 'utils_benchmarks.dart';
 
 /// Runs every benchmark group (or the filtered subset).
@@ -49,6 +50,7 @@ Future<void> main(final List<String> arguments) async {
   runDocumentTextSearchBenchmarks();
   runUtilityBenchmarks();
   runCfiBenchmarks();
+  await runPdfBenchmarks();
   runCalibreScaleBenchmarks();
 
   // The real-corpus scan runs last: it is the slowest group and only

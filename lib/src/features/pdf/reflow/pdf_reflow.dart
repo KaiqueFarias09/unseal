@@ -197,8 +197,9 @@ final class _Document {
         }
         for (var i = 0; i < _lineScanCount; i++) {
           if (page.lines.length < i + 1 ||
-              page.lines[page.lines.length - 1 - i].top < page.height / 2)
+              page.lines[page.lines.length - 1 - i].top < page.height / 2) {
             break;
+          }
           final text = page.lines[page.lines.length - 1 - i].text;
           if (footText[i].isEmpty) {
             footText[i] = text;
@@ -425,8 +426,9 @@ final class _Document {
       final last = previous.lines.last;
       final first = next.lines.first;
       if (last.bottom <= orphanSpace) continue;
-      if (first.tag != 'p' || first.left >= previous.statsLeftMin + first.averageCharacterWidth)
+      if (first.tag != 'p' || first.left >= previous.statsLeftMin + first.averageCharacterWidth) {
         continue;
+      }
 
       final lastSpare = previous.textWidth - last.finalWidth;
       final firstWord = RegExp(r'^([^ ]+)\s').firstMatch(first.text);

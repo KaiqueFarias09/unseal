@@ -2,6 +2,30 @@
 
 ### Added
 
+- **PDF support**: a pure-Dart PDF pipeline with zero new
+  dependencies. `parsePdfBook` reads the document structure (classic
+  cross-reference tables, PDF 1.5 cross-reference streams, object
+  streams and a scan-based recovery for broken files), extracts
+  per-page text (content-stream interpreter, simple fonts through the
+  Adobe encodings plus `/Differences` glyph names, Type0/CID fonts
+  through ToUnicode CMaps, per-code widths) and reflows it into one
+  HTML section per page — a behavioral port of Calibre's
+  `reflow.py` heuristics (paragraph coalescing with the unwrap rule,
+  automatic header/footer removal, indent and alignment statistics,
+  heading detection) adapted to per-page sections. The reflowed pages
+  carry the canonical-text invariant: `documentText` of a page's HTML
+  is exactly that page's extracted text stream (`PdfPageText.text`),
+  so search, `TextLocator` offsets, progression and the viewer's two
+  reading modes all address one character space; section `i` is page
+  `i`, so `PageLocator` falls out free. Bookmarks become `Navigation`
+  (`page_N.html#page_N` anchors), metadata follows Calibre's
+  `pdf.py` behavior (Info dictionary plus XMP consolidation, ISBN
+  from keywords), and `PdfBook` keeps the original bytes for the
+  viewer's facsimile mode. Encrypted documents throw
+  `PdfEncryptedException`; `PdfException` covers unreadable
+  structure. Benchmarks: `benchmark/pdf_benchmarks.dart` (in-repo
+  real-writer fixture plus an optional `ELIVRE_BENCH_PDF_DIR`
+  corpus).
 - **Book locators**: a versioned, format-neutral `BookLocator` union
   (`TextLocator` in the `documentText` space with optional
   `TextQuote` relocation context, `CfiLocator` carrying an EPUB CFI,

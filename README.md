@@ -2,13 +2,13 @@
 
 Pure Dart book parsing library. Extract metadata, covers, content,
 stylesheets, fonts and navigation from **EPUB 2.0/3.0**, **MOBI**,
-**AZW3 (KF8)**, **FB2** and **comic archives (CBZ/CBR)** — no native
-dependencies, one API.
+**AZW3 (KF8)**, **FB2**, **comic archives (CBZ/CBR)** and **PDF** —
+no native dependencies, one API.
 
 ## Features
 
 - Format detection by magic bytes (`epub`, `mobi`, `azw3`, `fb2`,
-  `cbz`, `cbr`).
+  `cbz`, `cbr`, `pdf`).
 - Metadata-only fast path: title, authors, languages, publisher,
   ISBN, subjects, dates, identifiers, series and cover without
   extracting the book content.
@@ -101,6 +101,7 @@ final epub = await BookReader.openFromPath(file.path);   // EPUB only
 final mobi = parseMobiBook(bytes);            // MOBI / AZW3
 final fb2 = parseFb2Book(bytes);              // FB2 / FB2.zip
 final comic = parseComicBook(bytes);          // CBZ / CBR
+final pdf = parsePdfBook(bytes);               // PDF
 ```
 
 ## Web support
@@ -163,11 +164,14 @@ already use a background isolate.
 ## Error handling
 
 - `FormatNotSupportedException` — known but unsupported formats
-  (Topaz, KFX, PDF, RTF) or unrecognized data.
+  (Topaz, KFX, RTF) or unrecognized data.
 - `DrmProtectedException` — DRM-protected MOBI files.
 - `InvalidBookException` — corrupted files of a detected format.
 - `ComicException` — comic archives with no pages or with compressed
   RAR entries.
+- `PdfException` / `PdfEncryptedException` — unreadable PDF structure
+  and encrypted PDF documents (the one PDF class this library rejects
+  outright).
 - `EpubException` / `MobiException` / `Fb2Exception` — per-format
   parse errors (all extend `ELivreException`).
 
