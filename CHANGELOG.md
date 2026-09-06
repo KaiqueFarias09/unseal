@@ -2,6 +2,30 @@
 
 ### Added
 
+- **PDF validation corpus and parity harness**: a Project Gutenberg
+  corpus (8 public-domain books, ~3.8 MB, fetched reproducibly by
+  `tool/fetch_pdf_corpus.dart`; Gutenberg no longer publishes its own
+  PDFs, so the fixtures are generated from the official text files
+  via the macOS print pipeline) locks the canonical-text invariant
+  per book. `tool/pdf_parity.dart` measures extraction against
+  Poppler (`pdftotext` per page), reflow against Calibre's own
+  `ebook-convert`, and metadata against `pdfinfo` — all against the
+  binaries bundled with the installed Calibre app. First corpus run:
+  **1,388 pages at 1.0000 mean similarity, 100% of pages above 0.9,
+  reflow 1.0000 on all 8 books, metadata 24/24 fields matching**.
+- **Font fidelity**: real standard-14 width tables (Adobe core14
+  AFMs as distributed by Apache PDFBox; provenance header included)
+  replace the per-family averages when a font carries no `/Widths`,
+  and Type0 fonts with an embedded `/Encoding` CMap now decode
+  one-byte codes and measure `/W` widths by CID through the
+  `cidrange` mapping (plus the previously unparsed range-array form
+  of `/W`).
+- **Robustness**: the LZWDecode stream filter (with `/EarlyChange`),
+  exact rotated-text bounding boxes from the text matrix, and a
+  deterministic byte-level fuzz suite (1,500 mutations over real and
+  synthetic fixtures) that surfaced and fixed a latent crash — a
+  zero font size now degrades instead of poisoning the reflow
+  statistics with NaN.
 - **PDF support**: a pure-Dart PDF pipeline with zero new
   dependencies. `parsePdfBook` reads the document structure (classic
   cross-reference tables, PDF 1.5 cross-reference streams, object
