@@ -34,8 +34,9 @@ void main() {
       expect(first.x, closeTo(72, 0.01));
       expect(first.y, closeTo(792 - 720 - 12 * 0.8, 0.01));
       expect(first.fontSize, closeTo(12, 0.01));
-      // Helvetica fallback average: 11 chars x 0.556 em x 12 pt.
-      expect(first.width, closeTo(11 * 0.556 * 12, 1.5));
+      // "Hello world" in the Adobe AFM Helvetica metrics: 4945 glyph
+      // units (1/1000 em) x 12 pt.
+      expect(first.width, closeTo(4945 / 1000 * 12, 0.01));
     });
 
     test('kerning inside TJ stays on one line without a join space', () {

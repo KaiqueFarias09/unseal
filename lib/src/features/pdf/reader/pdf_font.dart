@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../header/pdf_document.dart';
 import '../header/pdf_object.dart';
 import '../utils/pdf_encodings.dart';
+import '../utils/pdf_standard_widths.dart';
 import 'pdf_cmap.dart';
 
 /// A resolved text font: how codes decode to Unicode and how wide
@@ -19,8 +20,8 @@ import 'pdf_cmap.dart';
 ///
 /// Widths come from `/Widths` (simple) or `/W` (CID) in glyph-space
 /// units normalized to em (1.0 = font size); standard-14 fonts
-/// without widths fall back to per-family averages (Courier is
-/// monospaced, the others track near half an em).
+/// without widths measure through the per-glyph Adobe AFM metrics,
+/// falling back to per-family averages only for unknown names.
 class PdfFont {
   PdfFont._(
     this.codeBytes, {
@@ -90,26 +91,34 @@ class PdfFont {
     final PdfDictionary dictionary,
     final String name,
   ) {
-    var codeBytes = 2;
+    // A Type0 `/Encoding` is either a name (`Identity-H`, a
+    // predefined CMap) or an embedded CMap stream. The stream carries
+    // its own code space (one byte is common) and a `cidrange` block
+    // mapping codes onto CIDs — `/W` and `/DW` are keyed by CID, not
+    // by code; under `Identity-*` code equals CID.
     final encoding = document.resolve(dictionary['Encoding']);
-    if (encoding is PdfName) {
-      final value = encoding.value;
-      codeBytes = value.endsWith('-V') || value.endsWith('-H') ? 2 : codeBytes;
-      if (value.startsWith('Identity')) codeBytes = 2;
-    }
+    final embedded = encoding is PdfStream ? _cMapOf(document, encoding) : null;
+    final codeBytes = embedded?.codeBytes ?? 2;
 
     // A Type0 font without ToUnicode (predefined CMaps such as
     // UniJIS carry no Unicode mapping this extractor can read)
     // decodes to nothing: it still measures, so surrounding geometry
     // stays correct.
     final toUnicode = _toUnicodeCMap(document, dictionary) ?? PdfCMap.parse('');
-    final width = _cidWidths(document, dictionary);
+    final cidWidths = _cidWidths(document, dictionary);
+    final cidOfCode = embedded?.cidMap;
+    double widthOfCode(final int code) {
+      final cid = cidOfCode == null ? code : cidOfCode[code];
+      if (cid == null) return cidWidths.$2;
+
+      return cidWidths.$1[cid] ?? cidWidths.$2;
+    }
 
     return PdfFont._(
       codeBytes,
       isCid: true,
       unicodeOfCode: (final code) => toUnicode.map[code],
-      widthOfCode: width,
+      widthOfCode: widthOfCode,
       averageWidth: 1.0,
     );
   }
@@ -165,15 +174,37 @@ class PdfFont {
         if (item is PdfNumber) widths[firstChar + i] = item.value / 1000;
       }
     }
+    final standard = _standard14Row(name);
     final fallback = _standard14Average(name);
+    double widthOfCode(final int code) {
+      final explicit = widths[code];
+      if (explicit != null) return explicit;
+      if (standard != null && code >= 0 && code < standard.length) {
+        final glyph = standard[code];
+        if (glyph != null) return glyph / 1000;
+      }
+
+      return fallback;
+    }
 
     return PdfFont._(
       1,
       isCid: false,
       unicodeOfCode: (final code) => code >= 0 && code < 256 ? table[code] : null,
-      widthOfCode: (final code) => widths[code] ?? fallback,
+      widthOfCode: widthOfCode,
       averageWidth: fallback,
     );
+  }
+
+  /// Decodes a CMap [stream] into a [PdfCMap]; null when undecodable.
+  static PdfCMap? _cMapOf(final PdfDocument document, final PdfStream stream) {
+    try {
+      final text = String.fromCharCodes(document.decodeStream(stream));
+
+      return PdfCMap.parse(text);
+    } on Exception {
+      return null;
+    }
   }
 
   static PdfCMap? _toUnicodeCMap(final PdfDocument document, final PdfDictionary dictionary) {
@@ -188,11 +219,13 @@ class PdfFont {
     }
   }
 
-  static double Function(int code) _cidWidths(
+  /// The `/W` widths keyed by CID plus the `/DW` default (1.0 when
+  /// the dictionary carries none).
+  static (Map<int, double>, double) _cidWidths(
     final PdfDocument document,
     final PdfDictionary dictionary,
   ) {
-    final defaultWidth = 1.0;
+    var defaultWidth = 1.0;
     final widths = <int, double>{};
     final descendants = document.resolve(dictionary['DescendantFonts']);
     final descendant = descendants is PdfArray && descendants.items.isNotEmpty
@@ -217,6 +250,14 @@ class PdfFont {
               if (width is PdfNumber) widths[start.intValue + j] = width.value / 1000;
             }
             i += 2;
+          } else if (second is PdfNumber && third is PdfArray) {
+            // Range-array form: cfirst clast [w1 w2 ...] — one width
+            // per CID across the span.
+            for (var j = 0; j < third.items.length; j++) {
+              final width = third.items[j];
+              if (width is PdfNumber) widths[start.intValue + j] = width.value / 1000;
+            }
+            i += 3;
           } else if (second is PdfNumber && third is PdfNumber) {
             // Range form: cfirst clast w — one width across the span.
             for (
@@ -233,12 +274,10 @@ class PdfFont {
         }
       }
       final dw = document.resolve(descendant['DW']);
-      if (dw is PdfNumber) {
-        return (final code) => widths[code] ?? dw.value / 1000;
-      }
+      if (dw is PdfNumber) defaultWidth = dw.value / 1000;
     }
 
-    return (final code) => widths[code] ?? defaultWidth;
+    return (widths, defaultWidth);
   }
 
   static Map<int, String> _differencesOf(final PdfDocument document, final PdfDictionary encoding) {
@@ -273,5 +312,52 @@ class PdfFont {
     if (lower.contains('helvetica') || lower.contains('arial')) return 0.556;
 
     return 0.5;
+  }
+
+  /// The standard-14 width row for a [name] (BaseFont): the exact
+  /// entry first (case-insensitive), then family plus
+  /// bold/oblique-italic suffix heuristics for look-alike names
+  /// (`Arial-BoldMT` measures as Helvetica-Bold).
+  static List<int?>? _standard14Row(final String name) {
+    if (name.isEmpty) return null;
+    final exact = pdfStandard14Widths['/$name'];
+    if (exact != null) return exact;
+    final lower = name.toLowerCase();
+    for (final entry in pdfStandard14Widths.entries) {
+      if (entry.key.substring(1).toLowerCase() == lower) return entry.value;
+    }
+    final bold = lower.contains('bold');
+    final italic = lower.contains('italic') || lower.contains('oblique');
+    String family;
+    if (lower.contains('symbol')) {
+      family = 'Symbol';
+    } else if (lower.contains('zapf')) {
+      family = 'ZapfDingbats';
+    } else if (lower.contains('courier') || lower.contains('mono')) {
+      family = 'Courier';
+    } else if (lower.contains('times') || lower.contains('serif')) {
+      family = 'Times';
+    } else if (lower.contains('helvetica') || lower.contains('arial') || lower.contains('sans')) {
+      family = 'Helvetica';
+    } else {
+      return null;
+    }
+    if (family == 'Symbol' || family == 'ZapfDingbats') {
+      return pdfStandard14Widths['/$family'];
+    }
+    final oblique = family == 'Times' ? 'Italic' : 'Oblique';
+    final base = family == 'Times' ? '-Roman' : '';
+    String suffix;
+    if (bold && italic) {
+      suffix = '-Bold$oblique';
+    } else if (bold) {
+      suffix = '-Bold';
+    } else if (italic) {
+      suffix = '-$oblique';
+    } else {
+      suffix = base;
+    }
+
+    return pdfStandard14Widths['/$family$suffix'];
   }
 }

@@ -384,3 +384,90 @@ PdfFixtureBuilder headerFooterFixture() {
 
   return fixture;
 }
+
+const String _standard14Content = 'BT /F1 12 Tf 72 720 Td (Hello) Tj ET\n';
+
+/// A one-page fixture whose only font is a standard-14 Helvetica
+/// carrying no `/Widths` array, so measurement must come from the
+/// Adobe AFM metrics table.
+PdfFixtureBuilder standardFontPageFixture() {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R >> >> >>',
+    )
+    ..addStreamObject(7, '', _standard14Content.codeUnits)
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    );
+}
+
+const String _type0EmbeddedCMap =
+    '/CIDInit /ProcSet findresource begin\n'
+    '12 dict begin\n'
+    'begincmap\n'
+    '/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> def\n'
+    '/CMapName /Custom-Identity def\n'
+    '/CMapType 1 def\n'
+    '1 begincodespacerange\n'
+    '<00> <FF>\n'
+    'endcodespacerange\n'
+    '1 begincidrange\n'
+    '<41> <43> 500\n'
+    'endcidrange\n'
+    'endcmap\n'
+    'CMapName currentdict /CMap defineresource pop\n'
+    'end\n'
+    'end';
+
+const String _type0EmbeddedToUnicode =
+    '/CIDInit /ProcSet findresource begin\n'
+    '12 dict begin\n'
+    'begincmap\n'
+    '1 begincodespacerange\n'
+    '<00> <FF>\n'
+    'endcodespacerange\n'
+    '3 beginbfchar\n'
+    '<41> <0041>\n'
+    '<42> <0042>\n'
+    '<43> <0043>\n'
+    'endbfchar\n'
+    'endcmap\n'
+    'CMapName currentdict /CMap defineresource pop\n'
+    'end\n'
+    'end';
+
+const String _type0EmbeddedContent = 'BT /F1 12 Tf 72 720 Td <414243> Tj ET\n';
+
+/// A one-page fixture with a Type0 font whose `/Encoding` is an
+/// embedded one-byte CMap stream (`<41>-<43>` to CIDs 500-502) while
+/// `/W` is keyed by CID (`600 700 800`, `/DW 500`) and ToUnicode
+/// decodes the codes to `ABC`.
+PdfFixtureBuilder type0CMapPageFixture() {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R >> >> >>',
+    )
+    ..addStreamObject(7, '', _type0EmbeddedContent.codeUnits)
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type0 /BaseFont /Test-Embedded '
+      '/Encoding 10 0 R /DescendantFonts [11 0 R] /ToUnicode 12 0 R >>',
+    )
+    ..addStreamObject(10, '', _type0EmbeddedCMap.codeUnits)
+    ..addObject(
+      11,
+      '<< /Type /Font /Subtype /CIDFontType2 /BaseFont /Test-Embedded '
+      '/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> '
+      '/DW 500 /W [500 502 [600 700 800]] >>',
+    )
+    ..addStreamObject(12, '', _type0EmbeddedToUnicode.codeUnits);
+}
