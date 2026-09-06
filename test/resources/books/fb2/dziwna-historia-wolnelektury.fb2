@@ -1,0 +1,213 @@
+<?xml version="1.0"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:wl="http://wolnelektury.pl/functions" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:l="http://www.w3.org/1999/xlink">
+  <description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <title-info>
+      <genre>literature</genre>
+      <author>
+        <first-name>Bolesław</first-name>
+        <last-name>Prus</last-name>
+      </author>
+      <book-title>Dziwna historia</book-title>
+      <date>1983</date>
+      <lang>pol</lang>
+    </title-info>
+    <document-info>
+      <author>
+        <first-name>Paweł</first-name>
+        <last-name>Kozioł</last-name>
+      </author>
+      <author>
+        <first-name>Wojciech</first-name>
+        <last-name>Kotwica</last-name>
+      </author>
+      <author>
+        <first-name>Agnieszka</first-name>
+        <last-name>Kozioł</last-name>
+      </author>
+      <author>
+        <first-name>Aneta</first-name>
+        <last-name>Rawska</last-name>
+      </author>
+      <author>
+        <first-name>Paulina</first-name>
+        <last-name>Choromańska</last-name>
+      </author>
+      <program-used>book2fb2</program-used>
+      <date>2013-01-10</date>
+      <id>http://wolnelektury.pl/katalog/lektura/prus-dziwna-historia</id>
+      <version>0</version>
+    </document-info>
+    <publish-info>
+      <publisher>Fundacja Nowoczesna Polska</publisher>
+    </publish-info>
+  </description>
+  <body>
+    <title>
+      <p>Bolesław Prus</p>
+      <p>Dziwna historia</p>
+    </title>
+    <epigraph>
+      <p>
+					Utwór opracowany został w ramach projektu
+						<a l:href="https://wolnelektury.pl/">Wolne Lektury</a>
+					przez <a l:href="https://fundacja.wolnelektury.pl/">fundację
+						Wolne Lektury</a>.
+				</p>
+    </epigraph>
+    <section>
+      <p>Noc św. Sylwestra. Zegar jasno oświeconej Resursy Obywatelskiej wskazuje dziesięć minut do dwunastej; w salonach jasno oświeconej Resursy Obywatelskiej sześćdziesiąt par kończy ostatniego w tym roku kontredansa<a type="note" l:href="#fn1">[1]</a>; w bufecie jasno oświeconej
+Resursy Obywatelskiej dwudziestu kelnerów, pod bacznym okiem gospodarzów<a type="note" l:href="#fn2">[2]</a>, przygotowuje dwadzieścia butelek szampana.</p>
+      <p>Jeszcze kilka minut i w jasno oświeconych salonach wyskoczy z butelek dwadzieścia korków, dwudziestu kelnerów, pod bacznym okiem gospodarzów, naleje dwieście kieliszków, i przy dźwiękach fanfary, skomponowanej wyłącznie na wieczór dzisiejszy, sześćdziesiąt par tańczących, czterdziestu starych panów grających w wista<a type="note" l:href="#fn3">[3]</a> i czterdzieści starych dam drzemiących lub obmawiających wzniosą zdrowie Nowego Roku.</p>
+      <p>— Żyj nam i panuj, roku następny! Niech pod twym skrzydłem zwiększą się obroty naszych sklepów i dochody naszych kamienic!
+Niech każda z obecnych tu panien znajdzie męża, każda z mężatek rój wielbicieli, każdy stary jegomość materiał do chwalenia dawnych czasów! Żyj nam, panuj i chroń nasze domy od złodziejów, serca od niepokojów, mózgi od wątpliwości, żołądki od niestrawności!…</p>
+      <p>I w chwili, kiedy muzyka gra fanfarę, kiedy w kielichach syczy pienisty szampan, kiedy spojrzenia tkliwe krzyżują się z ognistymi i niejedna ręka tancerza nieznacznie ściska rękę niejednej tancerki, do jasno oświeconego salonu Resursy
+Obywatelskiej na mgnienie oka zstępuje niewidzialne bóstwo radości. Wszystkim jest czegoś dobrze, tak dobrze, że starzy panowie gotowi są wzdychać do młodych dam, stare damy, nie wiadomo z jakiej racji, gotowe są uronić po kilka łez, gospodarze gotowi są ściskać akcjonariuszów, akcjonariusze podnieść do góry prezesa, a kelnerzy z niepojętą szybkością wypróżnić to, co jeszcze syczy w butelkach.</p>
+      <p>Zbudzona ich wesołymi krzykami, ocknęła się noc zimowa, i chcąc bodaj raz w życiu zobaczyć, jak wygląda radość, zapuszcza w jasno oświecone okna Resursy Obywatelskiej swoje puste i martwe oko. „Gdzie jest radość?… — pyta się, bijąc w szyby płatami zmarzłego śniegu. — Gdzie tu radość?… Pokażcie mi radość…” — jęczy głosem wichru, trzęsie ramami okien i uderza głową o ściany.</p>
+      <p>Ale razem z ostatnią kroplą noworocznego toastu uciekła radość nawet z salonów Resursy Obywatelskiej, i nie ma jej tu.
+Jest tylko sześćdziesiąt par tańczących pierwszego w tym roku mazura, czterdziestu panów, którzy zasiadają do pierwszego w tym roku winta<a type="note" l:href="#fn4">[4]</a> i czterdzieści starych dam, które odprawiają pierwszą w tym roku drzemkę balową. Nie ma już radości ani w Resursie, ani poza Resursą, ani nawet na całej kuli ziemskiej.
+Jest tylko niezmierny płat śniegu, sięgający od Brukseli do
+Kamczatki, od bieguna do Neapolu, a nad nim czarna, pusta i martwa noc zimowa.</p>
+      <p>W mrokach tej samej nocy, która zagląda do okien Resursy
+Obywatelskiej, wśród tych samych śnieżnych tumanów, które biją w jej jasno oświecone szyby, zwolna toczy się, daleko od wesołej Resursy, pociąg towarowo-osobowy. Naprzód lokomotywa, z której komina, zamiast pary, wydobywają się kłęby śniegu, potem tender<a type="note" l:href="#fn5">[5]</a>, wyżej naładowany śniegiem, aniżeli węglem i wodą, potem wagony towarowe, w których najobfitszym towarem jest śnieg, potem wagony pasażerskie, w których przez okna, zasypane śniegiem, nie widać pasażerów. Śnieg, nic tylko śnieg, na dachach, stopniach i poręczach wagonów, śnieg na wąsach, czapkach i kożuchach służby, śnieg na plancie<a type="note" l:href="#fn6">[6]</a> drogi, śnieg na prawo i na lewo od plantu, śnieg przed pociągiem i za pociągiem, śnieg od Brukseli do Kamczatki i od Neapolu do bieguna.</p>
+      <p>O północy, w chwili, kiedy do salonu Resursy Obywatelskiej wnoszono butelki szampana, dwaj konduktorowie pociągu weszli do przedziału służbowego, gdzie właśnie nadkonduktor z powierzchownością senatora i telegrafista z miną filozofa pracowali nad odkorkowaniem zwyczajnej wódki.</p>
+      <p>— Podły czas, niech go pioruny… — mruknął, otrząsając się, jeden z konduktorów, szpakowaty brunet.</p>
+      <p>— Nie kląłbyś pan — odparł telegrafista.</p>
+      <p>— Pięknie zaczynamy Nowy Rok. Psy nie miałyby nam czego zazdrościć — dodał drugi konduktor, z rudym zarostem.</p>
+      <p>— Nie narzekałbyś — wtrącił telegrafista.</p>
+      <p>— Nie narzekać… A pamiętasz, gdzieśmy byli o tej porze dziesięć lat temu?… W Resursie Obywatelskiej… Szampanem witaliśmy Nowy Rok! — mówił rudy.</p>
+      <p>— A teraz powitamy go „oczyszczoną” — przerwał nadkonduktor, i zwracając się z pełnym kieliszkiem do konduktora bruneta, dodał, pijąc: — W ręce twoje, Józefie. My także moglibyśmy powiedzieć o tym, co bywało przed dziesięciu laty.</p>
+      <p>— Bah — westchnął brunet.</p>
+      <p>— Było nas wtedy u ciebie z ośmdziesiąt osób. Piliśmy wprawdzie tylko węgrzyna, ale jakiego… A ja miałem jeszcze moją czwórkę kasztanków.
+Podłe czasy… Kto by dziś uwierzył, że tak było?…</p>
+      <p>— Tylko nie narzekajcie — upominał ich telegrafista, podając pełny kieliszek rudemu.</p>
+      <p>— A cóż, może mamy sobie winszować? — spytał rudy i wypił.</p>
+      <p>— Rozumie się — rzekł nadkonduktor pięknym basem. — Było dobrze, jest źle, będzie gorzej; daj Panie Boże wytrzymać na rok przyszły.</p>
+      <p>— Ja tam — odparł rudy — gdybym był Panem Bogiem, nie zabierałbym ludziom majątków, a przynajmniej, kiedy już zostali konduktorami, nie zsyłałbym na nich takiej śnieżycy. Kiepskie są rządy świata…</p>
+      <p>Mizerny telegrafista zatrząsł się na te słowa.</p>
+      <p>— Już, mój kochany — zawołał — tylko przy mnie nie bluźnij…</p>
+      <p>— Cóż to za bluźnierstwo mówić, że kiepski świat? — spytał rudy.</p>
+      <p>— Bluźnierstwo, bo ten świat, jaki jest, jest najlepszy, i niech nas Bóg zachowa od poprawek — odparł telegrafista, dotykając dwoma palcami czapki.</p>
+      <p>— Bajesz, panie Ignacy — wtrącił nadkonduktor. — Poprawki nigdy nie zawadzą. I teraz ty sam wolałbyś chyba leżeć w ciepłym łóżku, aniżeli tłuc się po nocy, nie mając jeszcze pewności, że nas śnieg nie zatrzyma w drodze.</p>
+      <p>— Ma rację — mruknął szpakowaty brunet.</p>
+      <p>— Uhum. Mówiłem i ja tak, dopóki oduczyła mnie bluźnić historia Gębarzewskiego — odparł telegrafista.</p>
+      <p>— Tego, co był u nas w ekspedycji? — spytał rudy.</p>
+      <p>— Tego bzika? — dodał nadkonduktor.</p>
+      <p>— Pan możesz nazywać go bzikiem — rzekł telegrafista — ale ja, który znam się na spirytyzmie, uważam go za najprzytomniejszego człowieka. Kto studiował spirytyzm, nie będzie przeczył cudom.</p>
+      <p>— Prawda, że Gębarzewski zrobił jakiś cud, za który go nawet wypędzili ze służby — wtrącił nadkonduktor.</p>
+      <p>— Nic o tym nie słyszałem — zauważył szpakowaty brunet.</p>
+      <p>— Ani ja — dodał rudy.</p>
+      <p>— No to wam przy piwie opowiem — rzekł telegrafista
+ — chociaż nie lubię zaczepiać tej sprawy. Przekonacie się, jaka to niebezpieczna rzecz poprawiać Pana Boga.</p>
+      <p>Konduktorowie odkorkowali kilka butelek piwa, a telegrafista, mocno owinąwszy się w futro, jak gdyby zrobiło mu się zimniej, zaczął:</p>
+      <p>— Gębarzewski zawsze był niedowiarkiem. W szkołach połapał coś z fizyki i chemii, i zdawało mu się, że jest mędrcem. Pamiętam raz sprzeczał się ze mną o budowę telegrafu… Zwyczajnie młokos. Służył on w ekspedycji, ale nie bardzo psuł krzesła wysiadywaniem. Interesantów zawsze zbywał niedbale, ale za to lubił chodzić po wizytach, umizgać się<a type="note" l:href="#fn7">[7]</a> do panien…</p>
+      <p>— I mybyśmy to woleli — mruknął nadkonduktor.</p>
+      <p>— Jak kto — odparł sucho telegrafista, dając tym sposobem do zrozumienia, że wobec spirytyzmu płeć piękna obojętnieje.</p>
+      <p>— Rok temu — ciągnął po chwili telegrafista — naczelnik ekspedycji wydelegował Gębarzewskiego do przyjmowania towarów. Było to między Świętami a Nowym Rokiem. Chłopak latał po wizytach, jak kot z pęcherzem, a tego właśnie dnia miał ich odrobić sporo. Siedzi więc przy biurku (sam mi to opowiadał), wydaje kwity interesantom, ale mało się nie skręci, że jeszcze tak dużo pak leży na ziemi i że je tak powoli przesuwają do magazynu.</p>
+      <p>— „Prędzej tam, do stu diabłów” — wołał na tragarzy.</p>
+      <p>— „Cóż pan myśli, że paki tak łatwo suną się po podłodze, jak po lodzie?” — odpowiedział mu jeden z tragarzy.</p>
+      <p>Wtedy Gębarzewskiemu zaczęły snuć się po głowie paskudne myśli.</p>
+      <p>— „Po co to Pan Bóg — mówi — stworzył siłę tarcia? Gdyby nie było tarcia, to i konie mniej by pracowały, ciągnąc ładowne wozy po bruku, i ludzie mniej by męczyli się, pchając ciężary po podłodze, i — te przeklęte paki od dawna byłyby już w magazynie, a ja poszedłbym z wizytą.</p>
+      <p>„Plotą księża — myślał sobie dalej — że światem rządzi mądrość. Cóż to za mądrość mogła stworzyć tarcie, które pochłania tyle sił, pracy i czasu? Gdyby nie to głupie tarcie, nie zapalałyby się osie u wagonów, ani psułyby się machiny. Człowiek także, zamiast wlec się po ziemi jak wół i potnieć na każdym kroku, ślizgałby się tylko, jak łyżwiarz. Rozumiem ja to dobrze, bo przecież uczyłem się fizyki.”</p>
+      <p>I tak rozmyślając, Gębarzewski rzucał niekiedy półgłosem bluźnierstwa, aż żegnali się zgorszeni tragarze.</p>
+      <p>— „Już ja bym tam lepiej świat zbudował…” — powtarzał sobie.</p>
+      <p>A na to mu jeden z tragarzów odburknął:</p>
+      <p>— „Kiedyś pan taki mądry, to dlaczego już trzy lata siedzisz w ekspedycji na trzystu rublach pensji?…”</p>
+      <p>Nareszcie paki wepchnięto do magazynu, interesanci i tragarze rozeszli się, a mój Gębarzewski został w sali sam i kończył rachunki. Naraz podnosi głowę i spostrzega za kratą bardzo pięknego młodzieńca. Rysy twarzy dziwnie szlachetne, blond włosy elegancko uczesane, oczy niebieskie, palto bobrowe.</p>
+      <p>— „W pierwszej chwili — mówił mi Gębarzewski — myślałem, że to Prażmowski. Tak był do niego podobny ów młodzieniec…”</p>
+      <p>— Ten z teatru Prażmowski? — wtrącił nadkonduktor.</p>
+      <p>— Piękny chłop.</p>
+      <p>— Właśnie — odparł telegrafista. — „Ale potem — mówił mi
+Gębarzewski — widzę, że to ktoś inny.”</p>
+      <p>— „Pan ma interes?” — pyta się Gębarzewski młodzieńca.</p>
+      <p>— „Tak jest, panie” — odpowiada młodzieniec i patrzy na niego takim wzrokiem, jakby był co najmniej prezesem wszystkich dróg żelaznych. Gębarzewskiego zdjęła niepojęta trwoga, więc, sam nie wiedząc co mówi, pyta się młodzieńca:</p>
+      <p>— „Godność pańska?…”</p>
+      <p>— „Jestem anioł Gabriel” — odpowiada młodzieniec.</p>
+      <p>(Dwaj słuchający konduktorowie i nadkonduktor wydali w tym miejscu okrzyk zdumienia).</p>
+      <p>— Gębarzewski — ciągnął telegrafista — tak zgłupiał, że nie wiedząc po co to i na co to, zaczyna przeglądać księgi.</p>
+      <p>— „Anioł Gabriel… — powtarza Gębarzewski, przewracając księgi — Takiego nazwiska u nas nie ma… Jest tylko Cherubin, ale Mordko…”</p>
+      <p>— „Jestem aniołem nie z nazwiska, lecz z urzędu — przerywa mu ów młodzian. — A ponieważ przed godziną drwiłeś pan z siły tarcia, jakoby na nic nieprzydatnej, oświadczam więc, że za karę ciało twoje na 24 godziny będzie pozbawione siły tarcia…”</p>
+      <p>To powiedziawszy, młodzieniec kiwnął Gębarzewskiemu głową, i trzaskając drzwiami, wyszedł z sali.</p>
+      <p>— Wierutne bajki — krzyknął nadkonduktor.</p>
+      <p>— Z Tysiąca i Jednej Nocy… — dodał konduktor brunet.</p>
+      <p>— Słuchajcie panowie dalej — prawił telegrafista. — Po wyjściu młodzieńca Gębarzewski nieco ochłonął. „Do diaska! — mówi
+ — wzięli mnie na kawał, boć anioł powinien by mieć skrzydła…”</p>
+      <p>Tak sobie myśli i chce kończyć rachunki. Bierze pióro… pióro wyślizguje mu się z ręki; bierze drugi raz… To samo.
+Chcąc siąść na krześle, zjeżdża z krzesła, robi krok naprzód, a nogi chodzą mu po podłodze, jak łyżwy po lodzie… Zdjął go strach. Sięga po karafkę, ażeby napić się wody, a karafka wymyka mu się z rąk jak piskorz i bęc! Na ziemię… Pot wystąpił mu na czoło, lecz — lecz nie obtarł się, bo nie mógł ująć ręką chustki, która mu się wymykała. Zaczyna chodzić, lecz czuje, że zamiast chodzić, ślizga się. Był znakomitym łyżwiarzem, więc ślizgawka nie robiłaby mu kłopotu, gdyby nie okoliczność, iż podłoga zdawała się bez porównania bardziej śliską, niż lód. Skutkiem tego wcale nie mógł umiarkować swoich ruchów, co krok z wielkim impetem uderzał się o ściany, i nareszcie — wpadł na okno tak gwałtownie, że wyleciało na ulicę. Na hałas zbiegła się służba i sam naczelnik ekspedycji.</p>
+      <p>— „Co to znaczy?… Co pan wyrabiasz? — woła naczelnik — Gdzie rachunki?…”</p>
+      <p>— „Nie skończyłem, nie mogę pióra utrzymać w ręku” — odpowiada Gębarzewski.</p>
+      <p>Wtem — kamasz<a type="note" l:href="#fn8">[8]</a> zsunął mu się z nogi. Mój chłopak pochyla się i pada na ziemię, potrącając przy tym naczelnika.</p>
+      <p>— „Pan jesteś pijany!” — woła naczelnik.</p>
+      <p>— „Nie, panie! To anioł Gabriel pozbawił mnie siły tarcia…”</p>
+      <p>Tego było za wiele. Naczelnik, ateusz<a type="note" l:href="#fn9">[9]</a> i pozytywista, zamiast zbadać rzecz głębiej, polecił woźnym wsadzić Gębarzewskiego do sanek i odwieźć go do domu, a sam złożył raport do zarządu.</p>
+      <p>Nieszczęśliwy chłopak, znalazłszy się na ulicy, kazał jechać do pewnych państwa, którzy byli spokrewnieni z dyrektorem i Gębarzewskiego dosyć lubili. Tu jednak przyszło mu wdrapywać się na schody; uważajcie: na schody, bardziej śliskie niż lód! Ile razy potknął się i stoczył z nich biedak, tego on sam nawet nie pamięta; ostatecznie jednak wszedł na piętro, czepiając się szczeblów poręczy swoimi śliskimi rękoma, jak hakami.</p>
+      <p>Krewni dyrektora siedzieli właśnie przy kolacji z kilku nieznanymi osobami. Gębarzewski, nie chcąc opowiadać o swym nieszczęściu przy obcych, dotarł jakoś do stołu, umieścił się na krześle i, naglony przez gospodarzy, począł jeść i pić.</p>
+      <p>Wieczór ten był dla niego torturą. Co moment chwiał się na krześle (dzięki śliskości swego ciała) i bezustannie skupiał całą uwagę, ażeby nie upaść. Trudno też opowiedzieć, jakich używał sztuk, aby utrzymać w ręku szklankę, nóż i widelec, które mu się wciąż wymykały. Był tak zaprzątnięty swoją mordującą gimnastyką, że w końcu zapomniał o wszystkim poza obrębem bezpiecznego siedzenia na krześle i utrzymywania widelca.</p>
+      <p>Można więc wyobrazić sobie jego zdumienie, gdy ujrzał, że nagle wszyscy podnoszą się od stołu i wychodzą do dalszych pokojów, jego zaś zapytuje przestraszony i rozgniewany gospodarz:</p>
+      <p>— „Panie! Co się z panem dzieje? Jak pan mogłeś przyjść do nas w takim stanie?”</p>
+      <p>Biedny młodzieniec spojrzał nagle na podłogę i — o mało nie padł trupem. Proszę sobie wyobrazić, że ponieważ nawet wnętrze jego ciała straciło siłę tarcia, wszystko więc, co wypił i zjadł, przeleciało mu tylko przez usta i… znalazło się na podłodze!…</p>
+      <p>— „Pan upiłeś się!” — wrzasnął gospodarz, pokazując mu drzwi.</p>
+      <p>Biedny chłopak nawet nie próbował tłumaczyć się. Przejechał całą jadalnię, jak na łyżwach (wywracając przy tym stolik z samowarem), a znalazłszy się za drzwiami, poślizgnął się na pierwszym stopniu i ze wszystkich schodów runął na dół. To utwierdziło jego nieprzyjaciół w opinii, że był pijany.</p>
+      <p>Gdy podniósł się, pierwszą jego myślą było — odebrać sobie
+życie. Zaczął więc iść, a raczej ślizgać się w stronę Wisły.
+Nagle uczuł w sercu głęboki żal, który sparaliżował mu wszystką odwagę. Przypomniał bowiem sobie kobietę ukochaną, prawie narzeczoną, której kamienica leżała akurat na drodze do rzeki, i postanowił tam wstąpić.</p>
+      <p>Narzeczona Gębarzewskiego była wdową, niezbyt młodą, a więc rozsądną kobietą. Jeżeli kto, to właśnie ona mogła zrozumieć jego okropne położenie; jeżeli kto, to tylko ona mogła mu przez oddanie ręki zabezpieczyć byt, w razie gdyby z powodu swoich nieszczęść otrzymał na kolei dymisję.</p>
+      <p>Z bijącym tedy sercem biedny chłopak wszedł do jej mieszkania, pokonawszy pierwej trudności ze schodami i dzwonkiem. Wdowa przyjęła go nader życzliwie i z tak gorącym współczuciem wysłuchała jego nadzwyczajnych przygód, że ujęty jej dobrocią, nasz męczennik w tej chwili uczuł dla niej taką szczerą miłość, jakiej nie doświadczył nigdy ani przedtem, ani potem.</p>
+      <p>Rozrzewniony, chciał ucałować jej rękę; lecz choć wdowa nie broniła się, owszem w granicach skromności ułatwiła mu ten akt możliwej galanterii, Gębarzewski ani uścisnąć, ani pocałować jej nie mógł. Zdawało mu się, że zamiast kobiecej ręki, dotyka ustami wciąż wymykającej się ryby.</p>
+      <p>Podobnych, jeżeli nie przykrzejszych wrażeń, musiała doświadczyć i jego towarzyszka. Nagle bowiem odepchnęła amanta i, gniewna, przeniosła się z kanapy na fotel.</p>
+      <p>— „Pan jesteś wstrętny!…” — szepnęła.</p>
+      <p>— „Przysięgam, że nie jestem pijany!…” — zawołał.</p>
+      <p>— „Tym gorzej — odparła — bo pijany dziś, mógłby jutro otrzeźwieć, a pańskie karesy zawsze będą jednakowe.”</p>
+      <p>— „Anioł powiedział mi, że moje nieszczęście ma trwać tylko 24 godziny.”</p>
+      <p>Wdowa niechętnie machnęła ręką.</p>
+      <p>— „Ach, panie — rzekła — kogo niebo choćby na 24 godziny pozbawiło tak elementarnej własności, ten nie daje rękojmi<a type="note" l:href="#fn10">[10]</a>, że znowu kiedyś nie ulegnie podobnemu kalectwu.”</p>
+      <p>Gębarzewski musiał w duchu przyznać jej słuszność, i nawet nie próbując usprawiedliwiać się, opuścił mieszkanie.</p>
+      <p>— „Nigdy bym nie myślał — szeptał biedak, wracając do swojej izdebki — że tak materialna i pozioma<a type="note" l:href="#fn11">[11]</a> własność, jak tarcie, może tak niezmierny wpływ wywierać na życie człowieka!…”</p>
+      <p>Na drugi dzień lekarz, wysłany przez zarząd kolei do obejrzenia
+Gębarzewskiego, odwiedził go w mieszkaniu i znalazł go zamiast na łóżku, śpiącym na podłodze, na którą zsunął się w nocy, dzięki swojej śliskości. Ponieważ w dodatku upłynął termin klątwy, rzuconej przez anioła, a Gębarzewski utraconą siłę tarcia odzyskał, lekarz więc nie mógł sprawdzić jej chwilowego braku i zdecydował, że wszystkie wypadki, jakim biedny młodzieniec uległ poprzedniego wieczoru, były skutkiem pijaństwa…</p>
+      <p>Tak więc — zakończył telegrafista — przez chwilowy brak siły tarcia, na którą wszyscy mamy zwyczaj narzekać, młody i zdolny człowiek stracił posadę na kolei, majętną narzeczoną i stosunki z ludźmi, a zyskał krzywdzący tytuł pijaka. Toteż myśląc o jego przygodach, nigdy nie sarkam na świat i nie chcę poprawiać tego, co mi się wydaje wadliwe.</p>
+      <p>— Nawet tego, że Noc Sylwestra przepędzasz w wagonie, zamiast w Resursie? — spytał konduktor z rudym zarostem.</p>
+      <p>— Nawet tego.</p>
+      <p>— I nawet tego, że nas, jak uważam, zasypuje śnieżyca? — dodał nadkonduktor, usłyszawszy alarmowe sygnały maszynisty.</p>
+      <p>— Trudna rada.</p>
+      <p>Pociąg rzeczywiście stanął w tej samej chwili, kiedy w Resursie zaczęto tańczyć trzeciego walca. Konduktorowie wybiegli z przedziału na plant, który wyglądał jak góra śniegu.</p>
+      <p>— Postoimy do rana — mruknął nadkonduktor. — Chociaż — dodał po chwili — nie wiadomo, czy nam to nie wyjdzie na dobre.</p>
+      <p>— Więc uwierzyłeś w historię Gębarzewskiego? — spytał go szpakowaty brunet.</p>
+      <p>— Wierzę w to, że Gębarzewski był pijany i że telegrafista jest narwaniec. Swoją drogą jednak, kto wie, czy nie rozsądnie jest godzić się ze złem, którego uniknąć nie można.</p>
+    </section>
+  </body>
+  <body name="notes">
+    <section id="fn1">
+      <p><emphasis>kontredans</emphasis> — taniec towarzyski z figurami. [przypis edytorski]</p>
+    </section>
+    <section id="fn2">
+      <p><emphasis>gospodarzów</emphasis> — dziś popr. forma D.lm: gospodarzy. [przypis edytorski]</p>
+    </section>
+    <section id="fn3">
+      <p><emphasis>wist</emphasis> — gra karciana, poprzednik brydża. [przypis edytorski]</p>
+    </section>
+    <section id="fn4">
+      <p><emphasis>wint</emphasis> — dawna gra karciana. [przypis edytorski]</p>
+    </section>
+    <section id="fn5">
+      <p><emphasis>tender</emphasis> — specjalny wagon do przewozu węgla. [przypis edytorski]</p>
+    </section>
+    <section id="fn6">
+      <p><emphasis>plant</emphasis> — teren, po którym biegnie tor kolejowy. [przypis edytorski]</p>
+    </section>
+    <section id="fn7">
+      <p><emphasis>umizgać się</emphasis> (daw.) — zalecać się. [przypis edytorski]</p>
+    </section>
+    <section id="fn8">
+      <p><emphasis>kamasz</emphasis> (daw.) — but z wysoką cholewką. [przypis edytorski]</p>
+    </section>
+    <section id="fn9">
+      <p><emphasis>ateusz</emphasis> — ateista. [przypis edytorski]</p>
+    </section>
+    <section id="fn10">
+      <p><emphasis>rękojmia</emphasis> — gwarancja. [przypis edytorski]</p>
+    </section>
+    <section id="fn11">
+      <p><emphasis>poziomy</emphasis> (daw.) — przyziemny, pospolity. [przypis edytorski]</p>
+    </section>
+  </body>
+</FictionBook>

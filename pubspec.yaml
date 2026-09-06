@@ -4,7 +4,7 @@ repository: https://github.com/KaiqueFarias09/eLivre
 description: >-
   Pure Dart book parsing library. Extract metadata, covers, content,
   stylesheets, fonts and navigation from EPUB 2.0/3.0, MOBI, AZW3
-  (KF8) and FB2 ebooks.
+  (KF8), FB2, CBZ/CBR and PDF books.
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
@@ -23,6 +23,7 @@ false_secrets:
   - test/resources/**
 
 dev_dependencies:
+  crypto: ^3.0.7
   lints: ^6.1.0
   test: ^1.16.7
 

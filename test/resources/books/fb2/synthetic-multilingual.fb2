@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+  <description>
+    <title-info>
+      <genre>reference</genre>
+      <author>
+        <first-name>eLivre</first-name>
+        <last-name>contributors</last-name>
+      </author>
+      <book-title>eLivre Multilingual Parser Fixture</book-title>
+      <annotation><p>Synthetic test data with no third-party creative content.</p></annotation>
+      <lang>mul</lang>
+    </title-info>
+    <document-info>
+      <author><nickname>eLivre contributors</nickname></author>
+      <program-used>hand-authored deterministic fixture</program-used>
+      <date value="2026-09-06">2026-09-06</date>
+      <id>urn:elivre:test:fb2:multilingual</id>
+      <version>1.0</version>
+    </document-info>
+  </description>
+  <body>
+    <title><p>Mixed scripts and notation</p></title>
+    <section id="latin">
+      <title><p>Latin</p></title>
+      <p>Português: ação, coração, não. Español: ¿Qué tal? Français: déjà vu.</p>
+    </section>
+    <section id="rtl">
+      <title><p>Bidirectional text</p></title>
+      <p>العربية: مرحبا بالعالم — עברית: שלום עולם — version 2.0.</p>
+    </section>
+    <section id="cjk">
+      <title><p>CJK</p></title>
+      <p>日本語の縦書き確認。中文标点测试：你好，世界。</p>
+    </section>
+    <section id="science">
+      <title><p>Science</p></title>
+      <p>H₂O + CO₂; E = mc²; ∫₀¹ x² dx = ⅓; α → β.</p>
+    </section>
+  </body>
+</FictionBook>
