@@ -28,22 +28,6 @@ void main() {
       spineItems: 14,
     ),
     _TestBookPackageInfo(
-      file: 'test/resources/epub/famouspaintings.epub',
-      uniqueIdentifier: 'uuid_id',
-      version: '2.0',
-      title: 'Famous Paintings',
-      date: '2012-12-15T00:00:00+00:00',
-      subject: 'Fixed Layout Demonstration',
-      language: 'en',
-      identifiers: ['63912178-abce-4816-b882-930cb32d6207'],
-      uniqueIdentifierValue: '63912178-abce-4816-b882-930cb32d6207',
-      creator: 'Infogrid Pacific',
-      contributor: 'calibre (3.21.0) [http://calibre-ebook.com]',
-      manifestItems: 57,
-      spineItems: 20,
-      publisher: 'Infogrid Pacific',
-    ),
-    _TestBookPackageInfo(
       file: 'test/resources/epub/linear-algebra.epub',
       uniqueIdentifier: 'uid',
       version: '3.0',
@@ -51,7 +35,7 @@ void main() {
       subject: 'education',
       language: 'en',
       identifiers: ['https://github.com/IDPF/edupub/tree/master/samples/linear-algebra'],
-      uniqueIdentifierValue: '63912178-abce-4816-b882-930cb32d6207',
+      uniqueIdentifierValue: 'https://github.com/IDPF/edupub/tree/master/samples/linear-algebra',
       rights: [
         'This work is shared with the public using the GNU Free Documentation License, Version 1.2.',
         '© 2004 by Robert A. Beezer.',
@@ -70,34 +54,22 @@ void main() {
       typicalAgeRange: '18+',
     ),
     _TestBookPackageInfo(
-      file: 'test/resources/epub/WCAG-ch1.epub',
-      uniqueIdentifier: 'd21041e30',
+      file: 'test/resources/books/epub/accessible-epub-3.epub',
+      uniqueIdentifier: 'pub-identifier',
       version: '3.0',
-      title: 'World Cultures and Geography',
-      subject: 'education',
-      language: 'en-US',
-      identifiers: ['41f1328c-0571-4e71-8be8-e65bc148281a'],
-      uniqueIdentifierValue: '41f1328c-0571-4e71-8be8-e65bc148281a',
-      creator: '',
-      manifestItems: 41,
-      spineItems: 2,
-      accessibilityFeatures: [
-        'alternativeText',
-        'longDescription',
-        'printPageNumbers',
-        'readingOrder',
-        'structuralNavigation',
-        'tableOfContents',
-        'unlocked',
-      ],
-      date: '2014-12-11T09:12:52+00:00',
-      publisher: 'McDougal Littell',
-      rights: [
-        'Copyright © 2003 McDougal Littel, Inc.',
-        'McDougal Littel, Inc. holds the copyright for these files and has provided permission to use them for the purpose of creating exemplar files. They should not be re-posted to other sites, nor may they be sold for commercial purposes.',
-      ],
-      educationalRole: 'student',
-      typicalAgeRange: '18+',
+      title: 'Accessible EPUB 3',
+      subject: '',
+      language: 'en',
+      identifiers: ['urn:isbn:9781449328030'],
+      uniqueIdentifierValue: 'urn:isbn:9781449328030',
+      creator: 'Matt Garrish',
+      manifestItems: 35,
+      spineItems: 22,
+      accessibilityFeatures: ['tableOfContents', 'readingOrder', 'alternativeText'],
+      date: '2012-02-20',
+      contributor: 'O’Reilly Production Services',
+      publisher: 'O’Reilly Media, Inc.',
+      rights: ['Copyright © 2012 O’Reilly Media, Inc'],
     ),
     _TestBookPackageInfo(
       file: 'test/resources/epub/structure-sample-01.epub',
@@ -126,42 +98,35 @@ void main() {
       typicalAgeRange: '18+',
     ),
     _TestBookPackageInfo(
-      file: 'test/resources/epub/Sway.epub',
-      uniqueIdentifier: 'uuid_id',
-      version: '2.0',
-      title: 'Sway',
-      subject: 'FIC000000',
-      language: 'en',
-      identifiers: ['9780316028363', 'a242af33-73b7-434b-8cde-511565f4f860'],
-      uniqueIdentifierValue: '9780316028363',
-      creator: 'Zachary Lazar',
-      date: '2008-01-07T00:00:00+00:00',
-      contributor: 'calibre (3.21.0) [http://calibre-ebook.com]',
-      rights: ['WORLD ALL LANGUAGES'],
-      publisher: 'Little, Brown and Company',
-      description:
-          "Three dramatic and emblematic stories intertwine in Zachary Lazar's extraordinary new novel, SWAY--the early days of the Rolling Stones, including the romantic triangle of Brian Jones, Anita Pallenberg, and Keith Richards; the life of avant-garde filmmaker Kenneth Anger; and the community of Charles Manson and his followers. Lazar illuminates an hour in American history when rapture found its roots in idolatrous figures and led to unprovoked and inexplicable violence. Connecting all the stories in this novel is Bobby Beausoleil, a beautiful California boy who appeared in an Anger film and eventually joined the Manson 'family.' With great artistry, Lazar weaves scenes from these real lives together into a true but heightened reality, making superstars human, giving demons reality, and restoring mythic events to the scale of daily life.",
-      manifestItems: 12,
-      spineItems: 8,
+      file: 'test/resources/books/epub/dom-casmurro-pt.epub',
+      uniqueIdentifier: 'id',
+      version: '3.0',
+      title: 'Dom Casmurro',
+      subject: 'Adultery -- Fiction',
+      language: 'pt',
+      identifiers: ['http://www.gutenberg.org/55752'],
+      uniqueIdentifierValue: 'http://www.gutenberg.org/55752',
+      creator: 'Machado de Assis',
+      date: '2017-10-15',
+      rights: ['Public domain in the USA.'],
+      manifestItems: 11,
+      spineItems: 5,
+      accessibilityFeatures: ['readingOrder'],
     ),
     _TestBookPackageInfo(
-      file: 'test/resources/epub/sample1.epub',
-      uniqueIdentifier: 'uuid_id',
-      version: '2.0',
-      title: "The Geography of Bliss: One Grump's Search for the Happiest Places in the World",
-      subject: 'TRV000000',
-      language: 'en',
-      identifiers: ['9780446511070', '488e41dd-11d3-45e4-b776-173d26db6306'],
-      uniqueIdentifierValue: '9780446511070',
-      creator: 'Eric Weiner',
-      manifestItems: 11,
+      file: 'test/resources/books/epub/vertical-writing-ja.epub',
+      uniqueIdentifier: 'pub-id',
+      version: '3.0',
+      title: 'ガリ版の話',
+      subject: '',
+      language: 'ja',
+      identifiers: ['urn:uuid:8B3EBB46-DA57-11E2-AB84-32F5FD9156E7'],
+      uniqueIdentifierValue: 'urn:uuid:8B3EBB46-DA57-11E2-AB84-32F5FD9156E7',
+      creator: '津野海太郎',
+      manifestItems: 19,
       spineItems: 7,
-      date: '2008-01-03T00:00:00+00:00',
-      contributor: 'calibre (3.21.0) [http://calibre-ebook.com]',
-      publisher: 'Twelve',
-      description:
-          "Part foreign affairs discourse, part humor, and part twisted self-help guide, The Geography of Bliss takes the reader from America to Iceland to India in search of happiness, or, in the crabby author's case, moments of 'un-unhappiness.' The book uses a beguiling mixture of travel, psychology, science and humor to investigate not what happiness is, but where it is. Are people in Switzerland happier because it is the most democratic country in the world? Do citizens of Singapore benefit psychologically by having their options limited by the government? Is the King of Bhutan a visionary for his initiative to calculate Gross National Happiness? Why is Asheville, North Carolina so damn happy? With engaging wit and surprising insights, Eric Weiner answers those questions and many others, offering travelers of all moods some interesting new ideas for sunnier destinations and dispositions.",
-      rights: ['WORLD ALL LANGUAGES'],
+      date: '2013-06-21T09:47:11Z',
+      publisher: '株式会社ボイジャー',
     ),
   ];
 
@@ -177,6 +142,7 @@ void main() {
 
       expect(epubPackage.uniqueIdentifier, book.uniqueIdentifier);
       expect(epubPackage.version, book.version);
+      expect(epubPackage.metadata.uniqueIdentifierValue, book.uniqueIdentifierValue);
 
       // Metadata
       if (epubPackage.metadata is Epub2Metadata) {
@@ -201,6 +167,31 @@ void main() {
       expect(epubPackage.spine.items.length, book.spineItems);
     });
   }
+
+  test('parses rich metadata without a commercial book fixture', () {
+    final epubPackage = parsePackage('''
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">1234</dc:identifier>
+    <dc:identifier>urn:isbn:9780000000000</dc:identifier>
+    <dc:title>Metadata Fixture</dc:title>
+    <dc:language>en</dc:language>
+    <dc:description>Fixture description</dc:description>
+    <meta property="schema:accessibilityFeature">longDescription</meta>
+  </metadata>
+  <manifest>
+    <item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine toc="chapter"><itemref idref="chapter"/></spine>
+</package>
+''');
+    final metadata = epubPackage.metadata as Epub3Metadata;
+
+    expect(metadata.identifiers, ['1234', 'urn:isbn:9780000000000']);
+    expect(metadata.description, 'Fixture description');
+    expect(metadata.accessibilityFeatures, ['longDescription']);
+  });
 
   test('parsePackage tolerates guide references without title', () {
     const opf = '''
@@ -304,7 +295,6 @@ void _checkCommonMetadataProperties(
   expect(metadata.subject, testPackageInfo.subject);
   expect(metadata.language, testPackageInfo.language);
   expect(metadata.identifiers, testPackageInfo.identifiers);
-  expect(metadata.description, testPackageInfo.description);
   expect(metadata.rights, testPackageInfo.rights);
   expect(metadata.contributor, testPackageInfo.contributor);
   expect(metadata.creator, testPackageInfo.creator);
@@ -334,7 +324,6 @@ class _TestBookPackageInfo {
     this.date = '',
     this.contributor = '',
     this.publisher = '',
-    this.description = '',
     this.rights = const [],
     this.educationalRole = '',
     this.typicalAgeRange = '',
@@ -349,7 +338,6 @@ class _TestBookPackageInfo {
   final String language;
   final List<String> identifiers;
   final String uniqueIdentifierValue;
-  final String description;
   final List<String> rights;
   final String contributor;
   final String creator;

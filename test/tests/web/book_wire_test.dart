@@ -56,7 +56,10 @@ void main() {
     });
 
     test('carries the parsed OPF package (2.0 and 3.0)', () {
-      for (final name in ['epub/Alices Adventures in Wonderland.epub', 'epub/WCAG-ch1.epub']) {
+      for (final name in [
+        'epub/Alices Adventures in Wonderland.epub',
+        'books/epub/accessible-epub-3.epub',
+      ]) {
         final source = _bytes(name);
         final original = BookReader.parseBook(source) as EpubBook;
         final (json, blobs) = encode(original, source);
@@ -84,7 +87,7 @@ void main() {
     });
 
     test('keeps EPUB 3 metadata extras', () {
-      final source = _bytes('epub/WCAG-ch1.epub');
+      final source = _bytes('books/epub/accessible-epub-3.epub');
       final original = BookReader.parseBook(source) as EpubBook;
       final package = original.package;
       if (package is! Epub3Package) return;
@@ -157,7 +160,7 @@ void main() {
 
   group('metadata wire round-trip', () {
     test('carries every scalar, list, map, date and cover', () {
-      final metadata = BookReader.readMetadataSync(_bytes('epub/Sway.epub'));
+      final metadata = BookReader.readMetadataSync(_bytes('books/epub/tristram-shandy.epub'));
       final (json, blobs) = encodeMetadataWire(metadata);
       final decoded = decodeMetadataWire(json, blobs);
 
@@ -180,7 +183,7 @@ void main() {
     });
 
     test('survives the JSON channel', () {
-      final metadata = BookReader.readMetadataSync(_bytes('epub/Sway.epub'));
+      final metadata = BookReader.readMetadataSync(_bytes('books/epub/tristram-shandy.epub'));
       final (json, blobs) = encodeMetadataWire(metadata);
       final channel = decodeJson(encodeJson(json));
       final decoded = decodeMetadataWire(channel, blobs);

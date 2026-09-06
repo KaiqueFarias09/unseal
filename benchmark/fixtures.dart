@@ -33,7 +33,7 @@ final class BookFixture {
   /// Short name used in benchmark labels for wordy file names.
   final String? displayName;
 
-  /// Short display label, e.g. `sample1.epub (188 KB)`.
+  /// Short display label, e.g. `vertical-writing-ja.epub (261 KB)`.
   String get label => '${displayName ?? name.split('/').last} '
       '(${formatBytes(bytes.length)})';
 
@@ -87,7 +87,7 @@ List<BookFixture> get parsingFixtures => <BookFixture>[
       epubSmall,
       epubAlice,
       epubLinearAlgebra,
-      epubFamousPaintings,
+      epubFixedLayout,
       mobi6Alice,
       mobi8Alice,
       mobiJointAlice,
@@ -95,8 +95,8 @@ List<BookFixture> get parsingFixtures => <BookFixture>[
       comicSample,
     ];
 
-/// A small EPUB (188 KB).
-BookFixture get epubSmall => loadFixture('epub/sample1.epub');
+/// A small vertical-writing EPUB.
+BookFixture get epubSmall => loadFixture('books/epub/vertical-writing-ja.epub');
 
 /// Alice in Wonderland as an EPUB (868 KB).
 BookFixture get epubAlice => loadFixture(
@@ -107,8 +107,8 @@ BookFixture get epubAlice => loadFixture(
 /// A math textbook EPUB (1.7 MB).
 BookFixture get epubLinearAlgebra => loadFixture('epub/linear-algebra.epub');
 
-/// An image-heavy art book EPUB (6.4 MB).
-BookFixture get epubFamousPaintings => loadFixture('epub/famouspaintings.epub');
+/// A focused fixed-layout EPUB.
+BookFixture get epubFixedLayout => loadFixture('books/epub/page-blanche.epub');
 
 /// Alice in Wonderland as MOBI 6 (3.2 MB).
 BookFixture get mobi6Alice => loadFixture('mobi/alice-old.mobi');
@@ -126,7 +126,7 @@ BookFixture get fb2Alice => loadFixture('fb2/alice.fb2');
 BookFixture get comicSample => loadFixture('comic/sample.cbz');
 
 /// The EPUB carrying a Calibre `metadata.opf` sidecar.
-BookFixture get epubWithSidecar => loadFixture('sidecar/sample1.epub');
+BookFixture get epubWithSidecar => loadFixture('sidecar/alice.epub');
 
 bool _derivedReady = false;
 TextFile? _largestHtml;

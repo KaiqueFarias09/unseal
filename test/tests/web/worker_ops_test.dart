@@ -50,7 +50,7 @@ void _expectSameResults(final SearchResults wire, final SearchResults inline) {
 }
 
 void main() {
-  final bytes = _bytes('epub/sample1.epub');
+  final bytes = _bytes('epub/Alices Adventures in Wonderland.epub');
   final inline = BookReader.parseBook(bytes) as EpubBook;
 
   // The resident book exactly the way the worker shell keeps it:
@@ -64,13 +64,13 @@ void main() {
 
       final reply = runWorkerOp(
         op: workerOpSearch,
-        payload: _searchPayload('Bliss'),
+        payload: _searchPayload('alice'),
         residentBook: resident,
       );
       expect(reply.kind, wireReplySearch);
       expect(reply.blobs, isEmpty);
 
-      _expectSameResults(decodeSearchResultsWire(reply.json), inline.search('Bliss'));
+      _expectSameResults(decodeSearchResultsWire(reply.json), inline.search('alice'));
     });
 
     test('forwards the non-default options', () {
@@ -84,19 +84,19 @@ void main() {
 
       final caseFolded = runWorkerOp(
         op: workerOpSearch,
-        payload: _searchPayload('BLISS', caseSensitive: true),
+        payload: _searchPayload('ALICE', caseSensitive: true),
         residentBook: resident,
       );
       expect(decodeSearchResultsWire(caseFolded.json).matches, isEmpty);
       _expectSameResults(
         decodeSearchResultsWire(caseFolded.json),
-        inline.search('BLISS', caseSensitive: true),
+        inline.search('ALICE', caseSensitive: true),
       );
     });
 
     test('rejects the request without a resident book', () {
       expect(
-        () => runWorkerOp(op: workerOpSearch, payload: _searchPayload('Bliss')),
+        () => runWorkerOp(op: workerOpSearch, payload: _searchPayload('alice')),
         throwsA(isA<ELivreException>()),
       );
     });

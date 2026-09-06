@@ -4,8 +4,8 @@ import 'package:test/test.dart';
 void main() {
   group('Calibre sidecar OPF', () {
     test('metadata.opf merges over the book metadata', () async {
-      // test/resources/sidecar/sample1.epub ships with metadata.opf.
-      final metadata = await BookReader.readMetadataFromPath('test/resources/sidecar/sample1.epub');
+      // test/resources/sidecar/alice.epub ships with metadata.opf.
+      final metadata = await BookReader.readMetadataFromPath('test/resources/sidecar/alice.epub');
       expect(metadata.title, 'Sidecar Title Wins');
       expect(metadata.authors, ['Sidecar Author']);
       expect(metadata.series, 'The Sidecar Series');
@@ -16,18 +16,16 @@ void main() {
 
     test('basename sidecar is preferred over metadata.opf', () async {
       final metadata = await BookReader.readMetadataFromPath(
-        'test/resources/sidecar_named/renamed-book.epub',
+        'test/resources/sidecar_named/alice.epub',
       );
       expect(metadata.title, 'Named Sidecar');
     });
 
     test('books without sidecars keep their own metadata', () async {
-      final metadata = await BookReader.readMetadataFromPath('test/resources/epub/sample1.epub');
-      expect(
-        metadata.title,
-        "The Geography of Bliss: One Grump's Search for the Happiest "
-        'Places in the World',
+      final metadata = await BookReader.readMetadataFromPath(
+        'test/resources/epub/Alices Adventures in Wonderland.epub',
       );
+      expect(metadata.title, "Alice's Adventures in Wonderland");
       expect(metadata.series, isNull);
     });
   });

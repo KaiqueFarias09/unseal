@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 void main() {
   group('detectFormat', () {
     test('detects EPUB zip containers', () {
-      final bytes = File('test/resources/epub/sample1.epub').readAsBytesSync();
+      final bytes = File('test/resources/books/epub/vertical-writing-ja.epub').readAsBytesSync();
       expect(detectFormat(bytes), DetectedFormat.epub);
     });
 

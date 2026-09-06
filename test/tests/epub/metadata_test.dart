@@ -34,9 +34,9 @@ void main() {
       });
     }
 
-    test('carries the cover bytes for sample1', () {
+    test('carries the cover bytes for the vertical-writing fixture', () {
       final archive = ZipDecoder().decodeBytes(
-        File('test/resources/epub/sample1.epub').readAsBytesSync(),
+        File('test/resources/books/epub/vertical-writing-ja.epub').readAsBytesSync(),
       );
       final metadata = readEpubMetadata(archive);
       expect(metadata.cover, isNotNull);

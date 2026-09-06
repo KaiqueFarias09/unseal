@@ -9,32 +9,31 @@ import '../mobi/mobi_fixture_builder.dart';
 import 'synthetic_books.dart';
 
 void main() {
-  final sample1Bytes = File('test/resources/epub/sample1.epub').readAsBytesSync();
+  final verticalBytes = File(
+    'test/resources/books/epub/vertical-writing-ja.epub',
+  ).readAsBytesSync();
   final structureBytes = File('test/resources/epub/structure-sample-01.epub').readAsBytesSync();
-  final wcagBytes = File('test/resources/epub/WCAG-ch1.epub').readAsBytesSync();
+  final accessibleBytes = File(
+    'test/resources/books/epub/accessible-epub-3.epub',
+  ).readAsBytesSync();
   final aliceBytes = File(
     'test/resources/epub/Alices Adventures in Wonderland.epub',
   ).readAsBytesSync();
   final aliceMobiBytes = File('test/resources/mobi/alice-old.mobi').readAsBytesSync();
 
   group('navTargetOf against EPUB fixtures', () {
-    test('sample1: exact path match, missing anchor keeps the section', () {
-      final book = parseEpubBook(sample1Bytes);
-      final points = book.navigation.navPoints;
+    test('vertical writing: nested anchors resolve to the spine', () {
+      final book = parseEpubBook(verticalBytes);
+      final chapter = book.navigation.navPoints.first.subNavPoints.first;
+      final target = book.navTargetOf(chapter);
+      final expectedSection = book.readingOrder.indexWhere(
+        (final item) => item.name.endsWith('book_0002.xhtml'),
+      );
 
-      final contents = book.navTargetOf(points[0]);
-      expect(contents!.sectionIndex, 3);
-      expect(contents.anchorId, 'contents_1');
-      expect(contents.charOffset, isNull);
-
-      final introduction = book.navTargetOf(points[1]);
-      expect(introduction!.sectionIndex, 5);
-      expect(introduction.anchorId, isNull);
-      expect(introduction.charOffset, isNull);
-
-      final chapter = book.navTargetOf(points[2]);
-      expect(chapter!.sectionIndex, 6);
-      expect(chapter.charOffset, isNull);
+      expect(target, isNotNull);
+      expect(target!.sectionIndex, expectedSection);
+      expect(target.anchorId, 'toc-001');
+      expect(target.charOffset, isNotNull);
     });
 
     test('structure-sample-01: suffix match and anchor offset', () {
@@ -59,11 +58,17 @@ void main() {
       expect(preface.charOffset, lessThan(documentTextOf(_htmlOf(book, 7)).length));
     });
 
-    test('WCAG-ch1: EPUB3 nav hrefs resolve to the spine', () {
-      final book = parseEpubBook(wcagBytes);
-      final target = book.navTargetOf(book.navigation.navPoints.first);
-      expect(target!.sectionIndex, 0);
-      expect(target.anchorId, 'd18656e11');
+    test('accessible EPUB 3 nav anchors resolve to the spine', () {
+      final book = parseEpubBook(accessibleBytes);
+      final convention = book.navigation.navPoints.first.subNavPoints.first;
+      final target = book.navTargetOf(convention);
+      final expectedSection = book.readingOrder.indexWhere(
+        (final item) => item.name.endsWith('pr01.xhtml'),
+      );
+
+      expect(target, isNotNull);
+      expect(target!.sectionIndex, expectedSection);
+      expect(target.anchorId, 'I_sect1_d1e137');
       expect(target.charOffset, isNotNull);
     });
 
