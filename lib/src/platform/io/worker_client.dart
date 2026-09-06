@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
 import 'package:e_livre/src/features/reading/book.dart';
+import 'package:e_livre/src/features/search/book_search.dart';
 import 'package:e_livre/src/foundation/entities/book_metadata.dart';
 
 /// Native stand-in for the web worker client: runtimes with dart:io
@@ -27,4 +29,30 @@ final class WorkerClient {
 
   /// Always `null`: callers read metadata inline / on the isolate.
   Future<BookMetadata?> metadataInWorker(final Uint8List bytes) => Future<BookMetadata?>.value();
+
+  /// Always `null`: search keeps running on the calling thread — the
+  /// background isolate parses and discards the book, so nothing is
+  /// held resident to serve the op from (future work). Defaults
+  /// mirror `BookSearch.search` to keep the signature interchangeable
+  /// with the web client.
+  Future<SearchResults?> searchInWorker(
+    final String query, {
+    final SearchMode mode = SearchMode.contains,
+    final bool caseSensitive = false,
+    final bool tolerant = true,
+    final int nearChars = 60,
+    final int contextChars = 48,
+    final int maxMatches = 200,
+  }) => Future<SearchResults?>.value();
+
+  /// Always `null`: CFI resolution keeps running on the calling
+  /// thread — see [searchInWorker].
+  Future<EpubCfiLocation?> resolveCfiInWorker(final String cfi) => Future<EpubCfiLocation?>.value();
+
+  /// Always `null`: CFI building keeps running on the calling thread —
+  /// see [searchInWorker].
+  Future<String?> buildCfiInWorker({
+    required final int contentIndex,
+    required final int offsetInText,
+  }) => Future<String?>.value();
 }

@@ -1,6 +1,7 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
+import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
 import 'package:e_livre/src/features/comic/entities/comic_book.dart';
 import 'package:e_livre/src/features/comic/exceptions/comic_exception.dart';
 import 'package:e_livre/src/features/epub/entities/book/book.dart';
@@ -17,6 +18,7 @@ import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
 import 'package:e_livre/src/features/reading/book.dart';
+import 'package:e_livre/src/features/search/book_search.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
@@ -27,11 +29,31 @@ const String workerOpParse = 'parse';
 /// Wire protocol op: extract metadata only.
 const String workerOpMetadata = 'metadata';
 
+/// Wire protocol op: full-text search over the resident book.
+const String workerOpSearch = 'search';
+
+/// Wire protocol op: resolve a CFI against the resident book.
+const String workerOpCfiResolve = 'cfiResolve';
+
+/// Wire protocol op: build a CFI from a reading position in the
+/// resident book.
+const String workerOpCfiBuild = 'cfiBuild';
+
 /// Wire protocol reply kind: a decoded [Book].
 const String wireReplyBook = 'book';
 
 /// Wire protocol reply kind: decoded [BookMetadata].
 const String wireReplyMetadata = 'metadata';
+
+/// Wire protocol reply kind: encoded [SearchResults].
+const String wireReplySearch = 'search';
+
+/// Wire protocol reply kind: an encoded [EpubCfiLocation] (JSON null
+/// when the CFI resolves nowhere).
+const String wireReplyCfiLocation = 'cfiLocation';
+
+/// Wire protocol reply kind: an encoded CFI string.
+const String wireReplyCfi = 'cfi';
 
 /// Wire protocol reply kind: a parse failure.
 const String wireReplyError = 'error';
@@ -44,6 +66,11 @@ const String wireKeyOp = 'op';
 
 /// Wire protocol key: the book bytes sent by the main thread.
 const String wireKeyBytes = 'bytes';
+
+/// Wire protocol key: the JSON-encoded op payload the stateful ops
+/// read their arguments from; carried next to [wireKeyBytes], either
+/// side may be absent.
+const String wireKeyPayload = 'payload';
 
 /// Wire protocol key: reply discriminator.
 const String wireKeyKind = 'kind';
@@ -63,6 +90,41 @@ const String wireKeyType = 'type';
 
 /// Wire protocol key: exception message on error replies.
 const String wireKeyMessage = 'message';
+
+/// Op payload key: the search query.
+const String wireKeyQuery = 'query';
+
+/// Op payload key: the [SearchMode] enum name.
+const String wireKeyMode = 'mode';
+
+/// Op payload key: whether the search folds case.
+const String wireKeyCaseSensitive = 'caseSensitive';
+
+/// Op payload key: whether the search tolerates typesetting noise.
+const String wireKeyTolerant = 'tolerant';
+
+/// Op payload key: the proximity interval in characters.
+const String wireKeyNearChars = 'nearChars';
+
+/// Op payload key: the snippet context radius in characters.
+const String wireKeyContextChars = 'contextChars';
+
+/// Op payload key: the match cap.
+const String wireKeyMaxMatches = 'maxMatches';
+
+/// Op payload key: the CFI string (request) or the built CFI string
+/// (reply of [workerOpCfiBuild]).
+const String wireKeyCfi = 'cfi';
+
+/// Op payload key: the reading-order section index.
+const String wireKeyContentIndex = 'contentIndex';
+
+/// Op payload key: the offset inside the section's document text.
+const String wireKeyOffsetInText = 'offsetInText';
+
+/// Reply key: the encoded [EpubCfiLocation], JSON null when the CFI
+/// resolved nowhere.
+const String wireKeyLocation = 'location';
 
 /// Encodes a fully parsed [book] into a structured-clone-friendly
 /// wire payload: a JSON map holding the structure plus the flat blob
@@ -181,6 +243,67 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
 BookMetadata decodeMetadataWire(final Map<String, Object?> json, final List<Object> blobs) =>
     _decodeMetadata(json, blobs);
 
+/// Encodes [results] into a wire payload. No blobs: matches carry
+/// text only.
+Map<String, Object?> encodeSearchResultsWire(final SearchResults results) => <String, Object?>{
+  'query': results.query,
+  'truncated': results.truncated,
+  'matches': <Object?>[for (final match in results.matches) _encodeSearchMatch(match)],
+};
+
+/// Decodes a [SearchResults] wire payload produced by
+/// [encodeSearchResultsWire].
+SearchResults decodeSearchResultsWire(final Map<String, Object?> json) => SearchResults(
+  query: json['query'] as String,
+  truncated: json['truncated'] as bool,
+  matches: <SearchMatch>[
+    for (final match in json['matches'] as List<Object?>)
+      _decodeSearchMatch(match as Map<String, Object?>),
+  ],
+);
+
+Map<String, Object?> _encodeSearchMatch(final SearchMatch match) => <String, Object?>{
+  'sectionIndex': match.sectionIndex,
+  'sectionName': match.sectionName,
+  'start': match.start,
+  'end': match.end,
+  'snippet': match.snippet,
+};
+
+SearchMatch _decodeSearchMatch(final Map<String, Object?> json) => SearchMatch(
+  sectionIndex: json['sectionIndex'] as int,
+  sectionName: json['sectionName'] as String,
+  start: json['start'] as int,
+  end: json['end'] as int,
+  snippet: json['snippet'] as String,
+);
+
+/// Encodes a resolved CFI [location] into a wire payload; `null`
+/// (the CFI resolved nowhere) travels as JSON null. Every field is
+/// written explicitly so a field added to [EpubCfiLocation] shows up
+/// as a visible diff here.
+Map<String, Object?>? encodeCfiLocationWire(final EpubCfiLocation? location) => location == null
+    ? null
+    : <String, Object?>{
+        'contentIndex': location.contentIndex,
+        'contentPath': location.contentPath,
+        'charOffset': location.charOffset,
+        'textExcerpt': location.textExcerpt,
+        'elementTrail': List<String>.of(location.elementTrail),
+      };
+
+/// Decodes an [EpubCfiLocation] wire payload produced by
+/// [encodeCfiLocationWire]; `null` means the CFI resolved nowhere.
+EpubCfiLocation? decodeCfiLocationWire(final Map<String, Object?>? json) => json == null
+    ? null
+    : EpubCfiLocation(
+        contentIndex: json['contentIndex'] as int,
+        contentPath: json['contentPath'] as String,
+        charOffset: json['charOffset'] as int?,
+        textExcerpt: json['textExcerpt'] as String?,
+        elementTrail: (json['elementTrail'] as List<Object?>?)?.cast<String>() ?? const <String>[],
+      );
+
 /// The PDB record slice the MOBI parser consumed as its header.
 ///
 /// Plain MOBI 6 and standalone KF8 (AZW3) books parse record 0, but a
@@ -206,12 +329,15 @@ Uint8List mobiWireRecord0(final Uint8List bytes) {
 
 /// Rebuilds the exception hierarchy behind a worker error reply:
 /// known [ELivreException] subtypes come back with their own type,
-/// unknown ones degrade to the base exception with the original text
+/// [FormatException] (a bad regex query) keeps its own type, unknown
+/// ones degrade to the base exception with the original text
 /// preserved.
 Exception decodeErrorWire(final String type, final String message) {
   switch (type) {
     case 'EmptyBytesException':
       return EmptyBytesException();
+    case 'FormatException':
+      return FormatException(message);
     case 'FormatNotSupportedException':
       return FormatNotSupportedException(message);
     case 'DrmProtectedException':

@@ -2,13 +2,17 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart' show BookReader;
 import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/foundation/entities/book_format.dart';
+import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:e_livre/src/platform/web/book_wire.dart';
+import 'package:e_livre/src/platform/web/worker_ops.dart';
 import 'package:web/web.dart' as web;
+
+/// The book retained from the last successful `parse`; `search`,
+/// `cfiResolve` and `cfiBuild` run against it until the next parse
+/// replaces it.
+Book? _book;
 
 /// Entry point of the e_livre parsing worker.
 ///
@@ -19,12 +23,13 @@ import 'package:web/web.dart' as web;
 /// dart compile js web/e_livre_worker.dart -o web/e_livre_worker.js
 /// ```
 ///
-/// The worker answers two requests — `parse` (whole book) and
-/// `metadata` (fast path) — and replies with a JSON wire payload plus
-/// the blob list it references (binary bytes and text strings side by
-/// side). Parse failures travel back as typed errors; infrastructure
-/// failures (script unreachable, worker killed) make the main thread
-/// fall back to inline parsing.
+/// The worker answers `parse` (whole book), `metadata` (fast path),
+/// `search`, `cfiResolve` and `cfiBuild` — the last three against the
+/// book kept back from the most recent successful parse. Every reply
+/// carries a JSON wire payload plus the blob list it references
+/// (binary bytes and text strings side by side). Failures travel back
+/// as typed errors; infrastructure failures (script unreachable,
+/// worker killed) make the main thread fall back to inline parsing.
 void main() {
   globalContext.setProperty('onmessage'.toJS, _handle.toJS);
 }
@@ -35,31 +40,31 @@ void _handle(final web.MessageEvent event) {
 
   final id = (data.getProperty(wireKeyId.toJS) as JSNumber).toDartInt;
   final op = (data.getProperty(wireKeyOp.toJS) as JSString).toDart;
-  final bytes = (data.getProperty(wireKeyBytes.toJS) as JSUint8Array).toDart;
+  // `parse` / `metadata` carry bytes and no payload; the stateful ops
+  // carry a payload and no bytes.
+  final bytes = data.hasProperty(wireKeyBytes.toJS).toDart
+      ? (data.getProperty(wireKeyBytes.toJS) as JSUint8Array).toDart
+      : null;
+  final payload = data.hasProperty(wireKeyPayload.toJS).toDart
+      ? decodeJson((data.getProperty(wireKeyPayload.toJS) as JSString).toDart)
+      : null;
 
   try {
-    switch (op) {
-      case workerOpParse:
-        final book = BookReader.parseBook(bytes);
-        Uint8List? record0;
-        String? ident;
-        if (book.format == BookFormat.mobi || book.format == BookFormat.azw3) {
-          final pdb = PdbHeader.parse(bytes);
-          record0 = mobiWireRecord0(bytes);
-          ident = pdb.ident;
-        }
-        final (json, blobs) = encodeBookWire(book, mobiRecord0: record0, mobiIdent: ident);
-        _reply(id, wireReplyBook, json, blobs);
-      case workerOpMetadata:
-        final (json, blobs) = encodeMetadataWire(BookReader.readMetadataSync(bytes));
-        _reply(id, wireReplyMetadata, json, blobs);
-      default:
-        _error(id, '', 'Worker request holds an unknown op: $op');
+    final reply = runWorkerOp(op: op, payload: payload, bytes: bytes, residentBook: _book);
+    if (op == workerOpParse) {
+      // Retain the freshly parsed book for the stateful ops; the
+      // decode rebuilds structures without copying content and, for
+      // MOBI, re-parses only the record 0 slice — cheap against the
+      // parse that just ran.
+      _book = decodeBookWire(reply.json, reply.blobs);
     }
+    _reply(id, reply.kind, reply.json, reply.blobs);
   } on EmptyBytesException catch (error) {
     _error(id, 'EmptyBytesException', error.message);
   } on ELivreException catch (error) {
     _error(id, error.runtimeType.toString(), error.message);
+  } on FormatException catch (error) {
+    _error(id, 'FormatException', error.message);
   } on Object catch (error) {
     _error(id, '', error.toString());
   }

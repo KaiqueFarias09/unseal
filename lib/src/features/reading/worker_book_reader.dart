@@ -1,3 +1,5 @@
+import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
+import 'package:e_livre/src/features/search/book_search.dart';
 import 'package:e_livre/src/platform/web/worker_client.dart'
     if (dart.library.io) 'package:e_livre/src/platform/io/worker_client.dart';
 
@@ -35,4 +37,47 @@ abstract final class WorkerBookReader {
   static void dispose() {
     WorkerClient.instance.dispose();
   }
+
+  /// Worker-backed fast path for `book.search`: searches the book kept
+  /// resident from the last `openFromBytes` inside the worker, with
+  /// the [BookSearch.search] defaults. Returns `null` when the worker
+  /// or its resident book is unavailable — run `book.search` inline as
+  /// the fallback.
+  static Future<SearchResults?> searchInWorker(
+    final String query, {
+    final SearchMode mode = SearchMode.contains,
+    final bool caseSensitive = false,
+    final bool tolerant = true,
+    final int nearChars = 60,
+    final int contextChars = 48,
+    final int maxMatches = 200,
+  }) => WorkerClient.instance.searchInWorker(
+    query,
+    mode: mode,
+    caseSensitive: caseSensitive,
+    tolerant: tolerant,
+    nearChars: nearChars,
+    contextChars: contextChars,
+    maxMatches: maxMatches,
+  );
+
+  /// Worker-backed fast path for `EpubCfiResolver.resolveCfi`:
+  /// resolves [cfi] against the resident book inside the worker.
+  /// Returns `null` when the worker or its resident book is
+  /// unavailable, or when the CFI is malformed or resolves nowhere —
+  /// resolve inline as the fallback.
+  static Future<EpubCfiLocation?> resolveCfiInWorker(final String cfi) =>
+      WorkerClient.instance.resolveCfiInWorker(cfi);
+
+  /// Worker-backed fast path for `EpubCfiResolver.buildEpubCfi`:
+  /// builds a book-level CFI for a reading position in the resident
+  /// book inside the worker. Returns `null` when the worker or its
+  /// resident book is unavailable — build inline as the fallback.
+  static Future<String?> buildCfiInWorker({
+    required final int contentIndex,
+    required final int offsetInText,
+  }) => WorkerClient.instance.buildCfiInWorker(
+    contentIndex: contentIndex,
+    offsetInText: offsetInText,
+  );
 }

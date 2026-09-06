@@ -3,7 +3,9 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
+import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
 import 'package:e_livre/src/features/reading/book.dart';
+import 'package:e_livre/src/features/search/book_search.dart';
 import 'package:e_livre/src/foundation/entities/book_metadata.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:web/web.dart' as web;
@@ -17,6 +19,11 @@ import 'book_wire.dart';
 /// callers fall back to inline parsing; genuine parse failures surface
 /// as the original [ELivreException] hierarchy, rebuilt through
 /// [decodeErrorWire].
+///
+/// The worker is stateful: a successful [parseInWorker] leaves the
+/// book resident inside it and [searchInWorker],
+/// [resolveCfiInWorker] and [buildCfiInWorker] run against that
+/// resident book instead of shipping it back and forth.
 final class WorkerClient {
   WorkerClient._();
 
@@ -26,6 +33,7 @@ final class WorkerClient {
   web.Worker? _worker;
   Uri? _script;
   bool _broken = false;
+  bool _residentBook = false;
   int _nextId = 0;
   final Map<int, Completer<Object?>> _pending = <int, Completer<Object?>>{};
 
@@ -41,25 +49,102 @@ final class WorkerClient {
     _broken = false;
   }
 
-  /// Terminates the worker and forgets the configuration.
+  /// Terminates the worker and forgets the configuration; the
+  /// resident book dies with it.
   void dispose() {
     _worker?.terminate();
     _worker = null;
     _script = null;
     _broken = false;
+    _residentBook = false;
     _drainPending();
   }
 
   /// Parses [bytes] inside the worker; `null` means the worker was
-  /// unavailable and the caller should parse inline.
-  Future<Book?> parseInWorker(final Uint8List bytes) async =>
-      await _request(workerOpParse, bytes) as Book?;
+  /// unavailable and the caller should parse inline. On success the
+  /// parsed book stays resident inside the worker and serves the
+  /// stateful ops until the next parse, [dispose] or a breakage.
+  Future<Book?> parseInWorker(final Uint8List bytes) async {
+    try {
+      final book = await _request(workerOpParse, bytes: bytes) as Book?;
+      _residentBook = book != null;
+
+      return book;
+    } on Object {
+      _residentBook = false;
+      rethrow;
+    }
+  }
 
   /// Reads metadata inside the worker; `null` means inline fallback.
   Future<BookMetadata?> metadataInWorker(final Uint8List bytes) async =>
-      await _request(workerOpMetadata, bytes) as BookMetadata?;
+      await _request(workerOpMetadata, bytes: bytes) as BookMetadata?;
 
-  Future<Object?> _request(final String op, final Uint8List bytes) {
+  /// Searches the resident book inside the worker; `null` means no
+  /// resident book or no worker — callers run `book.search` inline as
+  /// the fallback. Defaults mirror `BookSearch.search`. An invalid
+  /// [SearchMode.regex] pattern completes with the worker's
+  /// [FormatException].
+  Future<SearchResults?> searchInWorker(
+    final String query, {
+    final SearchMode mode = SearchMode.contains,
+    final bool caseSensitive = false,
+    final bool tolerant = true,
+    final int nearChars = 60,
+    final int contextChars = 48,
+    final int maxMatches = 200,
+  }) async {
+    if (!_residentBook) return null;
+
+    return await _request(
+          workerOpSearch,
+          payload: <String, Object?>{
+            wireKeyQuery: query,
+            wireKeyMode: mode.name,
+            wireKeyCaseSensitive: caseSensitive,
+            wireKeyTolerant: tolerant,
+            wireKeyNearChars: nearChars,
+            wireKeyContextChars: contextChars,
+            wireKeyMaxMatches: maxMatches,
+          },
+        )
+        as SearchResults?;
+  }
+
+  /// Resolves [cfi] against the resident book inside the worker;
+  /// `null` means no resident book or no worker (callers resolve
+  /// inline), or the CFI is malformed or points outside the book.
+  Future<EpubCfiLocation?> resolveCfiInWorker(final String cfi) async {
+    if (!_residentBook) return null;
+
+    return await _request(workerOpCfiResolve, payload: <String, Object?>{wireKeyCfi: cfi})
+        as EpubCfiLocation?;
+  }
+
+  /// Builds a book-level CFI for a reading position in the resident
+  /// book inside the worker; `null` means no resident book or no
+  /// worker — callers build inline.
+  Future<String?> buildCfiInWorker({
+    required final int contentIndex,
+    required final int offsetInText,
+  }) async {
+    if (!_residentBook) return null;
+
+    return await _request(
+          workerOpCfiBuild,
+          payload: <String, Object?>{
+            wireKeyContentIndex: contentIndex,
+            wireKeyOffsetInText: offsetInText,
+          },
+        )
+        as String?;
+  }
+
+  Future<Object?> _request(
+    final String op, {
+    final Uint8List? bytes,
+    final Map<String, Object?>? payload,
+  }) {
     final worker = _acquire();
     if (worker == null) return Future<Object?>.value();
 
@@ -70,7 +155,12 @@ final class WorkerClient {
     final message = JSObject();
     message.setProperty(wireKeyId.toJS, id.toJS);
     message.setProperty(wireKeyOp.toJS, op.toJS);
-    message.setProperty(wireKeyBytes.toJS, bytes.toJS);
+    if (bytes != null) {
+      message.setProperty(wireKeyBytes.toJS, bytes.toJS);
+    }
+    if (payload != null) {
+      message.setProperty(wireKeyPayload.toJS, encodeJson(payload).toJS);
+    }
     worker.postMessage(message);
 
     return completer.future;
@@ -123,6 +213,20 @@ final class WorkerClient {
           completer.complete(
             kind == wireReplyBook ? decodeBookWire(json, blobs) : decodeMetadataWire(json, blobs),
           );
+        case wireReplySearch:
+          completer.complete(
+            decodeSearchResultsWire(
+              decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart),
+            ),
+          );
+        case wireReplyCfiLocation:
+          final locationJson = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
+          completer.complete(
+            decodeCfiLocationWire(locationJson[wireKeyLocation] as Map<String, Object?>?),
+          );
+        case wireReplyCfi:
+          final cfiJson = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
+          completer.complete(cfiJson[wireKeyCfi] as String?);
         case wireReplyError:
           completer.completeError(
             decodeErrorWire(
@@ -143,6 +247,7 @@ final class WorkerClient {
     // pending and future request falls back to inline parsing.
     _broken = true;
     _worker = null;
+    _residentBook = false;
     _drainPending();
   }
 
