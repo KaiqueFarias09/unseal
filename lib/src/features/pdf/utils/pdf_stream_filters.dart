@@ -14,9 +14,8 @@ import '../header/pdf_object.dart';
 /// `PdfDocument` (filter entries must be direct per the spec, but
 /// enough real files indirect them that the hook pays for itself).
 ///
-/// Unsupported filters (LZWDecode, the image codecs) throw
-/// [PdfException]; callers degrade per-object instead of failing the
-/// document.
+/// Unsupported filters (the image codecs) throw [PdfException];
+/// callers degrade per-object instead of failing the document.
 Uint8List decodePdfStream(
   final PdfStream stream,
   final PdfObject? Function(PdfObject object) resolve,
@@ -48,6 +47,9 @@ Uint8List decodePdfStream(
       case 'FlateDecode':
         data = _inflate(data);
         data = _unpredict(data, parm, resolve);
+      case 'LZWDecode':
+        data = _lzwDecode(data, parm, resolve);
+        data = _unpredict(data, parm, resolve);
       case 'ASCIIHexDecode':
         data = _asciiHexDecode(data);
       case 'ASCII85Decode':
@@ -68,6 +70,89 @@ Uint8List _inflate(final Uint8List data) {
   } on FormatException catch (error) {
     throw PdfException('FlateDecode failed: ${error.message}');
   }
+}
+
+/// Expands an LZW-compressed stream (PDF 32000-1:2008 §7.4.4.2).
+///
+/// The dictionary starts with the 256 literals plus the clear (256)
+/// and end-of-data (257) codes; codes are packed big-endian and grow
+/// from 9 to at most 12 bits as entries are added toward the 4096
+/// cap. `/EarlyChange` (default 1) shifts each width bump one code
+/// early — the width flips at 511/1023/2047 entries instead of
+/// 512/1024/2048. A missing end-of-data marker simply stops at the
+/// payload's end; a code outside the dictionary is a [PdfException].
+/// Predictor parameters apply after the expansion, as with Flate.
+Uint8List _lzwDecode(
+  final Uint8List data,
+  final PdfObject? parm,
+  final PdfObject? Function(PdfObject object) resolve,
+) {
+  var earlyChange = 1;
+  if (parm is PdfDictionary) {
+    final explicit = _intValue(resolve(parm['EarlyChange'] ?? const PdfNull()));
+    if (explicit != null && explicit == 0) earlyChange = 0;
+  }
+
+  final table = List<Uint8List?>.filled(4096, null);
+  for (var i = 0; i < 256; i++) {
+    table[i] = Uint8List(1)..[0] = i;
+  }
+  var nextEntry = 258;
+  var width = 9;
+  Uint8List? previous;
+
+  final out = BytesBuilder(copy: false);
+  var bitBuffer = 0;
+  var bitCount = 0;
+  var cursor = 0;
+  while (true) {
+    while (bitCount < width) {
+      if (cursor >= data.length) return out.toBytes();
+      bitBuffer = (bitBuffer << 8) | data[cursor++];
+      bitCount += 8;
+    }
+    bitCount -= width;
+    final code = (bitBuffer >> bitCount) & ((1 << width) - 1);
+    bitBuffer &= (1 << bitCount) - 1;
+
+    if (code == 257) break; // EOD
+    if (code == 256) {
+      // Clear: reset the dictionary and the code width.
+      nextEntry = 258;
+      width = 9;
+      previous = null;
+      continue;
+    }
+
+    Uint8List entry;
+    if (code < nextEntry) {
+      entry = table[code]!;
+    } else if (code == nextEntry && previous != null) {
+      // The KwKwK case: the entry being defined right now.
+      entry = Uint8List(previous.length + 1)
+        ..setRange(0, previous.length, previous)
+        ..[previous.length] = previous[0];
+    } else {
+      throw const PdfException('LZWDecode hit a code outside the dictionary.');
+    }
+    out.add(entry);
+
+    if (previous != null && nextEntry < 4096) {
+      table[nextEntry++] = Uint8List(previous.length + 1)
+        ..setRange(0, previous.length, previous)
+        ..[previous.length] = entry[0];
+      if (nextEntry + earlyChange == 512) {
+        width = 10;
+      } else if (nextEntry + earlyChange == 1024) {
+        width = 11;
+      } else if (nextEntry + earlyChange == 2048) {
+        width = 12;
+      }
+    }
+    previous = entry;
+  }
+
+  return out.toBytes();
 }
 
 /// Undoes `/Predictor` cross-row filters (the PNG family, 10-15, and

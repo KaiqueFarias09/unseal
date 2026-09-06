@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../entities/pdf_page.dart';
@@ -265,22 +266,41 @@ class PdfTextExtractor {
     final startX = effective.e;
     final startY = effective.f;
     final horizontal = effective.b.abs() < 1e-4 && effective.c.abs() < 1e-4;
-    final widthDevice =
-        advanceText *
-        gstate.horizontalScale *
-        (horizontal ? effective.a.abs() : effective.a.abs() + effective.b.abs());
-    final fontSizeDevice =
-        gstate.fontSize.abs() *
-        (horizontal ? effective.d.abs() : (effective.d.abs() + effective.c.abs()) / 2);
+    final double widthDevice;
+    final double fontSizeDevice;
+    if (horizontal) {
+      widthDevice = advanceText * gstate.horizontalScale * effective.a.abs();
+      fontSizeDevice = gstate.fontSize.abs() * effective.d.abs();
+    } else {
+      // Rotated (or skewed) text: the exact axis-aligned box of the
+      // parallelogram the run sweeps. The advance vector runs along
+      // the text direction (a, b); the visual ascent (baseline to
+      // top, 0.8 em) runs along the vertical direction (c, d). The
+      // box over {p0, p0+advance, p0+ascent, p0+advance+ascent} has
+      // per-axis extents |advance|+|ascent| on that axis.
+      final advanceDevice = advanceText * gstate.horizontalScale;
+      final ascentDevice = gstate.fontSize.abs() * 0.8;
+      final advanceX = effective.a * advanceDevice;
+      final ascentX = effective.c * ascentDevice;
+      widthDevice = advanceX.abs() + ascentX.abs();
+      final verticalNorm = math.sqrt(effective.c * effective.c + effective.d * effective.d);
+      fontSizeDevice = gstate.fontSize.abs() * verticalNorm;
+    }
 
     if (text.isNotEmpty) {
+      // A non-positive or non-finite size (a broken `Tf`, overflow in
+      // a hostile matrix) would poison the reflow's font statistics —
+      // degrade to the raw size, then to the document default.
+      var runFontSize = fontSizeDevice;
+      if (!runFontSize.isFinite || runFontSize <= 0) runFontSize = gstate.fontSize;
+      if (!runFontSize.isFinite || runFontSize <= 0) runFontSize = 12;
       runs.add(
         _Run(
           text: text,
           x: startX,
           baselineY: startY,
           width: widthDevice,
-          fontSize: fontSizeDevice <= 0 ? gstate.fontSize : fontSizeDevice,
+          fontSize: runFontSize,
           rotated: !horizontal,
         ),
       );
