@@ -1,10 +1,11 @@
 name: e_livre
-version: 3.2.0
+version: 3.3.0
 repository: https://github.com/KaiqueFarias09/eLivre
 description: >-
   Pure Dart book parsing library. Extract metadata, covers, content,
   stylesheets, fonts and navigation from EPUB 2.0/3.0, MOBI, AZW3
-  (KF8), FB2, CBZ/CBR and PDF books.
+  (KF8), FB2, TXT/TXZ, HTML/HTMLZ, DOCX, AZW4, CBZ/CBR/CB7/CBC,
+  ODT and PDF books.
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
@@ -31,6 +32,7 @@ dependencies:
   archive: ^3.1.6
   collection: ^1.15.0
   html: ^0.15.7
+  koni_archive: ^0.7.0
   path: ^1.8.1
   pointycastle: ^4.0.0
   web: ^1.1.0

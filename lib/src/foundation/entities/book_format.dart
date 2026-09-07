@@ -21,4 +21,31 @@ enum BookFormat {
   /// PDF (text extraction + reflow; page-faithful rendering stays
   /// with the viewer).
   pdf,
+
+  /// Plain UTF text document.
+  txt,
+
+  /// ZIP-wrapped plain text document.
+  txtz,
+
+  /// HTML document.
+  html,
+
+  /// ZIP-wrapped HTML document.
+  htmlz,
+
+  /// Office Open XML Word document.
+  docx,
+
+  /// Kindle AZW4 wrapper around a PDF document.
+  azw4,
+
+  /// 7-Zip comic archive.
+  cb7,
+
+  /// Calibre comic-book collection.
+  cbc,
+
+  /// OpenDocument Text document.
+  odt,
 }

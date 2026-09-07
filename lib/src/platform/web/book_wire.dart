@@ -2,8 +2,11 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
+import 'package:e_livre/src/features/azw4/exceptions/azw4_exception.dart';
 import 'package:e_livre/src/features/comic/entities/comic_book.dart';
 import 'package:e_livre/src/features/comic/exceptions/comic_exception.dart';
+import 'package:e_livre/src/features/comic7/exceptions/comic7_exception.dart';
+import 'package:e_livre/src/features/docx/exceptions/docx_exception.dart';
 import 'package:e_livre/src/features/epub/entities/book/book.dart';
 import 'package:e_livre/src/features/epub/entities/package/epub_2_package.dart';
 import 'package:e_livre/src/features/epub/entities/package/epub_3_package.dart';
@@ -13,6 +16,7 @@ import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart'
 import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
 import 'package:e_livre/src/features/fb2/entities/fb2_book.dart';
 import 'package:e_livre/src/features/fb2/exceptions/fb2_exception.dart';
+import 'package:e_livre/src/features/html/exceptions/html_exception.dart';
 import 'package:e_livre/src/features/mobi/entities/mobi_book.dart';
 import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
@@ -21,7 +25,9 @@ import 'package:e_livre/src/features/pdf/entities/pdf_book.dart';
 import 'package:e_livre/src/features/pdf/entities/pdf_page.dart';
 import 'package:e_livre/src/features/pdf/entities/pdf_page_text.dart';
 import 'package:e_livre/src/features/pdf/exceptions/pdf_exception.dart';
+import 'package:e_livre/src/features/odt/exceptions/odt_exception.dart';
 import 'package:e_livre/src/features/reading/book.dart';
+import 'package:e_livre/src/features/reading/document_book.dart';
 import 'package:e_livre/src/features/search/book_search.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
@@ -220,6 +226,13 @@ const String wireKeyLocation = 'location';
     return (json, blobs);
   }
 
+  if (book is DocumentBook) {
+    json['metadata'] = _encodeMetadata(book.metadata, blobs);
+    json['document'] = <String, Object?>{'order': book.order};
+
+    return (json, blobs);
+  }
+
   final storedMetadata = book is Fb2Book
       ? book.metadata
       : book is ComicBook
@@ -303,12 +316,27 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
       ],
       navigation: navigation,
       pageFiles: files.html,
+      format: format,
     );
   }
 
   final storedMetadata = json['metadata'] as Map<String, Object?>?;
   if (storedMetadata != null) {
     final metadata = _decodeMetadata(storedMetadata, blobs);
+    final document = json['document'] as Map<String, Object?>?;
+    if (document != null) {
+      final order = (document['order'] as List<Object?>?)?.cast<String>();
+
+      return DocumentBook(
+        format: format,
+        files: files,
+        cover: cover.isEmpty ? null : cover,
+        metadata: metadata,
+        navigation: navigation,
+        archiveEntries: archiveEntries,
+        order: order,
+      );
+    }
     if (format == BookFormat.fb2) {
       return Fb2Book(navigation: navigation, files: files, cover: cover, metadata: metadata);
     }
@@ -435,6 +463,28 @@ Exception decodeErrorWire(final String type, final String message) {
       return Fb2Exception(message);
     case 'ComicException':
       return ComicException(message);
+    case 'Azw4Exception':
+    case 'Azw4InvalidContainerException':
+    case 'Azw4PdfNotFoundException':
+      return Azw4Exception(message);
+    case 'Azw4DrmProtectedException':
+      return DrmProtectedException(message);
+    case 'Comic7Exception':
+    case 'Comic7PagesNotFoundException':
+    case 'InvalidCbcCollectionException':
+      return Comic7Exception(message);
+    case 'DocxException':
+    case 'InvalidDocxPackageException':
+    case 'MissingDocxPartException':
+    case 'InvalidDocxXmlException':
+      return DocxException(message);
+    case 'HtmlException':
+      return HtmlException(message);
+    case 'OdtException':
+    case 'InvalidOdtPackageException':
+    case 'MissingOdtPartException':
+    case 'InvalidOdtXmlException':
+      return OdtException(message);
     case 'PdfException':
       return PdfException(message);
     case 'PdfEncryptedException':
@@ -453,6 +503,7 @@ BinaryFile _coverOf(final Book book) {
   if (book is Fb2Book) return book.cover;
   if (book is ComicBook) return book.cover;
   if (book is PdfBook) return book.cover;
+  if (book is DocumentBook) return book.cover ?? BinaryFile.empty();
 
   throw ArgumentError('Unsupported book type for the wire: ${book.runtimeType}');
 }

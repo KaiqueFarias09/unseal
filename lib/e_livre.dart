@@ -1,11 +1,17 @@
 /// Public, format-agnostic eLivre API.
 library;
 
+export 'azw4.dart';
 export 'comic.dart';
+export 'comic7.dart';
+export 'docx.dart';
 export 'epub.dart';
 export 'fb2.dart';
+export 'html.dart';
 export 'mobi.dart';
+export 'odt.dart';
 export 'pdf.dart';
+export 'txt.dart';
 export 'src/features/annotations/annotation_codec.dart';
 export 'src/features/annotations/annotation_merge.dart';
 export 'src/features/annotations/bookmark_record.dart';
@@ -23,6 +29,7 @@ export 'src/features/opds/opds_feed.dart';
 export 'src/features/reading/book.dart';
 export 'src/features/reading/book_progression.dart';
 export 'src/features/reading/book_reader.dart';
+export 'src/features/reading/document_book.dart';
 export 'src/features/reading/nav_resolution.dart';
 export 'src/features/reading/worker_book_reader.dart';
 export 'src/features/search/book_search.dart';
