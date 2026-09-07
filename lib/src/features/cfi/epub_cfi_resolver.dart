@@ -1,6 +1,7 @@
 import 'package:e_livre/src/features/cfi/epub_cfi.dart';
 import 'package:e_livre/src/features/cfi/epub_cfi_document.dart';
 import 'package:e_livre/src/features/epub/entities/entities.dart';
+import 'package:e_livre/src/foundation/entities/file/text_file.dart';
 
 /// The result of resolving a CFI against an [EpubBook].
 final class EpubCfiLocation {
