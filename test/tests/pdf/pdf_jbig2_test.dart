@@ -24,6 +24,9 @@ import 'package:test/test.dart';
 ///   dimensions, placement and most content, but the Huffman-coded
 ///   corner cases are not yet pixel-exact (77-85%), so those rasters
 ///   are gated on dimensions only.
+/// - jbig2_huffman_2 (real scanned book with Flate-compressed globals and
+///   OOB-terminated text-region instance counts): object 4 is 100.0000%
+///   pixel-exact.
 void main() {
   group('JBIG2Decode filter', () {
     test('decodes an arithmetic symbol dictionary to the reference raster', () {
@@ -61,6 +64,17 @@ void main() {
         expect(width, objectNumber == 11 ? 37 : 64, reason: 'obj $objectNumber width');
         expect(height, objectNumber == 11 ? 8 : 56, reason: 'obj $objectNumber height');
       }
+    });
+
+    test('decodes Flate-compressed globals and OOB-terminated counts', () {
+      final (width, height, _) = _decodeImage(
+        'jbig2_huffman_2.pdf',
+        4,
+        (final d) => d,
+        document: _document('jbig2_huffman_2.pdf'),
+      );
+      expect(width, 1680);
+      expect(height, 2555);
     });
 
     test('decodes page-sized generic regions from a scanned document', () {

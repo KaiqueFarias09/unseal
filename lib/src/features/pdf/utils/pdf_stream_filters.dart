@@ -78,7 +78,7 @@ Uint8List? _jbig2Globals(
 ) {
   if (parm is! PdfDictionary) return null;
   final stream = resolve(parm['JBIG2Globals'] ?? const PdfNull());
-  if (stream is PdfStream) return stream.bytes;
+  if (stream is PdfStream) return decodePdfStream(stream, resolve);
 
   return null;
 }

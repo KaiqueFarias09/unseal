@@ -629,9 +629,6 @@ List<Uint8List> jbig2DecodeTextRegion(
     throw PdfException('JBIG2 error: operator $combinationOperator is not supported.');
   }
 
-  if (numberOfSymbolInstances > _jbig2MaxSymbols) {
-    throw const PdfException('JBIG2 error: too many symbol instances.');
-  }
   // Prepare bitmap
   jbig2CheckedPixels(width, height);
   final bitmap = List<Uint8List>.generate(height, (final i) {
@@ -649,7 +646,14 @@ List<Uint8List> jbig2DecodeTextRegion(
       : -(decodeJbig2Integer(contextCache.getContexts('IADT'), 'IADT', decoder) ?? 0); // 6.4.6
   var firstS = 0;
   var i = 0;
+  var instanceGuard = 0;
   while (i < numberOfSymbolInstances) {
+    // Real-world streams may declare more instances than they contain and
+    // rely on OOB to terminate the region, as pdf.js does. Keep the
+    // termination guard on the actual loop instead of trusting that count.
+    if (++instanceGuard > _jbig2MaxSymbols) {
+      throw const PdfException('JBIG2 error: text region does not terminate.');
+    }
     final deltaT = huffman
         ? huffmanTables!.tableDeltaT.decode(huffmanInput!) ??
               0 // 6.4.6
