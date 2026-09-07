@@ -35,3 +35,9 @@ build/
 
 # Node oracle dependencies (reproducible via package.json + package-lock.json)
 tool/reference/node_modules/
+
+# Keep the structural baseline versioned; generated Steward caches remain ignored.
+**/.steward/
+!/.steward/
+/.steward/*
+!/.steward/baseline.json
