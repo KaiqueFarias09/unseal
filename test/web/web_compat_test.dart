@@ -12,9 +12,11 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
 import 'package:e_livre/src/platform/web/book_wire.dart';
+import 'package:koni_archive/koni_archive.dart' as koni;
 import 'package:test/test.dart';
 
 import '../tests/mobi/mobi_fixture_builder.dart';
+import '../tests/pdf/pdf_fixture_builder.dart';
 
 Uint8List _utf8(final String value) => Uint8List.fromList(convert.utf8.encode(value));
 
@@ -106,6 +108,63 @@ Uint8List buildSyntheticEpub() => _zip([
 Uint8List buildSyntheticCbz() =>
     _zip([('page01.jpg', tinyJpeg, false), ('page02.jpg', tinyJpeg, false)]);
 
+Uint8List buildSyntheticTxtz() => _zip([
+  (
+    'metadata.opf',
+    _utf8('''<package><metadata>
+  <title>Browser TXTZ</title><creator>TXT Author</creator><language>en</language>
+</metadata></package>'''),
+    false,
+  ),
+  ('book.txt', _utf8('TXTZ body on the browser.'), false),
+]);
+
+Uint8List buildSyntheticHtmlz() => _zip([
+  (
+    'index.html',
+    _utf8('''<!doctype html><html lang="en"><head>
+  <title>Browser HTMLZ</title></head><body><h1>HTMLZ chapter</h1></body></html>'''),
+    false,
+  ),
+]);
+
+Uint8List buildSyntheticDocx() => _zip([
+  (
+    'word/document.xml',
+    _utf8('''<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body><w:p><w:r><w:t>DOCX body on the browser.</w:t></w:r></w:p><w:sectPr/></w:body>
+</w:document>'''),
+    false,
+  ),
+]);
+
+Uint8List buildSyntheticOdt() => _zip([
+  (
+    'content.xml',
+    _utf8('''<office:document-content
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+  <office:body><office:text><text:p>ODT body on the browser.</text:p></office:text></office:body>
+</office:document-content>'''),
+    false,
+  ),
+]);
+
+Future<Uint8List> buildSyntheticCb7() async {
+  final sink = koni.BytesBuilderSink();
+  final writer = koni.Archive.create(sink, format: const koni.SevenZWriteFormat());
+  await writer.addBytes(koni.ArchiveEntrySpec(path: 'page01.png'), tinyPng);
+  await writer.close();
+  await sink.close();
+
+  return sink.takeBytes();
+}
+
+Uint8List buildSyntheticCbc(final Uint8List nested) => _zip([
+  ('comics.txt', _utf8('nested.cbz:Browser collection\n'), false),
+  ('nested.cbz', nested, false),
+]);
+
 void main() {
   group('parsing on the browser runtime', () {
     test('opens an EPUB through openFromBytes', () async {
@@ -154,6 +213,43 @@ void main() {
       expect(book, isA<ComicBook>());
       expect((book as ComicBook).pageCount, 2);
       expect(book.readingOrder.every((final item) => !item.isHtml), isTrue);
+    });
+
+    test('opens the new document and archive formats', () async {
+      final txt = await BookReader.openFromBytes(_utf8('Browser TXT\n\n\nTXT Author\n\nTXT body.'));
+      final html = await BookReader.openFromBytes(
+        _utf8(
+          '<!doctype html><html><head><title>Browser HTML</title></head><body><p>HTML body.</p></body></html>',
+        ),
+      );
+      final txtz = await BookReader.openFromBytes(buildSyntheticTxtz());
+      final htmlz = await BookReader.openFromBytes(buildSyntheticHtmlz());
+      final docx = await BookReader.openFromBytes(buildSyntheticDocx());
+      final odt = await BookReader.openFromBytes(buildSyntheticOdt());
+      final azw4 = await BookReader.openFromBytes(
+        buildPdb('Browser AZW4', [buildMobiRecord0(), textPageFixture().build()]),
+      );
+      final cb7 = await BookReader.openFromBytes(await buildSyntheticCb7());
+      final cbc = await BookReader.openFromBytes(buildSyntheticCbc(buildSyntheticCbz()));
+
+      expect(txt.format, BookFormat.txt);
+      expect(html.format, BookFormat.html);
+      expect(txtz.format, BookFormat.txtz);
+      expect(htmlz.format, BookFormat.htmlz);
+      expect(docx.format, BookFormat.docx);
+      expect(odt.format, BookFormat.odt);
+      expect(azw4.format, BookFormat.azw4);
+      expect(cb7.format, BookFormat.cb7);
+      expect(cbc.format, BookFormat.cbc);
+      expect(txt.files.html.single.content, contains('TXT body.'));
+      expect(html.files.html.single.content, contains('HTML body.'));
+      expect(txtz.metadata.title, 'Browser TXTZ');
+      expect(htmlz.metadata.title, 'Browser HTMLZ');
+      expect(docx.files.html.single.content, contains('DOCX body on the browser.'));
+      expect(odt.files.html.single.content, contains('ODT body on the browser.'));
+      expect((azw4 as PdfBook).pageCount, 1);
+      expect((cb7 as ComicBook).pageCount, 1);
+      expect((cbc as ComicBook).pageCount, 2);
     });
   });
 

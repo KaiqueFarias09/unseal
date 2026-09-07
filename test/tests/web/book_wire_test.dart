@@ -158,6 +158,65 @@ void main() {
     });
   });
 
+  group('document wire round-trip', () {
+    test('carries DocumentBook metadata, resources, order and archive inventory', () {
+      final book = DocumentBook(
+        format: BookFormat.docx,
+        files: Files(
+          images: <BinaryFile>[
+            BinaryFile(
+              content: Uint8List.fromList([1, 2, 3]),
+              name: 'cover.png',
+              type: 'png',
+              path: 'word/media/cover.png',
+            ),
+          ],
+          css: <TextFile>[],
+          html: <TextFile>[
+            TextFile(
+              content: '<p>body</p>',
+              name: 'document.xhtml',
+              type: 'xhtml',
+              path: 'document.xhtml',
+            ),
+          ],
+          fonts: <BinaryFile>[],
+          others: <BinaryFile>[],
+        ),
+        metadata: const BookMetadata(
+          format: BookFormat.docx,
+          title: 'DOCX title',
+          authors: <String>['Author'],
+          languages: <String>['en'],
+        ),
+        navigation: Navigation(
+          title: 'DOCX title',
+          navPoints: <NavPoint>[
+            NavPoint(
+              classAttribute: 'heading-1',
+              id: 'heading-1',
+              playOrder: '1',
+              label: 'Chapter',
+              content: 'document.xhtml#heading-1',
+            ),
+          ],
+        ),
+        archiveEntries: const <ArchiveEntry>[ArchiveEntry(path: 'word/document.xml', size: 4)],
+        order: const <String>['document.xhtml'],
+      );
+
+      final (json, blobs) = encodeBookWire(book);
+      final decoded = decodeBookWire(json, blobs) as DocumentBook;
+
+      expect(decoded.format, BookFormat.docx);
+      expect(decoded.metadata.title, 'DOCX title');
+      expect(decoded.files.html.single.content, '<p>body</p>');
+      expect(decoded.files.images.single.path, 'word/media/cover.png');
+      expect(decoded.readingOrder.single.name, 'document.xhtml');
+      expect(decoded.archiveEntries.single.path, 'word/document.xml');
+    });
+  });
+
   group('metadata wire round-trip', () {
     test('carries every scalar, list, map, date and cover', () {
       final metadata = BookReader.readMetadataSync(_bytes('books/epub/tristram-shandy.epub'));
@@ -207,6 +266,11 @@ void main() {
       expect(decodeErrorWire('MobiException', 'x'), isA<MobiException>());
       expect(decodeErrorWire('Fb2Exception', 'x'), isA<Fb2Exception>());
       expect(decodeErrorWire('ComicException', 'x'), isA<ComicException>());
+      expect(decodeErrorWire('Azw4PdfNotFoundException', 'x'), isA<Azw4Exception>());
+      expect(decodeErrorWire('Comic7PagesNotFoundException', 'x'), isA<Comic7Exception>());
+      expect(decodeErrorWire('InvalidDocxXmlException', 'x'), isA<DocxException>());
+      expect(decodeErrorWire('HtmlException', 'x'), isA<HtmlException>());
+      expect(decodeErrorWire('MissingOdtPartException', 'x'), isA<OdtException>());
       expect(decodeErrorWire('RangeError', 'boom'), isA<ELivreException>());
     });
   });

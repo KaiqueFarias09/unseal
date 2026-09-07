@@ -1,0 +1,7 @@
+eLivre TXT Fixture
+
+
+Ada Lovelace
+
+This is a deterministic plain-text fixture.
+It keeps paragraph boundaries and Unicode: café, 漢字.

@@ -8,7 +8,8 @@ reading-direction, accessibility, and narration testing. `manifest.json` is the 
 - `epub/`: immutable downloaded publications
 - `mobi/`: unchanged Project Gutenberg MOBI 6 and KF8 downloads
 - `fb2/`: repository-authored and externally published FictionBook documents
-- `comic/`: generated archives plus externally published CBZ and CBR samples
+- `comic/`: generated archives plus externally published CBZ, CBR, CB7 and CBC samples
+- `txt/`, `html/`, `docx/`, `odt/`: generated fixtures for the document adapters
 - `pdf/`: real-writer and externally published PDFs with redistributable content
 - `licenses/`: license texts that are not already fully embedded in each publication
 - `manifest.json`: provenance, expected behavior, size, and SHA-256 for every fixture
@@ -51,6 +52,12 @@ reading-direction, accessibility, and narration testing. `manifest.json` is the 
 | `FORMAT-CBZ` | ZIP comic, ComicInfo metadata, cover and natural page ordering |
 | `FORMAT-CBR` | RAR 4 stored/compressed entries and natural page ordering |
 | `FORMAT-PDF` | Real-writer PDF text extraction, reflow and search |
+| `FORMAT-TXT` / `FORMAT-TXTZ` | Text decoding, Calibre-style metadata, OPF sidecar, Markdown and resources |
+| `FORMAT-HTML` / `FORMAT-HTMLZ` | HTML metadata/navigation, top-level index and OPF sidecar |
+| `FORMAT-DOCX` | Open XML document, styles, metadata and resource contract |
+| `FORMAT-AZW4` | PalmDB wrapper and embedded PDF delegation |
+| `FORMAT-CB7` / `FORMAT-CBC` | 7-Zip pages and Calibre collection manifest |
+| `FORMAT-ODT` | OpenDocument content XML and metadata |
 | `REAL-FB2-WL-PL` | Unmodified Polish FB2 published by Wolne Lektury |
 | `REAL-CBZ-IA-1895` | Real 1895 scanned publication distributed as CBZ |
 | `REAL-CBR-IA-1909` | Real 1909 image collection using compressed RAR 4 pages |

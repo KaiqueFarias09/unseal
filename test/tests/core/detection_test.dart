@@ -5,6 +5,9 @@ import 'package:e_livre/e_livre.dart';
 import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 import 'package:test/test.dart';
 
+import '../mobi/mobi_fixture_builder.dart';
+import '../pdf/pdf_fixture_builder.dart';
+
 void main() {
   group('detectFormat', () {
     test('detects EPUB zip containers', () {
@@ -60,6 +63,24 @@ void main() {
       expect(
         detectFormat(Uint8List.fromList([0xEF, 0xBB, 0xBF, 0x0A, ...'%PDF-1.7'.codeUnits])),
         DetectedFormat.pdf,
+      );
+    });
+
+    test('detects standalone HTML and plain text', () {
+      expect(
+        detectFormat(Uint8List.fromList('<!doctype html><html></html>'.codeUnits)),
+        DetectedFormat.html,
+      );
+      expect(detectFormat(Uint8List.fromList('A plain text book\n'.codeUnits)), DetectedFormat.txt);
+    });
+
+    test('detects AZW4 and CB7 signatures', () {
+      final pdf = textPageFixture().build();
+      final azw4 = buildPdb('AZW4', <Uint8List>[buildMobiRecord0(), pdf]);
+      expect(detectFormat(azw4), DetectedFormat.azw4);
+      expect(
+        detectFormat(Uint8List.fromList([0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C, 0, 0])),
+        DetectedFormat.comic7,
       );
     });
 
