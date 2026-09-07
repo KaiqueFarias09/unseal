@@ -239,6 +239,10 @@ and the correct password.
 - PDF output is reading-oriented rather than a promise of pixel-perfect
   rendering for every producer. Facsimile fidelity depends on the codecs
   and operators supported by the parser.
+- The real scanned-book JBIG2 Huffman corpus is pixel-exact, but the small
+  synthetic `jbig2_huffman_1` corner-case fixture remains dimension-accurate
+  only (about 77-85% pixel agreement). This is not a claim of universal
+  JBIG2 raster equivalence.
 - Resource and decode budgets intentionally reject malformed or unusually
   large inputs instead of allowing unbounded allocation or work.
 
