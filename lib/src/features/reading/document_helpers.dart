@@ -2,12 +2,11 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:html/parser.dart' as html_parser;
-import 'package:xml/xml.dart';
-
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/utils/image_size.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import 'package:html/parser.dart' as html_parser;
+import 'package:xml/xml.dart';
 
 /// Escapes untrusted document text before placing it in generated XHTML.
 String escapeHtml(final String value) => const convert.HtmlEscape().convert(value);

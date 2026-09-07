@@ -2,11 +2,11 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
+import 'package:e_livre/src/features/azw4/utils/parse_azw4_book.dart';
 import 'package:e_livre/src/features/comic/utils/parse_comic_book.dart';
 import 'package:e_livre/src/features/comic7/utils/parse_comic7_book.dart';
-import 'package:e_livre/src/features/docx/utils/parse_docx_book.dart';
 import 'package:e_livre/src/features/detection/format_detector.dart';
-import 'package:e_livre/src/features/azw4/utils/parse_azw4_book.dart';
+import 'package:e_livre/src/features/docx/utils/parse_docx_book.dart';
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';

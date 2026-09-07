@@ -22,7 +22,7 @@ class PdfBook extends Book {
     required this.metadata,
     required this.pages,
     required this.navigation,
-    final BookFormat format = BookFormat.pdf,
+    super.format = BookFormat.pdf,
     final List<TextFile> pageFiles = const <TextFile>[],
     this.pageTexts = const <PdfPageText>[],
     final List<BinaryFile> extractedImages = const <BinaryFile>[],
@@ -32,8 +32,7 @@ class PdfBook extends Book {
          html: pageFiles,
          fonts: const [],
          others: const [],
-       ),
-       super(format: format);
+       );
 
   /// The full original document bytes (kept for facsimile rendering).
   final Uint8List bytes;
