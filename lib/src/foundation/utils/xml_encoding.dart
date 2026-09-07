@@ -321,7 +321,7 @@ String _decodeSingleByte(final Uint8List bytes, final List<int> runes) {
 }
 
 String _decodeUtf16(final Uint8List bytes, {required final bool littleEndian}) {
-  final out = StringBuffer(bytes.length ~/ 2);
+  final out = StringBuffer();
   var i = 0;
   while (i + 1 < bytes.length) {
     final unit = littleEndian ? bytes[i] | (bytes[i + 1] << 8) : (bytes[i] << 8) | bytes[i + 1];
@@ -345,7 +345,7 @@ String _decodeUtf16(final Uint8List bytes, {required final bool littleEndian}) {
 }
 
 String _decodeUtf32(final Uint8List bytes, {required final bool littleEndian}) {
-  final out = StringBuffer(bytes.length ~/ 4);
+  final out = StringBuffer();
   var i = 0;
   while (i + 3 < bytes.length) {
     final value = littleEndian

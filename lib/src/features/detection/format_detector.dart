@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 
 /// Selects a book format from its binary signature.
 abstract final class BookFormatDetector {
@@ -35,12 +36,12 @@ enum DetectedFormat {
 
 /// Sniffs the book format of [bytes] from its magic bytes.
 ///
-/// Only the first bytes of the file are inspected:
+/// Only a bounded prefix of the file is inspected:
 ///
 /// * `PK` zip container → [DetectedFormat.epub]
 /// * `BOOKMOBI` / `TEXTREAD` at offset 60 → [DetectedFormat.mobiFamily]
 /// * `<?xml` / `<FictionBook` prologue → [DetectedFormat.fb2]
-/// * `%PDF` header → [DetectedFormat.pdf]
+/// * an allowed short preamble followed by `%PDF` → [DetectedFormat.pdf]
 ///
 /// Throws [FormatNotSupportedException] for known-but-unsupported formats
 /// (Topaz, KFX, RTF) and for unrecognized data.
@@ -54,7 +55,7 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (_startsWith(bytes, _kfxMagic)) {
     throw const FormatNotSupportedException('Amazon KFX books are not supported.');
   }
-  if (_startsWith(bytes, _pdfMagic)) return DetectedFormat.pdf;
+  if (_pdfHeaderOffset(bytes) != null) return DetectedFormat.pdf;
   if (_startsWith(bytes, _rtfMagic)) {
     throw const FormatNotSupportedException('RTF books are not supported.');
   }
@@ -124,23 +125,79 @@ bool _startsWith(final Uint8List bytes, final List<int> magic) {
 }
 
 bool _looksLikeFictionBook(final Uint8List bytes) {
-  // Skip UTF-8 BOM and leading whitespace, then accept either a raw
-  // <FictionBook root or an <?xml prologue followed by <FictionBook
-  // within the first bytes of the document.
-  var start = 0;
-  if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) start = 3;
-  while (start < bytes.length &&
-      (bytes[start] == 0x20 ||
-          bytes[start] == 0x0A ||
-          bytes[start] == 0x0D ||
-          bytes[start] == 0x09)) {
-    start++;
+  // Decode before sniffing so BOM-marked UTF-16 FB2 files use the same
+  // path as the parser. The lexical preamble walk is deliberately bounded
+  // and only skips XML constructs that are valid before the root element.
+  final window = bytes.sublist(0, bytes.length < 4096 ? bytes.length : 4096);
+  final head = decodeXmlText(window);
+  var cursor = 0;
+  while (cursor < head.length) {
+    while (cursor < head.length && _isXmlWhitespace(head.codeUnitAt(cursor))) {
+      cursor++;
+    }
+    if (head.startsWith('<?', cursor)) {
+      final end = head.indexOf('?>', cursor + 2);
+      if (end < 0) return false;
+      cursor = end + 2;
+      continue;
+    }
+    if (head.startsWith('<!--', cursor)) {
+      final end = head.indexOf('-->', cursor + 4);
+      if (end < 0) return false;
+      cursor = end + 3;
+      continue;
+    }
+    if (head.startsWith('<!DOCTYPE', cursor)) {
+      final end = head.indexOf('>', cursor + 9);
+      if (end < 0) return false;
+      cursor = end + 1;
+      continue;
+    }
+    break;
   }
-  final window = bytes.sublist(start, bytes.length < start + 1024 ? bytes.length : start + 1024);
-  if (window.isEmpty) return false;
 
-  final head = String.fromCharCodes(window);
-  if (head.startsWith('<FictionBook')) return true;
-
-  return head.startsWith('<?xml') && head.contains('<FictionBook');
+  return RegExp(
+        r'<(?:[A-Za-z_][\w.-]*:)?FictionBook(?:\s|>)',
+        caseSensitive: false,
+      ).matchAsPrefix(head, cursor) !=
+      null;
 }
+
+bool _isXmlWhitespace(final int codeUnit) =>
+    codeUnit == 0x20 || codeUnit == 0x09 || codeUnit == 0x0A || codeUnit == 0x0D;
+
+int? _pdfHeaderOffset(final Uint8List bytes) {
+  final lastOffset = bytes.length - _pdfMagic.length;
+  if (lastOffset < 0) return null;
+
+  final boundedLastOffset = lastOffset < _maxPdfPreambleBytes ? lastOffset : _maxPdfPreambleBytes;
+  for (var offset = 0; offset <= boundedLastOffset; offset++) {
+    if (!_startsAt(bytes, offset, _pdfMagic)) continue;
+
+    var preambleEnd = 0;
+    if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+      preambleEnd = 3;
+    }
+    while (preambleEnd < offset && _isPdfWhitespace(bytes[preambleEnd])) {
+      preambleEnd++;
+    }
+    if (preambleEnd == offset) return offset;
+  }
+
+  return null;
+}
+
+bool _startsAt(final Uint8List bytes, final int offset, final List<int> magic) {
+  if (offset < 0 || offset + magic.length > bytes.length) return false;
+
+  for (var i = 0; i < magic.length; i++) {
+    if (bytes[offset + i] != magic[i]) return false;
+  }
+
+  return true;
+}
+
+bool _isPdfWhitespace(final int byte) =>
+    byte == 0x09 || byte == 0x0A || byte == 0x0C || byte == 0x0D || byte == 0x20;
+
+const int _maxPdfPreambleBytes = 1024;

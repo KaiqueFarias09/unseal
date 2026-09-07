@@ -4,7 +4,8 @@ import 'package:xml/xml.dart';
 
 /// Result of converting the FB2 bodies to XHTML.
 class Fb2Bodies {
-  const Fb2Bodies(this.files, this.navigation);
+  /// Creates the converted XHTML, navigation and preserved CSS files.
+  const Fb2Bodies(this.files, this.navigation, {this.css = const <TextFile>[]});
 
   /// Generated XHTML files: `index.html` (main body) plus one file
   /// per named body (`notes.html` for `body name="notes"`).
@@ -12,6 +13,9 @@ class Fb2Bodies {
 
   /// Table of contents derived from section titles.
   final Navigation navigation;
+
+  /// Stylesheets preserved from the FB2 document.
+  final List<TextFile> css;
 }
 
 /// Converts FB2 `<body>` elements into XHTML files.
@@ -23,17 +27,19 @@ class Fb2Bodies {
 Fb2Bodies convertBodies(
   final List<XmlElement> bodies,
   final String title,
-  final Map<String, String> binaryExtensions,
-) {
-  final converter = _BodyConverter(binaryExtensions);
+  final Map<String, String> binaryExtensions, {
+  final List<TextFile> stylesheets = const <TextFile>[],
+}) {
+  final converter = _BodyConverter(binaryExtensions, stylesheets);
 
   return converter.convert(bodies, title);
 }
 
 class _BodyConverter {
-  _BodyConverter(this._binaryExtensions);
+  _BodyConverter(this._binaryExtensions, this._stylesheets);
 
   final Map<String, String> _binaryExtensions;
+  final List<TextFile> _stylesheets;
 
   final Map<String, Set<String>> _idsByFile = <String, Set<String>>{};
   final Map<String, String> _fileByBodyName = <String, String>{};
@@ -43,6 +49,17 @@ class _BodyConverter {
 
   int _playOrder = 0;
   int _sectionCounter = 0;
+
+  late final List<TextFile> _normalizedStylesheets = _stylesheets
+      .map(
+        (final stylesheet) => TextFile(
+          name: stylesheet.name,
+          type: stylesheet.type,
+          path: stylesheet.path,
+          content: _normalizeStylesheetSelectors(stylesheet.content),
+        ),
+      )
+      .toList();
 
   Fb2Bodies convert(final List<XmlElement> bodies, final String title) {
     _bodies.addAll(bodies);
@@ -63,7 +80,11 @@ class _BodyConverter {
       files[fileName] = html;
     }
 
-    return Fb2Bodies(files, Navigation(title: title, navPoints: _navPoints));
+    return Fb2Bodies(
+      files,
+      Navigation(title: title, navPoints: _navPoints),
+      css: _normalizedStylesheets,
+    );
   }
 
   String _bodyName(final XmlElement body) {
@@ -86,6 +107,11 @@ class _BodyConverter {
     buffer.write('<!DOCTYPE html>\n<html>\n<head>');
     buffer.write('<meta charset="utf-8"/>');
     buffer.write('<title>${_escapeText(title)}</title>');
+    for (final stylesheet in _normalizedStylesheets) {
+      buffer.write(
+        '<link rel="stylesheet" type="text/css" href="${_escapeAttr(stylesheet.name)}"/>',
+      );
+    }
     buffer.write('</head>\n<body>\n');
     if (fileName == 'index.html') {
       _convertChildren(body, buffer, fileName, 2, inToc: true);
@@ -111,6 +137,8 @@ class _BodyConverter {
     }
   }
 
+  // The FB2 vocabulary is intentionally handled in one dispatch so every
+  // block element shares the same link, image and inline conversion context.
   // ignore: cyclomatic_complexity
   void _convertElement(
     final XmlElement element,
@@ -197,7 +225,7 @@ class _BodyConverter {
         _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
         out.write('</th>');
       case 'style':
-        _convertInlineChildren(element, out, fileName);
+        _writeStyle(element, out, fileName);
       default:
         // Unknown block-ish elements: keep their text content.
         if (element.children.whereType<XmlElement>().isEmpty) {
@@ -241,7 +269,7 @@ class _BodyConverter {
       case 'image':
         _writeImage(element, out);
       case 'style':
-        _convertInlineChildren(element, out, fileName);
+        _writeStyle(element, out, fileName);
       default:
         _convertInlineChildren(element, out, fileName);
     }
@@ -336,6 +364,19 @@ class _BodyConverter {
     out.write('<img src="${_escapeAttr(name)}" alt="${_escapeAttr(id)}"/>');
   }
 
+  void _writeStyle(final XmlElement element, final StringBuffer out, final String fileName) {
+    final className = _fb2StyleClassName(element.getAttribute('name'));
+    if (className == null) {
+      _convertInlineChildren(element, out, fileName);
+
+      return;
+    }
+
+    out.write('<span class="${_escapeAttr(className)}">');
+    _convertInlineChildren(element, out, fileName);
+    out.write('</span>');
+  }
+
   void _writeLink(final XmlElement element, final StringBuffer out, final String fileName) {
     final href =
         element.getAttribute('href', namespace: 'http://www.w3.org/1999/xlink') ??
@@ -366,3 +407,28 @@ String _escapeText(final String raw) =>
     raw.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
 String _escapeAttr(final String raw) => _escapeText(raw).replaceAll('"', '&quot;');
+
+final RegExp _namedStyleSelector = RegExp(
+  r'''style\s*\[\s*name\s*=\s*(?:(['"])([^'"]*)\1|([^\]\s]+))\s*\]''',
+  caseSensitive: false,
+);
+
+String _normalizeStylesheetSelectors(final String css) {
+  return css.replaceAllMapped(_namedStyleSelector, (final match) {
+    final name = match.group(2) ?? match.group(3) ?? '';
+    final className = _fb2StyleClassName(name);
+
+    return className == null ? match.group(0)! : '.$className';
+  });
+}
+
+String? _fb2StyleClassName(final String? rawName) {
+  final name = rawName?.trim() ?? '';
+  if (name.isEmpty) return null;
+
+  final sanitized = name.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '-');
+  if (sanitized.isEmpty) return null;
+  if (RegExp(r'^[A-Za-z_-]').hasMatch(sanitized)) return sanitized;
+
+  return 'fb2-style-$sanitized';
+}

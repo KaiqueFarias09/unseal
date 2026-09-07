@@ -65,11 +65,7 @@ class PdfDocument {
   /// Only the cross-reference layer is read; page trees, content
   /// streams and metadata resolve lazily through [object].
   static PdfDocument parse(final Uint8List bytes, {final String password = ''}) {
-    if (bytes.length < 16 ||
-        bytes[0] != 0x25 ||
-        bytes[1] != 0x50 ||
-        bytes[2] != 0x44 ||
-        bytes[3] != 0x46) {
+    if (_pdfHeaderOffset(bytes) == null) {
       throw const PdfException('Not a PDF document (missing %PDF header).');
     }
 
@@ -198,6 +194,43 @@ class PdfDocument {
 
     return null;
   }
+
+  /// Finds `%PDF` after only the bounded preamble accepted by the format
+  /// detector: an optional UTF-8 BOM at byte zero and ASCII whitespace.
+  /// The original [bytes] remain intact so every xref/object offset stays
+  /// absolute, including when a preamble is present.
+  static int? _pdfHeaderOffset(final Uint8List bytes) {
+    final lastOffset = bytes.length - _pdfMagic.length;
+    if (lastOffset < 0) return null;
+
+    final boundedLastOffset = lastOffset < _maxPdfPreambleBytes ? lastOffset : _maxPdfPreambleBytes;
+    for (var offset = 0; offset <= boundedLastOffset; offset++) {
+      if (!_startsAt(bytes, offset, _pdfMagic)) continue;
+
+      var preambleEnd = 0;
+      if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+        preambleEnd = 3;
+      }
+      while (preambleEnd < offset && _isPdfWhitespace(bytes[preambleEnd])) {
+        preambleEnd++;
+      }
+      if (preambleEnd == offset) return offset;
+    }
+
+    return null;
+  }
+
+  static bool _startsAt(final Uint8List bytes, final int offset, final List<int> magic) {
+    if (offset < 0 || offset + magic.length > bytes.length) return false;
+    for (var i = 0; i < magic.length; i++) {
+      if (bytes[offset + i] != magic[i]) return false;
+    }
+
+    return true;
+  }
+
+  static bool _isPdfWhitespace(final int byte) =>
+      byte == 0x09 || byte == 0x0A || byte == 0x0C || byte == 0x0D || byte == 0x20;
 
   /// Builds the security handler for an encrypted document and
   /// authenticates [password]: the empty string first (owner-only
@@ -668,4 +701,6 @@ class PdfDocument {
   }
 
   static const int _maxXrefEntries = 4000000;
+  static const List<int> _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
+  static const int _maxPdfPreambleBytes = 1024;
 }

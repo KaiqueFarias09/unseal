@@ -120,7 +120,8 @@ abstract final class BookReader {
   static bool _hasFb2Entry(final Archive archive) => _fb2Entry(archive) != null;
 
   static bool _isEpubArchive(final Archive archive) =>
-      archive.files.any((final file) => file.isFile && file.name == 'META-INF/container.xml');
+      archive.files.any((final file) => file.isFile && file.name == 'META-INF/container.xml') ||
+      findEpubRootFilePath(archive) != null;
 
   static bool _isImageName(final String name) {
     final lower = name.toLowerCase();

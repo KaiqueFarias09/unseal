@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:e_livre/src/features/epub/entities/entities.dart';
 
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
+import 'package:e_livre/src/features/epub/utils/xml_utils.dart';
 import 'package:xml/xml.dart';
 
 /// Parses the provided XML string into an `EpubPackage`.
@@ -14,7 +15,8 @@ import 'package:xml/xml.dart';
 ///
 /// Returns an `EpubPackage` representing the parsed package.
 ///
-/// Throws an `EpubException` if the TOC ID is empty when creating an `Epub3Package`.
+/// Missing navigation metadata is allowed; callers can represent it as an
+/// empty table of contents while still reading the spine.
 EpubPackage parsePackage(final String xml) {
   final document = XmlDocument.parse(xml);
   final namespaceUri = document.rootElement.namespaceUri;
@@ -59,7 +61,6 @@ EpubPackage parsePackage(final String xml) {
         );
 
     final tocPath = tocElement?.getAttribute('id') ?? spine.tocId;
-    if (tocPath == null) throw EpubException('EPUB parsing package error: TOC ID is empty.');
 
     return Epub3Package(
       xmlns: xmlns,
@@ -73,6 +74,9 @@ EpubPackage parsePackage(final String xml) {
     );
   }
 }
+
+/// Parses an OPF package from its encoded archive bytes.
+EpubPackage parsePackageBytes(final List<int> bytes) => parsePackage(decodeEpubText(bytes));
 
 void _validate(final XmlElement? item, final String name) {
   if (item != null) return;

@@ -6,6 +6,7 @@ import 'rar4_decoder.dart';
 
 /// An entry extracted from a RAR archive.
 class RarEntry {
+  /// Creates an entry extracted from a RAR archive.
   const RarEntry({
     required this.name,
     required this.isDirectory,
@@ -179,6 +180,13 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
     offset += consumedT;
     final (headerFlags, consumedF) = _vint(bytes, offset);
     offset += consumedF;
+    var extraAreaSize = 0;
+    if (headerFlags & 0x0001 != 0) {
+      // RAR 5 stores EXTRA_AREA_SIZE before DATA_SIZE in the common header.
+      final (size, consumedE) = _vint(bytes, offset);
+      extraAreaSize = size;
+      offset += consumedE;
+    }
     var dataSize = 0;
     if (headerFlags & 0x0002 != 0) {
       final (size, consumedD) = _vint(bytes, offset);
@@ -210,6 +218,10 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
       }
 
       final name = String.fromCharCodes(bytes.sublist(offset, nameEnd));
+      final extraAreaEnd = nameEnd + extraAreaSize;
+      if (extraAreaEnd > headerEnd) {
+        break;
+      }
       final isDirectory = fileFlags & 0x0001 != 0;
       final method = (compressionInfo >> 7) & 0x07;
       final stored = method == 0;

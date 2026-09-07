@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/exth_header.dart';
 import 'package:e_livre/src/features/mobi/utils/decint.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
@@ -67,9 +68,20 @@ class MobiHeader {
     mobiVersion = view.getUint32(0x68);
     firstImageIndex = view.getUint32(0x6C);
     final exthFlag = view.getUint32(0x80);
-    exth = (exthFlag & 0x40) != 0
-        ? ExthHeader.parse(Uint8List.sublistView(record0, 16 + headerLength), codec, title)
-        : null;
+    if ((exthFlag & 0x40) != 0) {
+      // EXTH is optional metadata. A stale flag or a damaged marker
+      // must not discard otherwise readable book content, while the
+      // sublist operation remains outside this recovery boundary so a
+      // malformed mandatory header length still fails strictly.
+      final rawExth = Uint8List.sublistView(record0, 16 + headerLength);
+      try {
+        exth = ExthHeader.parse(rawExth, codec, title);
+      } on MobiException {
+        exth = null;
+      }
+    } else {
+      exth = null;
+    }
     ncxIndex = record0.length >= 0xF8 ? view.getUint32(0xF4) : nullIndex;
     if (mobiVersion == 8 && record0.length >= 0xF8 + 16) {
       divIndex = view.getUint32(0xF8);

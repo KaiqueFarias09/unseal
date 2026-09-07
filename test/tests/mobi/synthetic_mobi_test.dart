@@ -212,6 +212,42 @@ void main() {
   group('ExthHeader', () {
     Uint8List u32(final int value) => (ByteData(4)..setUint32(0, value)).buffer.asUint8List();
 
+    test('malformed optional EXTH does not block book content', () {
+      final malformed = buildExth([(503, Uint8List.fromList(convert.utf8.encode('EXTH title')))]);
+      malformed.setRange(0, 4, 'BAD!'.codeUnits);
+      final bytes = buildPdb('Malformed EXTH', [
+        buildMobiRecord0(
+          compressionType: 1,
+          textRecordCount: 1,
+          exthFlags: 0x40,
+          title: 'Header',
+          exth: malformed,
+        ),
+        Uint8List.fromList(convert.utf8.encode('<html><body>Recoverable</body></html>')),
+      ]);
+
+      final book = parseMobiBook(bytes);
+      final metadata = readMobiMetadata(bytes);
+
+      expect(book.header.exth, isNull);
+      expect(book.title, 'Header');
+      expect(book.files.html.single.content, contains('Recoverable'));
+      expect(metadata.title, 'Header');
+    });
+
+    test('malformed optional EXTH does not bypass encryption rejection', () {
+      final malformed = buildExth([
+        (503, Uint8List.fromList(convert.utf8.encode('Protected EXTH title'))),
+      ]);
+      malformed.setRange(0, 4, 'BAD!'.codeUnits);
+      final header = MobiHeader.parse(
+        buildMobiRecord0(encryptionType: 1, exthFlags: 0x40, title: 'Protected', exth: malformed),
+        'BOOKMOBI',
+      );
+
+      expect(() => assertNotDrm(header, ''), throwsA(isA<DrmProtectedException>()));
+    });
+
     test('keeps truncated record content instead of throwing', () {
       final declared = buildExth([(100, Uint8List(100))]);
       final truncated = Uint8List.sublistView(declared, 0, 25);
@@ -243,11 +279,7 @@ void main() {
   group('sort keys and book producer', () {
     Uint8List buildBook(final List<(int, Uint8List)> exthRecords) {
       return buildPdb('Synthetic', [
-        buildMobiRecord0(
-          textRecordCount: 1,
-          exthFlags: 0x40,
-          exth: buildExth(exthRecords),
-        ),
+        buildMobiRecord0(textRecordCount: 1, exthFlags: 0x40, exth: buildExth(exthRecords)),
         Uint8List.fromList(
           convert.utf8.encode('<html><head><title>T</title></head><body><p>x</p></body></html>'),
         ),

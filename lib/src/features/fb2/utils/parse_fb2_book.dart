@@ -56,8 +56,14 @@ Fb2Book _parseDocument(final List<int> bytes) {
   final bodies = root.findElements('body').toList();
   if (bodies.isEmpty) throw const Fb2Exception('FB2 document has no body.');
 
+  final stylesheets = _extractStylesheets(root);
   final metadata = _mapMetadata(root, binaries);
-  final converted = convertBodies(bodies, metadata.title ?? '', _extensionsOf(binaries));
+  final converted = convertBodies(
+    bodies,
+    metadata.title ?? '',
+    _extensionsOf(binaries),
+    stylesheets: stylesheets,
+  );
 
   final htmlFiles = <TextFile>[];
   final images = <BinaryFile>[];
@@ -81,7 +87,7 @@ Fb2Book _parseDocument(final List<int> bytes) {
     navigation: converted.navigation,
     files: Files(
       images: images,
-      css: const <TextFile>[],
+      css: converted.css,
       html: htmlFiles,
       fonts: const <BinaryFile>[],
       others: const <BinaryFile>[],
@@ -89,6 +95,20 @@ Fb2Book _parseDocument(final List<int> bytes) {
     cover: cover,
     metadata: metadata,
   );
+}
+
+List<TextFile> _extractStylesheets(final XmlElement root) {
+  final stylesheets = <TextFile>[];
+  var index = 0;
+  for (final element in root.children.whereType<XmlElement>()) {
+    if (element.name.local != 'stylesheet') continue;
+
+    final name = index == 0 ? 'styles.css' : 'styles-$index.css';
+    stylesheets.add(TextFile(name: name, type: 'css', path: name, content: element.innerText));
+    index++;
+  }
+
+  return stylesheets;
 }
 
 BookMetadata _readDocumentMetadata(final List<int> bytes) {

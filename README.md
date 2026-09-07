@@ -14,13 +14,13 @@ reader UI.
 
 | Format | What eLivre supports |
 | --- | --- |
-| EPUB 2 and 3 | Package metadata, spine and reading order, HTML/XHTML, CSS, images, fonts, navigation, media overlays and EPUB CFI operations. |
+| EPUB 2 and 3 | Package metadata, spine and reading order, HTML/XHTML (including common `text/html` variants), CSS, images, fonts, UTF-16 XML, navigation fallback, media overlays and EPUB CFI operations. It also recovers usable OPF packages without `container.xml`, chooses a valid rootfile and decodes IDPF/Adobe font obfuscation. |
 | MOBI 6 | PalmDoc and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts and file-position navigation. |
 | AZW3 (KF8) | Skeleton/div reassembly, FDST flows, CSS/SVG, CONT/CRES image containers, NCX navigation and joint MOBI 6 + KF8 files. |
-| FB2 and FBZ | Metadata, cover binaries, body-to-XHTML conversion, notes, internal links and section navigation. |
-| CBZ | ZIP comic pages, `ComicInfo.xml` metadata, natural page ordering and the first page as cover. |
-| CBR | RAR 4 stored entries and ordinary non-solid RAR 4 method-29 entries, plus RAR 5 stored entries. |
-| PDF | Structure, metadata, bookmarks, page text, canonical reflow HTML, facsimile data and extracted JPEG, CCITT and JBIG2 page images. |
+| FB2 and FBZ | Metadata, cover binaries, declared XML encodings, body-to-XHTML conversion, preserved stylesheets and named styles, notes, internal links and section navigation. |
+| CBZ | ZIP comic pages, `ComicInfo.xml` metadata, deterministic natural page ordering across mixed directory depths and the first page as cover. |
+| CBR | RAR 4 stored entries and ordinary non-solid RAR 4 method-29 entries, plus RAR 5 stored entries with extra header areas. |
+| PDF | Structure, metadata, bookmarks, page text, bounded preamble recovery, canonical reflow HTML, facsimile data and extracted JPEG, CCITT and JBIG2 page images. |
 
 ## Why use it
 
@@ -51,6 +51,10 @@ reader UI.
   metadata fall back to the `Title - Author.ext` filename pattern.
 - Full parse with parity across formats: HTML content files, CSS,
   images, fonts and the table of contents.
+- Recovery is deliberately format-aware: stale EPUB navigation can fall
+  back to a valid EPUB 3 nav document, optional MOBI EXTH metadata can be
+  ignored when damaged, and readable content is preserved when package
+  metadata is incomplete.
 - Reading statistics: `book.statistics` gives word count and
   estimated reading time; `TextFile.plainText` extracts clean text.
 - Cover dimensions parsed from image headers (JPEG/PNG/GIF/BMP/WebP)
@@ -230,6 +234,10 @@ and the correct password.
 - CBR supports stored RAR 5 entries and ordinary non-solid RAR 4 method-29
   entries. Encrypted, split, solid, RAR virtual-machine, PPMd and other
   unsupported compressed variants are rejected with `ComicException`.
+- EPUB font obfuscation is limited to the standard IDPF and Adobe algorithms;
+  other `encryption.xml` algorithms are treated as DRM and rejected.
+- EPUB navigation is optional. A missing or unusable TOC produces an empty
+  navigation model when the spine and content remain readable.
 - DRM-protected MOBI files are rejected with `DrmProtectedException`.
 - Browser code must use byte-based APIs such as `openFromBytes`.
   Path-based APIs and Calibre sidecar lookup are filesystem-only.

@@ -20,6 +20,11 @@ class _Page {
 }
 
 /// Parses a comic book (CBZ zip or CBR rar) from raw [bytes].
+///
+/// Pages at a uniform directory depth are ordered naturally by their full
+/// archive path. When an archive mixes directory depths, the page basename is
+/// the primary ordering key and the full archive path is the deterministic
+/// tie-breaker. This keeps mixed-depth archives in the expected reader order.
 ComicBook parseComicBook(final Uint8List bytes) {
   final (pages, comicInfo) = _readPages(bytes);
 
@@ -94,9 +99,31 @@ bool _cbz(final Uint8List bytes) => bytes.length > 2 && bytes[0] == 0x50 && byte
   }
   if (pages.isEmpty) throw const ComicException('No image pages found in the comic archive.');
 
-  pages.sort((final a, final b) => compareNatural(a.name, b.name));
+  _sortPages(pages);
 
   return (pages, comicInfo);
+}
+
+void _sortPages(final List<_Page> pages) {
+  final depths = pages.map((final page) => _directoryDepth(page.name)).toSet();
+  if (depths.length == 1) {
+    pages.sort((final a, final b) => compareNatural(a.name, b.name));
+    return;
+  }
+
+  pages.sort((final a, final b) {
+    final basenameOrder = compareNatural(_archiveBasename(a.name), _archiveBasename(b.name));
+    if (basenameOrder != 0) return basenameOrder;
+
+    return compareNatural(a.name, b.name);
+  });
+}
+
+int _directoryDepth(final String path) => '/'.allMatches(path).length;
+
+String _archiveBasename(final String path) {
+  final separator = path.lastIndexOf('/');
+  return separator == -1 ? path : path.substring(separator + 1);
 }
 
 ComicBook _build(final List<_Page> pages, final ComicInfo? comicInfo, final BookFormat format) {

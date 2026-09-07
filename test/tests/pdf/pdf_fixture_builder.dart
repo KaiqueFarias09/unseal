@@ -13,6 +13,8 @@ class PdfFixtureBuilder {
   final Map<int, bool> _streamFlate = <int, bool>{};
   final Map<int, String> _compressed = <int, String>{};
 
+  /// Bytes allowed before the PDF header in a focused preamble fixture.
+  List<int> prefix = const <int>[];
   String trailerExtra = '';
   bool corruptXref = false;
 
@@ -46,6 +48,7 @@ class PdfFixtureBuilder {
   /// Builds the document with a classic cross-reference table.
   Uint8List build() {
     final out = BytesBuilder(copy: false);
+    out.add(prefix);
     out.add('%PDF-1.7\n%'.codeUnits);
     out.add([0xE2, 0xE3, 0xCF, 0xD3]);
     out.add([0x0A]);
@@ -94,6 +97,7 @@ class PdfFixtureBuilder {
   /// entry packed into one `/ObjStm`.
   Uint8List buildWithXrefStream() {
     final out = BytesBuilder(copy: false);
+    out.add(prefix);
     out.add('%PDF-1.7\n%'.codeUnits);
     out.add([0xE2, 0xE3, 0xCF, 0xD3, 0x0A]);
 

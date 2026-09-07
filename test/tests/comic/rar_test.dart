@@ -49,6 +49,16 @@ void main() {
       expect(entries.first.data, tinyJpegPage);
     });
 
+    test('reads stored entries with an extra metadata area', () {
+      final entries = readRarEntries(buildRar5(['001.jpg', '002.jpg'], withExtraArea: true));
+
+      expect(entries, hasLength(2));
+      expect(entries.map((final entry) => entry.name).toList(), ['001.jpg', '002.jpg']);
+      expect(entries.every((final entry) => entry.isStored), isTrue);
+      expect(entries.first.data, tinyJpegPage);
+      expect(entries.last.data, tinyJpegPage);
+    });
+
     test('reports compressed entries as not stored', () {
       final entries = readRarEntries(buildRar5(['001.jpg'], method: 3));
       expect(entries.single.isStored, isFalse);
@@ -88,6 +98,14 @@ void main() {
       expect(book.pageCount, 2);
       expect(book.pages.first.name, '001.jpg');
       expect(detectFormat(buildRar5(['001.jpg'])), DetectedFormat.comic);
+    });
+
+    test('RAR 5 comics with an extra metadata area parse into pages', () {
+      final book = parseComicBook(buildRar5(['001.jpg'], withExtraArea: true));
+
+      expect(book.format, BookFormat.cbr);
+      expect(book.pageCount, 1);
+      expect(book.pages.single.name, '001.jpg');
     });
 
     test('RAR 5 comics with compressed pages throw', () {
@@ -172,18 +190,23 @@ Uint8List buildRar5(
   final int method = 0,
   final int fileFlags = 0,
   final bool trailingGarbage = false,
+  final bool withExtraArea = false,
 }) {
   final builder = BytesBuilder(copy: false);
   builder.add([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
 
   _addRar5Block(builder, type: 1, headerFlags: 0);
-  for (final name in names) {
+  for (var index = 0; index < names.length; index++) {
+    final name = names[index];
     final nameBytes = name.codeUnits;
+    final includeExtraArea = withExtraArea && index == 0;
+    final extraArea = includeExtraArea ? [6, 3, 1, 0, 0, 0, 0] : null;
     _addRar5Block(
       builder,
       type: 2,
-      headerFlags: 0x0002, // extra size present
+      headerFlags: 0x0002 | (includeExtraArea ? 0x0001 : 0),
       data: tinyJpegPage,
+      extraArea: extraArea,
       write: (final body) {
         body.vint(fileFlags);
         body.vint(tinyJpegPage.length); // unpacked size
@@ -212,15 +235,22 @@ void _addRar5Block(
   required final int type,
   required final int headerFlags,
   final Uint8List? data,
+  final List<int>? extraArea,
   final void Function(_Rar5Header body)? write,
 }) {
   final body = _Rar5Header();
   body.vint(type);
   body.vint(headerFlags);
+  if (headerFlags & 0x0001 != 0) {
+    body.vint(extraArea?.length ?? 0);
+  }
   if (headerFlags & 0x0002 != 0) {
     body.vint(data?.length ?? 0);
   }
   write?.call(body);
+  if (extraArea != null) {
+    body.add(extraArea);
+  }
   final bodyBytes = body.takeBytes();
 
   final block = BytesBuilder(copy: false)

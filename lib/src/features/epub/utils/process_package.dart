@@ -1,11 +1,9 @@
-import 'dart:convert' as convert;
-
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:e_livre/src/features/epub/entities/entities.dart';
 
-import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
+import 'package:e_livre/src/features/epub/utils/xml_utils.dart';
 
 import 'package:xml/xml.dart';
 
@@ -19,27 +17,55 @@ Navigation getEpubNavigation(
   final Archive archive,
   final String? rootFilePath,
 ) {
-  final tocId = package.spine.tocId ?? _navDocumentId(package);
-  if (tocId == null) throw EpubException('EPUB parsing error: TOC ID is empty.');
+  final candidateIds = <String>[
+    if (package.spine.tocId != null) package.spine.tocId!,
+    if (_navDocumentId(package) != null) _navDocumentId(package)!,
+    ...package.manifest.items
+        .where(
+          (final item) => item.properties.any((final property) => property.toLowerCase() == 'nav'),
+        )
+        .map((final item) => item.id),
+    ...package.manifest.items
+        .where((final item) => _mediaType(item.mediaType) == 'application/x-dtbncx+xml')
+        .map((final item) => item.id),
+  ];
 
-  final tocManifestItem = package.manifest.items.firstWhere(
-    (final element) => element.id == tocId,
-    orElse: () =>
-        throw EpubException('EPUB parsing error: TOC item $tocId not found in EPUB manifest.'),
-  );
-  final tocFileEntryPath = resolveItemPath(rootFilePath, tocManifestItem.path);
-  final tocFileEntry = findArchiveFile(archive, tocFileEntryPath);
-  if (tocFileEntry == null) {
-    throw EpubException('EPUB parsing error: TOC file $tocFileEntryPath not found in archive.');
+  final triedIds = <String>{};
+  for (final tocId in candidateIds) {
+    if (!triedIds.add(tocId)) continue;
+
+    final tocManifestItem = package.manifest.items.firstWhereOrNull(
+      (final element) => element.id == tocId,
+    );
+    if (tocManifestItem == null) continue;
+
+    final tocFileEntryPath = resolveItemPath(rootFilePath, tocManifestItem.path);
+    final tocFileEntry = findArchiveFile(archive, tocFileEntryPath);
+    if (tocFileEntry == null) continue;
+
+    try {
+      final document = parseEpubXml(tocFileEntry.content as List<int>);
+      final navigation = _navigationFromDocument(document);
+      if (navigation != null) return navigation;
+    } on Exception {
+      // A stale or malformed navigation resource must not hide another
+      // usable EPUB 3 nav document.
+    }
   }
 
-  final document = XmlDocument.parse(convert.utf8.decode(tocFileEntry.content as List<int>));
-  final isNcx = document.rootElement.name.local == 'ncx';
-
-  return isNcx ? _navigationFromNcx(document) : _navigationFromNavDoc(document);
+  // Navigation is optional for reading the spine. Keep an empty, stable
+  // value instead of turning a readable EPUB into a parse failure.
+  return Navigation(title: '', navPoints: <NavPoint>[]);
 }
 
-Navigation _navigationFromNcx(final XmlDocument document) {
+Navigation? _navigationFromDocument(final XmlDocument document) {
+  if (document.rootElement.name.local == 'ncx') return _navigationFromNcx(document);
+  if (document.findAllElements('nav').isEmpty) return null;
+
+  return _navigationFromNavDoc(document);
+}
+
+Navigation? _navigationFromNcx(final XmlDocument document) {
   final title =
       document
           .findAllElements('docTitle')
@@ -52,9 +78,8 @@ Navigation _navigationFromNcx(final XmlDocument document) {
           .trim() ??
       '';
   final navMap = document.findAllElements('navMap').firstOrNull;
-  final rootPoints = navMap == null
-      ? <NavPoint>[]
-      : navMap.findElements('navPoint').map(_navPointFromNcx).toList();
+  if (navMap == null) return null;
+  final rootPoints = navMap.findElements('navPoint').map(_navPointFromNcx).toList();
 
   return Navigation(title: title, navPoints: rootPoints);
 }
@@ -81,7 +106,7 @@ NavPoint _navPointFromNcx(final XmlElement element) {
   );
 }
 
-Navigation _navigationFromNavDoc(final XmlDocument document) {
+Navigation? _navigationFromNavDoc(final XmlDocument document) {
   var title = '';
   for (final element in document.findAllElements('title')) {
     title = element.innerText.trim();
@@ -99,7 +124,7 @@ Navigation _navigationFromNavDoc(final XmlDocument document) {
 
     navElement ??= candidate;
   }
-  if (navElement == null) return Navigation(title: title, navPoints: <NavPoint>[]);
+  if (navElement == null) return null;
 
   final list = navElement.findElements('ol').firstOrNull;
   final navPoints = list == null ? <NavPoint>[] : _navPointsFromNavList(list, 0);
@@ -136,3 +161,5 @@ List<NavPoint> _navPointsFromNavList(final XmlElement list, final int order) {
 String? _navDocumentId(final EpubPackage package) {
   return package is Epub3Package ? package.tocId : null;
 }
+
+String _mediaType(final String value) => value.split(';').first.trim().toLowerCase();

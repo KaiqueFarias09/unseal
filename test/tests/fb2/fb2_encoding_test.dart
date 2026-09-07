@@ -65,6 +65,39 @@ void main() {
       expect(book.creators, [pushkinAuthor]);
     });
 
+    test('declared UTF-16 with a BOM decodes the full document', () {
+      final bytes = _utf16le(_fb2(encoding: 'UTF-16', title: pushkinTitle, body: pushkinBody));
+      final withBom = Uint8List.fromList(<int>[0xFF, 0xFE, ...bytes]);
+
+      final book = parseFb2Book(withBom);
+      final metadata = readFb2Metadata(withBom);
+
+      expect(book.title, pushkinTitle);
+      expect(book.files.html.first.content, contains('Береги честь смолоду.'));
+      expect(metadata.title, pushkinTitle);
+    });
+
+    test('preserves stylesheets and named styles in the generated files', () {
+      const String doc =
+          '<?xml version="1.0" encoding="utf-8"?>'
+          '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
+          '<description><title-info><book-title>Styled</book-title></title-info></description>'
+          '<stylesheet type="text/css">style[name="warning"] { color: red; }</stylesheet>'
+          '<body><section><p><style name="warning">Danger</style></p></section></body>'
+          '</FictionBook>';
+
+      final book = parseFb2Book(_utf8(doc));
+      final html = book.files.html.single.content;
+      final css = book.files.css.single;
+
+      expect(book.files.css, hasLength(1));
+      expect(css.name, 'styles.css');
+      expect(css.content, contains('.warning'));
+      expect(css.content, isNot(contains('style[name')));
+      expect(html, contains('href="styles.css"'));
+      expect(html, contains('<span class="warning">Danger</span>'));
+    });
+
     test('us-ascii declaration is honoured', () {
       const String asciiDoc =
           '<?xml version="1.0" encoding="us-ascii"?>'

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -28,6 +29,22 @@ void main() {
       expect(detectFormat(bytes), DetectedFormat.fb2);
     });
 
+    test('detects FB2 after an XML comment', () {
+      final bytes = Uint8List.fromList('<!-- publisher --><FictionBook></FictionBook>'.codeUnits);
+      expect(detectFormat(bytes), DetectedFormat.fb2);
+    });
+
+    test('detects BOM-marked UTF-16 FB2', () {
+      final text = '<?xml version="1.0"?><FictionBook></FictionBook>';
+      final bytes = Uint8List.fromList(<int>[
+        0xFF,
+        0xFE,
+        for (final codeUnit in text.codeUnits) ...<int>[codeUnit & 0xFF, codeUnit >> 8],
+      ]);
+      expect(decodeXmlText(bytes), startsWith('<?xml'));
+      expect(detectFormat(bytes), DetectedFormat.fb2);
+    });
+
     test('rejects Topaz books', () {
       expect(
         () => detectFormat(Uint8List.fromList('TPZ'.codeUnits)),
@@ -37,6 +54,20 @@ void main() {
 
     test('detects PDF documents', () {
       expect(detectFormat(Uint8List.fromList('%PDF-1.7 ...'.codeUnits)), DetectedFormat.pdf);
+    });
+
+    test('detects PDF after a bounded BOM and whitespace preamble', () {
+      expect(
+        detectFormat(Uint8List.fromList([0xEF, 0xBB, 0xBF, 0x0A, ...'%PDF-1.7'.codeUnits])),
+        DetectedFormat.pdf,
+      );
+    });
+
+    test('does not treat arbitrary bytes before PDF as a valid preamble', () {
+      expect(
+        () => detectFormat(Uint8List.fromList([...'garbage'.codeUnits, ...'%PDF-1.7'.codeUnits])),
+        throwsA(isA<FormatNotSupportedException>()),
+      );
     });
 
     test('rejects RTF books', () {

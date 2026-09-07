@@ -103,6 +103,27 @@ void main() {
     });
   });
 
+  group('PDF header preamble', () {
+    test('accepts a bounded UTF-8 BOM and ASCII whitespace', () {
+      final fixture = twoPageFixture(withOutline: false)
+        ..prefix = [0xEF, 0xBB, 0xBF, 0x0A, 0x20, 0x09, 0x0C, 0x0D];
+      final bytes = fixture.build();
+
+      final book = parsePdfBook(bytes);
+
+      expect(book.pageCount, 2);
+      expect(book.bytes, bytes);
+    });
+
+    test('rejects arbitrary or overlong bytes before the PDF header', () {
+      final garbage = twoPageFixture(withOutline: false)..prefix = 'generated\n'.codeUnits;
+      final overlong = twoPageFixture(withOutline: false)..prefix = List<int>.filled(1025, 0x20);
+
+      expect(() => parsePdfBook(garbage.build()), throwsA(isA<PdfException>()));
+      expect(() => parsePdfBook(overlong.build()), throwsA(isA<PdfException>()));
+    });
+  });
+
   group('PDF wire', () {
     test('round-trips bytes, pages, metadata and navigation', () {
       final book = parsePdfBook(twoPageFixture().build());

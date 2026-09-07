@@ -23,6 +23,22 @@ void main() {
       ]);
     });
 
+    test('orders mixed-depth pages by basename with a path tie-breaker', () {
+      final png = _png();
+      final archive = Archive()
+        ..addFile(ArchiveFile('02.png', png.length, png))
+        ..addFile(ArchiveFile('volume/01.png', png.length, png))
+        ..addFile(ArchiveFile('archive/01.png', png.length, png));
+
+      final book = parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive)!));
+
+      expect(book.pages.map((final page) => page.path).toList(), [
+        'archive/01.png',
+        'volume/01.png',
+        '02.png',
+      ]);
+    });
+
     test('reads ComicInfo.xml metadata', () {
       final book = parseComicBook(cbz);
       expect(book.metadata.title, 'Test Comic');

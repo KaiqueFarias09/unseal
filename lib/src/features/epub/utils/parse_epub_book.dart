@@ -1,4 +1,3 @@
-import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -7,6 +6,7 @@ import 'package:e_livre/src/features/epub/entities/entities.dart';
 
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
+import 'package:e_livre/src/features/epub/utils/epub_encryption.dart';
 import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';
 import 'package:e_livre/src/features/epub/utils/extract_files.dart';
 import 'package:e_livre/src/features/epub/utils/get_book_cover.dart';
@@ -15,26 +15,39 @@ import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
 import 'package:e_livre/src/features/epub/utils/process_package.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
+export 'get_epub_root_file_path.dart';
+
 /// Parses an EPUB from raw [bytes].
 EpubBook parseEpubBook(final Uint8List bytes) {
   return parseEpubArchive(ZipDecoder().decodeBytes(bytes));
 }
 
 /// Parses an already decoded EPUB [archive] into an [EpubBook].
-EpubBook parseEpubArchive(final Archive archive) {
-  final rootFilePath = getEpubRootFilePath(archive);
-  final rootFile = _getRootFile(archive, rootFilePath).content as List<int>;
-  final package = parsePackage(convert.utf8.decode(rootFile));
-  final navigation = getEpubNavigation(package, archive, rootFilePath);
-  final files = extractFiles(archive.files, package.manifest.items, rootFilePath);
-  final cover = getBookCover(package, archive, files.images, rootFilePath);
+///
+/// When [rootFilePath] is omitted, the path is read from
+/// `META-INF/container.xml` and then recovered by scanning valid `.opf`
+/// entries when the container is absent or unusable. A caller that already
+/// selected a package can pass its archive-relative path explicitly.
+EpubBook parseEpubArchive(final Archive archive, {final String? rootFilePath}) {
+  final selectedRootFilePath = _selectRootFilePath(archive, rootFilePath);
+  final rootFile = _getRootFile(archive, selectedRootFilePath).content as List<int>;
+  final package = parsePackageBytes(rootFile);
+  final navigation = getEpubNavigation(package, archive, selectedRootFilePath);
+  final encryption = EpubEncryption.fromArchive(archive, package);
+  final files = extractFiles(
+    archive.files,
+    package.manifest.items,
+    selectedRootFilePath,
+    encryption,
+  );
+  final cover = getBookCover(package, archive, files.images, selectedRootFilePath);
 
   return EpubBook(
     navigation: navigation,
     files: files,
     cover: cover,
     package: package,
-    spinePaths: _spinePaths(package, files, rootFilePath),
+    spinePaths: _spinePaths(package, files, selectedRootFilePath),
     archiveEntries: _archiveEntries(archive),
   );
 }
@@ -51,13 +64,29 @@ List<ArchiveEntry> _archiveEntries(final Archive archive) {
 /// Reads only the metadata of an EPUB [archive].
 ///
 /// Decodes the OPF package and, at most, the single cover entry —
-/// the rest of the archive is never inflated.
-BookMetadata readEpubMetadata(final Archive archive) {
-  final rootFilePath = getEpubRootFilePath(archive);
-  final rootFile = _getRootFile(archive, rootFilePath).content as List<int>;
-  final package = parsePackage(convert.utf8.decode(rootFile));
+/// the rest of the archive is never inflated. [rootFilePath] has the same
+/// override and recovery behavior as [parseEpubArchive].
+BookMetadata readEpubMetadata(final Archive archive, {final String? rootFilePath}) {
+  final selectedRootFilePath = _selectRootFilePath(archive, rootFilePath);
+  final rootFile = _getRootFile(archive, selectedRootFilePath).content as List<int>;
+  final package = parsePackageBytes(rootFile);
+  EpubEncryption.fromArchive(archive, package);
 
-  return epubBookMetadata(package, getBookCover(package, archive, const [], rootFilePath));
+  return epubBookMetadata(package, getBookCover(package, archive, const [], selectedRootFilePath));
+}
+
+String _selectRootFilePath(final Archive archive, final String? rootFilePath) {
+  if (rootFilePath != null) {
+    final normalized = normalizeZipPath(rootFilePath);
+    if (findArchiveFile(archive, normalized) != null) return normalized;
+
+    throw EpubException('No root file found at $normalized');
+  }
+
+  final discovered = findEpubRootFilePath(archive);
+  if (discovered != null) return discovered;
+
+  throw EpubException('No usable EPUB package found');
 }
 
 ArchiveFile _getRootFile(final Archive archive, final String? rootFilePath) {
