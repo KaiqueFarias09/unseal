@@ -75,7 +75,7 @@ final class BenchmarkResult {
   }
 }
 
-/// Substring filter applied to '<group> — <name>'; `null` runs all.
+/// Substring filter applied to `<group> — <name>`; `null` runs all.
 String? benchmarkFilter;
 
 /// Shrinks budgets and sample counts for a fast smoke pass.

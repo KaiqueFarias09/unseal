@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+/// Adds MIME-type and filename helpers to [ImageType] values.
 extension ImageTypeX on ImageType {
   /// The IANA MIME type for this image format.
   String get mimeType => switch (this) {

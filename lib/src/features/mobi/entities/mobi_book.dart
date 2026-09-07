@@ -115,6 +115,7 @@ class MobiBook extends Book {
 /// A chapter of a MOBI 6 book, split from its single HTML stream at
 /// the table of contents anchors.
 final class MobiChapter {
+  /// Creates a chapter with its title and extracted HTML file.
   const MobiChapter({required this.title, required this.file});
 
   /// Chapter title from the table of contents.

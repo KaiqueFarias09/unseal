@@ -49,10 +49,13 @@ void runGetterBenchmarks() {
     note: 'parse before each access untimed',
   );
   // Pre-touch so the timed access below hits the memoized value.
+  // The statement intentionally initializes the lazy getter before timing.
   // ignore: unnecessary_statements
   epub.statistics;
+  // The statement intentionally initializes the lazy getter before timing.
   // ignore: unnecessary_statements
   mobi6.statistics;
+  // The statement intentionally initializes the lazy getter before timing.
   // ignore: unnecessary_statements
   mobi8.statistics;
   group.add(
@@ -78,8 +81,9 @@ void runGetterBenchmarks() {
     (final book) => book.chapters,
     note: 'parse before each access untimed',
   );
+  // The statement intentionally initializes the lazy getter before timing.
   // ignore: unnecessary_statements
-  mobi6.chapters; // Pre-touch for the cached benchmark below.
+  mobi6.chapters;
   group.add(
     'chapters — cached (${mobi6Alice.shortLabel})',
     () => mobi6.chapters,

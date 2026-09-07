@@ -5,17 +5,18 @@
 /// time for books whose source lacks proper typography or navigation.
 library;
 
-/// Chapter heading candidates found in [text], in document order.
+/// Chapter heading candidates found in `text`, in document order.
 /// Parity: calibre heuristic chapter detection ("Chapter N",
 /// localized "Capítulo/Capitolo/Kapitel", roman numerals alone on a
 /// line, ALL-CAPS short lines).
 class ChapterGuess {
+  /// Creates a chapter candidate with its title and source offset.
   const ChapterGuess({required this.title, required this.offset});
 
   /// Detected heading text.
   final String title;
 
-  /// Character offset of the heading line in [text].
+  /// Character offset of the heading line in `text`.
   final int offset;
 }
 
@@ -66,6 +67,7 @@ final RegExp _romanOrCaps = RegExp(
   multiLine: true,
 );
 
+/// Finds likely chapter headings in [text], ordered by their character offset.
 List<ChapterGuess> guessChapters(final String text) {
   final guesses = <ChapterGuess>[];
   for (final match in _chapterKeyword.allMatches(text)) {

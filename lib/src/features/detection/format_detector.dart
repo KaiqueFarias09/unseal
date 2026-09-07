@@ -5,6 +5,8 @@ import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 
 /// Selects a book format from its binary signature.
+// This public facade intentionally preserves the static format-detection API.
+// ignore: avoid_classes_with_only_static_members
 abstract final class BookFormatDetector {
   /// Detects the format family represented by [bytes].
   static DetectedFormat detect(final Uint8List bytes) => detectFormat(bytes);

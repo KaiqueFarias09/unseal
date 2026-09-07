@@ -3,6 +3,7 @@ import 'dart:typed_data';
 /// The pixel dimensions of an image, read from its header bytes
 /// without decoding the pixel data.
 final class ImageSize {
+  /// Creates image dimensions in pixels.
   const ImageSize(this.width, this.height);
 
   /// Width in pixels.

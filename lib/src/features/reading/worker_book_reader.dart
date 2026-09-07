@@ -22,6 +22,8 @@ import 'package:e_livre/src/platform/web/worker_client.dart'
 ///
 /// Native runtimes ignore the configuration: parsing already runs on
 /// a background isolate there.
+// This public facade intentionally preserves the static worker API.
+// ignore: avoid_classes_with_only_static_members
 abstract final class WorkerBookReader {
   /// Points the reader at a compiled [workerScript]. Must be
   /// same-origin unless served with proper CORS worker headers.

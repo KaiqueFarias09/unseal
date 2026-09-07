@@ -6,6 +6,7 @@ import 'package:xml/xml.dart';
 /// Partial metadata extracted from an embedded `ComicInfo.xml`
 /// (the de-facto ComicRack schema).
 class ComicInfo {
+  /// Creates parsed metadata from a ComicInfo document.
   const ComicInfo({required this.metadata});
 
   /// The parsed metadata (`format` is refined by the caller).

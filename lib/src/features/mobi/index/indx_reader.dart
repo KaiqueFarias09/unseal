@@ -6,16 +6,25 @@ import 'package:e_livre/src/features/mobi/utils/decint.dart';
 
 /// A TAGX tag definition.
 class IndxTag {
+  /// Creates a TAGX definition from its tag metadata.
   const IndxTag(this.tag, this.numOfValues, this.bitmask, this.eof);
 
+  /// The numeric tag identifier.
   final int tag;
+
+  /// The number of values encoded by the tag.
   final int numOfValues;
+
+  /// The control-byte bitmask for the tag.
   final int bitmask;
+
+  /// Whether this tag terminates the entry.
   final int eof;
 }
 
 /// Parsed INDX header fields used by the reader.
 class IndxHeaderInfo {
+  /// Creates parsed INDX header metadata.
   const IndxHeaderInfo({
     required this.start,
     required this.count,
@@ -27,13 +36,28 @@ class IndxHeaderInfo {
     required this.tagxOffset,
   });
 
+  /// The index start value.
   final int start;
+
+  /// The number of index records.
   final int count;
+
+  /// The index code value.
   final int code;
+
+  /// The number of CNCX records.
   final int ncncx;
+
+  /// The first ordinal table offset.
   final int ordt1;
+
+  /// The second ordinal table offset.
   final int ordt2;
+
+  /// The entry table offset.
   final int oentries;
+
+  /// The TAGX section offset.
   final int tagxOffset;
 }
 

@@ -36,6 +36,8 @@ import '../../platform/web/background_parse.dart'
 import 'book.dart';
 
 /// Reads supported ebook formats and selects their format adapter.
+// This public facade intentionally preserves the static reader API.
+// ignore: avoid_classes_with_only_static_members
 abstract final class BookReader {
   /// Parses the book from [bytes], opening encrypted PDFs with
   /// [password].

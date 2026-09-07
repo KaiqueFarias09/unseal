@@ -590,12 +590,19 @@ class Mobi8Reader {
 
 /// A rebuilt KF8 XHTML file: name plus its span in the raw text.
 class Mobi8Part {
+  /// Creates a KF8 part with its source file number, name, and text span.
   Mobi8Part(this.fileNumber, this.filename, this.start, this.end);
 
+  /// The zero-based file number in the KF8 skeleton.
   final int fileNumber;
+
+  /// The output file name.
   final String filename;
+
+  /// The inclusive raw-text start offset.
   final int start;
 
+  /// The exclusive raw-text end offset.
   int end;
 }
 
@@ -635,6 +642,7 @@ class _Flow {
 
 /// Fully assembled KF8 (AZW3) content.
 class Mobi8Assembly {
+  /// Creates the assembled XHTML, resources, navigation, and cover metadata.
   const Mobi8Assembly(
     this.html,
     this.css,

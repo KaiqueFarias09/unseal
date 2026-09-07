@@ -7,6 +7,7 @@ import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 
 /// Resources extracted from a MOBI 6 book.
 class Mobi6Resources {
+  /// Creates a collection of extracted MOBI 6 resources.
   const Mobi6Resources(this.images, this.fonts, this.imageNames);
 
   /// Extracted images.
