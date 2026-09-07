@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:e_livre/e_livre.dart';
 import 'package:e_livre/src/features/pdf/header/pdf_document.dart';
 import 'package:e_livre/src/features/pdf/header/pdf_object.dart';
@@ -9,7 +10,7 @@ import 'package:e_livre/src/features/pdf/utils/pdf_bitmap.dart';
 import 'package:e_livre/src/features/pdf/utils/pdf_stream_filters.dart';
 import 'package:test/test.dart';
 
-/// JBIG2Decode — the pure-Dart port of pdf.js's Jbig2Image, checked
+/// JBIG2Decode, the pure-Dart port of pdf.js's Jbig2Image, checked
 /// against pdf.js v3.11.174 reference rasters (the same goldens the
 /// `tool/pdf_parity.dart --image` harness consumes).
 ///
@@ -24,9 +25,10 @@ import 'package:test/test.dart';
 ///   dimensions, placement and most content, but the Huffman-coded
 ///   corner cases are not yet pixel-exact (77-85%), so those rasters
 ///   are gated on dimensions only.
-/// - jbig2_huffman_2 (real scanned book with Flate-compressed globals and
-///   OOB-terminated text-region instance counts): object 4 is 100.0000%
-///   pixel-exact.
+/// - jbig2_huffman_2 (real scanned book with Flate-compressed globals,
+///   OOB-terminated text-region instance counts and signed custom table
+///   bounds): 199 images and 904,063,634 pixels at 100.0000% agreement,
+///   all pixel-exact.
 void main() {
   group('JBIG2Decode filter', () {
     test('decodes an arithmetic symbol dictionary to the reference raster', () {
@@ -67,7 +69,7 @@ void main() {
     });
 
     test('decodes Flate-compressed globals and OOB-terminated counts', () {
-      final (width, height, _) = _decodeImage(
+      final (width, height, gray) = _decodeImage(
         'jbig2_huffman_2.pdf',
         4,
         (final d) => d,
@@ -75,6 +77,23 @@ void main() {
       );
       expect(width, 1680);
       expect(height, 2555);
+      expect(
+        sha256.convert(gray).toString(),
+        '3b04cb9f5c1c52975ae0b72888af266702ced3dcd83ec87f03998934de106f55',
+      );
+    });
+
+    test('decodes signed lower bounds in custom Huffman tables exactly', () {
+      final (_, _, gray) = _decodeImage(
+        'jbig2_huffman_2.pdf',
+        24,
+        (final d) => d,
+        document: _document('jbig2_huffman_2.pdf'),
+      );
+      expect(
+        sha256.convert(gray).toString(),
+        '111d6ba3b10840aebfa0974c765c73d4b208470cabe43932e10eda43049db232',
+      );
     });
 
     test('decodes page-sized generic regions from a scanned document', () {

@@ -704,8 +704,13 @@ Jbig2SymbolDictionaryHuffmanTables jbig2GetSymbolDictionaryHuffmanTables({
 // pdf.js jbig2.js decodeTablesSegment
 Jbig2HuffmanTable jbig2DecodeTablesSegment(final Uint8List data, final int start, final int end) {
   final flags = data[start];
-  final lowestValue = jbig2ReadUint32(data, start + 1);
-  final highestValue = jbig2ReadUint32(data, start + 5);
+  // The Tables segment stores signed 32-bit range limits. pdf.js reads
+  // the words as uint32 and then applies `& 0xffffffff`, whose JavaScript
+  // bitwise coercion produces the signed value used by Annex B.2. Keep
+  // the same representation in Dart so negative lower ranges terminate
+  // the normal-line loop at the same point.
+  final lowestValue = jbig2ReadUint32(data, start + 1).toSigned(32);
+  final highestValue = jbig2ReadUint32(data, start + 5).toSigned(32);
   final reader = Jbig2BitReader(data, start + 9, end);
 
   final prefixSizeBits = ((flags >> 1) & 7) + 1;
