@@ -31,6 +31,7 @@ migrate_working_dir/
 .dart_tool/
 .packages
 build/
+coverage/
 .steward/
 
 # Node oracle dependencies (reproducible via package.json + package-lock.json)
