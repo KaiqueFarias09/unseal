@@ -1,7 +1,12 @@
-## Unreleased
+## 3.3.0 - September 7, 2026
 
 ### Added
 
+- **Calibre format expansion**: TXT/TXZ, HTML/HTMLZ, DOCX, ODT, AZW4,
+  CB7 and CBC are now detected and parsed into the common book model.
+  Document formats preserve metadata, navigation and reflowable HTML;
+  archive formats preserve styles, images and fonts where present, while
+  AZW4 retains its embedded PDF for downstream facsimile rendering.
 - **PDF encryption (standard security handler)**: revisions 2-6 of
   the ISO 32000-1 algorithm — RC4 40/128-bit, AES-128 and AES-256
   (revision 5/6 with the algorithm 2.A key derivation and 2.B hash,
