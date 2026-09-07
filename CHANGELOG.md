@@ -28,8 +28,10 @@
   goldens). First runs: CCITT corpus **10 images / 1.31M pixels at
   100.0000%**; JBIG2 arithmetic paths **100.0000%** on
   `jbig2_symbol_offset` and all 8 `issue12963` page scans (69.5M
-  pixels). The Huffman-coded corner-case fixtures decode with
-  correct dimensions and placement but are not yet pixel-exact.
+  pixels). The real scanned-book Huffman corpus now reaches
+  **199 images / 904,063,634 pixels at 100.0000%**, including
+  Flate-compressed globals, OOB-terminated text regions and signed
+  custom-table bounds.
 - **PDF validation corpus and parity harness**: a Project Gutenberg
   corpus (8 public-domain books, ~3.8 MB, fetched reproducibly by
   `tool/fetch_pdf_corpus.dart`; Gutenberg no longer publishes its own

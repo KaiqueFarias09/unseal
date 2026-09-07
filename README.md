@@ -1,9 +1,43 @@
 # eLivre
 
-Pure Dart book parsing library. Extract metadata, covers, content,
-stylesheets, fonts and navigation from **EPUB 2.0/3.0**, **MOBI**,
-**AZW3 (KF8)**, **FB2**, **comic archives (CBZ/CBR)** and **PDF** —
-no native dependencies, one API.
+eLivre is a pure-Dart book parsing library. Give it bytes or a file and
+get one format-agnostic `Book` model with metadata, cover, reading order,
+navigation, text, stylesheets, fonts and images. It supports **EPUB
+2.0/3.0**, **MOBI**, **AZW3 (KF8)**, **FB2**, **CBZ**, **CBR** and **PDF**
+without native dependencies.
+
+The library is a parser and reading-data layer, not a visual reading app.
+The `e_livre_viewer` package can consume the parsed books and provide the
+reader UI.
+
+## Supported formats
+
+| Format | What eLivre supports |
+| --- | --- |
+| EPUB 2 and 3 | Package metadata, spine and reading order, HTML/XHTML, CSS, images, fonts, navigation, media overlays and EPUB CFI operations. |
+| MOBI 6 | PalmDoc and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts and file-position navigation. |
+| AZW3 (KF8) | Skeleton/div reassembly, FDST flows, CSS/SVG, CONT/CRES image containers, NCX navigation and joint MOBI 6 + KF8 files. |
+| FB2 and FBZ | Metadata, cover binaries, body-to-XHTML conversion, notes, internal links and section navigation. |
+| CBZ | ZIP comic pages, `ComicInfo.xml` metadata, natural page ordering and the first page as cover. |
+| CBR | RAR 4 stored entries and ordinary non-solid RAR 4 method-29 entries, plus RAR 5 stored entries. |
+| PDF | Structure, metadata, bookmarks, page text, canonical reflow HTML, facsimile data and extracted JPEG, CCITT and JBIG2 page images. |
+
+## Why use it
+
+- One API for metadata scanning, full parsing and format-specific access.
+- Pure Dart with no native dependency, suitable for Dart VM, Flutter and
+  browser applications.
+- A metadata-only path avoids extracting content when a library only needs
+  title, author, language, cover or series information.
+- Native parsing runs in a background isolate. Web applications can opt into
+  the bundled worker and automatically fall back to inline parsing.
+- PDF text has one canonical character space across extraction, reflow,
+  search, locators and the viewer's reading modes.
+- Portable locators, EPUB CFI ranges, search modes, reading progression and
+  annotation codecs are available independently of a particular UI.
+- Parsing failures use typed exceptions, and bounded PDF/JBIG2/CCITT work
+  protects callers from malformed or hostile input consuming unbounded
+  memory or CPU.
 
 ## Features
 
@@ -28,8 +62,14 @@ no native dependencies, one API.
   joint MOBI 6 + KF8 files.
 - FB2 body-to-XHTML conversion with notes bodies and section-based
   navigation; zipped FB2 (`.fbz`) supported.
-- Comics: CBZ (with `ComicInfo.xml` metadata) and CBR (RAR 4/5 with
-  stored entries), pages in natural order, first page as cover.
+- Comics: CBZ (with `ComicInfo.xml` metadata) and CBR (RAR 4 stored or
+  ordinary non-solid method-29 entries, and RAR 5 stored entries), pages
+  in natural order, first page as cover.
+- PDF structure, text extraction, Calibre-inspired reflow, bookmarks,
+  standard security-handler revisions 2 through 6, and CCITT/JBIG2 image
+  decoding. JPEG XObjects are preserved byte-for-byte for the viewer.
+- Format-neutral search, progression, locators and portable annotations,
+  plus EPUB CFI resolution and optional OPDS feed parsing.
 - Parsing runs in a background isolate when available (Flutter apps
   stay responsive); on the web an opt-in web worker does the same,
   with inline parsing as the fallback.
@@ -38,7 +78,7 @@ no native dependencies, one API.
 
 ```yaml
 dependencies:
-  e_livre: ^3.1.0
+  e_livre: ^3.2.0
 ```
 
 ## Usage
@@ -158,8 +198,49 @@ void main() {
 the worker: the main thread only receives the finished book. Parse
 failures throw exactly like the inline path; if the worker script is
 unreachable or the host blocks workers, parsing silently falls back
-to the main thread. Native runtimes ignore the configuration — they
-already use a background isolate.
+to the main thread. Native runtimes ignore the configuration because
+they already use a background isolate.
+
+## PDF support and boundaries
+
+PDF support is focused on producing stable reading data. `parsePdfBook`
+reads classic cross-reference tables, cross-reference streams, object
+streams and recoverable broken files. It extracts page text, metadata and
+bookmarks, creates one reflow section per page, and keeps the original PDF
+bytes for a facsimile reader. The extracted page text is also the canonical
+text used by search, progression, locators and both viewer reading modes.
+
+The stream layer handles Flate, LZW, ASCII hex, ASCII85, run-length,
+CCITT fax and JBIG2 filters. JPEG XObjects are passed through unchanged;
+CCITT and JBIG2 images are decoded to grayscale PNGs. JBIG2 covers
+arithmetic and Huffman-coded symbol dictionaries, refinement, pattern and
+halftone regions, MMR and shared `/JBIG2Globals` dictionaries. The real
+scanned-book Huffman corpus currently compares exactly with pdf.js
+v3.11.174: 199 images, 904,063,634 pixels and zero differing pixels.
+
+This is not a general-purpose PDF renderer. Vector graphics, forms,
+annotations and image codecs outside the list above are not part of the
+extraction contract. When an image filter cannot be decoded, the page can
+still retain its placement geometry, but no extracted image bytes are
+guaranteed. Encrypted PDFs require a supported standard security handler
+and the correct password.
+
+## Known limitations
+
+- CBR supports stored RAR 5 entries and ordinary non-solid RAR 4 method-29
+  entries. Encrypted, split, solid, RAR virtual-machine, PPMd and other
+  unsupported compressed variants are rejected with `ComicException`.
+- DRM-protected MOBI files are rejected with `DrmProtectedException`.
+- Browser code must use byte-based APIs such as `openFromBytes`.
+  Path-based APIs and Calibre sidecar lookup are filesystem-only.
+- The web worker is opt-in and needs a separately served worker script.
+  If it cannot be loaded, parsing falls back to the browser main thread and
+  a large book can temporarily block that thread.
+- PDF output is reading-oriented rather than a promise of pixel-perfect
+  rendering for every producer. Facsimile fidelity depends on the codecs
+  and operators supported by the parser.
+- Resource and decode budgets intentionally reject malformed or unusually
+  large inputs instead of allowing unbounded allocation or work.
 
 ## Error handling
 
@@ -167,11 +248,11 @@ already use a background isolate.
   (Topaz, KFX, RTF) or unrecognized data.
 - `DrmProtectedException` — DRM-protected MOBI files.
 - `InvalidBookException` — corrupted files of a detected format.
-- `ComicException` — comic archives with no pages or with compressed
-  RAR entries.
-- `PdfException` / `PdfEncryptedException` — unreadable PDF structure
-  and encrypted PDF documents (the one PDF class this library rejects
-  outright).
+- `ComicException` — comic archives with no pages or unsupported RAR
+  entries.
+- `PdfException` / `PdfEncryptedException` — unreadable or unsupported
+  PDF structure and encrypted PDF documents that cannot be opened with
+  the supplied password.
 - `EpubException` / `MobiException` / `Fb2Exception` — per-format
   parse errors (all extend `ELivreException`).
 
