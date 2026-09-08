@@ -5,7 +5,8 @@ import 'package:collection/collection.dart';
 import 'package:e_livre/src/features/azw4/utils/parse_azw4_book.dart';
 import 'package:e_livre/src/features/comic/utils/parse_comic_book.dart';
 import 'package:e_livre/src/features/comic7/utils/parse_comic7_book.dart';
-import 'package:e_livre/src/features/detection/format_detector.dart';
+import 'package:e_livre/src/features/detection/detect_format.dart';
+import 'package:e_livre/src/features/detection/entities/detected_format.dart';
 import 'package:e_livre/src/features/docx/utils/parse_docx_book.dart';
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
@@ -44,7 +45,7 @@ abstract final class BookReader {
   static Future<Book> openFromBytes(final Uint8List bytes, {final String password = ''}) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
-    final detected = BookFormatDetector.detect(bytes);
+    final detected = detectFormat(bytes);
     if (detected == DetectedFormat.comic7 ||
         detected == DetectedFormat.epub && _isCbcBytes(bytes)) {
       return _parseBookAsync(bytes, password: password, detected: detected);
@@ -62,7 +63,7 @@ abstract final class BookReader {
   /// Synchronously parses [bytes] with the matching format adapter,
   /// opening encrypted PDFs with [password].
   static Book parseBook(final Uint8List bytes, {final String password = ''}) {
-    switch (BookFormatDetector.detect(bytes)) {
+    switch (detectFormat(bytes)) {
       case DetectedFormat.epub:
         return _parseZipBook(bytes);
       case DetectedFormat.mobiFamily:
@@ -94,7 +95,7 @@ abstract final class BookReader {
   }) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
-    final detected = BookFormatDetector.detect(bytes);
+    final detected = detectFormat(bytes);
     if (detected == DetectedFormat.comic7 ||
         detected == DetectedFormat.epub && _isCbcBytes(bytes)) {
       return _readMetadataAsync(bytes, detected: detected);
@@ -127,7 +128,7 @@ abstract final class BookReader {
   /// Synchronously reads metadata from [bytes], opening encrypted
   /// PDFs with [password].
   static BookMetadata readMetadataSync(final Uint8List bytes, {final String password = ''}) {
-    switch (BookFormatDetector.detect(bytes)) {
+    switch (detectFormat(bytes)) {
       case DetectedFormat.epub:
         final archive = ZipDecoder().decodeBytes(bytes);
         if (_isEpubArchive(archive)) return readEpubMetadata(archive);
