@@ -4,8 +4,7 @@ import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// Refines the [BookFormat] for MOBI family bytes.
 ///
-/// Reads the PDB record table and the MOBI header to distinguish
-/// MOBI 6 from KF8 (AZW3).
+/// Reads the PDB record table and the MOBI header to distinguish MOBI 6 from KF8 (AZW3).
 BookFormat refineMobiFormat(final Uint8List bytes) {
   final record0Offset = _recordOffset(0, bytes);
   if (bytes.length < record0Offset + 0x6C + 4) return BookFormat.mobi;

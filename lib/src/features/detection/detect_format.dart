@@ -4,6 +4,8 @@ import 'package:e_livre/src/features/detection/entities/detected_format.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 
+const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
+
 /// Sniffs the book format of [bytes] from its magic bytes.
 ///
 /// Only a bounded prefix of the file is inspected:
@@ -16,8 +18,8 @@ import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 /// * HTML prologue → [DetectedFormat.html]
 /// * printable text → [DetectedFormat.txt]
 ///
-/// Throws [FormatNotSupportedException] for known-but-unsupported formats
-/// (Topaz, KFX, RTF) and for unrecognized data.
+/// Throws [FormatNotSupportedException] for known-but-unsupported formats (Topaz, KFX, RTF) and for
+/// unrecognized data.
 DetectedFormat detectFormat(final Uint8List bytes) {
   const tpzMagic = <int>[0x54, 0x50, 0x5A];
   const kfxMagic = <int>[0xEA, 0x44, 0x52, 0x4D, 0x49, 0x4F, 0x4E, 0xEE];
@@ -28,50 +30,46 @@ DetectedFormat detectFormat(final Uint8List bytes) {
     throw const FormatNotSupportedException('Cannot detect format of empty bytes.');
   }
 
-  if (_startsWith(bytes, tpzMagic)) {
+  if (_hasPrefix(bytes, tpzMagic)) {
     throw const FormatNotSupportedException('Amazon Topaz books (.azw1/.tpz) are not supported.');
   }
 
-  if (_startsWith(bytes, kfxMagic)) {
+  if (_hasPrefix(bytes, kfxMagic)) {
     throw const FormatNotSupportedException('Amazon KFX books are not supported.');
   }
   if (_pdfHeaderOffset(bytes) != null) return DetectedFormat.pdf;
 
-  if (_startsWith(bytes, rtfMagic)) {
+  if (_hasPrefix(bytes, rtfMagic)) {
     throw const FormatNotSupportedException('RTF books are not supported.');
   }
 
-  if (bytes.length > 2 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
-    // Zip container. EPUB, zipped FB2 and CBZ are the supported zip
-    // books; the dispatcher refines by content.
-    return DetectedFormat.epub;
-  }
-  if (_startsWith(bytes, sevenZipMagic)) return DetectedFormat.comic7;
-  if (_looksLikeRar(bytes)) return DetectedFormat.comic;
+  // Zip container. EPUB, zipped FB2 and CBZ are the supported zip books; the dispatcher refines by
+  // content.
+  if (bytes.length > 2 && bytes[0] == 0x50 && bytes[1] == 0x4B) return DetectedFormat.epub;
+  if (_hasPrefix(bytes, sevenZipMagic)) return DetectedFormat.comic7;
+  if (_isRar(bytes)) return DetectedFormat.comic;
 
-  if (_looksLikeMobiFamily(bytes)) {
-    return _looksLikeAzw4(bytes) ? DetectedFormat.azw4 : DetectedFormat.mobiFamily;
+  if (_isMobiFamily(bytes)) {
+    return _isAzw4(bytes) ? DetectedFormat.azw4 : DetectedFormat.mobiFamily;
   }
-  if (_looksLikeFictionBook(bytes)) return DetectedFormat.fb2;
-  if (_looksLikeHtml(bytes)) return DetectedFormat.html;
-  if (_looksLikeText(bytes)) return DetectedFormat.txt;
+  if (_isFictionBook(bytes)) return DetectedFormat.fb2;
+  if (_isHtml(bytes)) return DetectedFormat.html;
+  if (_isText(bytes)) return DetectedFormat.txt;
 
   throw const FormatNotSupportedException('Unrecognized book format.');
 }
 
-const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
-
 bool _containsSequence(final Uint8List bytes, final List<int> sequence) {
   for (var offset = 0; offset + sequence.length <= bytes.length; offset++) {
-    if (_startsAt(bytes, offset, sequence)) return true;
+    if (_hasSequenceAt(bytes, offset, sequence)) return true;
   }
 
   return false;
 }
 
-bool _looksLikeFictionBook(final Uint8List bytes) {
-  // Decode before sniffing so BOM-marked UTF-16 FB2 files use the same path
-  // as the parser. The lexical preamble walk is deliberately bounded.
+bool _isFictionBook(final Uint8List bytes) {
+  // Decode before sniffing so BOM-marked UTF-16 FB2 files use the same path as the parser. The
+  // lexical preamble walk is deliberately bounded.
   final window = bytes.sublist(0, bytes.length < 4096 ? bytes.length : 4096);
   final head = decodeXmlText(window);
   var cursor = 0;
@@ -125,7 +123,7 @@ int? _pdfHeaderOffset(final Uint8List bytes) {
 
   final boundedLastOffset = lastOffset < maxPdfPreambleBytes ? lastOffset : maxPdfPreambleBytes;
   for (var offset = 0; offset <= boundedLastOffset; offset++) {
-    if (!_startsAt(bytes, offset, _pdfMagic)) continue;
+    if (!_hasSequenceAt(bytes, offset, _pdfMagic)) continue;
 
     var preambleEnd = 0;
     if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
@@ -140,7 +138,7 @@ int? _pdfHeaderOffset(final Uint8List bytes) {
   return null;
 }
 
-bool _looksLikeHtml(final Uint8List bytes) {
+bool _isHtml(final Uint8List bytes) {
   final limit = bytes.length < 8192 ? bytes.length : 8192;
   final head = decodeXmlText(bytes.sublist(0, limit)).trimLeft().toLowerCase();
   if (head.startsWith('<!doctype html')) return true;
@@ -149,7 +147,7 @@ bool _looksLikeHtml(final Uint8List bytes) {
   return RegExp(r'<html(?:\s|>)').hasMatch(head);
 }
 
-bool _looksLikeText(final Uint8List bytes) {
+bool _isText(final Uint8List bytes) {
   if (_containsSequence(bytes, _pdfMagic)) return false;
   if (_hasTextUnicodeSignature(bytes)) return true;
 
@@ -174,7 +172,7 @@ bool _looksLikeText(final Uint8List bytes) {
   return printableCount * 100 >= byteLimit * 85;
 }
 
-bool _looksLikeAzw4(final Uint8List bytes) {
+bool _isAzw4(final Uint8List bytes) {
   if (bytes.length < 86) return false;
 
   final view = ByteData.sublistView(bytes);
@@ -197,7 +195,7 @@ bool _looksLikeAzw4(final Uint8List bytes) {
   return false;
 }
 
-bool _startsWith(final Uint8List bytes, final List<int> magic) {
+bool _hasPrefix(final Uint8List bytes, final List<int> magic) {
   if (bytes.length < magic.length) return false;
 
   for (var i = 0; i < magic.length; i++) {
@@ -207,7 +205,7 @@ bool _startsWith(final Uint8List bytes, final List<int> magic) {
   return true;
 }
 
-bool _startsAt(final Uint8List bytes, final int offset, final List<int> magic) {
+bool _hasSequenceAt(final Uint8List bytes, final int offset, final List<int> magic) {
   if (offset < 0 || offset + magic.length > bytes.length) return false;
 
   for (var i = 0; i < magic.length; i++) {
@@ -255,7 +253,7 @@ bool _isPdfWhitespace(final int byte) {
   return byte == 0x09 || byte == 0x0A || byte == 0x0C || byte == 0x0D || byte == 0x20;
 }
 
-bool _looksLikeRar(final Uint8List bytes) {
+bool _isRar(final Uint8List bytes) {
   return bytes.length >= 8 &&
       bytes[0] == 0x52 &&
       bytes[1] == 0x61 &&
@@ -265,7 +263,7 @@ bool _looksLikeRar(final Uint8List bytes) {
       bytes[5] == 0x07;
 }
 
-bool _looksLikeMobiFamily(final Uint8List bytes) {
+bool _isMobiFamily(final Uint8List bytes) {
   if (bytes.length < 68) return false;
 
   final ident = String.fromCharCodes(bytes.sublist(60, 68)).toUpperCase();
