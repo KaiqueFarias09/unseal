@@ -1,10 +1,15 @@
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/epub/constants/epub_constants.dart' as epub_constants;
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
 import 'package:e_livre/src/features/epub/utils/xml_utils.dart';
+import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 import 'package:xml/xml.dart';
+
+/// Path to the EPUB container description.
+const _containerFilepath = 'META-INF/container.xml';
+
+/// Namespace URI used by the EPUB container document.
+const _containerNamespace = 'urn:oasis:names:tc:opendocument:xmlns:container';
 
 /// Retrieves the root file path of the EPUB from the provided archive.
 ///
@@ -53,16 +58,16 @@ String? findEpubRootFilePath(final Archive epubArchive) {
 }
 
 ArchiveFile _getContainerFileEntry(final Archive epubArchive) {
-  return findArchiveFile(epubArchive, epub_constants.containerFilepath) ??
+  return findArchiveFile(epubArchive, _containerFilepath) ??
       (throw EpubException(
-        'EPUB parsing error: ${epub_constants.containerFilepath} '
+        'EPUB parsing error: $_containerFilepath '
         'file not found in archive.',
       ));
 }
 
 XmlElement _getPackageElement(final XmlDocument containerDocument) {
   final package = containerDocument
-      .findElements('container', namespace: epub_constants.containerNamespace)
+      .findElements('container', namespace: _containerNamespace)
       .firstOrNull;
   if (package == null) throw EpubException('EPUB parsing error: Invalid epub container');
 

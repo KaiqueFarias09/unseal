@@ -1,4 +1,3 @@
-import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// A minimal in-memory [Book] for reading-feature tests: arbitrary

@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
 import 'worker_client.dart';

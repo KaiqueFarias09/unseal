@@ -6,7 +6,6 @@ import 'package:e_livre/src/features/epub/epub_document.dart';
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
-import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/utils/rtl_languages.dart';
 

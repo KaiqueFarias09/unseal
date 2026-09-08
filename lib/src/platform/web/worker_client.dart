@@ -4,8 +4,9 @@ import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
-import 'package:e_livre/src/features/reading/book.dart';
-import 'package:e_livre/src/features/search/book_search.dart';
+import 'package:e_livre/src/features/search/entities/search_mode.dart';
+import 'package:e_livre/src/features/search/entities/search_results.dart';
+import 'package:e_livre/src/foundation/entities/book/book.dart';
 import 'package:e_livre/src/foundation/entities/book_metadata.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:web/web.dart' as web;
@@ -88,8 +89,8 @@ final class WorkerClient {
   Future<SearchResults?> searchInWorker(
     final String query, {
     final SearchMode mode = SearchMode.contains,
-    final bool caseSensitive = false,
-    final bool tolerant = true,
+    final bool isCaseSensitive = false,
+    final bool isTolerant = true,
     final int nearChars = 60,
     final int contextChars = 48,
     final int maxMatches = 200,
@@ -101,8 +102,8 @@ final class WorkerClient {
           payload: <String, Object?>{
             wireKeyQuery: query,
             wireKeyMode: mode.name,
-            wireKeyCaseSensitive: caseSensitive,
-            wireKeyTolerant: tolerant,
+            wireKeyCaseSensitive: isCaseSensitive,
+            wireKeyTolerant: isTolerant,
             wireKeyNearChars: nearChars,
             wireKeyContextChars: contextChars,
             wireKeyMaxMatches: maxMatches,

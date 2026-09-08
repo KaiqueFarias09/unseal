@@ -9,7 +9,6 @@ import 'package:e_livre/src/features/detection/detect_format.dart';
 import 'package:e_livre/src/features/detection/entities/detected_format.dart';
 import 'package:e_livre/src/features/docx/utils/parse_docx_book.dart';
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_book.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
@@ -22,6 +21,7 @@ import 'package:e_livre/src/features/txt/utils/parse_txt_book.dart';
 import 'package:e_livre/src/features/txt/utils/txt_archive.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
 
 // Platform selection: the web default keeps WASM runtimes (where
@@ -34,7 +34,6 @@ import '../../platform/io/book_path_reader.dart'
 import '../../platform/web/background_parse.dart'
     if (dart.library.html) '../../platform/web/background_parse.dart'
     if (dart.library.io) '../../platform/io/background_parse.dart';
-import 'book.dart';
 
 /// Reads supported ebook formats and selects their format adapter.
 // This public facade intentionally preserves the static reader API.

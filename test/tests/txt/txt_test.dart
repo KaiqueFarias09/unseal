@@ -2,7 +2,6 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/reading/document_book.dart';
 import 'package:e_livre/src/features/txt/utils/parse_txt_book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';

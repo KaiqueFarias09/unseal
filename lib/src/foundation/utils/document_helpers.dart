@@ -222,7 +222,7 @@ TextFile textFile(final String path, final String content, {final String? type})
   );
 }
 
-/// Builds the archive inventory used by the common book model.
+/// Builds the archive inventory used by format adapters.
 List<ArchiveEntry> archiveInventory(final Archive archive) => <ArchiveEntry>[
   for (final entry in archive.files)
     if (entry.isFile) ArchiveEntry(path: entry.name, size: entry.size),

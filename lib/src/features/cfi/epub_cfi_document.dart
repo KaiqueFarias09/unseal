@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:e_livre/src/features/cfi/epub_cfi.dart';
-import 'package:e_livre/src/features/text/document_text.dart';
+import 'package:e_livre/src/foundation/utils/document_text.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html;
 import 'package:xml/xml.dart';

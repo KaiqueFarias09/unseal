@@ -3,9 +3,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:e_livre/src/features/epub/entities/entities.dart';
-
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/src/features/epub/utils/epub_encryption.dart';
 import 'package:e_livre/src/features/epub/utils/epub_metadata_mapper.dart';
 import 'package:e_livre/src/features/epub/utils/extract_files.dart';
@@ -14,6 +12,7 @@ import 'package:e_livre/src/features/epub/utils/get_epub_root_file_path.dart';
 import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
 import 'package:e_livre/src/features/epub/utils/process_package.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 
 export 'get_epub_root_file_path.dart';
 

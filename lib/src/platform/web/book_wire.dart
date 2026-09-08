@@ -26,9 +26,9 @@ import 'package:e_livre/src/features/pdf/entities/pdf_book.dart';
 import 'package:e_livre/src/features/pdf/entities/pdf_page.dart';
 import 'package:e_livre/src/features/pdf/entities/pdf_page_text.dart';
 import 'package:e_livre/src/features/pdf/exceptions/pdf_exception.dart';
-import 'package:e_livre/src/features/reading/book.dart';
-import 'package:e_livre/src/features/reading/document_book.dart';
-import 'package:e_livre/src/features/search/book_search.dart';
+import 'package:e_livre/src/features/search/entities/search_match.dart';
+import 'package:e_livre/src/features/search/entities/search_mode.dart';
+import 'package:e_livre/src/features/search/entities/search_results.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
@@ -356,7 +356,7 @@ BookMetadata decodeMetadataWire(final Map<String, Object?> json, final List<Obje
 /// text only.
 Map<String, Object?> encodeSearchResultsWire(final SearchResults results) => <String, Object?>{
   'query': results.query,
-  'truncated': results.truncated,
+  'truncated': results.isTruncated,
   'matches': <Object?>[for (final match in results.matches) _encodeSearchMatch(match)],
 };
 
@@ -364,7 +364,7 @@ Map<String, Object?> encodeSearchResultsWire(final SearchResults results) => <St
 /// [encodeSearchResultsWire].
 SearchResults decodeSearchResultsWire(final Map<String, Object?> json) => SearchResults(
   query: json['query'] as String,
-  truncated: json['truncated'] as bool,
+  isTruncated: json['truncated'] as bool,
   matches: <SearchMatch>[
     for (final match in json['matches'] as List<Object?>)
       _decodeSearchMatch(match as Map<String, Object?>),

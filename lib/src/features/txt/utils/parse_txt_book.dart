@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/reading/document_book.dart';
 import 'package:e_livre/src/features/txt/utils/txt_archive.dart';
 import 'package:e_livre/src/features/txt/utils/txt_text.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';

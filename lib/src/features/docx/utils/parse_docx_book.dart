@@ -2,9 +2,8 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/src/features/docx/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/reading/document_book.dart';
-import 'package:e_livre/src/features/reading/document_helpers.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/src/foundation/utils/document_helpers.dart';
 import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:xml/xml.dart';

@@ -1,9 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
-import 'package:e_livre/src/features/reading/document_book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 

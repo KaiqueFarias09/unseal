@@ -1,6 +1,5 @@
-import 'package:e_livre/src/features/reading/book.dart';
-import 'package:e_livre/src/features/text/document_text.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/src/foundation/utils/document_text.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html;
 

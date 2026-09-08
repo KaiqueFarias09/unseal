@@ -9,6 +9,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/features/search/entities/search_mode.dart';
+import 'package:e_livre/src/features/search/entities/search_results.dart';
 import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:e_livre/src/platform/web/worker_ops.dart';
 import 'package:test/test.dart';
@@ -20,16 +22,16 @@ Uint8List _bytes(final String name) =>
 Map<String, Object?> _searchPayload(
   final String query, {
   final SearchMode mode = SearchMode.contains,
-  final bool caseSensitive = false,
-  final bool tolerant = true,
+  final bool isCaseSensitive = false,
+  final bool isTolerant = true,
   final int nearChars = 60,
   final int contextChars = 48,
   final int maxMatches = 200,
 }) => <String, Object?>{
   wireKeyQuery: query,
   wireKeyMode: mode.name,
-  wireKeyCaseSensitive: caseSensitive,
-  wireKeyTolerant: tolerant,
+  wireKeyCaseSensitive: isCaseSensitive,
+  wireKeyTolerant: isTolerant,
   wireKeyNearChars: nearChars,
   wireKeyContextChars: contextChars,
   wireKeyMaxMatches: maxMatches,
@@ -38,7 +40,7 @@ Map<String, Object?> _searchPayload(
 /// Field-by-field equality between a wire result and the inline one.
 void _expectSameResults(final SearchResults wire, final SearchResults inline) {
   expect(wire.query, inline.query);
-  expect(wire.truncated, inline.truncated);
+  expect(wire.isTruncated, inline.isTruncated);
   expect(wire.matches.length, inline.matches.length);
   for (var i = 0; i < inline.matches.length; i++) {
     expect(wire.matches[i].sectionIndex, inline.matches[i].sectionIndex, reason: 'match $i');
@@ -79,18 +81,18 @@ void main() {
         payload: _searchPayload('the', maxMatches: 5),
         residentBook: resident,
       );
-      expect(decodeSearchResultsWire(capped.json).truncated, isTrue);
+      expect(decodeSearchResultsWire(capped.json).isTruncated, isTrue);
       _expectSameResults(decodeSearchResultsWire(capped.json), inline.search('the', maxMatches: 5));
 
       final caseFolded = runWorkerOp(
         op: workerOpSearch,
-        payload: _searchPayload('ALICE', caseSensitive: true),
+        payload: _searchPayload('ALICE', isCaseSensitive: true),
         residentBook: resident,
       );
       expect(decodeSearchResultsWire(caseFolded.json).matches, isEmpty);
       _expectSameResults(
         decodeSearchResultsWire(caseFolded.json),
-        inline.search('ALICE', caseSensitive: true),
+        inline.search('ALICE', isCaseSensitive: true),
       );
     });
 

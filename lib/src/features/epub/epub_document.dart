@@ -1,4 +1,3 @@
-import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// Domain contract for a parsed EPUB document.

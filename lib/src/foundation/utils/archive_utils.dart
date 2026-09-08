@@ -6,7 +6,7 @@ import 'package:path/path.dart' as path;
 /// Finds an archive entry by [entryPath] with exact, normalized and
 /// case-insensitive matching.
 ///
-/// Manifest hrefs are relative to the OPF file, so callers should
+/// Manifest hrefs are relative to their manifest file, so callers should
 /// resolve them with [resolveItemPath] first.
 ArchiveFile? findArchiveFile(final Archive archive, final String entryPath) {
   final normalized = normalizeZipPath(entryPath);
@@ -23,7 +23,7 @@ ArchiveFile? findArchiveFile(final Archive archive, final String entryPath) {
   return null;
 }
 
-/// Resolves a manifest [href] against the OPF [rootFilePath],
+/// Resolves a manifest [href] against its [rootFilePath],
 /// handling fragments and `..` segments.
 String resolveItemPath(final String? rootFilePath, final String href) {
   final hrefWithoutFragment = href.split('#').first;

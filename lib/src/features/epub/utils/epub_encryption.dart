@@ -2,13 +2,15 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/epub/constants/epub_constants.dart' as epub_constants;
 import 'package:e_livre/src/features/epub/entities/entities.dart';
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/src/features/epub/utils/xml_utils.dart';
+import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 import 'package:pointycastle/export.dart';
 import 'package:xml/xml.dart';
+
+/// Path to the EPUB encryption description.
+const _encryptionFilepath = 'META-INF/encryption.xml';
 
 /// The two EPUB font obfuscation algorithms defined by IDPF and Adobe.
 abstract final class EpubFontObfuscationAlgorithm {
@@ -32,7 +34,7 @@ final class EpubEncryption {
   /// Unknown algorithms are rejected as DRM instead of returning encrypted
   /// resources as if they were ordinary book content.
   factory EpubEncryption.fromArchive(final Archive archive, final EpubPackage package) {
-    final encryptionFile = findArchiveFile(archive, epub_constants.encryptionFilepath);
+    final encryptionFile = findArchiveFile(archive, _encryptionFilepath);
     if (encryptionFile == null) return EpubEncryption._(<String, _FontObfuscation>{});
 
     final document = parseEpubXml(encryptionFile.content as List<int>);

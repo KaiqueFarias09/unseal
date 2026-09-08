@@ -3,7 +3,7 @@ import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart';
-import 'package:e_livre/src/features/reading/book.dart';
+import 'package:e_livre/src/foundation/entities/book/book.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:e_livre/src/platform/web/worker_ops.dart';

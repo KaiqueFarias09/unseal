@@ -1,12 +1,10 @@
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:e_livre/src/features/epub/entities/entities.dart';
-
-import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/src/features/epub/utils/xml_utils.dart';
 import 'package:e_livre/src/foundation/entities/navigation/nav_point.dart';
 import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
-
+import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 import 'package:xml/xml.dart';
 
 /// Retrieves the navigation (table of contents) of an EPUB.

@@ -1,10 +1,15 @@
-import 'package:e_livre/e_livre.dart' show EpubBook, MobiBook, Fb2Book, ComicBook;
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/src/foundation/entities/book/archive_entry.dart';
+import 'package:e_livre/src/foundation/entities/book/files.dart';
+import 'package:e_livre/src/foundation/entities/book/reading_order_item.dart';
+import 'package:e_livre/src/foundation/entities/book_format.dart';
+import 'package:e_livre/src/foundation/entities/book_metadata.dart';
+import 'package:e_livre/src/foundation/entities/book_statistics.dart';
+import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
 
 /// A fully parsed book, independent of its source format.
 ///
-/// Every format module exposes a concrete book type ([EpubBook],
-/// [MobiBook], [Fb2Book], [ComicBook]) implementing this contract:
+/// Every format module exposes a concrete book type implementing this
+/// contract, such as EPUB, MOBI, FB2, and comic books:
 ///
 /// * [metadata] — common book metadata (title, authors, cover, ...).
 /// * [navigation] — the table of contents.

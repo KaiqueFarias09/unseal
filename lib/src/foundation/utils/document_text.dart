@@ -10,7 +10,7 @@
 /// and comments contribute nothing, whitespace is kept as-is. Char
 /// offsets in this space are stable across reflow and match the DOM
 /// on the WebView side — search, CFI and reading positions all share
-/// it.
+/// this foundational representation.
 library;
 
 import 'package:e_livre/src/foundation/entities/file/text_file.dart';

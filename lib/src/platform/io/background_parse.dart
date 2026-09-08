@@ -1,7 +1,6 @@
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// Runs book parsing away from the caller on isolate-supporting runtimes.

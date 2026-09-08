@@ -4,9 +4,10 @@ import 'package:e_livre/src/features/cfi/epub_cfi.dart';
 import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
 import 'package:e_livre/src/features/epub/entities/book/book.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/features/reading/book.dart';
 import 'package:e_livre/src/features/reading/book_reader.dart';
 import 'package:e_livre/src/features/search/book_search.dart';
+import 'package:e_livre/src/features/search/entities/search_mode.dart';
+import 'package:e_livre/src/foundation/entities/book/book.dart';
 import 'package:e_livre/src/foundation/entities/book_format.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 
@@ -70,8 +71,8 @@ import 'book_wire.dart';
   final results = _residentFor(residentBook).search(
     payload[wireKeyQuery] as String,
     mode: SearchMode.values.byName(payload[wireKeyMode] as String),
-    caseSensitive: payload[wireKeyCaseSensitive] as bool,
-    tolerant: payload[wireKeyTolerant] as bool,
+    isCaseSensitive: payload[wireKeyCaseSensitive] as bool,
+    isTolerant: payload[wireKeyTolerant] as bool,
     nearChars: payload[wireKeyNearChars] as int,
     contextChars: payload[wireKeyContextChars] as int,
     maxMatches: payload[wireKeyMaxMatches] as int,

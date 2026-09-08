@@ -6,9 +6,9 @@ import 'package:e_livre/src/features/comic/entities/entities.dart';
 import 'package:e_livre/src/features/comic/utils/comic_info.dart';
 import 'package:e_livre/src/features/comic/utils/parse_comic_book.dart';
 import 'package:e_livre/src/features/comic7/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
-import 'package:e_livre/src/features/reading/document_helpers.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/src/foundation/utils/archive_utils.dart';
+import 'package:e_livre/src/foundation/utils/document_helpers.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 import 'package:koni_archive/koni_archive.dart' as koni;
 

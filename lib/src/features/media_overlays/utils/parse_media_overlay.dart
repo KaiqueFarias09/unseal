@@ -1,5 +1,5 @@
-import 'package:e_livre/src/features/epub/utils/archive_utils.dart';
 import 'package:e_livre/src/features/media_overlays/entities/overlay_segment.dart';
+import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 import 'package:xml/xml.dart';
 
 /// Parses a SMIL media overlay document (EPUB 3) into flattened,
