@@ -107,15 +107,15 @@ void main() {
     test('reads roles written with an arbitrary namespace prefix', () {
       final package = parsePackage(
         '<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uid">'
-            '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
-            '<dc:title>A Title</dc:title><dc:creator>An Author</dc:creator>'
-            '<dc:language>en</dc:language><dc:identifier id="uid">1234</dc:identifier>'
-            '<dc:contributor xmlns:ns4="http://www.idpf.org/2007/opf" ns4:role="bkp">'
-            'calibre (1.25.0)</dc:contributor>'
-            '</metadata>'
-            '<manifest><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest>'
-            '<spine toc="ncx"><itemref idref="ncx"/></spine>'
-            '</package>',
+        '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+        '<dc:title>A Title</dc:title><dc:creator>An Author</dc:creator>'
+        '<dc:language>en</dc:language><dc:identifier id="uid">1234</dc:identifier>'
+        '<dc:contributor xmlns:ns4="http://www.idpf.org/2007/opf" ns4:role="bkp">'
+        'calibre (1.25.0)</dc:contributor>'
+        '</metadata>'
+        '<manifest><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest>'
+        '<spine toc="ncx"><itemref idref="ncx"/></spine>'
+        '</package>',
       );
       expect(package.metadata.bookProducer, 'calibre (1.25.0)');
     });

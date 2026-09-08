@@ -19,11 +19,8 @@ void main() {
     final expectedNocomma = nocomma ?? expectedComma;
     final expectedCopy = copy ?? name;
 
-    String sort(final String? author, final AuthorSortMethod method) => authorToAuthorSort(
-      author,
-      method: method,
-      useSurnamePrefixes: useSurnamePrefixes,
-    );
+    String sort(final String? author, final AuthorSortMethod method) =>
+        authorToAuthorSort(author, method: method, useSurnamePrefixes: useSurnamePrefixes);
 
     expect(sort(name, AuthorSortMethod.invert), expectedInvert);
     expect(sort(name, AuthorSortMethod.copy), expectedCopy);
@@ -71,11 +68,7 @@ void main() {
     });
 
     test('copywords', () {
-      checkAllMethods(
-        'Don "Team" Smith',
-        invert: 'Smith, Don "Team"',
-        nocomma: 'Smith Don "Team"',
-      );
+      checkAllMethods('Don "Team" Smith', invert: 'Smith, Don "Team"', nocomma: 'Smith Don "Team"');
       checkAllMethods('Don Team Smith');
     });
 
@@ -145,10 +138,7 @@ void main() {
     });
 
     test('authors join with ampersand (authors_to_sort_string)', () {
-      expect(
-        authorsToSortString(['Jane Doe', 'Don Team Smith']),
-        'Doe, Jane & Don Team Smith',
-      );
+      expect(authorsToSortString(['Jane Doe', 'Don Team Smith']), 'Doe, Jane & Don Team Smith');
       expect(authorsToSortString(const []), '');
     });
   });
