@@ -21,6 +21,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/features/search/entities/search_mode.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';
@@ -254,13 +255,13 @@ void _addSearch(
     rebuildBook,
     (final fresh) => fresh.search(query, mode: mode),
     note:
-        '$matches${probe.truncated ? ' (capped at maxMatches)' : ''} · '
+        '$matches${probe.isTruncated ? ' (capped at maxMatches)' : ''} · '
         'first search computes documentText for all sections',
   );
   group.add(
     '$label — ${mode.name} "$query" (warm)',
     () => book.search(query, mode: mode),
-    inputBytes: probe.truncated ? null : _htmlContentLength(book),
+    inputBytes: probe.isTruncated ? null : _htmlContentLength(book),
     note: '$matches · documentText memoized per section',
   );
 }

@@ -4,7 +4,7 @@
 library;
 
 import 'package:e_livre/src/features/locators/book_locator.dart';
-import 'package:e_livre/src/features/search/book_search.dart';
+import 'package:e_livre/src/features/search/entities/search_match.dart';
 
 /// Locator conversions for [SearchMatch].
 extension SearchMatchLocators on SearchMatch {

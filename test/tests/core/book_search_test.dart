@@ -2,6 +2,7 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/features/search/entities/search_mode.dart';
 import 'package:test/test.dart';
 
 import '../mobi/mobi_fixture_builder.dart';
@@ -63,7 +64,7 @@ void main() {
       );
       final results = book.search('the');
       expect(results.matches, hasLength(2));
-      expect(results.truncated, isFalse);
+      expect(results.isTruncated, isFalse);
       expect(results.query, 'the');
       for (final match in results.matches) {
         expect(match.sectionIndex, 0);
@@ -76,8 +77,8 @@ void main() {
       final book = parseFixture(
         '<html><body><p>The quick brown fox. the lazy dog.</p></body></html>',
       );
-      expect(book.search('the', caseSensitive: true).matches, hasLength(1));
-      expect(book.search('The', caseSensitive: true).matches, hasLength(1));
+      expect(book.search('the', isCaseSensitive: true).matches, hasLength(1));
+      expect(book.search('The', isCaseSensitive: true).matches, hasLength(1));
     });
 
     test('builds a context snippet around the match', () {
@@ -96,7 +97,7 @@ void main() {
       final book = parseFixture('<html><body><p>Hello world</p></body></html>');
       final results = book.search('zebra');
       expect(results.matches, isEmpty);
-      expect(results.truncated, isFalse);
+      expect(results.isTruncated, isFalse);
     });
 
     test('empty queries match nothing', () {
@@ -108,7 +109,7 @@ void main() {
       final book = parseFixture('<html><body><p>abc abc abc abc abc abc</p></body></html>');
       final results = book.search('abc', maxMatches: 2);
       expect(results.matches, hasLength(2));
-      expect(results.truncated, isTrue);
+      expect(results.isTruncated, isTrue);
     });
 
     test('matches in later sections carry their reading-order index', () {
@@ -122,8 +123,8 @@ void main() {
       // 'colorial' is split by a soft hyphen; the tolerant pattern
       // matches it without the hyphen in the query.
       expect(book.search('colorial').matches, hasLength(1));
-      // Calibre joins EVERY character pair with the invisible
-      // separator, so 'color' also matches the hyphen-split
+      // The tolerant pattern allows an invisible separator between
+      // every character pair, so 'color' also matches the hyphen-split
       // 'colo\u00ADr' prefix of a longer word — wholeWords mode is
       // the remedy for that.
       expect(book.search('color').matches, hasLength(1));
@@ -157,9 +158,8 @@ void main() {
     });
 
     group('Unicode word boundaries', () {
-      // Deliberate divergence from Calibre's current viewer: word
-      // boundaries see Unicode word characters (letters, numbers,
-      // underscore), not just ASCII.
+      // Word boundaries see Unicode word characters (letters, numbers,
+      // and underscore), not just ASCII.
       test('finds Cyrillic whole words, not inflections', () {
         final book = buildEpubFixture(
           '<html><body><p>Слово о слове, и ещё одно слово здесь.</p></body></html>',
@@ -250,7 +250,7 @@ void main() {
         expect(results.matches, hasLength(1));
         expect(book.search('^SECOND', mode: SearchMode.regex).matches, hasLength(1));
         expect(
-          book.search('^SECOND', mode: SearchMode.regex, caseSensitive: true).matches,
+          book.search('^SECOND', mode: SearchMode.regex, isCaseSensitive: true).matches,
           isEmpty,
         );
       });
@@ -266,8 +266,8 @@ void main() {
         final book = parseFixture(
           '<html><body><p>the quick brown fox jumps over the lazy dog</p></body></html>',
         );
-        // Calibre's near requires every word inside a candidate
-        // window; the any-word alternation does not impose an order.
+        // Every requested word must occur inside the candidate window;
+        // the any-word alternation does not impose an order.
         expect(book.search('quick lazy', mode: SearchMode.proximity).matches, hasLength(1));
         expect(book.search('lazy quick', mode: SearchMode.proximity).matches, hasLength(1));
       });

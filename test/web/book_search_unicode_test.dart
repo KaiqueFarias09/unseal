@@ -9,6 +9,7 @@ library;
 //
 // Run with: dart test test/web --platform chrome
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/features/search/entities/search_mode.dart';
 import 'package:test/test.dart';
 
 Book buildUnicodeEpub(final String html) {
