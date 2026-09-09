@@ -1,34 +1,13 @@
-import 'package:e_livre/src/features/search/entities/search_match.dart';
-import 'package:e_livre/src/features/search/entities/search_mode.dart';
-import 'package:e_livre/src/features/search/entities/search_results.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/utils/document_text.dart';
 
-part 'entities/compiled_query.dart';
-part 'query_compiler.dart';
+import 'entities/search_match.dart';
+import 'entities/search_mode.dart';
+import 'entities/search_results.dart';
+import 'query_compiler.dart';
 
 /// Default proximity interval in characters for queries without an explicit trailing interval.
 const int _defaultNearChars = 60;
-
-/// A character that is not a Unicode word character: anything outside `\p{L}` (letters), `\p{N}`
-/// (numbers) and `_` — the negated image of the Python `re` `\w` class (see
-/// [SearchMode.wholeWords]).
-const String _nonWordChar = r'[^\p{L}\p{N}_]';
-
-/// A single Unicode word character, anchored. Only ever run on the one or two code units preceding
-/// a candidate match — never on the scanned text (see [_isInsideWord]).
-final RegExp _wordChar = RegExp(r'^[\p{L}\p{N}_]$', unicode: true);
-
-/// Consumed boundary-behind prefix: string start or one non-word character. Used where the scanned
-/// string is tiny (the proximity required-word patterns run against the candidate window only); the
-/// whole-text scan patterns use the per-candidate [_isInsideWord] check instead (see
-/// [_CompiledQuery.hasTokenSpanGroup]).
-const String _wordBoundaryBehind = '(?:^|$_nonWordChar)';
-
-/// Zero-width boundary after a whole-word token: a non-word character or the end of the text. Kept
-/// as a lookahead in the scan patterns — it runs once per candidate, where a boundary-behind class
-/// would run once per scanned position.
-const String _wordBoundaryAhead = '(?=$_nonWordChar|\$)';
 
 /// Full-text search over a book's plain text.
 ///
@@ -60,7 +39,7 @@ extension BookSearch on Book {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return SearchResults(query: query, matches: results, isTruncated: false);
 
-    final compiled = _compile(
+    final compiled = compileSearchQuery(
       trimmed,
       mode: mode,
       isCaseSensitive: isCaseSensitive,
@@ -79,17 +58,7 @@ extension BookSearch on Book {
       if (file == null) continue;
 
       final text = documentTextOf(file);
-      final requiredWords = compiled.requiredWords;
-
-      for (final candidate in compiled.pattern.allMatches(text)) {
-        if (requiredWords != null && !_hasAllWordsInWindow(candidate, requiredWords)) continue;
-        // The token span is group 1; only a zero-width lookahead follows the match's suffix, so its
-        // start is recovered from the two lengths.
-        final start = compiled.hasTokenSpanGroup
-            ? candidate.start + candidate.group(0)!.length - candidate.group(1)!.length
-            : candidate.start;
-        if (compiled.hasTokenSpanGroup && _isInsideWord(text, start)) continue;
-
+      for (final match in compiled.findMatches(text)) {
         if (results.length >= maxMatches) {
           isTruncated = true;
 
@@ -100,9 +69,9 @@ extension BookSearch on Book {
           SearchMatch(
             sectionIndex: sectionIndex,
             sectionName: section.name,
-            start: start,
-            end: candidate.end,
-            snippet: _snippet(text, start, candidate.end, contextChars),
+            start: match.start,
+            end: match.end,
+            snippet: _snippet(text, match.start, match.end, contextChars),
           ),
         );
       }

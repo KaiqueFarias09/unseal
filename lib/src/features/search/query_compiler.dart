@@ -1,37 +1,20 @@
-part of 'book_search.dart';
+import 'entities/compiled_query.dart';
+import 'entities/search_mode.dart';
 
-/// Whether a token starting at [index] in [text] sits inside a longer word — that is, whether the
-/// character before [index] is a Unicode word character. This is the per-candidate image of a
-/// consumed boundary-behind prefix (`(?:^|$_nonWordChar)`), evaluated in Dart rather than in the
-/// scan pattern so the `\p{...}` classes never take part in the per-position scan (see
-/// [_CompiledQuery]).
-bool _isInsideWord(final String text, final int index) {
-  if (index == 0) return false;
+/// A character that is not a Unicode word character.
+const String _nonWordChar = r'[^\p{L}\p{N}_]';
 
-  final unit = text.codeUnitAt(index - 1);
-  var isWordCharacter = false;
+/// Consumed boundary-behind prefix used by proximity required-word patterns.
+const String _wordBoundaryBehind = '(?:^|$_nonWordChar)';
 
-  if (unit < 0x80) {
-    // ASCII fast path: `_`, digits, A-Z, a-z.
-    isWordCharacter =
-        unit == 0x5F ||
-        (unit >= 0x30 && unit <= 0x39) ||
-        (unit >= 0x41 && unit <= 0x5A) ||
-        (unit >= 0x61 && unit <= 0x7A);
-  } else {
-    var from = index - 1;
-    if (unit >= 0xDC00 && unit <= 0xDFFF && from > 0) {
-      // A low surrogate may be the back half of an astral (surrogate pair) character; test the
-      // whole pair as one code point.
-      from -= 1;
-    }
-    isWordCharacter = _wordChar.hasMatch(text.substring(from, index));
-  }
+/// Zero-width boundary after a whole-word token.
+const String _wordBoundaryAhead = '(?=$_nonWordChar|\$)';
 
-  return isWordCharacter;
-}
-
-_CompiledQuery _compile(
+/// Compiles one search expression into the internal matching module used by book search.
+///
+/// This function is public-named only because Dart privacy is library-scoped. It is not exported
+/// from a package entry point.
+CompiledQuery compileSearchQuery(
   final String trimmed, {
   required final SearchMode mode,
   required final bool isCaseSensitive,
@@ -40,14 +23,14 @@ _CompiledQuery _compile(
 }) {
   switch (mode) {
     case SearchMode.contains:
-      return _CompiledQuery(
+      return CompiledQuery(
         RegExp(_tokenPattern(trimmed, isTolerant: isTolerant), caseSensitive: isCaseSensitive),
         null,
       );
     case SearchMode.wholeWords:
       // Whole-word matching wraps the complete token phrase in Unicode word boundaries. The
       // zero-width non-word lookahead behind the phrase stays in the pattern, while the
-      // boundary-behind is verified per candidate with [_isInsideWord]. A look-behind is no option
+      // boundary-behind is verified per candidate by CompiledQuery. A look-behind is no option
       // — dart2js support for it is browser-dependent — and a consumed-prefix class in the scan
       // path makes matching an order of magnitude slower. Interior tokens need no boundaries of
       // their own: the whitespace runs joining them are non-word characters on both sides.
@@ -56,14 +39,14 @@ _CompiledQuery _compile(
           .map((final token) => _tokenPattern(token, isTolerant: isTolerant))
           .join(r'\s+');
 
-      return _CompiledQuery(
+      return CompiledQuery(
         RegExp('($phrase)$_wordBoundaryAhead', caseSensitive: isCaseSensitive, unicode: true),
         null,
         hasTokenSpanGroup: true,
       );
     case SearchMode.regex:
       // Regular expressions are interpreted verbatim and always run in multiline mode.
-      return _CompiledQuery(RegExp(trimmed, multiLine: true, caseSensitive: isCaseSensitive), null);
+      return CompiledQuery(RegExp(trimmed, multiLine: true, caseSensitive: isCaseSensitive), null);
     case SearchMode.proximity:
       final near = _nearWordsAndInterval(trimmed, defaultInterval: nearChars);
       if (near.words.length < 2) {
@@ -77,7 +60,7 @@ _CompiledQuery _compile(
       // first and last characters are non-word (the image of the old `\b` + `.{1,N}` + `\b` trio,
       // consuming what the zero-width boundaries checked), a zero-width non-word lookahead behind
       // the window's last word, and the window's leading boundary verified per candidate with
-      // [_isInsideWord] (dotAll preserved).
+      // CompiledQuery (dotAll preserved).
       final alternation = near.words
           .map((final word) => '(?:${_tokenPattern(word, isTolerant: isTolerant)})')
           .join('|');
@@ -97,7 +80,7 @@ _CompiledQuery _compile(
           ),
       ];
 
-      return _CompiledQuery(candidate, words, hasTokenSpanGroup: true);
+      return CompiledQuery(candidate, words, hasTokenSpanGroup: true);
   }
 }
 
@@ -124,18 +107,6 @@ String _proximityGap(final int interval) {
   }
 
   return (words: parts, interval: interval < 1 ? 1 : interval);
-}
-
-/// Whether [candidate] contains a match of every [requiredWords]. The two-phase check keeps windows
-/// valid when the any-word alternation repeats a word. The word patterns themselves use the same
-/// Unicode boundaries as whole-word mode.
-bool _hasAllWordsInWindow(final RegExpMatch candidate, final List<RegExp> requiredWords) {
-  final window = candidate.group(0)!;
-  for (final word in requiredWords) {
-    if (!word.hasMatch(window)) return false;
-  }
-
-  return true;
 }
 
 /// Builds the match pattern for one query token: each whitespace run in the token matches any

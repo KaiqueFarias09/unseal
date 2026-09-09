@@ -1,19 +1,66 @@
-part of '../book_search.dart';
+/// A compiled internal search query that owns candidate validation and offset recovery.
+///
+/// This type is public-named only because Dart privacy is library-scoped. It remains an
+/// implementation detail under `lib/src` and is not exported from a package entry point.
+final class CompiledQuery {
+  /// Creates a compiled query from its candidate and optional required-word patterns.
+  const CompiledQuery(this._pattern, this._requiredWords, {final bool hasTokenSpanGroup = false})
+    : _hasTokenSpanGroup = hasTokenSpanGroup;
 
-/// A compiled query: the candidate pattern plus, for proximity searches, the word patterns every
-/// candidate window must contain.
-final class _CompiledQuery {
-  const _CompiledQuery(this.pattern, this.requiredWords, {this.hasTokenSpanGroup = false});
+  final RegExp _pattern;
+  final List<RegExp>? _requiredWords;
+  final bool _hasTokenSpanGroup;
 
-  final RegExp pattern;
+  /// Finds valid query spans in [text] as half-open `[start, end)` offsets.
+  Iterable<({int start, int end})> findMatches(final String text) sync* {
+    for (final candidate in _pattern.allMatches(text)) {
+      final requiredWords = _requiredWords;
+      if (requiredWords != null && !_hasAllWordsInWindow(candidate, requiredWords)) {
+        continue;
+      }
 
-  final List<RegExp>? requiredWords;
+      // Group 1 captures the token span for Unicode whole-word scans. Only a zero-width lookahead
+      // follows it, so the token start is recovered from the two match lengths.
+      final start = _hasTokenSpanGroup
+          ? candidate.start + candidate.group(0)!.length - candidate.group(1)!.length
+          : candidate.start;
+      if (_hasTokenSpanGroup && _isInsideWord(text, start)) continue;
 
-  /// Whether [pattern] is a Unicode whole-word scan: group 1 captures the token span of a match.
-  /// The match's suffix (only a zero-width [_wordBoundaryAhead] lookahead) means a
-  /// [SearchMatch.start] is `match.start + match.group(0).length - match.group(1).length`, its end
-  /// is `match.end`, and the boundary-behind is verified per candidate with [_isInsideWord]. This
-  /// is kept out of the scan pattern because a `\p{...}` class in the per-position scan path makes
-  /// the regex engine's automaton an order of magnitude slower.
-  final bool hasTokenSpanGroup;
+      yield (start: start, end: candidate.end);
+    }
+  }
+}
+
+/// Whether [candidate] contains every required proximity word.
+bool _hasAllWordsInWindow(final RegExpMatch candidate, final List<RegExp> requiredWords) {
+  final window = candidate.group(0)!;
+  for (final word in requiredWords) {
+    if (!word.hasMatch(window)) return false;
+  }
+
+  return true;
+}
+
+/// A single Unicode word character, anchored.
+final RegExp _wordChar = RegExp(r'^[\p{L}\p{N}_]$', unicode: true);
+
+/// Whether a token at [index] starts inside a longer Unicode word.
+bool _isInsideWord(final String text, final int index) {
+  if (index == 0) return false;
+
+  final unit = text.codeUnitAt(index - 1);
+  if (unit < 0x80) {
+    // ASCII fast path: `_`, digits, A-Z, a-z.
+    return unit == 0x5F ||
+        (unit >= 0x30 && unit <= 0x39) ||
+        (unit >= 0x41 && unit <= 0x5A) ||
+        (unit >= 0x61 && unit <= 0x7A);
+  }
+
+  var from = index - 1;
+  if (unit >= 0xDC00 && unit <= 0xDFFF && from > 0) {
+    // A low surrogate may be the back half of an astral character; test the complete pair.
+    from -= 1;
+  }
+  return _wordChar.hasMatch(text.substring(from, index));
 }
