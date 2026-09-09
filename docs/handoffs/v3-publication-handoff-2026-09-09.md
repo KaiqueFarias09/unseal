@@ -207,15 +207,19 @@ Completion criterion: all Steward tests pass, the tracked launcher matches the s
 
 ## Run the package review
 
-Use `docs/v3-module-review-guide.md` in dependency order. For each unchecked item, record one of:
+Use `docs/v3-module-review-guide.md` in dependency order. This is a structural code-quality review. The automated tests remain responsible for implementation behavior and format correctness.
 
-- the commit that fixes it;
-- the README section that documents the limitation;
-- the changelog entry that removes the advertised behavior.
+For each review unit, record one decision:
+
+- **Keep** when ownership, interface, dependency direction, and naming are clear enough for v3;
+- **Refactor later** when the current design is publishable and the note names a concrete concept and owner;
+- **Block v3** when a public contract, lifecycle, dependency, or failure boundary is unsafe to publish.
 
 Do not split files to satisfy a line count. Split when the new module owns a coherent decision or state machine and callers learn a smaller interface.
 
-Completion criterion: every checkbox has evidence, a documented limitation, or an explicit removal decision.
+Do not convert the checklist into manual format acceptance testing. Inspect representative tests only as evidence that public interfaces and intended seams are usable.
+
+Completion criterion: every review unit has a decision, every **Block v3** item is resolved, every deferred refactor names its owner and reason, and the automated suite remains green.
 
 ## Publication sequence
 
