@@ -21,7 +21,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/search/entities/search_mode.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';

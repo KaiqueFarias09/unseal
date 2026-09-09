@@ -2,7 +2,6 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/search/entities/search_mode.dart';
 import 'package:test/test.dart';
 
 import '../mobi/mobi_fixture_builder.dart';
