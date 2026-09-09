@@ -1,360 +1,320 @@
 # eLivre
 
-eLivre is a pure-Dart book parsing library. Give it bytes or a file and
-get one format-agnostic `Book` model with metadata, cover, reading order,
-navigation, text, stylesheets, fonts and images. It supports **EPUB
-2.0/3.0**, **MOBI**, **AZW3 (KF8)**, **FB2/FBZ**, **TXT/TXZ**,
-**HTML/HTMLZ**, **DOCX**, **AZW4**, **CBZ/CBR/CB7/CBC**, **ODT** and **PDF**
-without native dependencies.
+eLivre is a pure-Dart book parser and reading-data library. Give it bytes or a
+filesystem path and receive one format-neutral `Book` model with metadata,
+cover data, files, reading order, navigation, and statistics.
 
-The library is a parser and reading-data layer, not a visual reading app.
-The `e_livre_viewer` package can consume the parsed books and provide the
-reader UI.
+It supports EPUB, MOBI, AZW3, FB2, TXT, HTML, DOCX, ODT, AZW4, comic
+archives, and PDF without a native executable, FFI bridge, or Flutter
+dependency in the library itself.
+
+eLivre is a parser and data layer, not a reader UI or a general-purpose
+document renderer.
+
+## At a glance
+
+- One API for metadata-only scans and full book parsing.
+- Common models for metadata, HTML content, stylesheets, images, fonts,
+  navigation, covers, and reading order.
+- Format detection, full-text search, reading progression, portable locators,
+  EPUB CFI operations, annotation codecs, and OPDS feed parsing.
+- Pure Dart on the Dart VM, Flutter native targets, and browser JavaScript.
+- Optional web-worker parsing for browser applications.
+- Typed exceptions and format-specific recovery paths for damaged input.
 
 ## Supported formats
 
-| Format | What eLivre supports |
-| --- | --- |
-| EPUB 2 and 3 | Package metadata, spine and reading order, HTML/XHTML (including common `text/html` variants), CSS, images, fonts, UTF-16 XML, navigation fallback, media overlays and EPUB CFI operations. It also recovers usable OPF packages without `container.xml`, chooses a valid rootfile and decodes IDPF/Adobe font obfuscation. |
-| MOBI 6 | PalmDoc and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts and file-position navigation. |
-| AZW3 (KF8) | Skeleton/div reassembly, FDST flows, CSS/SVG, CONT/CRES image containers, NCX navigation and joint MOBI 6 + KF8 files. |
-| FB2 and FBZ | Metadata, cover binaries, declared XML encodings, body-to-XHTML conversion, preserved stylesheets and named styles, notes, internal links and section navigation. |
-| TXT and TXTZ | UTF-8/UTF-16 text, paragraph-preserving XHTML, metadata-only reads, optional Calibre-style `metadata.opf`, multiple TXTZ sections, natural order, CSS, images, fonts and basic Markdown/Textile formatting. |
-| HTML and HTMLZ | Source-preserving HTML/HTM/XHTML, head metadata and heading navigation. HTMLZ follows the top-level `index.*` convention, reads OPF as metadata/manifest and extracts resources. |
-| DOCX | Open XML `word/document.xml`, core properties, styles, basic run formatting, headings, lists, tables, hyperlinks, relationships and embedded images. |
-| AZW4 | Validated PalmDB/MOBI wrapper with PDF record extraction, PDF metadata/pages/reflow and original PDF bytes retained for a viewer. DRM is rejected. |
-| CBZ | ZIP comic pages, `ComicInfo.xml` metadata, deterministic natural page ordering across mixed directory depths and the first page as cover. |
-| CBR | RAR 4 stored entries and ordinary non-solid RAR 4 method-29 entries, plus RAR 5 stored entries with extra header areas. |
-| CB7 | 7-Zip comic pages, `ComicInfo.xml` metadata, natural page ordering and the first page as cover. |
-| CBC | Calibre comic collections described by top-level `comics.txt`, resolving nested CBZ, CBR and CB7 files in declaration order. |
-| ODT | OpenDocument XML paragraphs, headings, inline styles, links, lists, tables, images and document metadata converted to the common reflow model. |
-| PDF | Structure, metadata, bookmarks, page text, bounded preamble recovery, canonical reflow HTML, facsimile data and extracted JPEG, CCITT and JBIG2 page images. |
+| Format | Main capabilities | Important boundary |
+| --- | --- | --- |
+| EPUB 2/3 | OPF metadata, spine, XHTML, CSS, images, fonts, media overlays, navigation, and CFI | Font obfuscation is limited to the standard IDPF and Adobe algorithms. |
+| MOBI 6 | PalmDOC and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts, and navigation | DRM-protected books are rejected. |
+| AZW3 / KF8 | Skeleton and `div` reassembly, FDST flows, CSS/SVG, images, NCX navigation, and joint MOBI/KF8 files | DRM-protected books are rejected. |
+| FB2 / FBZ | Metadata, covers, declared encodings, notes, links, styles, and section navigation | The result is a reflowable HTML representation. |
+| TXT / TXTZ | UTF-8/UTF-16 decoding, paragraph-preserving XHTML, archive resources, and basic Markdown/Textile | Not a full Markdown or Textile implementation. Plain TXT metadata is limited. |
+| HTML / HTMLZ | Source-preserving HTML, head metadata, heading navigation, OPF manifests, and resources | HTML is preserved, not sanitized. |
+| DOCX | Open XML document structure, styles, headings, lists, tables, links, properties, and images | Semantic conversion; not pixel-perfect Word layout. |
+| ODT | OpenDocument paragraphs, headings, styles, lists, tables, images, links, and metadata | Semantic conversion; not pixel-perfect LibreOffice layout. |
+| AZW4 | PalmDB/MOBI wrapper validation, PDF extraction, metadata, pages, and original PDF bytes | Requires a valid, unencrypted PDF payload. |
+| CBZ | ZIP comic pages, `ComicInfo.xml`, natural ordering, and first-page cover | Page-oriented data; no comic UI is included. |
+| CBR | RAR 4 stored and ordinary non-solid method-29 entries, plus RAR 5 stored entries | Split, solid, encrypted, PPMd, VM, and other unsupported variants are rejected. |
+| CB7 | 7-Zip comic pages, `ComicInfo.xml`, natural ordering, and first-page cover | Asynchronous only; encrypted or unsupported entries are rejected. |
+| CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
+| PDF | Metadata, bookmarks, page text, reflow HTML, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not a general-purpose PDF renderer. |
 
-`OPF` is not a standalone reading format in eLivre. When it appears as
-`metadata.opf` inside TXTZ/HTMLZ, it is treated as a metadata and manifest
-sidecar, as in Calibre.
+`OPF` is not a standalone reading format. When eLivre finds `metadata.opf`
+inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
+uses it as a metadata and manifest sidecar.
 
-## Why use it
+## Installation
 
-- One API for metadata scanning, full parsing and format-specific access.
-- Pure Dart with no native dependency, suitable for Dart VM, Flutter and
-  browser applications. CB7/CBC use the pure-Dart `koni_archive` 7-Zip
-  reader; no platform executable or FFI bridge is required.
-- A metadata-only path avoids extracting content when a library only needs
-  title, author, language, cover or series information.
-- Native parsing runs in a background isolate. Web applications can opt into
-  the bundled worker and automatically fall back to inline parsing.
-- PDF text has one canonical character space across extraction, reflow,
-  search, locators and the viewer's reading modes.
-- Portable locators, EPUB CFI ranges, search modes, reading progression and
-  annotation codecs are available independently of a particular UI.
-- Parsing failures use typed exceptions, and bounded PDF/JBIG2/CCITT work
-  protects callers from malformed or hostile input consuming unbounded
-  memory or CPU.
-- Office and archive formats are converted into one `DocumentBook` contract,
-  so a viewer can reuse its existing HTML, resource, navigation and search
-  pipeline instead of implementing a renderer per format.
+```sh
+dart pub add e_livre
+```
 
-## Features
-
-- Format detection by signatures and bounded content inspection (`epub`,
-  `mobi`, `azw3`, `fb2`, `txt`, `html`, `docx`, `odt`, `azw4`, `cbz`,
-  `cbr`, `cb7`, `cbc`, `pdf`).
-- Metadata-only fast path: title, authors, languages, publisher,
-  ISBN, subjects, dates, identifiers, series and cover without
-  extracting the book content.
-- **Calibre integration**: a sibling `<basename>.opf` / `metadata.opf`
-  sidecar merges over the book's own metadata, and books without any
-  metadata fall back to the `Title - Author.ext` filename pattern.
-- Full parse with parity across formats: HTML content files, CSS,
-  images, fonts and the table of contents.
-- Recovery is deliberately format-aware: stale EPUB navigation can fall
-  back to a valid EPUB 3 nav document, optional MOBI EXTH metadata can be
-  ignored when damaged, and readable content is preserved when package
-  metadata is incomplete.
-- Reading statistics: `book.statistics` gives word count and
-  estimated reading time; `TextFile.plainText` extracts clean text.
-- Cover dimensions parsed from image headers (JPEG/PNG/GIF/BMP/WebP)
-  without decoding.
-- MOBI 6 books split into `MobiBook.chapters` at the TOC anchors.
-- MOBI internals implemented from scratch: PalmDoc and HUFF/CDIC
-  decompression, EXTH metadata, KF8 skeleton/div reassembly, FDST
-  flows, CONT/CRES image containers and NCX navigation, including
-  joint MOBI 6 + KF8 files.
-- FB2 body-to-XHTML conversion with notes bodies and section-based
-  navigation; zipped FB2 (`.fbz`) supported.
-- Comics: CBZ (with `ComicInfo.xml` metadata) and CBR (RAR 4 stored or
-  ordinary non-solid method-29 entries, and RAR 5 stored entries), pages
-  in natural order, first page as cover.
-- TXT/TXZ: safe text-to-XHTML conversion, BOM-aware decoding, Calibre OPF
-  sidecars, Markdown/Textile basics and archive resource extraction.
-- HTML/HTMLZ: source-preserving HTML, metadata/head parsing, heading-based
-  navigation, top-level index selection and OPF manifest/cover handling.
-- DOCX/ODT: interoperable XML-to-XHTML conversion with common document
-  structure, metadata, images and tables.
-- AZW4: PDF wrapper extraction with DRM detection and reuse of the existing
-  PDF reading pipeline.
-- CB7/CBC: pure-Dart 7-Zip comics and Calibre collection manifests. Their
-  asynchronous parser is available through `openFromBytes` and the dedicated
-  `parseComic7Book` / `parseCbcBook` entry points.
-- PDF structure, text extraction, Calibre-inspired reflow, bookmarks,
-  standard security-handler revisions 2 through 6, and CCITT/JBIG2 image
-  decoding. JPEG XObjects are preserved byte-for-byte for the viewer.
-- Format-neutral search, progression, locators and portable annotations,
-  plus EPUB CFI resolution and optional OPDS feed parsing.
-- Parsing runs in a background isolate when available (Flutter apps
-  stay responsive); on the web an opt-in web worker does the same,
-  with inline parsing as the fallback.
-
-## Getting started
+Or add the dependency manually:
 
 ```yaml
 dependencies:
   e_livre: ^3.3.0
 ```
 
-## Usage
+The package requires Dart `>=3.8.0 <4.0.0`.
 
-Open any supported book and work with it generically:
+## Quick start
 
-```dart
-import 'package:e_livre/e_livre.dart';
-
-final book = await BookReader.openFromPath('/books/wonderland.azw3');
-
-print(book.format.name);            // azw3
-print(book.metadata.title);         // Alice's Adventures in Wonderland
-print(book.metadata.authors);       // [Lewis Carroll]
-print(book.metadata.series);        // series name, when known
-print(book.metadata.cover?.bytes);  // cover image bytes
-print(book.metadata.cover?.width);  // pixel dimensions from headers
-
-print(book.navigation.navPoints);   // table of contents
-print(book.files.html);             // content files
-print(book.files.css);              // stylesheets
-print(book.files.fonts);            // fonts
-print(book.files.images);           // images
-
-final stats = book.statistics;
-print(stats.wordCount);                        // ~26k
-print(stats.estimatedReadingTime().inMinutes); // ~132
-```
-
-Or switch on the concrete type for format-specific access:
+The byte-based asynchronous API is the most portable entry point:
 
 ```dart
-switch (book) {
-  case EpubBook epub:
-    print(epub.version);        // 3.0
-    print(epub.package);        // parsed OPF package
-  case MobiBook mobi:
-    print(mobi.chapters.first.title); // MOBI 6 chapter split
-  case Fb2Book fb2:
-    print(fb2.files.html.first.content);
-  case ComicBook comic:
-    print(comic.pageCount);     // pages in natural order
-  case DocumentBook document:
-    print(document.files.html); // TXT, HTML, DOCX and ODT content
-  case PdfBook pdf:
-    print(pdf.pageCount);       // PDF and AZW4 page count
-}
-```
-
-Only need metadata (e.g. for a library scanner)? Skip the content
-extraction entirely — path-based reads also apply Calibre sidecar
-OPFs and the filename fallback:
-
-```dart
-final metadata = await BookReader.readMetadataFromPath(path);
-print(metadata.title);
-print(metadata.cover?.mimeType); // image/jpeg
-```
-
-Format-specific entry points are still available:
-
-```dart
-final anyBook = await BookReader.openFromPath(file.path); // every supported format
-final mobi = parseMobiBook(bytes);            // MOBI / AZW3
-final fb2 = parseFb2Book(bytes);              // FB2 / FB2.zip
-final comic = parseComicBook(bytes);          // CBZ / CBR
-final pdf = parsePdfBook(bytes);               // PDF
-final txt = parseTxtBook(bytes);              // TXT
-final html = parseHtmlBook(bytes);            // HTML / XHTML
-final docx = parseDocxBook(bytes);            // DOCX
-final odt = parseOdtBook(bytes);              // ODT
-final azw4 = parseAzw4Book(bytes);            // AZW4 wrapper
-final cb7 = await parseComic7Book(bytes);     // CB7 (async 7z reader)
-final cbc = await parseCbcBook(bytes);        // CBC (async collection)
-```
-
-## Web support
-
-The library is pure Dart and runs on every target: native (VM),
-JavaScript and WebAssembly. Everything is driven by bytes, so the
-browser flow is `fetch` (or a file picker) straight into the reader:
-
-```dart
-import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
-import 'package:web/web.dart' as web;
 import 'package:e_livre/e_livre.dart';
 
-Future<Uint8List> fetchBookBytes(String url) async {
-  final promise = globalContext.callMethod('fetch'.toJS, url.toJS) as JSPromise<web.Response>;
-  final response = await promise.toDart;
-  final buffer = await response.arrayBuffer().toDart;
-
-  return JSUint8Array(buffer).toDart;
+Future<Book> openBook(Uint8List bytes) {
+  return BookReader.openFromBytes(bytes);
 }
 
-final book = await BookReader.openFromBytes(await fetchBookBytes('books/wonderland.epub'));
+Future<void> inspectBook(Uint8List bytes) async {
+  final book = await openBook(bytes);
+
+  print(book.format.name);
+  print(book.metadata.title);
+  print(book.metadata.authors);
+  print(book.metadata.cover?.bytes);
+  print(book.navigation.navPoints);
+  print(book.files.html.length);
+  print(book.statistics.wordCount);
+}
 ```
 
-Path-backed APIs (`openFromPath`, `readMetadataFromPath`) have no
-meaning in a browser and reject with `UnsupportedError` there; the
-Calibre sidecar lookup is filesystem-only and skips itself on the web.
-`dart test test/web --platform chrome` runs a compatibility suite
-against a real browser.
+For a library scanner that does not need the content files:
 
-### Web worker parsing
+```dart
+final metadata = await BookReader.readMetadataFromBytes(bytes);
+print(metadata.title);
+print(metadata.authors);
+```
 
-Without extra setup, parsing runs on the browser's main thread and a
-big book can freeze the UI while it decompresses. Ship the bundled
-worker entry point to move it off-thread:
+On native platforms, filesystem paths are also supported:
+
+```dart
+final book = await BookReader.openFromPath('/books/wonderland.epub');
+final metadata = await BookReader.readMetadataFromPath('/books/wonderland.epub');
+```
+
+Path-based reads are filesystem-only and read the input file into memory before
+parsing. They also look for a sibling `<book-name>.opf`, followed by
+`metadata.opf`, and merge available sidecar metadata.
+
+### Format-specific APIs
+
+The package exports dedicated entry points when an application needs details
+from one format:
+
+```dart
+final epub = parseEpubBook(bytes);
+final mobi = parseMobiBook(bytes);
+final fb2 = parseFb2Book(bytes);
+final comic = parseComicBook(bytes); // CBZ or supported CBR
+final pdf = parsePdfBook(bytes);
+final txt = parseTxtBook(bytes);
+final html = parseHtmlBook(bytes);
+final docx = parseDocxBook(bytes);
+final odt = parseOdtBook(bytes);
+final azw4 = parseAzw4Book(bytes);
+
+final cb7 = await parseComic7Book(bytes);
+final cbc = await parseCbcBook(bytes);
+```
+
+CB7 and CBC use an asynchronous 7-Zip reader. `parseBook` and
+`readMetadataSync` reject those formats; use `openFromBytes`,
+`readMetadataFromBytes`, or the dedicated asynchronous functions instead.
+
+## The common book model
+
+Every parser exposes the parts a reading application usually needs:
+
+- `BookMetadata` for title, authors, language, publisher, identifiers,
+  subjects, dates, series, and cover data.
+- `Files` for HTML content, stylesheets, images, fonts, and binary resources.
+- `ReadingOrderItem` and `Navigation` for the spine and table of contents.
+- `BookStatistics` and `TextFile.plainText` for word counts and estimated
+  reading time.
+- Format-specific models such as `EpubBook`, `MobiBook`,
+  `DocumentBook`, `ComicBook`, and `PdfBook` when the generic model is
+  not enough.
+
+The library also provides reusable reading services:
+
+- Search with plain-text, case-sensitive, whole-word, regex, and proximity
+  modes.
+- Portable text, page, and EPUB CFI locators.
+- Locator serialization and text-locator relocation after content changes.
+- Bookmark and highlight codecs for application-owned persistence.
+- EPUB CFI resolution and construction.
+- OPDS feed parsing. Networking and authentication remain the caller's job.
+- Bounded format detection before parsing.
+
+## Platform behavior
+
+| Environment | Supported path | Execution notes |
+| --- | --- | --- |
+| Dart VM | Bytes and filesystem paths | Native asynchronous parsing uses an isolate when the runtime supports it. |
+| Flutter Android, iOS, macOS, Linux, and Windows | Bytes and filesystem paths | The library has no Flutter dependency; the repository includes a minimal Flutter example. |
+| Browser JavaScript | Bytes only | Without configuration, parsing runs on the browser's main thread. |
+| Browser JavaScript with worker | Bytes only | `WorkerBookReader` can move normal parsing off the main thread. |
+| WebAssembly | Not currently claimed as a verified target | There is no WASM build or compatibility guarantee in the current validation matrix. |
+
+### Browser usage
+
+Browser applications should fetch or otherwise obtain a `Uint8List` and use a
+byte-based API. `openFromPath` and `readMetadataFromPath` throw
+`UnsupportedError` on the web.
+
+To keep large parses off the browser's main thread, compile and serve the
+worker entry point:
 
 ```sh
 dart compile js web/e_livre_worker.dart -o <your-web-root>/e_livre_worker.js
 ```
 
+Configure it before opening books:
+
 ```dart
 import 'package:e_livre/e_livre.dart';
 
-void main() {
+void configureReader() {
   WorkerBookReader.configure(Uri.parse('e_livre_worker.js'));
-  runApp(const MyApp());
 }
 ```
 
-`BookReader.openFromBytes` and `readMetadataFromBytes` then run inside
-the worker: the main thread only receives the finished book. Parse
-failures throw exactly like the inline path; if the worker script is
-unreachable or the host blocks workers, parsing silently falls back
-to the main thread. CB7 and CBC are intentionally routed through their
-asynchronous pure-Dart path rather than the synchronous worker operation.
-Native runtimes ignore the configuration because they already use a
-background isolate.
+The worker URL must be reachable under the browser's worker security rules,
+including same-origin or CORS requirements. The worker is lazy. If it cannot
+be loaded, normal parsing falls back to the main thread. The fallback keeps
+the API working but a large book can temporarily block the UI.
 
-## PDF support and boundaries
+The worker receives and returns structured-cloned data. Large books can
+therefore temporarily exist in both the worker and the main-thread memory.
+CB7 and CBC stay on their asynchronous archive path instead of the normal
+worker operation.
 
-PDF support is focused on producing stable reading data. `parsePdfBook`
-reads classic cross-reference tables, cross-reference streams, object
-streams and recoverable broken files. It extracts page text, metadata and
-bookmarks, creates one reflow section per page, and keeps the original PDF
-bytes for a facsimile reader. The extracted page text is also the canonical
-text used by search, progression, locators and both viewer reading modes.
+## Limitations and security boundaries
 
-The stream layer handles Flate, LZW, ASCII hex, ASCII85, run-length,
-CCITT fax and JBIG2 filters. JPEG XObjects are passed through unchanged;
-CCITT and JBIG2 images are decoded to grayscale PNGs. JBIG2 covers
-arithmetic and Huffman-coded symbol dictionaries, refinement, pattern and
-halftone regions, MMR and shared `/JBIG2Globals` dictionaries. The real
-scanned-book Huffman corpus currently compares exactly with pdf.js
-v3.11.174: 199 images, 904,063,634 pixels and zero differing pixels.
+### Rendering and fidelity
 
-This is not a general-purpose PDF renderer. Vector graphics, forms,
-annotations and image codecs outside the list above are not part of the
-extraction contract. When an image filter cannot be decoded, the page can
-still retain its placement geometry, but no extracted image bytes are
-guaranteed. Encrypted PDFs require a supported standard security handler
-and the correct password.
+eLivre produces reading data; it does not render pages or provide navigation
+controls. DOCX and ODT preserve semantic structure and common formatting, but
+complex layouts, footnotes, charts, equations, advanced numbering, fields,
+tracked changes, and complex drawing effects can be lost.
 
-## Known limitations
+PDF support is designed for reading modes and extraction. It is not a promise
+of pixel-perfect rendering for every PDF producer. Vector graphics, forms,
+annotations, and image codecs outside the supported extraction contract may be
+omitted. The original PDF bytes are retained for an application that provides
+its own facsimile renderer.
 
-- CBR supports stored RAR 5 entries and ordinary non-solid RAR 4 method-29
-  entries. Encrypted, split, solid, RAR virtual-machine, PPMd and other
-  unsupported compressed variants are rejected with `ComicException`.
-- CB7 supports readable 7-Zip image entries and common `ComicInfo.xml`
-  metadata. Encrypted entries, unsupported codecs or entries above the
-  bounded per-entry budget are rejected; CB7/CBC parsing is asynchronous.
-- CBC currently flattens the comics listed by `comics.txt` into one
-  `ComicBook` page sequence. Collection-level titles are not exposed as a
-  separate nested TOC model.
-- DOCX and ODT preserve semantic document structure, not pixel-perfect Word
-  or LibreOffice layout. Footnotes, charts, equations, advanced numbering,
-  fields, tracked-change semantics and complex drawing effects can be lost.
-- TXT/TXZ are not full Markdown or Textile engines; advanced extensions are
-  kept as text. Plain TXT metadata is inherently limited unless its producer
-  includes a recognized header or TXTZ OPF sidecar.
-- HTMLZ selects one top-level HTML spine file. Other HTML entries remain
-  resources, and arbitrary HTML is preserved rather than sanitized.
-- AZW4 requires a valid unencrypted PDF payload inside the PalmDB wrapper;
-  DRM-protected wrappers remain unavailable.
-- EPUB font obfuscation is limited to the standard IDPF and Adobe algorithms;
-  other `encryption.xml` algorithms are treated as DRM and rejected.
-- EPUB navigation is optional. A missing or unusable TOC produces an empty
-  navigation model when the spine and content remain readable.
-- DRM-protected MOBI files are rejected with `DrmProtectedException`.
-- Browser code must use byte-based APIs such as `openFromBytes`.
-  Path-based APIs and Calibre sidecar lookup are filesystem-only.
-- The web worker is opt-in and needs a separately served worker script.
-  If it cannot be loaded, parsing falls back to the browser main thread and
-  a large book can temporarily block that thread.
-- PDF output is reading-oriented rather than a promise of pixel-perfect
-  rendering for every producer. Facsimile fidelity depends on the codecs
-  and operators supported by the parser.
-- The real scanned-book JBIG2 Huffman corpus is pixel-exact, but the small
-  synthetic `jbig2_huffman_1` corner-case fixture remains dimension-accurate
-  only (about 77-85% pixel agreement). This is not a claim of universal
-  JBIG2 raster equivalence.
-- Resource and decode budgets intentionally reject malformed or unusually
-  large inputs instead of allowing unbounded allocation or work.
+### Input and archive boundaries
 
-## Error handling
+- CBR supports a deliberate subset of RAR. Unsupported compression modes,
+  solid or split archives, and encrypted entries are rejected.
+- CB7 entries are bounded and parsed asynchronously. Unsupported codecs and
+  encrypted entries are rejected.
+- AZW4 requires an unencrypted PDF payload. EPUB font obfuscation supports
+  only the standard IDPF and Adobe algorithms.
+- HTMLZ selects one top-level HTML spine file. Other HTML files remain
+  resources.
+- TXT/TXZ conversion covers basic Markdown/Textile constructs, not every
+  extension of either format.
+- EPUB navigation is optional. A damaged or missing table of contents can
+  produce an empty navigation model while readable spine content remains
+  available.
+- Generic archive formats do not all share the same repository-defined
+  resource budget. Format-specific limits are intentional safeguards, not a
+  universal guarantee for arbitrary input sizes.
 
-- `FormatNotSupportedException` — known but unsupported formats
-  (Topaz, KFX, RTF) or unrecognized data.
-- `DrmProtectedException` — DRM-protected MOBI files.
-- `InvalidBookException` — corrupted files of a detected format.
-- `ComicException` — comic archives with no pages or unsupported RAR
-  entries.
-- `DocxException`, `HtmlException`, `OdtException` and `Comic7Exception` —
-  typed errors from the corresponding new format adapters.
-- `PdfException` / `PdfEncryptedException` — unreadable or unsupported
-  PDF structure and encrypted PDF documents that cannot be opened with
-  the supplied password.
-- `EpubException` / `MobiException` / `Fb2Exception` — per-format
-  parse errors (all extend `ELivreException`).
+Some examples of explicit adapter budgets are a 64 MiB plain-text limit, a
+128 MiB TXTZ input limit, a 128 MiB CB7 entry limit, and a 512 MiB AZW4
+container/PDF limit. These values are implementation safeguards and may
+change with future releases.
 
-## Benchmarks
+### Content safety
 
-The `benchmark/` suite measures the public API surface — format
-detection, full parsing, metadata-only reads, isolate entry points and
-the lazy getters (`metadata`, `statistics`, `chapters`, `plainText`) —
-against the books in `test/resources`:
+HTML is preserved rather than sanitized. Applications must sanitize or isolate
+untrusted HTML before inserting it into a privileged web view or native HTML
+component.
+
+DRM is not bypassed. DRM-protected MOBI/AZW3 books, unsupported EPUB
+encryption, and encrypted archive entries are rejected. Supported PDF
+standard-security documents can be opened with the correct password, but PDF
+permission flags are exposed as metadata and are not enforced by eLivre.
+
+## Errors
+
+The public API uses typed exceptions so callers can distinguish unsupported
+input from corrupted or protected content. Common types include:
+
+- `FormatNotSupportedException` for unknown formats or known formats outside
+  the supported contract.
+- `InvalidBookException` for corrupted input of a detected format.
+- `DrmProtectedException` for rejected DRM-protected books.
+- `ComicException`, `Comic7Exception`, `DocxException`, `HtmlException`,
+  and `OdtException` for format-specific failures.
+- `PdfException` and `PdfEncryptedException` for PDF structure and security
+  failures.
+- `EpubException`, `MobiException`, and `Fb2Exception` for parser-specific
+  errors.
+
+## Design principles and inspirations
+
+The project is guided by a few practical goals:
+
+1. Preserve usable reading content when optional metadata or navigation is
+   damaged.
+2. Give applications one predictable model instead of one renderer contract
+   per file format.
+3. Prefer portable pure-Dart implementations over platform executables.
+4. Put explicit bounds around decompression, image decoding, and recovery
+   where an adapter needs protection from malformed or unusually large input.
+5. Keep format specifications, behavioral compatibility references, and
+   implementation dependencies visibly separate.
+
+Compatibility work draws on:
+
+- Observable metadata and conversion conventions from Calibre. Calibre is a
+  compatibility reference, not a runtime dependency, and Calibre source is
+  not copied into eLivre.
+- Microsoft Open XML guidance for DOCX package structure.
+- `koni_archive` for the pure-Dart 7-Zip implementation used by CB7 and CBC.
+- PDF.js and Poppler as independent references for PDF extraction and image
+  behavior.
+
+Detailed fixture provenance and comparison notes live in
+[`docs/audits/format-expansion-2026-09-07/`](docs/audits/format-expansion-2026-09-07/).
+
+## Development
+
+Install dependencies, analyze the package, and run the test suite:
 
 ```sh
-dart run benchmark/e_livre_benchmarks.dart                 # full run
-dart run benchmark/e_livre_benchmarks.dart --quick         # fast smoke pass
-dart run benchmark/e_livre_benchmarks.dart --filter=parseBook
+dart pub get
+dart analyze
+dart test
 ```
 
-The filter is a case-insensitive substring matched against
-`<group> — <benchmark name>`. Results are machine-dependent; compare
-runs from the same machine only.
+The benchmark suite measures detection, full parsing, metadata-only reads,
+isolate entry points, and lazy getters against the repository fixtures:
 
-## Example
+```sh
+dart run benchmark/e_livre_benchmarks.dart --quick
+dart run benchmark/e_livre_benchmarks.dart
+```
 
-A complete Flutter reader app lives in [`example/`](example/).
+Benchmark results depend on the machine. Compare runs from the same machine
+when evaluating a change.
 
-## Compatibility references
-
-The format adapters and regression fixtures record the observable behavior
-used from Calibre, Microsoft Open XML guidance and the MIT-licensed
-`koni_archive` reader in
-[`docs/audits/format-expansion-2026-09-07/`](docs/audits/format-expansion-2026-09-07/).
-Calibre is GPLv3; its code was not copied into eLivre.
+The [`example/`](example/) directory contains a minimal Flutter app that loads
+the bundled Alice in Wonderland EPUB and displays a parsed summary. It is a
+starting point for integration, not a complete reader application.
 
 ## License
 
