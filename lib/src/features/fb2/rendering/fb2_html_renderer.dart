@@ -1,6 +1,6 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
-
 import 'package:xml/xml.dart';
+
+import '../../../foundation/entities/entities.dart';
 
 /// Result of converting the FB2 bodies to XHTML.
 class Fb2Bodies {
@@ -33,6 +33,21 @@ Fb2Bodies convertBodies(
   final converter = _BodyConverter(binaryExtensions, stylesheets);
 
   return converter.convert(bodies, title);
+}
+
+/// Preserves root-level FB2 stylesheets as named CSS resources.
+List<TextFile> extractFb2Stylesheets(final XmlElement root) {
+  final stylesheets = <TextFile>[];
+  var index = 0;
+  for (final element in root.children.whereType<XmlElement>()) {
+    if (element.name.local != 'stylesheet') continue;
+
+    final name = index == 0 ? 'styles.css' : 'styles-$index.css';
+    stylesheets.add(TextFile(name: name, type: 'css', path: name, content: element.innerText));
+    index++;
+  }
+
+  return stylesheets;
 }
 
 class _BodyConverter {
