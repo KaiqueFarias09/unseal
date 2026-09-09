@@ -1,17 +1,10 @@
-/// The standard PDF security handler (revisions R2-R6).
-///
-/// A `library` directive only to attach the algorithm 2.A `part`
-/// file; the doc comment on [PdfSecurityHandler] carries the detail.
-library;
-
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import '../exceptions/pdf_exception.dart';
 import '../header/pdf_object.dart';
 import 'pdf_crypto_primitives.dart';
-
-part 'pdf_security_algorithm_2a.dart';
+import 'pdf_security_algorithm_2a.dart';
 
 /// The PDF 32000-1:2008 §7.6.3 padding string: a 32-byte fixed value
 /// used to pad or truncate passwords shorter/longer than 32 bytes.
@@ -194,9 +187,29 @@ class PdfSecurityHandler {
   bool authenticate(final String password) {
     _isOwnerAuthenticated = false;
     _passwordUsed = _passwordBytes(password);
-    final userKey = revision >= 5
-        ? PdfSecurityAlgorithm2A.userKey(this, _passwordUsed)
-        : _userKeyR2R4(_passwordUsed);
+    if (revision >= 5) {
+      final result = PdfSecurityAlgorithm2A.authenticate(
+        PdfSecurityAlgorithm2AValues(
+          revision: revision,
+          ownerValue: ownerValue,
+          userValue: userValue,
+          permissions: permissions,
+          encryptMetadata: encryptMetadata,
+          ownerEncryption: ownerEncryption,
+          userEncryption: userEncryption,
+          permsValue: permsValue,
+        ),
+        _passwordUsed,
+      );
+      if (result == null) return false;
+
+      _key = result.fileKey;
+      _isOwnerAuthenticated = result.isOwner;
+
+      return true;
+    }
+
+    final userKey = _userKeyR2R4(_passwordUsed);
     if (userKey != null) {
       _key = userKey;
 
@@ -204,9 +217,7 @@ class PdfSecurityHandler {
     }
     if (_passwordUsed.isEmpty) return false;
 
-    final ownerKey = revision >= 5
-        ? PdfSecurityAlgorithm2A.ownerKey(this, _passwordUsed)
-        : _ownerKeyR2R4(_passwordUsed);
+    final ownerKey = _ownerKeyR2R4(_passwordUsed);
     if (ownerKey == null) return false;
 
     _key = ownerKey;

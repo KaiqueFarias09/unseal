@@ -1,7 +1,48 @@
-// pypdf _encryption.py AlgV5 (algorithm 2.A) — a `part of`
-// pdf_security_handler.dart; the split keeps the R5-R6 hashing (which
-// reads the handler's private fields) beside the handler itself.
-part of 'pdf_security_handler.dart';
+import 'dart:typed_data';
+
+import 'pdf_crypto_primitives.dart';
+
+/// The encryption-dictionary values required by PDF security algorithm 2.A.
+///
+/// This type is public-named only because Dart privacy is library-scoped. The algorithm module is
+/// internal under `lib/src` and is not exported from a package entry point.
+final class PdfSecurityAlgorithm2AValues {
+  /// Creates the immutable input for one R5/R6 authentication attempt.
+  const PdfSecurityAlgorithm2AValues({
+    required this.revision,
+    required this.ownerValue,
+    required this.userValue,
+    required this.permissions,
+    required this.encryptMetadata,
+    required this.ownerEncryption,
+    required this.userEncryption,
+    required this.permsValue,
+  });
+
+  /// The `/R` security revision, either 5 or 6.
+  final int revision;
+
+  /// The `/O` owner entry bytes.
+  final Uint8List ownerValue;
+
+  /// The `/U` user entry bytes.
+  final Uint8List userValue;
+
+  /// The `/P` permission flags.
+  final int permissions;
+
+  /// Whether document metadata is encrypted.
+  final bool encryptMetadata;
+
+  /// The `/OE` encrypted owner file key.
+  final Uint8List ownerEncryption;
+
+  /// The `/UE` encrypted user file key.
+  final Uint8List userEncryption;
+
+  /// The `/Perms` encrypted permissions block.
+  final Uint8List permsValue;
+}
 
 /// Algorithm 2.A: the revision 5-6 hardened key derivation
 /// (PDF 32000-2 §7.6.4.3.4; pypdf `_encryption.py` `AlgV5`, pdf.js
@@ -14,45 +55,58 @@ part of 'pdf_security_handler.dart';
 final class PdfSecurityAlgorithm2A {
   const PdfSecurityAlgorithm2A._();
 
-  /// Authenticates the user password (steps 1, 4 of the algorithm)
-  /// and returns the 32-byte file key decrypted from `/UE`, null on
-  /// mismatch.
-  static Uint8List? userKey(final PdfSecurityHandler handler, final Uint8List password) {
+  /// Authenticates [password] as the user first and then, when non-empty, as the owner.
+  static ({Uint8List fileKey, bool isOwner})? authenticate(
+    final PdfSecurityAlgorithm2AValues values,
+    final Uint8List password,
+  ) {
+    final userKey = _userKey(values, password);
+    if (userKey != null) {
+      return (fileKey: userKey, isOwner: false);
+    }
+    if (password.isEmpty) return null;
+
+    final ownerKey = _ownerKey(values, password);
+    if (ownerKey == null) return null;
+
+    return (fileKey: ownerKey, isOwner: true);
+  }
+
+  /// Authenticates the user password (steps 1, 4 of the algorithm) and decrypts `/UE`.
+  static Uint8List? _userKey(final PdfSecurityAlgorithm2AValues values, final Uint8List password) {
     final truncated = _truncate(password);
-    final u = handler.userValue;
+    final u = values.userValue;
     final validation = u.length >= 40 ? Uint8List.sublistView(u, 32, 40) : Uint8List(0);
     final keySalt = u.length >= 48 ? Uint8List.sublistView(u, 40, 48) : Uint8List(0);
     if (u.length < 32) return null;
-    final check = _hash(handler.revision, truncated, validation, Uint8List(0));
+    final check = _hash(values.revision, truncated, validation, Uint8List(0));
     for (var i = 0; i < 32; i++) {
       if (check[i] != u[i]) return null;
     }
 
-    final intermediate = _hash(handler.revision, truncated, keySalt, Uint8List(0));
-    final ue = handler.userEncryption;
+    final intermediate = _hash(values.revision, truncated, keySalt, Uint8List(0));
+    final ue = values.userEncryption;
     if (ue.length < 32) return null;
 
     return Uint8List.sublistView(aesCbcDecryptNoPad(intermediate, Uint8List(16), ue), 0, 32);
   }
 
-  /// Authenticates the owner password (steps 1, 3 of the algorithm)
-  /// and returns the 32-byte file key decrypted from `/OE`, null on
-  /// mismatch.
-  static Uint8List? ownerKey(final PdfSecurityHandler handler, final Uint8List password) {
+  /// Authenticates the owner password (steps 1, 3 of the algorithm) and decrypts `/OE`.
+  static Uint8List? _ownerKey(final PdfSecurityAlgorithm2AValues values, final Uint8List password) {
     final truncated = _truncate(password);
-    final o = handler.ownerValue;
-    final u = handler.userValue;
+    final o = values.ownerValue;
+    final u = values.userValue;
     if (o.length < 48 || u.length < 48) return null;
     final ownerValidation = Uint8List.sublistView(o, 32, 40);
     final ownerKeySalt = Uint8List.sublistView(o, 40, 48);
     final u48 = Uint8List.sublistView(u, 0, 48);
-    final check = _hash(handler.revision, truncated, ownerValidation, u48);
+    final check = _hash(values.revision, truncated, ownerValidation, u48);
     for (var i = 0; i < 32; i++) {
       if (check[i] != o[i]) return null;
     }
 
-    final intermediate = _hash(handler.revision, truncated, ownerKeySalt, u48);
-    final oe = handler.ownerEncryption;
+    final intermediate = _hash(values.revision, truncated, ownerKeySalt, u48);
+    final oe = values.ownerEncryption;
     if (oe.length < 32) return null;
 
     return Uint8List.sublistView(aesCbcDecryptNoPad(intermediate, Uint8List(16), oe), 0, 32);
@@ -61,18 +115,18 @@ final class PdfSecurityAlgorithm2A {
   /// Verifies the decrypted `/Perms` block against the `/P` flags
   /// (step 5): bytes 0-3 are the little-endian permissions, bytes 8
   /// flag metadata encryption and bytes 9-11 read `adb`.
-  static bool verifyPerms(final PdfSecurityHandler handler, final Uint8List fileKey) {
-    final perms = handler.permsValue;
+  static bool verifyPerms(final PdfSecurityAlgorithm2AValues values, final Uint8List fileKey) {
+    final perms = values.permsValue;
     if (perms.length != 16) return false;
     final plain = aesEcbDecrypt(fileKey, perms);
-    final p = handler.permissions;
+    final p = values.permissions;
     if (plain[0] != (p & 0xFF) ||
         plain[1] != ((p >> 8) & 0xFF) ||
         plain[2] != ((p >> 16) & 0xFF) ||
         plain[3] != ((p >> 24) & 0xFF)) {
       return false;
     }
-    if (plain[8] != (handler.encryptMetadata ? 0x54 : 0x46)) return false;
+    if (plain[8] != (values.encryptMetadata ? 0x54 : 0x46)) return false;
 
     return plain[9] == 0x61 && plain[10] == 0x64 && plain[11] == 0x62;
   }
