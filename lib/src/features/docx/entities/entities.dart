@@ -1,2 +1,0 @@
-/// DOCX parser entities.
-library;

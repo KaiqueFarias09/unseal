@@ -4,3 +4,4 @@ library;
 export 'src/features/mobi/entities/entities.dart';
 export 'src/features/mobi/exceptions/exceptions.dart';
 export 'src/features/mobi/parse_mobi_book.dart';
+export 'src/foundation/entities/entities.dart';
