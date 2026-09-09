@@ -15,7 +15,7 @@ void main() {
     });
 
     test('joins authors, series, tags, identifiers and formats', () {
-      final lotr = database.books.firstWhere((final b) => b.id == 1);
+      final CalibreBook lotr = database.books.firstWhere((final b) => b.id == 1);
       expect(lotr.title, 'The Lord of the Rings');
       expect(lotr.titleSort, 'Lord of the Rings, The');
       expect(lotr.authors, ['J.R.R. Tolkien']);

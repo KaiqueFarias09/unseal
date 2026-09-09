@@ -1,9 +1,9 @@
-import 'dart:convert' as convert;
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/calibre/entities/calibre_book.dart';
+import 'entities/calibre_book.dart';
+import 'sqlite_database.dart';
 
-part 'entities/sqlite_database.dart';
+export 'entities/calibre_book.dart';
 
 /// A read-only view over a Calibre `metadata.db` file.
 final class CalibreDatabase {
@@ -13,7 +13,7 @@ final class CalibreDatabase {
   /// library import: books, authors, series, tags, identifiers and
   /// data formats.
   factory CalibreDatabase.parse(final Uint8List bytes) {
-    final db = _SqliteDatabase(bytes);
+    final db = SqliteDatabaseReader(bytes);
 
     // Column layouts vary between calibre versions (isbn/lccn were
     // dropped from books in newer releases), so positions come from

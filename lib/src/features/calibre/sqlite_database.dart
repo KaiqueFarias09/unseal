@@ -1,12 +1,17 @@
-part of '../calibre_database.dart';
+import 'dart:convert' as convert;
+import 'dart:typed_data';
 
 /// A read-only, dependency-free reader for the SQLite file format,
 /// scoped to what Calibre's `metadata.db` needs: whole-table scans of
 /// rowid tables (interior + leaf b-tree pages, overflow chains).
 ///
 /// See https://www.sqlite.org/fileformat2.html.
-class _SqliteDatabase {
-  _SqliteDatabase(final Uint8List bytes) : _bytes = bytes {
+///
+/// This type is public-named only because Dart privacy is library-scoped. It remains an internal
+/// Calibre implementation and is not exported from a package entry point.
+final class SqliteDatabaseReader {
+  /// Creates a reader over the complete bytes of a SQLite database file.
+  SqliteDatabaseReader(final Uint8List bytes) : _bytes = bytes {
     final magic = convert.ascii.decode(_bytes.sublist(0, 15));
     if (!magic.startsWith('SQLite format 3')) {
       throw const FormatException('Not an SQLite database file.');
