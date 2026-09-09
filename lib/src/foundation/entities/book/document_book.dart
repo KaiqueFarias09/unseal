@@ -8,10 +8,9 @@ import 'reading_order_item.dart';
 
 /// A document-backed book produced by text and office-format adapters.
 ///
-/// The common model deliberately keeps the source format visible while
-/// exposing the same reading primitives as EPUB: HTML content, resources,
-/// navigation, metadata and an optional archive inventory. Format-specific
-/// parsers own the conversion into this model; consumers do not need a
+/// The common model deliberately keeps the source format visible while exposing the same reading
+/// primitives as EPUB: HTML content, resources, navigation, metadata and an optional archive
+/// inventory. Format-specific parsers own the conversion into this model; consumers do not need a
 /// separate rendering contract for every container.
 class DocumentBook extends Book {
   /// Creates a [DocumentBook] from parsed document parts.

@@ -4,8 +4,8 @@ import 'book_format.dart';
 
 /// Format-agnostic book metadata extracted from any supported book file.
 ///
-/// Every format module maps its native metadata into this common shape.
-/// Fields the source format does not carry stay `null` / empty.
+/// Every format module maps its native metadata into this common shape. Fields the source format
+/// does not carry stay `null` / empty.
 final class BookMetadata {
   /// Creates a [BookMetadata].
   const BookMetadata({
@@ -31,8 +31,8 @@ final class BookMetadata {
   /// Author names, in display order.
   final List<String> authors;
 
-  /// Author string used for sorting (e.g. `Last, First`), when the
-  /// source format carries one explicitly.
+  /// Author string used for sorting (e.g. `Last, First`), when the source format carries one
+  /// explicitly.
   final String? authorSort;
 
   /// The format the metadata was extracted from.
@@ -71,21 +71,20 @@ final class BookMetadata {
   /// Series / collection name the book belongs to.
   final String? series;
 
-  /// Position of the book inside its series (1-based, may be a
-  /// fraction such as `2.5` for short stories between volumes).
+  /// Position of the book inside its series (1-based, may be a fraction such as `2.5` for short
+  /// stories between volumes).
   final double? seriesIndex;
 
   /// Book title, when available.
   final String? title;
 
-  /// Title string used for sorting (title without leading articles),
-  /// when the source format carries one explicitly.
+  /// Title string used for sorting (title without leading articles), when the source format carries
+  /// one explicitly.
   final String? titleSort;
 
-  /// The title sort key to sort by: [titleSort] read from the file
-  /// when present, otherwise computed Calibre-style from [title]
-  /// (leading article moved to the end), picking the article list
-  /// from [languages]. Null only without any title.
+  /// The title sort key to sort by: [titleSort] read from the file when present, otherwise computed
+  /// Calibre-style from [title] (leading article moved to the end), picking the article list from
+  /// [languages]. Null only without any title.
   String? get effectiveTitleSort {
     final stored = titleSort;
     if (stored != null && stored.isNotEmpty) return stored;
@@ -95,8 +94,8 @@ final class BookMetadata {
     return sort_keys.titleSort(value, lang: languages.isEmpty ? null : languages.first);
   }
 
-  /// The author sort key to sort by: [authorSort] read from the file
-  /// when present, otherwise computed Calibre-style from [authors].
+  /// The author sort key to sort by: [authorSort] read from the file when present, otherwise
+  /// computed Calibre-style from [authors].
   String? get effectiveAuthorSort {
     final stored = authorSort;
     if (stored != null && stored.isNotEmpty) return stored;

@@ -6,8 +6,7 @@ class ReadingOrderItem {
   /// The file name or path represented by this reading-order item.
   final String name;
 
-  /// Whether the entry is HTML content (`files.html`) — comic pages
-  /// are images instead.
+  /// Whether the entry is HTML content (`files.html`) — comic pages are images instead.
   final bool isHtml;
 
   @override

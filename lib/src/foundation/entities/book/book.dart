@@ -8,8 +8,8 @@ import 'reading_order_item.dart';
 
 /// A fully parsed book, independent of its source format.
 ///
-/// Every format module exposes a concrete book type implementing this
-/// contract, such as EPUB, MOBI, FB2, and comic books:
+/// Every format module exposes a concrete book type implementing this contract, such as EPUB, MOBI,
+/// FB2, and comic books:
 ///
 /// * [metadata] — common book metadata (title, authors, cover, ...).
 /// * [navigation] — the table of contents.
@@ -26,8 +26,7 @@ abstract class Book {
   /// The format this book was parsed from.
   final BookFormat format;
 
-  /// Reading statistics over the HTML content, computed once on
-  /// first access.
+  /// Reading statistics over the HTML content, computed once on first access.
   late final BookStatistics statistics = BookStatistics.fromTexts(
     files.html.map((final file) => file.plainText),
   );
@@ -41,18 +40,16 @@ abstract class Book {
   /// The navigation (table of contents) of this book.
   Navigation get navigation;
 
-  /// The physical entries of the book's container archive (e.g. the
-  /// EPUB zip), manifest-independent: infrastructure files such as
-  /// `META-INF/container.xml` and stray entries are included, nothing
-  /// is parsed. Empty for formats without an archive container
-  /// (MOBI, plain FB2).
+  /// The physical entries of the book's container archive (e.g. the EPUB zip),
+  /// manifest-independent: infrastructure files such as `META-INF/container.xml` and stray entries
+  /// are included, nothing is parsed. Empty for formats without an archive container (MOBI, plain
+  /// FB2).
   List<ArchiveEntry> get archiveEntries => const <ArchiveEntry>[];
 
   /// The content files in reading order.
   ///
-  /// The default is the extraction order of `files.html`; formats
-  /// with an explicit order (the EPUB spine) override it, and comics
-  /// list their pages with `isHtml: false`.
+  /// The default is the extraction order of `files.html`; formats with an explicit order (the EPUB
+  /// spine) override it, and comics list their pages with `isHtml: false`.
   List<ReadingOrderItem> get readingOrder => <ReadingOrderItem>[
     for (final file in files.html) ReadingOrderItem(name: file.path),
   ];

@@ -3,9 +3,8 @@ import '../file/text_file.dart';
 
 /// The files contained in a parsed book.
 ///
-/// Provides access to the images, CSS files, HTML files, font files
-/// and other files extracted from the book, regardless of the
-/// source format.
+/// Provides access to the images, CSS files, HTML files, font files and other files extracted from
+/// the book, regardless of the source format.
 class Files {
   /// Creates a new [Files] with the given lists of files.
   Files({
