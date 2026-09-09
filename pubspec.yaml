@@ -16,7 +16,6 @@ topics:
   - mobi
   - fb2
   - pdf
-  - parser
 
 # Base64 image payloads inside test fixtures can match the OAuth
 # refresh-token pattern; they are public-domain book data, not secrets.
