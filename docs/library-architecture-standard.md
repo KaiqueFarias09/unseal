@@ -1,6 +1,9 @@
 # Capability-first library architecture
 
-This document defines the default source layout for eLivre libraries. It applies to pure Dart libraries, Flutter libraries, and optional platform packages.
+This document defines the default source layout for reusable libraries. eLivre,
+eLivre Viewer, and eLivre Viewer Narration are the reference implementation, but
+the rules apply to future pure Dart libraries, Flutter libraries, and optional
+platform packages.
 
 ## Package direction
 
@@ -72,6 +75,42 @@ pdf/
 
 Do not create empty layers or one-file folders to match a template. A new feature starts flat and grows after the second responsibility appears.
 
+## Make extracted files real modules
+
+An extracted file is a module only when its dependencies and ownership are
+explicit. Hand-written implementation files use imports and exports. Reserve
+`part` for generated code or the rare case where shared library-private state is
+itself the intentional boundary; do not use it merely to distribute one large
+class across several files.
+
+A module should expose a small operation or vocabulary and hide the mechanics
+needed to implement it. Prefer passing a narrow context or port over giving a
+collaborator access to its owner's entire controller.
+
+Keep declarations together when they form one concept that callers learn and
+change as a unit, such as an event enum and its event value, a sealed result
+family, or a small immutable aggregate. Split declarations when one of these is
+true:
+
+- a declaration has independent callers, tests, or lifecycle;
+- it introduces a different dependency or platform boundary;
+- it implements a distinct stage such as decoding, metadata extraction,
+  rendering, resource resolution, or persistence;
+- a reader must understand unrelated declarations before finding the primary
+  operation;
+- the declarations change for different reasons.
+
+Line count is a review signal, not an architectural rule. Review a file around
+300 lines and require an explicit cohesion justification around 500 lines.
+Large lookup tables, protocol vocabularies, parsers, and codecs may remain large
+when splitting would hide invariants or create procedural fragments. A small
+file can still be poorly designed when it has no clear owner.
+
+Function-owned parser modules are valid: one public parse/decode operation may
+own multiple private value types and helpers when they are reachable only from
+that operation. Steward should evaluate reachability and ownership, not count
+top-level declarations mechanically.
+
 ## Name folders by responsibility
 
 Feature folders name the work they own. Accepted examples include `archive`, `codec`, `container`, `content`, `encryption`, `image`, `media_overlays`, `metadata`, `navigation`, `package`, `parsing`, `playback`, `presentation`, `reader`, `rendering`, `security`, `sources`, and `text`.
@@ -116,6 +155,40 @@ The library contract must enforce these rules:
 | `dart.library.architecture-doc-sync` | gate | Steward's generated architecture files do not match the pinned contract. |
 
 Start a new rule at `warn` only when the current repositories have known violations that need a migration window. Move the rule to `gate` after the count reaches zero. Do not add wildcard exceptions.
+
+Steward resolves a profile from the target being checked; it must not infer an
+application contract merely from the presence of `main.dart`.
+
+| Target profile | Required policy |
+| --- | --- |
+| pure library | public API closure, dependency direction, tests, publishability |
+| Flutter library | pure-library policy plus Flutter/platform boundary checks |
+| package example | public-consumer imports and the minimum runnable-example policy |
+| application | application architecture and explicitly selected framework policies |
+| platform adapter | public port conformance, lifecycle, and platform-focused tests |
+
+Riverpod, Dio, icon-library, routing, and application feature-tree rules are
+opt-in application policies. They never apply to a library or package example
+unless its target contract explicitly selects them.
+
+Inside one package's `lib/src`, use relative imports. Across packages, use the
+dependency's public `package:` entrypoint. These rules are complementary: a
+package must neither self-import through `package:<self>/src` nor reach into a
+dependency's private `src` tree.
+
+Publishability checks parse `pubspec.yaml` structurally. A dependency named
+`path` is not a path source; only a dependency value containing a `path` source
+is local. `dependency_overrides` are development resolution inputs and are not
+production dependency-source failures.
+
+## Compatibility policy
+
+Published libraries preserve public contracts by default and use staged
+deprecation when a replacement is required. Before the first release, prefer a
+coherent final contract over compatibility façades: migrate all repositories in
+dependency order, delete obsolete entrypoints, and prove the new contract with
+consumer tests. Never leave both designs indefinitely merely to avoid changing
+unpublished callers.
 
 ## Current repository state
 

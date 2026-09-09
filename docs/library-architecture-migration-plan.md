@@ -7,12 +7,18 @@ Use this plan to migrate one library at a time. Do not run full test suites from
 A migration is complete when all of these conditions are true:
 
 - Every source file has one feature or shared-layer owner.
+- Hand-written extracted modules have explicit import boundaries; `part` is not
+  used to disguise a distributed large class.
+- Multi-declaration files contain one cohesive vocabulary or one operation and
+  its reachable private implementation.
 - No feature contains `utils`, `helpers`, `common`, or `misc`.
 - Package dependencies follow the documented direction.
 - Public entrypoints expose every type used by their signatures.
 - Tests and examples compile through public entrypoints.
 - Focused tests, the full package test suite, static analysis, and Steward pass.
 - Searches for each old path return no matches.
+- Each target resolves the correct library, example, adapter, or application
+  Steward profile.
 - `git diff --check` returns no errors.
 
 ## Phase 1: record the baseline
@@ -37,10 +43,14 @@ Keep feature-specific code in its feature. Move code to `foundation` only when t
 1. Move the main operation to the feature root.
 2. Keep a small feature flat.
 3. Group a larger feature by concrete responsibility.
-4. Update imports, exports, tests, examples, benchmarks, tools, and generated-worker inputs.
-5. Search for every old path.
-6. Run static analysis and focused tests for that feature and its direct consumers.
-7. Stop if the move changes behavior. Split that behavior change into a separate task with a regression test.
+4. Use imported collaborators with narrow contracts for hand-written modules;
+   do not replace a large file with a group of `part` files.
+5. Update imports, exports, tests, examples, benchmarks, tools, and generated-worker inputs.
+6. Search for every old path and obsolete compatibility surface.
+7. Run static analysis and focused tests for that feature and its direct consumers.
+8. Stop if the move changes behavior unintentionally. Intentional pre-release
+   API changes migrate every caller and add a public contract test in the same
+   wave.
 
 Each agent owns one feature wave. Agents do not edit the same entrypoint at the same time.
 
