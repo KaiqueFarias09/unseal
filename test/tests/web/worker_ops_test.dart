@@ -9,8 +9,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/search/entities/search_mode.dart';
-import 'package:e_livre/src/features/search/entities/search_results.dart';
 import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:e_livre/src/platform/web/worker_ops.dart';
 import 'package:test/test.dart';

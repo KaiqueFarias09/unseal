@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
+import 'package:e_livre/src/features/epub/package/parse_epub_package.dart';
 import 'package:test/test.dart';
 
 /// Minimal OPF wrapper exercising the metadata parser.

@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/src/features/docx/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/docx/utils/parse_docx_book.dart';
+import 'package:e_livre/src/features/docx/parse_docx_book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 import 'package:test/test.dart';

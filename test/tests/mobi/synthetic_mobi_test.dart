@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:e_livre/e_livre.dart';
 import 'package:e_livre/src/features/mobi/header/exth_header.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/utils/containers.dart';
+import 'package:e_livre/src/features/mobi/reader/mobi_container.dart';
 import 'package:test/test.dart';
 
 import 'mobi_fixture_builder.dart';

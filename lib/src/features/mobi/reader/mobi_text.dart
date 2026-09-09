@@ -4,7 +4,7 @@ import 'package:e_livre/src/features/mobi/compression/huff_cdic.dart';
 import 'package:e_livre/src/features/mobi/compression/palmdoc.dart';
 import 'package:e_livre/src/features/mobi/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/utils/trailing_bytes.dart';
+import 'package:e_livre/src/features/mobi/reader/mobi_trailing_data.dart';
 
 /// Extracts and decompresses the raw text stream of a MOBI book.
 ///

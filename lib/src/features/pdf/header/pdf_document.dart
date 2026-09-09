@@ -1,10 +1,10 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
+import '../codec/pdf_stream_decoder.dart';
 import '../exceptions/pdf_exception.dart';
 import '../security/pdf_object_decryptor.dart';
 import '../security/pdf_security_handler.dart';
-import '../utils/pdf_stream_filters.dart';
 import 'pdf_object.dart';
 import 'pdf_object_parser.dart';
 

@@ -2,4 +2,4 @@
 library;
 
 export 'src/features/comic7/exceptions/exceptions.dart';
-export 'src/features/comic7/utils/parse_comic7_book.dart';
+export 'src/features/comic7/parse_comic7_book.dart';

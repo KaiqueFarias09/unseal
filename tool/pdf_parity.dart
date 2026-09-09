@@ -38,11 +38,11 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/features/pdf/codec/pdf_stream_decoder.dart';
 import 'package:e_livre/src/features/pdf/header/pdf_document.dart';
 import 'package:e_livre/src/features/pdf/header/pdf_object.dart';
+import 'package:e_livre/src/features/pdf/image/pdf_bitmap.dart';
 import 'package:e_livre/src/features/pdf/reader/pdf_page_tree.dart';
-import 'package:e_livre/src/features/pdf/utils/pdf_bitmap.dart';
-import 'package:e_livre/src/features/pdf/utils/pdf_stream_filters.dart';
 import 'package:path/path.dart' as p;
 
 /// Directory scanned when no positional argument is given.

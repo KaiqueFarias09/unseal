@@ -2,4 +2,4 @@
 library;
 
 export 'exceptions/html_exception.dart';
-export 'utils/parse_html_book.dart';
+export 'parse_html_book.dart';

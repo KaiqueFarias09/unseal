@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/src/features/comic7/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/comic7/utils/parse_comic7_book.dart';
+import 'package:e_livre/src/features/comic7/parse_comic7_book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:koni_archive/koni_archive.dart' as koni;
 import 'package:test/test.dart';

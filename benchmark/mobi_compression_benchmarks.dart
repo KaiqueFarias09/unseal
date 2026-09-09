@@ -23,7 +23,7 @@ import 'package:e_livre/src/features/mobi/compression/huff_cdic.dart';
 import 'package:e_livre/src/features/mobi/compression/palmdoc.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/features/mobi/utils/trailing_bytes.dart';
+import 'package:e_livre/src/features/mobi/reader/mobi_trailing_data.dart';
 
 import '../test/tests/mobi/mobi_fixture_builder.dart' show buildCdic, buildHuffHeader;
 import 'benchmark_harness.dart';

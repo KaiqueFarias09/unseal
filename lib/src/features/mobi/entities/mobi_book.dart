@@ -1,5 +1,5 @@
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/utils/mobi_metadata_mapper.dart';
+import 'package:e_livre/src/features/mobi/metadata/mobi_metadata.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
 /// A parsed MOBI 6 / KF8 (AZW3) book.

@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import '../header/pdf_document.dart';
 import '../header/pdf_object.dart';
-import '../utils/pdf_encodings.dart';
-import '../utils/pdf_standard_widths.dart';
+import '../text/pdf_encodings.dart';
+import '../text/pdf_standard_widths.dart';
 import 'pdf_cmap.dart';
 
 /// A resolved text font: how codes decode to Unicode and how wide

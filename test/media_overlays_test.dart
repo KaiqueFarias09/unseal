@@ -1,4 +1,4 @@
-import 'package:e_livre/src/features/media_overlays/utils/parse_media_overlay.dart';
+import 'package:e_livre/epub.dart';
 import 'package:test/test.dart';
 
 void main() {

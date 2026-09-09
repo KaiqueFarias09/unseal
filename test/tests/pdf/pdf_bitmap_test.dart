@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/pdf/utils/pdf_bitmap.dart';
+import 'package:e_livre/src/features/pdf/image/pdf_bitmap.dart';
 import 'package:test/test.dart';
 
 void main() {

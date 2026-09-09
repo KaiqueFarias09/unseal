@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/utils/fonts.dart';
+import 'package:e_livre/src/features/mobi/reader/mobi_font.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';

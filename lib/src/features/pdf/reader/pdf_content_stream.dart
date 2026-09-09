@@ -1,13 +1,13 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../codec/pdf_stream_decoder.dart';
 import '../entities/pdf_page.dart';
 import '../entities/pdf_page_text.dart';
 import '../exceptions/pdf_exception.dart';
 import '../header/pdf_document.dart';
 import '../header/pdf_object.dart';
-import '../utils/pdf_bitmap.dart';
-import '../utils/pdf_stream_filters.dart';
+import '../image/pdf_bitmap.dart';
 import 'pdf_font.dart';
 
 /// Extracts the text and image placements of PDF pages by

@@ -1,16 +1,15 @@
 import "dart:typed_data";
 
+import 'package:e_livre/src/features/mobi/codec/mobi_binary.dart';
 import 'package:e_livre/src/features/mobi/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
 import 'package:e_livre/src/features/mobi/index/indx_reader.dart';
 import 'package:e_livre/src/features/mobi/index/ncx_reader.dart';
+import 'package:e_livre/src/features/mobi/reader/mobi_container.dart';
+import 'package:e_livre/src/features/mobi/reader/mobi_font.dart';
 import 'package:e_livre/src/features/mobi/reader/mobi_text.dart';
-import 'package:e_livre/src/features/mobi/utils/containers.dart';
-import 'package:e_livre/src/features/mobi/utils/decint.dart';
-import 'package:e_livre/src/features/mobi/utils/fonts.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
-
 import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
 
 /// Assembles KF8 (AZW3) books from raw records.

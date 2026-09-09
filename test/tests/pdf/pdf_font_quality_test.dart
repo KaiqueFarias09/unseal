@@ -1,5 +1,5 @@
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/pdf/utils/pdf_standard_widths.dart';
+import 'package:e_livre/src/features/pdf/text/pdf_standard_widths.dart';
 import 'package:test/test.dart';
 
 import 'pdf_fixture_builder.dart';

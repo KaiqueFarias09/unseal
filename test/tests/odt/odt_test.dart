@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/src/features/odt/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/odt/utils/parse_odt_book.dart';
+import 'package:e_livre/src/features/odt/parse_odt_book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:test/test.dart';
 

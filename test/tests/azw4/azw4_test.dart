@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:e_livre/src/features/azw4/container/azw4_pdf_extractor.dart';
 import 'package:e_livre/src/features/azw4/exceptions/azw4_exception.dart';
-import 'package:e_livre/src/features/azw4/utils/azw4_pdf_extractor.dart';
-import 'package:e_livre/src/features/azw4/utils/parse_azw4_book.dart';
+import 'package:e_livre/src/features/azw4/parse_azw4_book.dart';
 import 'package:e_livre/src/features/pdf/entities/pdf_book.dart';
 import 'package:e_livre/src/foundation/entities/book_format.dart';
 import 'package:test/test.dart';

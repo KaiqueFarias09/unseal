@@ -3,8 +3,8 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/features/pdf/codec/pdf_stream_decoder.dart';
 import 'package:e_livre/src/features/pdf/header/pdf_object.dart';
-import 'package:e_livre/src/features/pdf/utils/pdf_stream_filters.dart';
 import 'package:test/test.dart';
 
 void main() {

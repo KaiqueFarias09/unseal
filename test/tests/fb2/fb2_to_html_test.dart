@@ -1,4 +1,4 @@
-import 'package:e_livre/src/features/fb2/utils/fb2_to_html.dart';
+import 'package:e_livre/src/features/fb2/rendering/fb2_html_renderer.dart';
 import 'package:test/test.dart';
 import 'package:xml/xml.dart';
 

@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/comic/utils/rar_reader.dart';
+import 'package:e_livre/src/features/comic/archive/rar_reader.dart';
 import 'package:test/test.dart';
 
 void main() {

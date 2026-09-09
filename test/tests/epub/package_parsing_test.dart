@@ -2,10 +2,10 @@ import 'dart:convert' as convert;
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+import 'package:e_livre/src/features/epub/container/epub_root_file.dart';
 import 'package:e_livre/src/features/epub/entities/entities.dart';
 import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
-import 'package:e_livre/src/features/epub/utils/get_epub_root_file_path.dart';
-import 'package:e_livre/src/features/epub/utils/parse_epub_package.dart';
+import 'package:e_livre/src/features/epub/package/parse_epub_package.dart';
 import 'package:test/test.dart';
 
 void main() {

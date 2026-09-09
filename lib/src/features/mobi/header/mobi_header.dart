@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:e_livre/src/features/mobi/codec/mobi_binary.dart';
 import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/exth_header.dart';
-import 'package:e_livre/src/features/mobi/utils/decint.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 
 /// The MOBI header (record 0) of a MOBI / AZW3 file.
