@@ -1,7 +1,7 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:xml/xml.dart';
 
+import '../../../foundation/entities/entities.dart';
 import '../../../foundation/images/image_dimensions.dart';
 import '../../../foundation/images/image_type_sniffer.dart';
 import '../../../foundation/text/xml_encoding.dart';

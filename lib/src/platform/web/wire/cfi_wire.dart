@@ -1,4 +1,4 @@
-import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
+import '../../../features/cfi/epub_cfi_resolver.dart';
 
 /// Encodes a resolved CFI [location] into a wire payload; `null`
 /// (the CFI resolved nowhere) travels as JSON null. Every field is

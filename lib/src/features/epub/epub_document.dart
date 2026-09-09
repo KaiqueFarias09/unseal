@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../foundation/entities/entities.dart';
 
 /// Domain contract for a parsed EPUB document.
 abstract interface class EpubDocument implements Book {

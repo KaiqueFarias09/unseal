@@ -1,5 +1,6 @@
-import 'package:e_livre/src/features/docx/container/docx_package.dart';
 import 'package:xml/xml.dart';
+
+import 'docx_package.dart';
 
 /// A relationship from the main WordprocessingML document part.
 final class DocxRelationship {

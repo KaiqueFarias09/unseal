@@ -1,10 +1,10 @@
-import 'package:e_livre/src/features/odt/container/odt_package.dart';
-import 'package:e_livre/src/features/odt/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/odt/styles/odt_styles.dart';
-import 'package:e_livre/src/foundation/text/document_encoding.dart';
 import 'package:xml/xml.dart';
 
 import '../../../foundation/archive/archive_access.dart';
+import '../../../foundation/text/document_encoding.dart';
+import '../container/odt_package.dart';
+import '../exceptions/exceptions.dart';
+import '../styles/odt_styles.dart';
 
 /// XHTML output and the package image paths referenced by it.
 final class OdtRenderResult {

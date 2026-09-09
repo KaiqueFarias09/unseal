@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../../foundation/entities/entities.dart';
 
 import 'pdf_page.dart';
 import 'pdf_page_text.dart';

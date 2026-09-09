@@ -1,7 +1,7 @@
-import 'package:e_livre/src/features/epub/entities/package/epub_2_package.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_3_package.dart';
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
-import 'package:e_livre/src/features/epub/entities/package/page_progression_direction.dart';
+import '../../../features/epub/entities/package/epub_2_package.dart';
+import '../../../features/epub/entities/package/epub_3_package.dart';
+import '../../../features/epub/entities/package/epub_package.dart';
+import '../../../features/epub/entities/package/page_progression_direction.dart';
 
 /// Encodes an EPUB package and its nested manifest, spine, guide, and metadata.
 Map<String, Object?> encodeEpubPackageWireValue(final EpubPackage package) => <String, Object?>{

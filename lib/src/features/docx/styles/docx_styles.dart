@@ -1,5 +1,6 @@
-import 'package:e_livre/src/features/docx/container/docx_package.dart';
 import 'package:xml/xml.dart';
+
+import '../container/docx_package.dart';
 
 /// Paragraph style information needed by the DOCX renderer.
 final class DocxStyle {

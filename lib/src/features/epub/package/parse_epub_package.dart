@@ -1,8 +1,9 @@
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/features/epub/codec/epub_xml.dart';
-import 'package:e_livre/src/features/epub/entities/entities.dart';
-import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:xml/xml.dart';
+
+import '../codec/epub_xml.dart';
+import '../entities/entities.dart';
+import '../exceptions/exceptions.dart';
 
 /// Parses the provided XML string into an `EpubPackage`.
 ///

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../entities/entities.dart';
 
 /// Creates a typed binary entry while keeping the archive-relative path.
 BinaryFile binaryFile(final String path, final List<int> bytes) {

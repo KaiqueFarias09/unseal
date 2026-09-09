@@ -1,4 +1,4 @@
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
+import 'epub_package.dart';
 
 /// EPUB 3 package document and its parsed components.
 class Epub3Package extends EpubPackage {

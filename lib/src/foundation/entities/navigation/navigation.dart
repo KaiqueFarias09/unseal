@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/entities/navigation/nav_point.dart';
+import 'nav_point.dart';
 
 /// The navigation (table of contents) of a book.
 ///

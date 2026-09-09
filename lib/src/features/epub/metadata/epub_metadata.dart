@@ -1,10 +1,8 @@
-import 'package:e_livre/src/features/epub/entities/entities.dart';
-
-import 'package:e_livre/src/foundation/entities/entities.dart';
-
+import '../../../foundation/entities/entities.dart';
 import '../../../foundation/images/image_dimensions.dart';
 import '../../../foundation/images/image_type_sniffer.dart';
 import '../../../foundation/metadata/book_metadata_operations.dart';
+import '../entities/entities.dart';
 
 /// Maps an EPUB [package] into the common [BookMetadata].
 ///

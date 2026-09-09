@@ -1,10 +1,10 @@
-import 'package:e_livre/src/foundation/entities/book/archive_entry.dart';
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book/reading_order_item.dart';
-import 'package:e_livre/src/foundation/entities/book_format.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/book_statistics.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
+import '../book_format.dart';
+import '../book_metadata.dart';
+import '../book_statistics.dart';
+import '../navigation/navigation.dart';
+import 'archive_entry.dart';
+import 'files.dart';
+import 'reading_order_item.dart';
 
 /// A fully parsed book, independent of its source format.
 ///

@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../entities/entities.dart';
 import 'image_dimensions.dart';
 import 'image_type_sniffer.dart';
 

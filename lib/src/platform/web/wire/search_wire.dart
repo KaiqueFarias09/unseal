@@ -1,5 +1,5 @@
-import 'package:e_livre/src/features/search/entities/search_match.dart';
-import 'package:e_livre/src/features/search/entities/search_results.dart';
+import '../../../features/search/entities/search_match.dart';
+import '../../../features/search/entities/search_results.dart';
 
 /// Encodes [results] into a wire payload. No blobs: matches carry
 /// text only.

@@ -1,10 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
-
+import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../mobi/exceptions/mobi_exception.dart';
+import '../../mobi/header/mobi_header.dart';
+import '../../mobi/header/pdb_header.dart';
 import '../exceptions/azw4_exception.dart';
 
 /// The PDF payload recovered from an AZW4 wrapper.

@@ -1,5 +1,6 @@
-import 'package:e_livre/src/features/odt/container/odt_package.dart';
 import 'package:xml/xml.dart';
+
+import '../container/odt_package.dart';
 
 /// Text and list styles needed by the XHTML renderer.
 final class OdtStyleCatalog {

@@ -1,17 +1,17 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/comic/entities/comic_book.dart';
-import 'package:e_livre/src/features/epub/entities/book/book.dart';
-import 'package:e_livre/src/features/fb2/entities/fb2_book.dart';
-import 'package:e_livre/src/features/mobi/entities/mobi_book.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/pdf/entities/pdf_book.dart';
-import 'package:e_livre/src/features/pdf/entities/pdf_page.dart';
-import 'package:e_livre/src/features/pdf/entities/pdf_page_text.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/platform/web/wire/book_components_wire.dart';
-import 'package:e_livre/src/platform/web/wire/epub_package_wire.dart';
-import 'package:e_livre/src/platform/web/wire/metadata_wire.dart';
+import '../../../features/comic/entities/comic_book.dart';
+import '../../../features/epub/entities/book/book.dart';
+import '../../../features/fb2/entities/fb2_book.dart';
+import '../../../features/mobi/entities/mobi_book.dart';
+import '../../../features/mobi/header/mobi_header.dart';
+import '../../../features/pdf/entities/pdf_book.dart';
+import '../../../features/pdf/entities/pdf_page.dart';
+import '../../../features/pdf/entities/pdf_page_text.dart';
+import '../../../foundation/entities/entities.dart';
+import 'book_components_wire.dart';
+import 'epub_package_wire.dart';
+import 'metadata_wire.dart';
 
 /// Encodes a fully parsed [book] into a structured-clone-friendly
 /// wire payload: a JSON map holding the structure plus the flat blob

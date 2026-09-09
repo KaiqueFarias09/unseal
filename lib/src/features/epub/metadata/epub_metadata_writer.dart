@@ -3,10 +3,10 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/features/epub/container/epub_root_file.dart';
 import 'package:xml/xml.dart';
 
 import '../../../foundation/metadata/sort_keys.dart';
+import '../container/epub_root_file.dart';
 
 /// The metadata changes to apply to an EPUB file.
 ///

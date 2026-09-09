@@ -1,9 +1,9 @@
-import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
-import 'package:e_livre/src/features/search/book_search.dart';
-import 'package:e_livre/src/features/search/entities/search_mode.dart';
-import 'package:e_livre/src/features/search/entities/search_results.dart';
-import 'package:e_livre/src/platform/web/worker_client.dart'
-    if (dart.library.io) 'package:e_livre/src/platform/io/worker_client.dart';
+import '../../platform/web/worker_client.dart'
+    if (dart.library.io) '../../platform/io/worker_client.dart';
+import '../cfi/epub_cfi_resolver.dart';
+import '../search/book_search.dart';
+import '../search/entities/search_mode.dart';
+import '../search/entities/search_results.dart';
 
 /// Routes web parsing through a dedicated web worker so heavy books
 /// never block the UI thread.

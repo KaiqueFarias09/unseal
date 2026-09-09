@@ -1,7 +1,7 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 
+import '../../../foundation/entities/entities.dart';
 import '../../../foundation/text/xml_encoding.dart';
 import '../metadata/html_metadata.dart';
 

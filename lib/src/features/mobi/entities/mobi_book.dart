@@ -1,6 +1,6 @@
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/metadata/mobi_metadata.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../../foundation/entities/entities.dart';
+import '../header/mobi_header.dart';
+import '../metadata/mobi_metadata.dart';
 
 /// A parsed MOBI 6 / KF8 (AZW3) book.
 class MobiBook extends Book {

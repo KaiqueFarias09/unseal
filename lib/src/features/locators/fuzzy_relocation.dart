@@ -13,7 +13,7 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:e_livre/src/features/locators/book_locator.dart';
+import 'book_locator.dart';
 
 /// Relocates [locator] against [sectionTexts], the document texts of
 /// the reading-order sections.

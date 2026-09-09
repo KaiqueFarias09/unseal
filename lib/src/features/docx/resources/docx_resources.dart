@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/docx/container/docx_package.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+
+import '../../../foundation/entities/entities.dart';
+import '../container/docx_package.dart';
 
 /// Binary resources and archive inventory extracted from a DOCX package.
 final class DocxResources {

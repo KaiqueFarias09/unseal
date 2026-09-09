@@ -2,17 +2,18 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/features/epub/container/epub_root_file.dart';
-import 'package:e_livre/src/features/epub/content/epub_files.dart';
-import 'package:e_livre/src/features/epub/encryption/epub_encryption.dart';
-import 'package:e_livre/src/features/epub/entities/entities.dart';
-import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/epub/metadata/epub_cover.dart';
-import 'package:e_livre/src/features/epub/metadata/epub_metadata.dart';
-import 'package:e_livre/src/features/epub/navigation/epub_navigation.dart';
-import 'package:e_livre/src/features/epub/package/parse_epub_package.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+
 import '../../foundation/archive/archive_access.dart';
+import '../../foundation/entities/entities.dart';
+import 'container/epub_root_file.dart';
+import 'content/epub_files.dart';
+import 'encryption/epub_encryption.dart';
+import 'entities/entities.dart';
+import 'exceptions/exceptions.dart';
+import 'metadata/epub_cover.dart';
+import 'metadata/epub_metadata.dart';
+import 'navigation/epub_navigation.dart';
+import 'package/parse_epub_package.dart';
 
 export 'container/epub_root_file.dart';
 

@@ -2,28 +2,11 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
-import 'package:e_livre/src/features/azw4/parse_azw4_book.dart';
-import 'package:e_livre/src/features/comic/parse_comic_book.dart';
-import 'package:e_livre/src/features/comic7/parse_comic7_book.dart';
-import 'package:e_livre/src/features/detection/detect_format.dart';
-import 'package:e_livre/src/features/detection/entities/detected_format.dart';
-import 'package:e_livre/src/features/docx/parse_docx_book.dart';
-import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/epub/metadata/epub_metadata.dart';
-import 'package:e_livre/src/features/epub/package/parse_epub_package.dart';
-import 'package:e_livre/src/features/epub/parse_epub_book.dart';
-import 'package:e_livre/src/features/fb2/parse_fb2_book.dart';
-import 'package:e_livre/src/features/html/parse_html_book.dart';
-import 'package:e_livre/src/features/mobi/parse_mobi_book.dart';
-import 'package:e_livre/src/features/odt/parse_odt_book.dart';
-import 'package:e_livre/src/features/pdf/parse_pdf_book.dart';
-import 'package:e_livre/src/features/txt/archive/txtz_archive.dart';
-import 'package:e_livre/src/features/txt/parse_txt_book.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
-import '../../foundation/archive/archive_access.dart';
-import '../../foundation/metadata/book_metadata_operations.dart';
 
+import '../../foundation/archive/archive_access.dart';
+import '../../foundation/entities/entities.dart';
+import '../../foundation/exceptions/elivre_exception.dart';
+import '../../foundation/metadata/book_metadata_operations.dart';
 // Platform selection: the web default keeps WASM runtimes (where
 // neither dart:html nor dart:io exist) compiling against the stubs,
 // dart:html pins DDC/dart2js browsers away from the native variant,
@@ -34,6 +17,23 @@ import '../../platform/io/book_path_reader.dart'
 import '../../platform/web/background_parse.dart'
     if (dart.library.html) '../../platform/web/background_parse.dart'
     if (dart.library.io) '../../platform/io/background_parse.dart';
+import '../azw4/parse_azw4_book.dart';
+import '../comic/parse_comic_book.dart';
+import '../comic7/parse_comic7_book.dart';
+import '../detection/detect_format.dart';
+import '../detection/entities/detected_format.dart';
+import '../docx/parse_docx_book.dart';
+import '../epub/exceptions/exceptions.dart';
+import '../epub/metadata/epub_metadata.dart';
+import '../epub/package/parse_epub_package.dart';
+import '../epub/parse_epub_book.dart';
+import '../fb2/parse_fb2_book.dart';
+import '../html/parse_html_book.dart';
+import '../mobi/parse_mobi_book.dart';
+import '../odt/parse_odt_book.dart';
+import '../pdf/parse_pdf_book.dart';
+import '../txt/archive/txtz_archive.dart';
+import '../txt/parse_txt_book.dart';
 
 /// Reads supported ebook formats and selects their format adapter.
 // This public facade intentionally preserves the static reader API.

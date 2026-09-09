@@ -1,5 +1,5 @@
-import 'package:e_livre/src/features/search/entities/search_match.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../../foundation/entities/entities.dart';
+import 'search_match.dart';
 
 /// The result of a full-text search over a [Book].
 final class SearchResults {

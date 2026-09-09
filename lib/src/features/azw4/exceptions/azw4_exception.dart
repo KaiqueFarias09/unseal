@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/elivre_exception.dart';
 
 /// Base exception for an AZW4 container that cannot be safely read.
 class Azw4Exception extends ELivreException {

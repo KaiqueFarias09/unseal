@@ -1,15 +1,15 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/codec/mobi_binary.dart';
-import 'package:e_livre/src/features/mobi/entities/entities.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/features/mobi/metadata/mobi_metadata.dart';
-import 'package:e_livre/src/features/mobi/reader/mobi6_markup.dart';
-import 'package:e_livre/src/features/mobi/reader/mobi8_reader.dart';
-import 'package:e_livre/src/features/mobi/reader/mobi_text.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../foundation/entities/entities.dart';
 import '../../foundation/images/image_type_sniffer.dart';
+import 'codec/mobi_binary.dart';
+import 'entities/entities.dart';
+import 'header/mobi_header.dart';
+import 'header/pdb_header.dart';
+import 'metadata/mobi_metadata.dart';
+import 'reader/mobi6_markup.dart';
+import 'reader/mobi8_reader.dart';
+import 'reader/mobi_text.dart';
 
 class _MobiLayout {
   const _MobiLayout(

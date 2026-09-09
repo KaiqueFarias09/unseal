@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
+import '../../../features/mobi/header/mobi_header.dart';
+import '../../../features/mobi/header/pdb_header.dart';
 
 /// The PDB record slice the MOBI parser consumed as its header.
 ///

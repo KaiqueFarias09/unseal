@@ -1,18 +1,18 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/odt/container/odt_package.dart';
-import 'package:e_livre/src/features/odt/metadata/odt_metadata.dart';
-import 'package:e_livre/src/features/odt/rendering/odt_renderer.dart';
-import 'package:e_livre/src/features/odt/resources/odt_resources.dart';
-import 'package:e_livre/src/features/odt/styles/odt_styles.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/files/book_file_factory.dart';
-import 'package:e_livre/src/foundation/images/cover_helpers.dart';
-import 'package:e_livre/src/foundation/navigation/html_navigation.dart';
 
-export 'package:e_livre/src/features/odt/metadata/odt_metadata.dart'
-    show readOdtMetadata, readOdtMetadataFromArchive;
+import '../../foundation/entities/entities.dart';
+import '../../foundation/files/book_file_factory.dart';
+import '../../foundation/images/cover_helpers.dart';
+import '../../foundation/navigation/html_navigation.dart';
+import 'container/odt_package.dart';
+import 'metadata/odt_metadata.dart';
+import 'rendering/odt_renderer.dart';
+import 'resources/odt_resources.dart';
+import 'styles/odt_styles.dart';
+
+export 'metadata/odt_metadata.dart' show readOdtMetadata, readOdtMetadataFromArchive;
 
 /// Parses an OpenDocument Text package into the common document model.
 DocumentBook parseOdtBook(final Uint8List bytes) => _parseOdtPackage(OdtPackage.fromBytes(bytes));

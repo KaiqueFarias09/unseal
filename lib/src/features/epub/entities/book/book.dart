@@ -1,13 +1,13 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/epub/entities/package/epub_package.dart';
-import 'package:e_livre/src/features/epub/entities/package/page_progression_direction.dart';
-import 'package:e_livre/src/features/epub/epub_document.dart';
-import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/epub/metadata/epub_metadata.dart';
-import 'package:e_livre/src/features/epub/parse_epub_book.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../../../foundation/entities/entities.dart';
 import '../../../../foundation/language/rtl_languages.dart';
+import '../../epub_document.dart';
+import '../../exceptions/exceptions.dart';
+import '../../metadata/epub_metadata.dart';
+import '../../parse_epub_book.dart';
+import '../package/epub_package.dart';
+import '../package/page_progression_direction.dart';
 
 /// A parsed EPUB 2.0 / 3.0 book.
 class EpubBook extends Book implements EpubDocument {

@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/elivre_exception.dart';
 
 /// Base error for a DOCX package that cannot be read by eLivre.
 class DocxException extends ELivreException {

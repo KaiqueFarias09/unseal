@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/codec/mobi_binary.dart';
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
-import 'package:e_livre/src/features/mobi/header/exth_header.dart';
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/elivre_exception.dart';
+import '../codec/mobi_binary.dart';
+import '../exceptions/mobi_exception.dart';
+import 'exth_header.dart';
 
 /// The MOBI header (record 0) of a MOBI / AZW3 file.
 class MobiHeader {

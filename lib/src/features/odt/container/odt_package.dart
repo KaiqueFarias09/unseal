@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/odt/exceptions/exceptions.dart';
 import 'package:xml/xml.dart';
 
 import '../../../foundation/archive/archive_access.dart';
 import '../../../foundation/text/xml_encoding.dart';
+import '../exceptions/exceptions.dart';
 
 /// Validated ODT container plus its package-level XML documents.
 final class OdtPackage {

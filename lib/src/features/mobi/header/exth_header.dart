@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/codec/mobi_binary.dart';
-import 'package:e_livre/src/features/mobi/exceptions/exceptions.dart';
+import '../codec/mobi_binary.dart';
+import '../exceptions/exceptions.dart';
 
 /// The EXTH (extended header) of a MOBI file.
 class ExthHeader {

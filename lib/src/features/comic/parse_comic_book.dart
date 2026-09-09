@@ -2,14 +2,14 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/comic/archive/rar_reader.dart';
-import 'package:e_livre/src/features/comic/entities/entities.dart';
-import 'package:e_livre/src/features/comic/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/comic/metadata/comic_info.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
 
+import '../../foundation/entities/entities.dart';
 import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';
+import 'archive/rar_reader.dart';
+import 'entities/entities.dart';
+import 'exceptions/exceptions.dart';
+import 'metadata/comic_info.dart';
 
 /// A comic page candidate extracted from an archive.
 class _Page {

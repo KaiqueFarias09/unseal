@@ -1,10 +1,11 @@
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/odt/container/odt_package.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/files/book_file_factory.dart';
-import 'package:e_livre/src/foundation/images/cover_helpers.dart';
+
 import '../../../foundation/archive/archive_access.dart';
+import '../../../foundation/entities/entities.dart';
+import '../../../foundation/files/book_file_factory.dart';
+import '../../../foundation/images/cover_helpers.dart';
 import '../../../foundation/images/image_type_sniffer.dart';
+import '../container/odt_package.dart';
 
 /// Binary resources and inventory extracted from an ODT package.
 final class OdtResources {

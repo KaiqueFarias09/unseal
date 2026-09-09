@@ -1,7 +1,7 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html;
 
+import '../../foundation/entities/entities.dart';
 import '../../foundation/text/canonical_document_text.dart';
 
 /// The parsed shape of a raw `NavPoint.content` string.

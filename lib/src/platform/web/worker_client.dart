@@ -3,14 +3,14 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
-import 'package:e_livre/src/features/search/entities/search_mode.dart';
-import 'package:e_livre/src/features/search/entities/search_results.dart';
-import 'package:e_livre/src/foundation/entities/book/book.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:web/web.dart' as web;
 
+import '../../features/cfi/epub_cfi_resolver.dart';
+import '../../features/search/entities/search_mode.dart';
+import '../../features/search/entities/search_results.dart';
+import '../../foundation/entities/book/book.dart';
+import '../../foundation/entities/book_metadata.dart';
+import '../../foundation/exceptions/elivre_exception.dart';
 import 'book_wire.dart';
 
 /// Owns the configured web worker and the request/reply protocol.

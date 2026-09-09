@@ -1,8 +1,8 @@
 import 'dart:collection';
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/codec/mobi_binary.dart';
-import 'package:e_livre/src/features/mobi/exceptions/exceptions.dart';
+import '../codec/mobi_binary.dart';
+import '../exceptions/exceptions.dart';
 
 /// A TAGX tag definition.
 class IndxTag {

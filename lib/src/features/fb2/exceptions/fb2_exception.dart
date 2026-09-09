@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/elivre_exception.dart';
 
 /// Error thrown while reading or parsing an FB2 book.
 class Fb2Exception extends ELivreException {

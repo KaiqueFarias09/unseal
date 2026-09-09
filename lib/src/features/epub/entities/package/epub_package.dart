@@ -1,6 +1,6 @@
 // Base classes
 
-import 'package:e_livre/src/features/epub/entities/package/page_progression_direction.dart';
+import 'page_progression_direction.dart';
 
 /// Base representation of an EPUB package document.
 abstract class EpubPackage {

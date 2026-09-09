@@ -1,7 +1,7 @@
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../foundation/entities/entities.dart';
 
 /// Runs book parsing away from the caller on isolate-supporting runtimes.
 Future<Book> parseBookInBackground(final Book Function() parse, final Uint8List bytes) =>

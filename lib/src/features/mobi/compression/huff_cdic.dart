@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/exceptions/exceptions.dart';
+import '../exceptions/exceptions.dart';
 
 class _Dict1Entry {
   const _Dict1Entry(this.codelen, this.term, this.maxcode);

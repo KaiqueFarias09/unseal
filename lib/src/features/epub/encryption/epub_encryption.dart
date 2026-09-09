@@ -2,13 +2,13 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/epub/codec/epub_xml.dart';
-import 'package:e_livre/src/features/epub/entities/entities.dart';
-import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:pointycastle/export.dart';
 import 'package:xml/xml.dart';
 
 import '../../../foundation/archive/archive_access.dart';
+import '../codec/epub_xml.dart';
+import '../entities/entities.dart';
+import '../exceptions/exceptions.dart';
 
 /// Path to the EPUB encryption description.
 const _encryptionFilepath = 'META-INF/encryption.xml';

@@ -1,5 +1,6 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:html/parser.dart' as html_parser;
+
+import '../entities/entities.dart';
 
 /// Creates heading navigation from an HTML document, preserving nested
 /// heading levels through [NavPoint.subNavPoints].

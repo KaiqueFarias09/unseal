@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/elivre_exception.dart';
 
 /// Error raised while opening a CB7 or CBC comic container.
 class Comic7Exception extends ELivreException {

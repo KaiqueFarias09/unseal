@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../entities/entities.dart';
 
 /// Builds the archive inventory used by format adapters.
 List<ArchiveEntry> archiveInventory(final Archive archive) => <ArchiveEntry>[

@@ -1,5 +1,5 @@
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/entities/file/text_file.dart';
+import '../file/binary_file.dart';
+import '../file/text_file.dart';
 
 /// The files contained in a parsed book.
 ///

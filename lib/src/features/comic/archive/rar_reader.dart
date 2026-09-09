@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/comic/exceptions/exceptions.dart';
+import '../exceptions/exceptions.dart';
 
 import 'rar4_decoder.dart';
 

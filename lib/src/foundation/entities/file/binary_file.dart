@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/entities/file/book_file.dart';
+import 'book_file.dart';
 
 /// Represents a binary book file.
 ///

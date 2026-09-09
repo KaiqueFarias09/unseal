@@ -1,9 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/pdf/entities/pdf_book.dart';
-import 'package:e_livre/src/features/pdf/parse_pdf_book.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
-
+import '../../foundation/entities/entities.dart';
+import '../pdf/entities/pdf_book.dart';
+import '../pdf/parse_pdf_book.dart';
 import 'container/azw4_pdf_extractor.dart';
 
 /// Parses an AZW4 PalmDB/MOBI wrapper by extracting and delegating its PDF

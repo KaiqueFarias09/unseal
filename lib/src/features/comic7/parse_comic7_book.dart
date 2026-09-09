@@ -2,17 +2,17 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/comic/entities/entities.dart';
-import 'package:e_livre/src/features/comic/metadata/comic_info.dart';
-import 'package:e_livre/src/features/comic/parse_comic_book.dart';
-import 'package:e_livre/src/features/comic7/exceptions/exceptions.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/images/cover_helpers.dart';
-import 'package:e_livre/src/foundation/text/document_encoding.dart';
 import 'package:koni_archive/koni_archive.dart' as koni;
 
 import '../../foundation/archive/archive_access.dart';
+import '../../foundation/entities/entities.dart';
+import '../../foundation/images/cover_helpers.dart';
 import '../../foundation/images/image_type_sniffer.dart';
+import '../../foundation/text/document_encoding.dart';
+import '../comic/entities/entities.dart';
+import '../comic/metadata/comic_info.dart';
+import '../comic/parse_comic_book.dart';
+import 'exceptions/exceptions.dart';
 
 /// Maximum decoded size accepted for one CB7 entry.
 const int maxComic7EntryBytes = 128 << 20;

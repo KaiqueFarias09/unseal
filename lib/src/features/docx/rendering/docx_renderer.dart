@@ -1,10 +1,11 @@
-import 'package:e_livre/src/features/docx/container/docx_package.dart';
-import 'package:e_livre/src/features/docx/container/docx_relationships.dart';
-import 'package:e_livre/src/features/docx/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/docx/styles/docx_styles.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:xml/xml.dart';
+
+import '../../../foundation/entities/entities.dart';
+import '../container/docx_package.dart';
+import '../container/docx_relationships.dart';
+import '../exceptions/exceptions.dart';
+import '../styles/docx_styles.dart';
 
 /// XHTML, navigation, and referenced images produced from a DOCX document.
 final class DocxRenderedDocument {

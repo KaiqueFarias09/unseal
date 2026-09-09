@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../foundation/entities/entities.dart';
 import '../../foundation/text/canonical_document_text.dart';
 
 import 'entities/search_match.dart';

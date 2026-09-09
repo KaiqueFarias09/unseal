@@ -1,6 +1,6 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:xml/xml.dart';
 
+import '../../../foundation/entities/entities.dart';
 import '../../../foundation/metadata/book_metadata_operations.dart';
 
 /// Partial metadata extracted from an embedded `ComicInfo.xml`

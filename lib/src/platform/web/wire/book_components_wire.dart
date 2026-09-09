@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../../foundation/entities/entities.dart';
 
 /// Encodes navigation into its wire-map representation.
 Map<String, Object?> encodeNavigationWireValue(final Navigation navigation) => <String, Object?>{

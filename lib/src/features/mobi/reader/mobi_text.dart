@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/compression/huff_cdic.dart';
-import 'package:e_livre/src/features/mobi/compression/palmdoc.dart';
-import 'package:e_livre/src/features/mobi/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/reader/mobi_trailing_data.dart';
+import '../compression/huff_cdic.dart';
+import '../compression/palmdoc.dart';
+import '../exceptions/exceptions.dart';
+import '../header/mobi_header.dart';
+import 'mobi_trailing_data.dart';
 
 /// Extracts and decompresses the raw text stream of a MOBI book.
 ///

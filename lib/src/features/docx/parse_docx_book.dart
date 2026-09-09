@@ -1,16 +1,17 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/docx/container/docx_package.dart';
-import 'package:e_livre/src/features/docx/container/docx_relationships.dart';
-import 'package:e_livre/src/features/docx/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/docx/metadata/docx_metadata.dart';
-import 'package:e_livre/src/features/docx/rendering/docx_renderer.dart';
-import 'package:e_livre/src/features/docx/resources/docx_resources.dart';
-import 'package:e_livre/src/features/docx/styles/docx_styles.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/files/book_file_factory.dart';
-import 'package:e_livre/src/foundation/images/cover_helpers.dart';
+
+import '../../foundation/entities/entities.dart';
+import '../../foundation/files/book_file_factory.dart';
+import '../../foundation/images/cover_helpers.dart';
+import 'container/docx_package.dart';
+import 'container/docx_relationships.dart';
+import 'exceptions/exceptions.dart';
+import 'metadata/docx_metadata.dart';
+import 'rendering/docx_renderer.dart';
+import 'resources/docx_resources.dart';
+import 'styles/docx_styles.dart';
 
 /// Parses a DOCX package into the common document-backed book model.
 ///

@@ -1,9 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/platform/web/wire/book_components_wire.dart';
-
+import '../../../foundation/entities/entities.dart';
 import '../../../foundation/images/image_type_sniffer.dart';
+import 'book_components_wire.dart';
 
 /// Encodes format-agnostic [metadata] into a wire payload.
 (Map<String, Object?>, List<Object>) encodeMetadataWire(final BookMetadata metadata) {

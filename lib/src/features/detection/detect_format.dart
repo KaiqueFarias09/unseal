@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/detection/entities/detected_format.dart';
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import '../../foundation/exceptions/elivre_exception.dart';
 import '../../foundation/text/xml_encoding.dart';
+import 'entities/detected_format.dart';
 
 const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
 

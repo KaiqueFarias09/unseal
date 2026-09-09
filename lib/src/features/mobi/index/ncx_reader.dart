@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/index/indx_reader.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../../foundation/entities/entities.dart';
+import '../header/mobi_header.dart';
+import 'indx_reader.dart';
 
 /// A single NCX (KF8 table of contents) index entry.
 class NcxEntry {

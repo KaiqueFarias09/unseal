@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/cfi/epub_cfi_resolver.dart';
-import 'package:e_livre/src/features/search/entities/search_mode.dart';
-import 'package:e_livre/src/features/search/entities/search_results.dart';
-import 'package:e_livre/src/foundation/entities/book/book.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
+import '../../features/cfi/epub_cfi_resolver.dart';
+import '../../features/search/entities/search_mode.dart';
+import '../../features/search/entities/search_results.dart';
+import '../../foundation/entities/book/book.dart';
+import '../../foundation/entities/book_metadata.dart';
 
 /// Native stand-in for the web worker client: runtimes with dart:io
 /// parse books on a background isolate and never touch the browser

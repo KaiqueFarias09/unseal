@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/elivre_exception.dart';
 
 /// Error thrown while reading or parsing a MOBI / AZW3 book.
 class MobiException extends ELivreException {

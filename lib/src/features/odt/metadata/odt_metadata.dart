@@ -1,9 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/odt/container/odt_package.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:xml/xml.dart';
+
+import '../../../foundation/entities/entities.dart';
+import '../container/odt_package.dart';
 
 /// Reads metadata from an ODT package without rendering the document body.
 BookMetadata readOdtMetadata(final Uint8List bytes) =>

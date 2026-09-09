@@ -9,7 +9,7 @@
 /// reading-order file.
 library;
 
-import 'package:e_livre/src/features/locators/book_locator.dart';
+import 'book_locator.dart';
 
 /// Version of the JSON envelope emitted by [locatorToJson] and
 /// accepted by [locatorFromJson].

@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:e_livre/src/features/cfi/epub_cfi.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html;
 import 'package:xml/xml.dart';
 
 import '../../foundation/text/canonical_document_text.dart';
+import 'epub_cfi.dart';
 
 /// Position/lookup over the parsed tree of one XHTML file. Text
 /// offsets are the concatenation of text nodes inside `<body>`

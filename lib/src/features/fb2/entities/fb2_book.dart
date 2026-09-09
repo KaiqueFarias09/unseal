@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../../../foundation/entities/entities.dart';
 
 /// A parsed FictionBook 2.0 book.
 class Fb2Book extends Book {

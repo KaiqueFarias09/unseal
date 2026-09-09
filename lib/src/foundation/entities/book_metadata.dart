@@ -1,6 +1,6 @@
-import 'package:e_livre/src/foundation/entities/book_cover.dart';
-import 'package:e_livre/src/foundation/entities/book_format.dart';
 import '../metadata/sort_keys.dart' as sort_keys;
+import 'book_cover.dart';
+import 'book_format.dart';
 
 /// Format-agnostic book metadata extracted from any supported book file.
 ///

@@ -1,10 +1,10 @@
-import 'package:e_livre/src/foundation/entities/book/archive_entry.dart';
-import 'package:e_livre/src/foundation/entities/book/book.dart';
-import 'package:e_livre/src/foundation/entities/book/files.dart';
-import 'package:e_livre/src/foundation/entities/book/reading_order_item.dart';
-import 'package:e_livre/src/foundation/entities/book_metadata.dart';
-import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
+import '../book_metadata.dart';
+import '../file/binary_file.dart';
+import '../navigation/navigation.dart';
+import 'archive_entry.dart';
+import 'book.dart';
+import 'files.dart';
+import 'reading_order_item.dart';
 
 /// A document-backed book produced by text and office-format adapters.
 ///

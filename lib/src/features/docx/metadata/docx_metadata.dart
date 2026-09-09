@@ -1,5 +1,6 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:xml/xml.dart';
+
+import '../../../foundation/entities/entities.dart';
 
 /// Maps DOCX core properties to format-agnostic book metadata.
 BookMetadata readDocxCoreMetadata(final XmlDocument? document) {

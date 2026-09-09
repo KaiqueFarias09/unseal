@@ -1,7 +1,8 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/text/document_encoding.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:xml/xml.dart';
+
+import '../entities/entities.dart';
+import '../text/document_encoding.dart';
 
 /// Builds a common metadata value from the conventional HTML head fields.
 BookMetadata htmlMetadata(

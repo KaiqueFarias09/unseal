@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+
 import '../../foundation/archive/archive_access.dart';
+import '../../foundation/entities/entities.dart';
 import '../../foundation/images/image_type_sniffer.dart';
 import '../../foundation/text/xml_encoding.dart';
-
 import 'exceptions/html_exception.dart';
 import 'metadata/html_metadata.dart';
 import 'parsing/html_document.dart';

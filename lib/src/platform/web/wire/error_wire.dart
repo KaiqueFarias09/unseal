@@ -1,15 +1,15 @@
-import 'package:e_livre/src/features/azw4/exceptions/azw4_exception.dart';
-import 'package:e_livre/src/features/comic/exceptions/comic_exception.dart';
-import 'package:e_livre/src/features/comic7/exceptions/comic7_exception.dart';
-import 'package:e_livre/src/features/docx/exceptions/docx_exception.dart';
-import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart';
-import 'package:e_livre/src/features/epub/exceptions/epub_exception.dart';
-import 'package:e_livre/src/features/fb2/exceptions/fb2_exception.dart';
-import 'package:e_livre/src/features/html/exceptions/html_exception.dart';
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
-import 'package:e_livre/src/features/odt/exceptions/odt_exception.dart';
-import 'package:e_livre/src/features/pdf/exceptions/pdf_exception.dart';
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
+import '../../../features/azw4/exceptions/azw4_exception.dart';
+import '../../../features/comic/exceptions/comic_exception.dart';
+import '../../../features/comic7/exceptions/comic7_exception.dart';
+import '../../../features/docx/exceptions/docx_exception.dart';
+import '../../../features/epub/exceptions/empty_bytes_exception.dart';
+import '../../../features/epub/exceptions/epub_exception.dart';
+import '../../../features/fb2/exceptions/fb2_exception.dart';
+import '../../../features/html/exceptions/html_exception.dart';
+import '../../../features/mobi/exceptions/mobi_exception.dart';
+import '../../../features/odt/exceptions/odt_exception.dart';
+import '../../../features/pdf/exceptions/pdf_exception.dart';
+import '../../../foundation/exceptions/elivre_exception.dart';
 
 /// Rebuilds the exception hierarchy behind a worker error reply:
 /// known [ELivreException] subtypes come back with their own type,

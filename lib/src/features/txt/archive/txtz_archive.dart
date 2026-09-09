@@ -2,10 +2,10 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
 import 'package:xml/xml.dart';
 
+import '../../../foundation/entities/entities.dart';
+import '../../../foundation/exceptions/elivre_exception.dart';
 import '../../../foundation/text/xml_encoding.dart';
 
 /// Upper bound for one uncompressed TXTZ member. This keeps a malformed

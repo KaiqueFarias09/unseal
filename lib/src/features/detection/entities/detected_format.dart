@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/entities/book_format.dart';
+import '../../../foundation/entities/book_format.dart';
 
 /// The book family detected from magic bytes.
 ///
