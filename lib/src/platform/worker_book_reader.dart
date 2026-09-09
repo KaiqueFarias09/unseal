@@ -1,9 +1,8 @@
-import '../../platform/web/worker_client.dart'
-    if (dart.library.io) '../../platform/io/worker_client.dart';
-import '../cfi/epub_cfi_resolver.dart';
-import '../search/book_search.dart';
-import '../search/entities/search_mode.dart';
-import '../search/entities/search_results.dart';
+import '../features/cfi/epub_cfi_resolver.dart';
+import '../features/search/book_search.dart';
+import '../features/search/entities/search_mode.dart';
+import '../features/search/entities/search_results.dart';
+import 'web/worker_client.dart' if (dart.library.io) 'io/worker_client.dart';
 
 /// Routes web parsing through a dedicated web worker so heavy books
 /// never block the UI thread.

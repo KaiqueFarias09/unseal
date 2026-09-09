@@ -6,17 +6,6 @@ import 'package:collection/collection.dart';
 import '../../foundation/archive/archive_access.dart';
 import '../../foundation/entities/entities.dart';
 import '../../foundation/exceptions/elivre_exception.dart';
-import '../../foundation/metadata/book_metadata_operations.dart';
-// Platform selection: the web default keeps WASM runtimes (where
-// neither dart:html nor dart:io exist) compiling against the stubs,
-// dart:html pins DDC/dart2js browsers away from the native variant,
-// and dart:io claims every native runtime.
-import '../../platform/io/book_path_reader.dart'
-    if (dart.library.html) '../../platform/web/book_path_reader.dart'
-    if (dart.library.io) '../../platform/io/book_path_reader.dart';
-import '../../platform/web/background_parse.dart'
-    if (dart.library.html) '../../platform/web/background_parse.dart'
-    if (dart.library.io) '../../platform/io/background_parse.dart';
 import '../azw4/parse_azw4_book.dart';
 import '../comic/parse_comic_book.dart';
 import '../comic7/parse_comic7_book.dart';
@@ -24,8 +13,6 @@ import '../detection/detect_format.dart';
 import '../detection/entities/detected_format.dart';
 import '../docx/parse_docx_book.dart';
 import '../epub/exceptions/exceptions.dart';
-import '../epub/metadata/epub_metadata.dart';
-import '../epub/package/parse_epub_package.dart';
 import '../epub/parse_epub_book.dart';
 import '../fb2/parse_fb2_book.dart';
 import '../html/parse_html_book.dart';
@@ -35,13 +22,24 @@ import '../pdf/parse_pdf_book.dart';
 import '../txt/archive/txtz_archive.dart';
 import '../txt/parse_txt_book.dart';
 
-/// Reads supported ebook formats and selects their format adapter.
-// This public facade intentionally preserves the static reader API.
+/// Runs synchronous parsing on the execution adapter selected by Platform.
+typedef BookParseExecutor = Future<Book> Function(Book Function() parse, Uint8List bytes);
+
+/// Runs synchronous metadata extraction on the execution adapter selected by Platform.
+typedef MetadataReadExecutor =
+    Future<BookMetadata> Function(BookMetadata Function() read, Uint8List bytes);
+
+/// Owns platform-neutral format detection and parse/read dispatch.
+// This internal namespace keeps all format selection in Reading.
 // ignore: avoid_classes_with_only_static_members
-abstract final class BookReader {
+abstract final class BookDispatch {
   /// Parses the book from [bytes], opening encrypted PDFs with
   /// [password].
-  static Future<Book> openFromBytes(final Uint8List bytes, {final String password = ''}) {
+  static Future<Book> openFromBytes(
+    final Uint8List bytes, {
+    required final BookParseExecutor execute,
+    final String password = '',
+  }) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
     final detected = detectFormat(bytes);
@@ -50,13 +48,7 @@ abstract final class BookReader {
       return _parseBookAsync(bytes, password: password, detected: detected);
     }
 
-    return parseBookInBackground(() => parseBook(bytes, password: password), bytes);
-  }
-
-  /// Parses the book at [path], opening encrypted PDFs with
-  /// [password].
-  static Future<Book> openFromPath(final String path, {final String password = ''}) {
-    return withBookPath(path, (final bytes, final _) => openFromBytes(bytes, password: password));
+    return execute(() => parseBook(bytes, password: password), bytes);
   }
 
   /// Synchronously parses [bytes] with the matching format adapter,
@@ -90,6 +82,7 @@ abstract final class BookReader {
   /// [password].
   static Future<BookMetadata> readMetadataFromBytes(
     final Uint8List bytes, {
+    required final MetadataReadExecutor execute,
     final String password = '',
   }) {
     if (bytes.isEmpty) throw EmptyBytesException();
@@ -100,28 +93,7 @@ abstract final class BookReader {
       return _readMetadataAsync(bytes, detected: detected);
     }
 
-    return readMetadataInBackground(() => readMetadataSync(bytes, password: password), bytes);
-  }
-
-  /// Reads only metadata from the book at [path], opening encrypted
-  /// PDFs with [password].
-  static Future<BookMetadata> readMetadataFromPath(
-    final String path, {
-    final String password = '',
-  }) {
-    return withBookPath(path, (final bytes, final sourcePath) async {
-      final metadata = await readMetadataFromBytes(bytes, password: password);
-
-      final sidecar = await readBookSidecar(
-        sourcePath,
-        (final content) => epubBookMetadata(parsePackage(content)),
-      );
-
-      return applyFilenameFallback(
-        sidecar == null ? metadata : mergeBookMetadata(metadata, sidecar),
-        sourcePath,
-      );
-    });
+    return execute(() => readMetadataSync(bytes, password: password), bytes);
   }
 
   /// Synchronously reads metadata from [bytes], opening encrypted

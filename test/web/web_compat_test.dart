@@ -254,6 +254,16 @@ void main() {
   });
 
   group('worker wire codec on the browser', () {
+    test('public worker facade binds to the browser client', () {
+      addTearDown(WorkerBookReader.dispose);
+
+      expect(WorkerBookReader.isConfigured, isFalse);
+      WorkerBookReader.configure(Uri.parse('e_livre_worker.js'));
+      expect(WorkerBookReader.isConfigured, isTrue);
+      WorkerBookReader.dispose();
+      expect(WorkerBookReader.isConfigured, isFalse);
+    });
+
     test('round-trips a parsed book through the wire', () async {
       final book = await BookReader.openFromBytes(buildSyntheticEpub()) as EpubBook;
       final (json, blobs) = encodeBookWire(book);

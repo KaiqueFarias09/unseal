@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
+import 'package:e_livre/src/features/reading/book_dispatch.dart';
 import 'package:koni_archive/koni_archive.dart' as koni;
 import 'package:test/test.dart';
 
@@ -36,6 +37,36 @@ void main() {
     final book = await BookReader.openFromBytes(sink.takeBytes());
 
     expect(book.format, BookFormat.cb7);
+  });
+
+  test('Reading dispatches synchronous work through the injected executor', () async {
+    final bytes = Uint8List.fromList('A title\n\nBody'.codeUnits);
+    var parseExecutions = 0;
+    var metadataExecutions = 0;
+
+    final book = await BookDispatch.openFromBytes(
+      bytes,
+      execute: (final parse, final source) async {
+        parseExecutions++;
+        expect(source, same(bytes));
+
+        return parse();
+      },
+    );
+    final metadata = await BookDispatch.readMetadataFromBytes(
+      bytes,
+      execute: (final read, final source) async {
+        metadataExecutions++;
+        expect(source, same(bytes));
+
+        return read();
+      },
+    );
+
+    expect(book.format, BookFormat.txt);
+    expect(metadata.format, BookFormat.txt);
+    expect(parseExecutions, 1);
+    expect(metadataExecutions, 1);
   });
 }
 

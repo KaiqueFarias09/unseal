@@ -4,7 +4,7 @@ import '../../features/cfi/epub_cfi.dart';
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/epub/entities/book/book.dart';
 import '../../features/mobi/header/pdb_header.dart';
-import '../../features/reading/book_reader.dart';
+import '../../features/reading/book_dispatch.dart';
 import '../../features/search/book_search.dart';
 import '../../features/search/entities/search_mode.dart';
 import '../../foundation/entities/book/book.dart';
@@ -38,7 +38,7 @@ import 'book_wire.dart';
 }) {
   switch (op) {
     case workerOpParse:
-      final book = BookReader.parseBook(bytes!);
+      final book = BookDispatch.parseBook(bytes!);
       Uint8List? record0;
       String? ident;
       if (book.format == BookFormat.mobi || book.format == BookFormat.azw3) {
@@ -50,7 +50,7 @@ import 'book_wire.dart';
 
       return (kind: wireReplyBook, json: json, blobs: blobs);
     case workerOpMetadata:
-      final (json, blobs) = encodeMetadataWire(BookReader.readMetadataSync(bytes!));
+      final (json, blobs) = encodeMetadataWire(BookDispatch.readMetadataSync(bytes!));
 
       return (kind: wireReplyMetadata, json: json, blobs: blobs);
     case workerOpSearch:
