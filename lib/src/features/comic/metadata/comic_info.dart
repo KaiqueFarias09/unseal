@@ -1,7 +1,7 @@
 import 'package:e_livre/src/foundation/entities/entities.dart';
-
-import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
 import 'package:xml/xml.dart';
+
+import '../../../foundation/metadata/book_metadata_operations.dart';
 
 /// Partial metadata extracted from an embedded `ComicInfo.xml`
 /// (the de-facto ComicRack schema).

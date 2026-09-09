@@ -4,8 +4,9 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
-import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 import 'package:xml/xml.dart';
+
+import '../../../foundation/text/xml_encoding.dart';
 
 /// Upper bound for one uncompressed TXTZ member. This keeps a malformed
 /// archive from forcing the reader to retain an unexpectedly large payload.

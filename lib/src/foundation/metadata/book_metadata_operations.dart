@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import '../entities/entities.dart';
 
 /// Merges [overlay] metadata over [base], Calibre `smart_update`
 /// style: every overlay field that carries a value replaces the base

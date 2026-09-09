@@ -9,7 +9,7 @@ import 'package:e_livre/src/features/mobi/reader/mobi6_markup.dart';
 import 'package:e_livre/src/features/mobi/reader/mobi8_reader.dart';
 import 'package:e_livre/src/features/mobi/reader/mobi_text.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import '../../foundation/images/image_type_sniffer.dart';
 
 class _MobiLayout {
   const _MobiLayout(

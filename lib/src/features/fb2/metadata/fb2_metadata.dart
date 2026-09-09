@@ -4,8 +4,8 @@ import 'package:collection/collection.dart';
 import 'package:xml/xml.dart';
 
 import '../../../foundation/entities/entities.dart';
-import '../../../foundation/utils/metadata_utils.dart';
-import '../../../foundation/utils/xml_encoding.dart';
+import '../../../foundation/metadata/book_metadata_operations.dart';
+import '../../../foundation/text/xml_encoding.dart';
 import '../container/fb2_document.dart';
 import '../resources/fb2_resources.dart';
 

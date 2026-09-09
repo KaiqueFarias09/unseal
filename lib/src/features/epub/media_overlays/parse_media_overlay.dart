@@ -1,6 +1,7 @@
 import 'package:e_livre/src/features/epub/media_overlays/media_overlay.dart';
-import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 import 'package:xml/xml.dart';
+
+import '../../../foundation/archive/archive_access.dart';
 
 /// Parses a SMIL media overlay document (EPUB 3) into flattened,
 /// playback-ordered [OverlaySegment]s.

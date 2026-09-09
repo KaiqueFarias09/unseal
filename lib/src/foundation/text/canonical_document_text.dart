@@ -13,14 +13,14 @@
 /// this foundational representation.
 library;
 
-import 'package:e_livre/src/foundation/entities/file/text_file.dart';
+import '../entities/file/text_file.dart';
 
 /// Extracts the canonical document text of an HTML/XHTML [html]
 /// source.
 ///
 /// Single left-to-right pass over the input, bulk-copying text spans
 /// between markup (like the plain-text utility in
-/// `foundation/utils/plain_text.dart`). The pass reproduces the
+/// `foundation/text/plain_text.dart`). The pass reproduces the
 /// output of the previous seven-pass regex pipeline byte for byte:
 ///
 /// * the `<body>` inner range is extracted first (everything outside

@@ -8,8 +8,8 @@ import 'package:e_livre/src/features/comic/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/comic/metadata/comic_info.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
-import 'package:e_livre/src/foundation/utils/image_size.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import '../../foundation/images/image_dimensions.dart';
+import '../../foundation/images/image_type_sniffer.dart';
 
 /// A comic page candidate extracted from an archive.
 class _Page {

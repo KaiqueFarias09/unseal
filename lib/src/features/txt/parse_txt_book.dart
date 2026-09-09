@@ -5,8 +5,8 @@ import 'package:e_livre/src/features/txt/archive/txtz_archive.dart';
 import 'package:e_livre/src/features/txt/text/txt_document.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
-import 'package:e_livre/src/foundation/utils/image_size.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import '../../foundation/images/image_dimensions.dart';
+import '../../foundation/images/image_type_sniffer.dart';
 
 /// Upper bound for a plain TXT input. The reader keeps the decoded text and
 /// generated HTML in memory, so a bounded failure is safer than an accidental

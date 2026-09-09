@@ -3,8 +3,8 @@ import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/metadata/mobi_language.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
-import 'package:e_livre/src/foundation/utils/image_size.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import '../../../foundation/images/image_dimensions.dart';
+import '../../../foundation/images/image_type_sniffer.dart';
 
 /// Maps a MOBI [header] (+ optional PDB name) into [BookMetadata].
 BookMetadata mobiBookMetadata(

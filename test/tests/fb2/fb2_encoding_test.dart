@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
+import 'package:e_livre/src/foundation/text/xml_encoding.dart';
 import 'package:test/test.dart';
 
 const String pushkinTitle = 'Капитанская дочка';

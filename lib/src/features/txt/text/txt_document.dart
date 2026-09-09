@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
+import '../../../foundation/text/xml_encoding.dart';
 
 /// The result of turning one TXT-family entry into reader HTML.
 final class TxtRenderedDocument {

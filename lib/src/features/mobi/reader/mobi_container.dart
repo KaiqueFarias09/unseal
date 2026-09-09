@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import '../../../foundation/images/image_type_sniffer.dart';
 
 /// A KF8 `CONT` image container record.
 ///

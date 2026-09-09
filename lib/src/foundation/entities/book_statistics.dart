@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/utils/plain_text.dart';
+import '../text/plain_text.dart';
 
 /// Basic reading statistics computed from book content.
 final class BookStatistics {

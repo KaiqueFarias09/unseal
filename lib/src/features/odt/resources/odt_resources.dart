@@ -3,8 +3,8 @@ import 'package:e_livre/src/features/odt/container/odt_package.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/files/book_file_factory.dart';
 import 'package:e_livre/src/foundation/images/cover_helpers.dart';
-import 'package:e_livre/src/foundation/utils/archive_utils.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import '../../../foundation/archive/archive_access.dart';
+import '../../../foundation/images/image_type_sniffer.dart';
 
 /// Binary resources and inventory extracted from an ODT package.
 final class OdtResources {

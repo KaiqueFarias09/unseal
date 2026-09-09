@@ -1,7 +1,7 @@
 import 'package:e_livre/src/features/epub/entities/entities.dart';
 import 'package:e_livre/src/features/epub/package/parse_epub_package.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/utils/rtl_languages.dart';
+import 'package:e_livre/src/foundation/language/rtl_languages.dart';
 import 'package:test/test.dart';
 
 void main() {

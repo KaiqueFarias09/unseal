@@ -1,5 +1,5 @@
 import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/utils/document_text.dart';
+import '../../foundation/text/canonical_document_text.dart';
 
 import 'entities/search_match.dart';
 import 'entities/search_mode.dart';

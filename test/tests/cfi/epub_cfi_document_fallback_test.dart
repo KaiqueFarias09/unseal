@@ -1,5 +1,5 @@
 import 'package:e_livre/src/features/cfi/epub_cfi_document.dart';
-import 'package:e_livre/src/foundation/utils/document_text.dart';
+import 'package:e_livre/src/foundation/text/canonical_document_text.dart';
 import 'package:test/test.dart';
 
 /// Tag-soup sections that the strict XML parser rejects must fall

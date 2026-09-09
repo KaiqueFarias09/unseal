@@ -1,8 +1,8 @@
 import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 
+import '../../../foundation/text/xml_encoding.dart';
 import '../metadata/html_metadata.dart';
 
 /// The decoded HTML content and the values needed by a document book.

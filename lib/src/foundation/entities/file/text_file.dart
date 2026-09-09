@@ -1,5 +1,5 @@
 import 'package:e_livre/src/foundation/entities/file/book_file.dart';
-import 'package:e_livre/src/foundation/utils/plain_text.dart';
+import '../../text/plain_text.dart';
 
 /// Represents a text book file.
 ///

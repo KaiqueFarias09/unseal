@@ -1,6 +1,6 @@
 import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/utils/image_size.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import 'image_dimensions.dart';
+import 'image_type_sniffer.dart';
 
 /// Extracts a cover-like image from a list of image files.
 BinaryFile? firstImageCover(final List<BinaryFile> images) {

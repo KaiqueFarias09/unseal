@@ -1,9 +1,10 @@
 import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/utils/image_size.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
-import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:xml/xml.dart';
+
+import '../../../foundation/images/image_dimensions.dart';
+import '../../../foundation/images/image_type_sniffer.dart';
+import '../../../foundation/text/xml_encoding.dart';
 
 /// Metadata values collected before the source format is applied.
 ///

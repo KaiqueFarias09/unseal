@@ -2,8 +2,9 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/src/features/docx/exceptions/exceptions.dart';
-import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
 import 'package:xml/xml.dart';
+
+import '../../../foundation/text/xml_encoding.dart';
 
 /// Decodes a DOCX ZIP payload while preserving the package error contract.
 Archive decodeDocxZip(final Uint8List bytes) {

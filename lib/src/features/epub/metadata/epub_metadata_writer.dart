@@ -4,8 +4,9 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:e_livre/src/features/epub/container/epub_root_file.dart';
-import 'package:e_livre/src/foundation/utils/sort_keys.dart';
 import 'package:xml/xml.dart';
+
+import '../../../foundation/metadata/sort_keys.dart';
 
 /// The metadata changes to apply to an EPUB file.
 ///

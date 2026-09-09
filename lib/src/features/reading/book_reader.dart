@@ -21,8 +21,8 @@ import 'package:e_livre/src/features/txt/archive/txtz_archive.dart';
 import 'package:e_livre/src/features/txt/parse_txt_book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
-import 'package:e_livre/src/foundation/utils/archive_utils.dart';
-import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
+import '../../foundation/archive/archive_access.dart';
+import '../../foundation/metadata/book_metadata_operations.dart';
 
 // Platform selection: the web default keeps WASM runtimes (where
 // neither dart:html nor dart:io exist) compiling against the stubs,

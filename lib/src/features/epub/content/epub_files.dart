@@ -7,7 +7,7 @@ import 'package:e_livre/src/features/epub/entities/entities.dart';
 import 'package:e_livre/src/foundation/entities/book/files.dart';
 import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
 import 'package:e_livre/src/foundation/entities/file/text_file.dart';
-import 'package:e_livre/src/foundation/utils/archive_utils.dart';
+import '../../../foundation/archive/archive_access.dart';
 
 /// Extracts various types of files from an EPUB archive.
 ///

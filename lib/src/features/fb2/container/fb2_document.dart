@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
-import '../../../foundation/utils/xml_encoding.dart';
+import '../../../foundation/text/xml_encoding.dart';
 import '../exceptions/exceptions.dart';
 
 /// The FB2 XML bytes selected from a plain or ZIP-wrapped input.

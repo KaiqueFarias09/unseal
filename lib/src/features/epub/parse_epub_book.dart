@@ -12,7 +12,7 @@ import 'package:e_livre/src/features/epub/metadata/epub_metadata.dart';
 import 'package:e_livre/src/features/epub/navigation/epub_navigation.dart';
 import 'package:e_livre/src/features/epub/package/parse_epub_package.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/utils/archive_utils.dart';
+import '../../foundation/archive/archive_access.dart';
 
 export 'container/epub_root_file.dart';
 

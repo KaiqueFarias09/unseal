@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:e_livre/src/features/mobi/reader/mobi_font.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import '../../../foundation/images/image_type_sniffer.dart';
 
 /// Resources extracted from a MOBI 6 book.
 class Mobi6Resources {

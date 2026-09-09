@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
+import '../images/image_type_sniffer.dart';
 
 /// A book cover: raw bytes plus the detected image type.
 final class BookCover {

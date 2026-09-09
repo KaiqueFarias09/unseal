@@ -2,9 +2,9 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/utils/archive_utils.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
-import 'package:e_livre/src/foundation/utils/xml_encoding.dart';
+import '../../foundation/archive/archive_access.dart';
+import '../../foundation/images/image_type_sniffer.dart';
+import '../../foundation/text/xml_encoding.dart';
 
 import 'exceptions/html_exception.dart';
 import 'metadata/html_metadata.dart';

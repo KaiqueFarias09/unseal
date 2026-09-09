@@ -2,9 +2,9 @@ import 'package:e_livre/src/features/epub/entities/entities.dart';
 
 import 'package:e_livre/src/foundation/entities/entities.dart';
 
-import 'package:e_livre/src/foundation/utils/image_size.dart';
-import 'package:e_livre/src/foundation/utils/image_sniffer.dart';
-import 'package:e_livre/src/foundation/utils/metadata_utils.dart';
+import '../../../foundation/images/image_dimensions.dart';
+import '../../../foundation/images/image_type_sniffer.dart';
+import '../../../foundation/metadata/book_metadata_operations.dart';
 
 /// Maps an EPUB [package] into the common [BookMetadata].
 ///

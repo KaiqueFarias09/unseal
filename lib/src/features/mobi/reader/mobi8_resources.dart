@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../foundation/entities/entities.dart';
-import '../../../foundation/utils/image_sniffer.dart';
+import '../../../foundation/images/image_type_sniffer.dart';
 import '../header/pdb_header.dart';
 import 'mobi_container.dart';
 import 'mobi_font.dart';

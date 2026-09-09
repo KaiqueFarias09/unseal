@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:xml/xml.dart';
 
 import '../../../foundation/entities/entities.dart';
-import '../../../foundation/utils/image_size.dart';
-import '../../../foundation/utils/image_sniffer.dart';
+import '../../../foundation/images/image_dimensions.dart';
+import '../../../foundation/images/image_type_sniffer.dart';
 
 /// Decoded binary resources and resolved cover of an FB2 document.
 final class Fb2Resources {

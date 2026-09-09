@@ -2,8 +2,9 @@ import 'package:archive/archive.dart';
 import 'package:e_livre/src/features/epub/codec/epub_xml.dart';
 import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/package/parse_epub_package.dart';
-import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 import 'package:xml/xml.dart';
+
+import '../../../foundation/archive/archive_access.dart';
 
 /// Path to the EPUB container description.
 const _containerFilepath = 'META-INF/container.xml';

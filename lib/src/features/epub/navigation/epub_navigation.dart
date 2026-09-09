@@ -4,8 +4,9 @@ import 'package:e_livre/src/features/epub/codec/epub_xml.dart';
 import 'package:e_livre/src/features/epub/entities/entities.dart';
 import 'package:e_livre/src/foundation/entities/navigation/nav_point.dart';
 import 'package:e_livre/src/foundation/entities/navigation/navigation.dart';
-import 'package:e_livre/src/foundation/utils/archive_utils.dart';
 import 'package:xml/xml.dart';
+
+import '../../../foundation/archive/archive_access.dart';
 
 /// Retrieves the navigation (table of contents) of an EPUB.
 ///

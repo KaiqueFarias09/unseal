@@ -7,7 +7,7 @@ import 'package:e_livre/src/features/epub/exceptions/exceptions.dart';
 import 'package:e_livre/src/features/epub/metadata/epub_metadata.dart';
 import 'package:e_livre/src/features/epub/parse_epub_book.dart';
 import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/utils/rtl_languages.dart';
+import '../../../../foundation/language/rtl_languages.dart';
 
 /// A parsed EPUB 2.0 / 3.0 book.
 class EpubBook extends Book implements EpubDocument {

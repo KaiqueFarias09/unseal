@@ -2,7 +2,7 @@ import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:e_livre/src/features/epub/entities/entities.dart';
 import 'package:e_livre/src/foundation/entities/file/binary_file.dart';
-import 'package:e_livre/src/foundation/utils/archive_utils.dart';
+import '../../../foundation/archive/archive_access.dart';
 
 /// Resolves the manifest item that holds the cover image.
 ///
