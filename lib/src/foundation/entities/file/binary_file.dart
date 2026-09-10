@@ -4,8 +4,8 @@ import 'book_file.dart';
 
 /// Represents a binary book file.
 ///
-/// This class extends [BookFile] and adds a [content] field
-/// of type [Uint8List] to hold the binary content of the file.
+/// This class extends [BookFile] and adds a [content] field of type [Uint8List] to hold the binary
+/// content of the file.
 class BinaryFile extends BookFile {
   /// Creates a new [BinaryFile].
   ///

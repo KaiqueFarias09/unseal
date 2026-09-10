@@ -1,7 +1,7 @@
 /// Represents a navigation point (table of contents entry) in a book.
 ///
-/// Each navigation point has a class attribute, an ID, a play order,
-/// a label, a content source, and possibly sub-navigation points.
+/// Each navigation point has a class attribute, an ID, a play order, a label, a content source, and
+/// possibly sub-navigation points.
 class NavPoint {
   /// Creates a new [NavPoint] with the given attributes.
   NavPoint({

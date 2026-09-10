@@ -1,26 +1,19 @@
 /// XML/HTML text-encoding detection and lenient byte decoding.
 ///
-/// The policy mirrors Calibre's `detect_xml_encoding`/`xml_to_unicode`
-/// behaviour (re-expressed from its documented semantics, not copied):
+/// The policy for detecting and decoding XML/HTML text is:
 ///
 /// 1. a byte order mark wins over anything else;
-/// 2. a declared encoding in the first 50 KiB (`<?xml ... ?>` or an
-///    HTML `<meta charset>`/`<meta content>` hint) is honoured as-is —
-///    a *wrong* declaration is not corrected, exactly like Calibre;
-/// 3. with no supported declaration, the bytes are tried as strict
-///    UTF-8 first (Calibre's `assume_utf8` path);
-/// 4. otherwise a lightweight byte-scored detection picks between the
-///    legacy single-byte families that matter for ebooks:
-///    windows-1251 (Cyrillic), windows-1256 (Arabic) and the
+/// 2. a declared encoding in the first 50 KiB (`<?xml ... ?>` or an HTML `<meta charset>`/`<meta
+///    content>` hint) is honored as written, even when the declaration is wrong;
+/// 3. with no supported declaration, the bytes are tried as strict UTF-8 first;
+/// 4. otherwise a lightweight byte-scored detection picks between the legacy single-byte families
+///    that matter for ebooks: windows-1251 (Cyrillic), windows-1256 (Arabic) and the
 ///    windows-1252/latin-1 Western default.
 ///
-/// Decoding never throws: undecodable bytes become U+FFFD replacement
-/// characters, matching Calibre's `decode(..., 'replace')`.
+/// Decoding never throws: undecodable bytes become U+FFFD replacement characters.
 ///
-/// Scope note: full uchardet support (CJK and other multibyte legacy
-/// encodings, KOI8-R, ISO-8859-5, ...) is out of scope — a document in
-/// those encodings degrades to the windows-1252/Western default the
-/// same way Calibre degrades without uchardet installed.
+/// Full detection for CJK and other multibyte encodings, KOI8-R, ISO-8859-5, and similar formats is
+/// out of scope. Unsupported input follows the undeclared-encoding policy.
 library;
 
 import 'dart:convert' as convert;
@@ -29,9 +22,9 @@ import 'dart:typed_data';
 
 /// The text encodings this library can decode XML/HTML bytes with.
 ///
-/// `utf16le`/`utf16be`/`utf32le`/`utf32be` only arise from byte order
-/// marks (or a declaration naming them); the single-byte Windows
-/// codepages additionally back the legacy detection heuristics.
+/// `utf16le`/`utf16be`/`utf32le`/`utf32be` only arise from byte order marks (or a declaration
+/// naming them); the single-byte Windows codepages additionally back the legacy detection
+/// heuristics.
 enum XmlEncoding {
   /// US-ASCII; bytes above 0x7F decode to U+FFFD.
   ascii,
@@ -39,7 +32,7 @@ enum XmlEncoding {
   /// ISO-8859-1; every byte value maps to the same code point.
   latin1,
 
-  /// Windows-1252 (Western European), Calibre's Western default.
+  /// Windows-1252 (Western European), the Western fallback.
   cp1252,
 
   /// Windows-1251 (Cyrillic).
@@ -64,63 +57,58 @@ enum XmlEncoding {
   utf32be,
 }
 
-/// How many leading bytes are scanned for a declared encoding —
-/// Calibre applies its declaration patterns to the first 50 KiB.
-const int _declarationWindowBytes = 50 * 1024;
+/// How many leading bytes are scanned for a declared encoding. Declaration patterns are limited to
+/// the first 50 KiB.
+const _declarationWindowBytes = 50 * 1024;
 
-/// How many bytes feed the legacy single-byte detection. Language
-/// identification needs far less than this; the cap only bounds the
-/// cost on very large documents.
-const int _detectionWindowBytes = 256 * 1024;
+/// How many bytes feed the legacy single-byte detection. Language identification needs far less
+/// than this; the cap only bounds the cost on very large documents.
+const _detectionWindowBytes = 256 * 1024;
 
-/// A document whose sampled bytes are less than 10% high bytes is
-/// treated as predominantly Western/ASCII: single-byte Cyrillic or
-/// Arabic prose is 25-50% high bytes, while accented Latin text
-/// rarely exceeds a few percent.
-const int _westernHighShareDenominator = 10;
+/// A document whose sampled bytes are less than 10% high bytes is treated as predominantly
+/// Western/ASCII: single-byte Cyrillic or Arabic prose is 25-50% high bytes, while accented Latin
+/// text rarely exceeds a few percent.
+const _westernHighShareDenominator = 10;
 
-/// A non-Western candidate must beat the windows-1252 score by this
-/// ratio to override the Western default (integer form: x10 > 11).
-const int _westernPriority = 11;
+/// A non-Western candidate must beat the windows-1252 score by this ratio to override the Western
+/// default (integer form: x10 > 11).
+const _westernPriority = 11;
 
 /// U+FFFD, the replacement character emitted for undecodable bytes.
-const int _replacementRune = 0xFFFD;
+const _replacementRune = 0xFFFD;
 
 /// Detects the text encoding of an XML (or HTML) document.
 ///
-/// See the library documentation for the policy. Never throws; the
-/// returned encoding always produces a replacement-decoded string via
-/// [decodeXmlTextAs].
+/// See the library documentation for the policy. Never throws; the returned encoding always
+/// produces a replacement-decoded string via [decodeXmlTextAs].
 XmlEncoding sniffXmlEncoding(final List<int> bytes) {
   final typed = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
-
   final bom = _bomEncoding(typed);
   if (bom != null) return bom;
 
   final declared = _declaredEncodingName(typed);
-  if (declared != null) {
-    final known = _declaredEncodings[_normalizeEncodingName(declared)];
-    if (known != null) return known;
-    // An unsupported declaration degrades to the undeclared policy,
-    // like Calibre's unlookupable-codec fallback.
-  }
+  if (declared == null) return _sniffUndeclared(typed);
+
+  final known = _declaredEncodings[_normalizeEncodingName(declared)];
+  if (known != null) return known;
+
+  // An unsupported declaration degrades to the undeclared policy instead of raising an error.
 
   return _sniffUndeclared(typed);
 }
 
 /// Decodes [bytes] with the encoding [sniffXmlEncoding] picks.
 ///
-/// Never throws; malformed bytes become U+FFFD. A leading U+FEFF
-/// (byte order mark) is stripped from the result.
+/// Never throws; malformed bytes become U+FFFD. A leading U+FEFF (byte order mark) is stripped from
+/// the result.
 String decodeXmlText(final List<int> bytes) => decodeXmlTextAs(bytes, sniffXmlEncoding(bytes));
 
 /// Decodes [bytes] as [encoding], never throwing.
 ///
-/// Malformed bytes become U+FFFD (lenient UTF-8, replacement for
-/// undefined codepage positions, unpaired surrogates and out-of-range
-/// code units). A leading U+FEFF byte order mark is stripped. Use
-/// this when the encoding was detected once for the whole document
-/// and then applied to slices of it.
+/// Malformed bytes become U+FFFD (lenient UTF-8, replacement for undefined codepage positions,
+/// unpaired surrogates and out-of-range code units). A leading U+FEFF byte order mark is stripped.
+/// Use this when the encoding was detected once for the whole document and then applied to slices
+/// of it.
 String decodeXmlTextAs(final List<int> bytes, final XmlEncoding encoding) {
   final typed = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
   final text = switch (encoding) {
@@ -143,30 +131,26 @@ XmlEncoding? _bomEncoding(final Uint8List bytes) {
   if (bytes.length >= 4 && bytes[0] == 0 && bytes[1] == 0 && bytes[2] == 0xFE && bytes[3] == 0xFF) {
     return XmlEncoding.utf32be;
   }
+
   if (bytes.length >= 4 && bytes[0] == 0xFF && bytes[1] == 0xFE && bytes[2] == 0 && bytes[3] == 0) {
     return XmlEncoding.utf32le;
   }
+
   if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
     return XmlEncoding.utf8;
   }
-  if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) {
-    return XmlEncoding.utf16be;
-  }
-  if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
-    return XmlEncoding.utf16le;
-  }
+  if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) return XmlEncoding.utf16be;
+  if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) return XmlEncoding.utf16le;
 
   return null;
 }
 
-/// Extracts the declared encoding name over the first 50 KiB, or
-/// null. The head is decoded as latin-1 for scanning: XML/HTML
-/// declarations are ASCII, and latin-1 is a lossless byte mapping.
+/// Extracts the declared encoding name over the first 50 KiB, or null. The head is decoded as
+/// latin-1 for scanning: XML/HTML declarations are ASCII, and latin-1 is a lossless byte mapping.
 String? _declaredEncodingName(final Uint8List bytes) {
   final head = String.fromCharCodes(
     Uint8List.sublistView(bytes, 0, math.min(bytes.length, _declarationWindowBytes)),
   );
-
   for (final pattern in _encodingPatterns) {
     final match = pattern.firstMatch(head);
     if (match != null) return match.group(1);
@@ -175,23 +159,23 @@ String? _declaredEncodingName(final Uint8List bytes) {
   return null;
 }
 
-/// Declaration patterns in priority order: the XML declaration, then
-/// the HTML5 `<meta charset>` hint, then the HTML4 content-type hint.
+/// Declaration patterns in priority order: the XML declaration, then the HTML5 `<meta charset>`
+/// hint, then the HTML4 content-type hint.
 final List<RegExp> _encodingPatterns = <RegExp>[
   RegExp(r'''<\?xml[^>]*?encoding\s*=\s*["']([-\w.]+)["']''', caseSensitive: false),
   RegExp(r'''<meta\s[^>]*?charset\s*=\s*["']?([-\w.]+)''', caseSensitive: false),
   RegExp(r'''<meta\s[^>]*?content\s*=\s*["'][^>]*?charset\s*=\s*([-\w.]+)''', caseSensitive: false),
 ];
 
-/// Lowercases and drops `-`/`_`/spaces so `windows-1251`, `WINDOWS_1251`
-/// and `windows1251` share a lookup key.
-String _normalizeEncodingName(final String name) =>
-    name.toLowerCase().replaceAll(RegExp(r'[\s_-]'), '');
+/// Lowercases and drops `-`/`_`/spaces so `windows-1251`, `WINDOWS_1251` and `windows1251` share a
+/// lookup key.
+String _normalizeEncodingName(final String name) {
+  return name.toLowerCase().replaceAll(RegExp(r'[\s_-]'), '');
+}
 
-/// Declarations this decoder can honour, keyed by
-/// [_normalizeEncodingName]. Everything else (koi8-r, shift-jis,
-/// iso-8859-5, ...) falls back to the undeclared policy.
-const Map<String, XmlEncoding> _declaredEncodings = <String, XmlEncoding>{
+/// Declarations this decoder can honour, keyed by [_normalizeEncodingName]. Everything else
+/// (koi8-r, shift-jis, iso-8859-5, ...) falls back to the undeclared policy.
+const _declaredEncodings = <String, XmlEncoding>{
   'utf8': XmlEncoding.utf8,
   'utf16': XmlEncoding.utf16le,
   'utf16le': XmlEncoding.utf16le,
@@ -225,34 +209,33 @@ const Map<String, XmlEncoding> _declaredEncodings = <String, XmlEncoding>{
   'xcp1256': XmlEncoding.cp1256,
 };
 
-/// Calibre's `assume_utf8` policy: without a supported declaration the
-/// bytes are first tried as strict UTF-8, then a NUL-parity check
-/// rescues declaration-less UTF-16 (defensive; BOM-less UTF-16 is not
-/// XML-conformant), then the legacy single-byte detection decides.
+/// Without a supported declaration, the bytes are first tried as strict UTF-8, then a NUL-parity
+/// check rescues declaration-less UTF-16 (defensive; BOM-less UTF-16 is not XML-conformant), and
+/// legacy single-byte detection decides.
 XmlEncoding _sniffUndeclared(final Uint8List bytes) {
   try {
     convert.utf8.decode(bytes);
+
     return XmlEncoding.utf8;
   } on FormatException {
     // Not valid UTF-8; keep sniffing.
   }
-
   final utf16 = _utf16ByNullParity(bytes);
   if (utf16 != null) return utf16;
 
   return _detectLegacySingleByte(bytes);
 }
 
-/// Detects BOM-less UTF-16 by NUL-byte position: Latin/Cyrillic/Arabic
-/// BMP text has a 0x00 high byte on every other byte — odd offsets for
-/// little-endian, even for big-endian. Single-byte encodings never
-/// contain NULs.
+/// Detects BOM-less UTF-16 by NUL-byte position: Latin/Cyrillic/Arabic BMP text has a 0x00 high
+/// byte on every other byte — odd offsets for little-endian, even for big-endian. Single-byte
+/// encodings never contain NULs.
 XmlEncoding? _utf16ByNullParity(final Uint8List bytes) {
   var evenNuls = 0;
   var oddNuls = 0;
   final end = math.min(bytes.length, _detectionWindowBytes);
   for (var i = 0; i < end; i++) {
     if (bytes[i] != 0) continue;
+
     if (i.isEven) {
       evenNuls++;
     } else {
@@ -265,36 +248,37 @@ XmlEncoding? _utf16ByNullParity(final Uint8List bytes) {
   return evenNuls > oddNuls ? XmlEncoding.utf16be : XmlEncoding.utf16le;
 }
 
-/// Scores windows-1251, windows-1256 and windows-1252 against the
-/// sampled byte distribution and picks the best script family.
+/// Scores windows-1251, windows-1256 and windows-1252 against the sampled byte distribution and
+/// picks the best script family.
 ///
-/// Each codepage carries weights in 0..5 per high byte (5 = a very
-/// frequent script letter, 2 = other letters, 1 = typographic
-/// punctuation prose uses, 0 = everything else). The scores are
-/// averaged over the sampled high bytes; windows-1252 wins unless a
-/// Cyrillic/Arabic candidate beats it by a clear margin on a document
-/// that is not predominantly ASCII.
+/// Each codepage carries weights in 0..5 per high byte (5 = a very frequent script letter, 2 =
+/// other letters, 1 = typographic punctuation prose uses, 0 = everything else). The scores are
+/// averaged over the sampled high bytes; windows-1252 wins unless a Cyrillic/Arabic candidate beats
+/// it by a clear margin on a document that is not predominantly ASCII.
 XmlEncoding _detectLegacySingleByte(final Uint8List bytes) {
   final end = math.min(bytes.length, _detectionWindowBytes);
   var high = 0;
   var score1251 = 0;
   var score1252 = 0;
   var score1256 = 0;
+
   for (var i = 0; i < end; i++) {
     final byte = bytes[i];
     if (byte < 0x80) continue;
+
     final index = byte - 0x80;
     high++;
     score1251 += _cp1251Weights[index];
     score1252 += _cp1252Weights[index];
     score1256 += _cp1256Weights[index];
   }
-
   if (high == 0) return XmlEncoding.utf8;
   if (high * _westernHighShareDenominator < end) return XmlEncoding.cp1252;
+
   if (score1251 >= score1256 && score1251 * 10 > score1252 * _westernPriority) {
     return XmlEncoding.cp1251;
   }
+
   if (score1256 > score1251 && score1256 * 10 > score1252 * _westernPriority) {
     return XmlEncoding.cp1256;
   }
@@ -326,18 +310,23 @@ String _decodeUtf16(final Uint8List bytes, {required final bool littleEndian}) {
   while (i + 1 < bytes.length) {
     final unit = littleEndian ? bytes[i] | (bytes[i + 1] << 8) : (bytes[i] << 8) | bytes[i + 1];
     i += 2;
+
     if (unit >= 0xD800 && unit <= 0xDBFF && i + 1 < bytes.length) {
       final low = littleEndian ? bytes[i] | (bytes[i + 1] << 8) : (bytes[i] << 8) | bytes[i + 1];
       if (low >= 0xDC00 && low <= 0xDFFF) {
         out.writeCharCode(0x10000 + ((unit - 0xD800) << 10) + (low - 0xDC00));
         i += 2;
+
         continue;
       }
     }
+
     if (unit >= 0xD800 && unit <= 0xDFFF) {
       out.writeCharCode(_replacementRune);
+
       continue;
     }
+
     out.writeCharCode(unit);
   }
 
@@ -355,19 +344,20 @@ String _decodeUtf32(final Uint8List bytes, {required final bool littleEndian}) {
     final isSurrogate = value >= 0xD800 && value <= 0xDFFF;
     if (value < 0 || value > 0x10FFFF || isSurrogate) {
       out.writeCharCode(_replacementRune);
+
       continue;
     }
+
     out.writeCharCode(value);
   }
 
   return out.toString();
 }
 
-/// windows-1251 byte values (0x80-0xFF) to code points. Only 0x98 is
-/// unassigned in the codepage and maps to U+FFFD; bytes 0xC0-0xFF are
-/// the contiguous А-Яа-я block (U+0410-U+044F), 0xA8/0xB8 are Ё/ё.
-/// Verified against Python's cp1251 codec ground truth.
-const List<int> _cp1251Runes = <int>[
+/// windows-1251 byte values (0x80-0xFF) to code points. Only 0x98 is unassigned in the codepage and
+/// maps to U+FFFD; bytes 0xC0-0xFF are the contiguous А-Яа-я block (U+0410-U+044F), 0xA8/0xB8 are
+/// Ё/ё. Verified against Python's cp1251 codec ground truth.
+const _cp1251Runes = <int>[
   0x0402,
   0x0403,
   0x201A,
@@ -498,10 +488,10 @@ const List<int> _cp1251Runes = <int>[
   0x044F,
 ];
 
-/// windows-1252 byte values (0x80-0xFF) to code points. The five
-/// unassigned bytes 0x81 0x8D 0x8F 0x90 0x9D map to U+FFFD; 0xA0-0xFF
-/// are the latin-1 identity. Verified against Python's cp1252 codec.
-const List<int> _cp1252Runes = <int>[
+/// windows-1252 byte values (0x80-0xFF) to code points. The five unassigned bytes 0x81 0x8D 0x8F
+/// 0x90 0x9D map to U+FFFD; 0xA0-0xFF are the latin-1 identity. Verified against Python's cp1252
+/// codec.
+const _cp1252Runes = <int>[
   0x20AC,
   0xFFFD,
   0x201A,
@@ -632,12 +622,11 @@ const List<int> _cp1252Runes = <int>[
   0x00FF,
 ];
 
-/// windows-1256 byte values (0x80-0xFF) to code points. Every byte is
-/// assigned in this codepage; 0xC1-0xD6 are the contiguous
-/// U+0621-U+0636 Arabic block, with the remaining Arabic/Persian
-/// letters and French slots (à é è ...) scattered across the rest.
-/// Verified against Python's cp1256 codec.
-const List<int> _cp1256Runes = <int>[
+/// windows-1256 byte values (0x80-0xFF) to code points. Every byte is assigned in this codepage;
+/// 0xC1-0xD6 are the contiguous U+0621-U+0636 Arabic block, with the remaining Arabic/Persian
+/// letters and French slots (à é è ...) scattered across the rest. Verified against Python's cp1256
+/// codec.
+const _cp1256Runes = <int>[
   0x20AC,
   0x067E,
   0x201A,
@@ -768,13 +757,11 @@ const List<int> _cp1256Runes = <int>[
   0x06D2,
 ];
 
-/// Detection weights for windows-1251 high bytes (0x80-0xFF): 5 for
-/// the eight most frequent Russian letters (о е а и н т с р, upper-
-/// and lowercase), 2 for other Cyrillic letters (incl. Ё/ё and the
-/// Serbian/Ukrainian national letters), 1 for the typographic
-/// punctuation Russian prose uses (‚ „ … ‘ ’ “ ” – — nbsp « » №),
-/// 0 for the rest.
-const List<int> _cp1251Weights = <int>[
+/// Detection weights for windows-1251 high bytes (0x80-0xFF): 5 for the eight most frequent Russian
+/// letters (о е а и н т с р, upper- and lowercase), 2 for other Cyrillic letters (incl. Ё/ё and the
+/// Serbian/Ukrainian national letters), 1 for the typographic punctuation Russian prose uses (‚ „ …
+/// ‘ ’ “ ” – — nbsp « » №), 0 for the rest.
+const _cp1251Weights = <int>[
   2,
   2,
   1,
@@ -905,13 +892,11 @@ const List<int> _cp1251Weights = <int>[
   2,
 ];
 
-/// Detection weights for windows-1252 high bytes (0x80-0xFF): 4 for
-/// the common West-European accents (à á ä ç è é í ñ ó ö ú ü ß, upper-
-/// and lowercase), 2 for other accented letters and Œ œ Š š Ž ž Ÿ,
-/// 1 for the typographic punctuation and symbols prose uses (curly
-/// quotes, dashes, ellipsis, «», ¡¿, superscripts, currency), 0 for
-/// the five unassigned bytes and × ÷.
-const List<int> _cp1252Weights = <int>[
+/// Detection weights for windows-1252 high bytes (0x80-0xFF): 4 for the common West-European
+/// accents (à á ä ç è é í ñ ó ö ú ü ß, upper- and lowercase), 2 for other accented letters and Œ œ
+/// Š š Ž ž Ÿ, 1 for the typographic punctuation and symbols prose uses (curly quotes, dashes,
+/// ellipsis, «», ¡¿, superscripts, currency), 0 for the five unassigned bytes and × ÷.
+const _cp1252Weights = <int>[
   1,
   0,
   1,
@@ -1042,13 +1027,11 @@ const List<int> _cp1252Weights = <int>[
   2,
 ];
 
-/// Detection weights for windows-1256 high bytes (0x80-0xFF): 5 for
-/// the nine most frequent Arabic letters (ا ل ي م و ن ر ت ب), 2 for
-/// other Arabic/Persian letters, 1 for the punctuation Arabic prose
-/// uses (، ؛ ؟ nbsp « » quotes dashes tatweel marks), 0 for the
-/// harakat vowels (rare outside vocalized texts) and the French
-/// leftover slots real Arabic text never produces.
-const List<int> _cp1256Weights = <int>[
+/// Detection weights for windows-1256 high bytes (0x80-0xFF): 5 for the nine most frequent Arabic
+/// letters (ا ل ي م و ن ر ت ب), 2 for other Arabic/Persian letters, 1 for the punctuation Arabic
+/// prose uses (، ؛ ؟ nbsp « » quotes dashes tatweel marks), 0 for the harakat vowels (rare outside
+/// vocalized texts) and the French leftover slots real Arabic text never produces.
+const _cp1256Weights = <int>[
   0,
   2,
   1,

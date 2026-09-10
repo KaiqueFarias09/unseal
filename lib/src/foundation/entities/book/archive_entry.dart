@@ -1,11 +1,9 @@
 /// A physical entry of a book's container archive.
 ///
-/// The inventory comes from the container itself (e.g. the EPUB zip),
-/// independent of the publication manifest: infrastructure files such
-/// as `META-INF/container.xml` and stray entries show up alongside the
-/// manifest content. Mirrors the container view of Calibre's
-/// `mime_map`. Nothing is parsed — the extracted, typed content files
-/// live in the book's `Files`.
+/// The inventory comes from the container itself (e.g. the EPUB zip), independent of the
+/// publication manifest: infrastructure files such as `META-INF/container.xml` and stray entries
+/// show up alongside the manifest content. The extracted, typed content files live in the book's
+/// `Files`; this class only describes the archive inventory.
 final class ArchiveEntry {
   /// Creates an [ArchiveEntry].
   const ArchiveEntry({required this.path, required this.size});

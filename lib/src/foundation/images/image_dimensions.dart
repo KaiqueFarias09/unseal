@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
-/// The pixel dimensions of an image, read from its header bytes
-/// without decoding the pixel data.
+/// The pixel dimensions of an image, read from its header bytes without decoding the pixel data.
 final class ImageSize {
   /// Creates image dimensions in pixels.
   const ImageSize(this.width, this.height);
@@ -16,8 +15,9 @@ final class ImageSize {
   int get hashCode => Object.hash(width, height);
 
   @override
-  bool operator ==(final Object other) =>
-      other is ImageSize && other.width == width && other.height == height;
+  bool operator ==(final Object other) {
+    return other is ImageSize && other.width == width && other.height == height;
+  }
 
   @override
   String toString() => 'ImageSize(${width}x$height)';
@@ -25,11 +25,11 @@ final class ImageSize {
 
 /// Reads the dimensions of an image from [bytes].
 ///
-/// Supports JPEG, PNG, GIF, BMP and WebP (VP8X/VP8/VP8L headers).
-/// Returns `null` when the format is missing or the header is
-/// truncated.
+/// Supports JPEG, PNG, GIF, BMP and WebP (VP8X/VP8/VP8L headers). Returns `null` when the format is
+/// missing or the header is truncated.
 ImageSize? imageSize(final Uint8List bytes) {
   if (bytes.length < 8) return null;
+
   // PNG: IHDR
   if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
     if (bytes.length < 24) return null;
@@ -38,12 +38,13 @@ ImageSize? imageSize(final Uint8List bytes) {
 
     return ImageSize(view.getUint32(16), view.getUint32(20));
   }
+
   // GIF: logical screen descriptor
   if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
     final view = ByteData.sublistView(bytes);
-
     return ImageSize(view.getUint16(6, Endian.little), view.getUint16(8, Endian.little));
   }
+
   // BMP: DIB header
   if (bytes[0] == 0x42 && bytes[1] == 0x4D) {
     if (bytes.length < 26) return null;
@@ -54,8 +55,10 @@ ImageSize? imageSize(final Uint8List bytes) {
 
     return ImageSize(width, height);
   }
+
   // JPEG: scan SOF markers
   if (bytes[0] == 0xFF && bytes[1] == 0xD8) return _jpegSize(bytes);
+
   // WebP: RIFF container
   if (bytes[0] == 0x52 &&
       bytes[1] == 0x49 &&
@@ -87,11 +90,13 @@ ImageSize? _jpegSize(final Uint8List bytes) {
     0xCE,
     0xCF,
   };
+
   final view = ByteData.sublistView(bytes);
   var i = 2;
   while (i + 4 <= bytes.length) {
     if (bytes[i] != 0xFF) {
       i++;
+
       continue;
     }
 
@@ -99,8 +104,10 @@ ImageSize? _jpegSize(final Uint8List bytes) {
     if (sofMarkers.contains(marker)) {
       return i + 9 > bytes.length ? null : ImageSize(view.getUint16(i + 7), view.getUint16(i + 5));
     }
+
     if (marker == 0xD8 || marker == 0x01 || (marker >= 0xD0 && marker <= 0xD7)) {
       i += 2;
+
       continue;
     }
     if (i + 4 > bytes.length) return null;
@@ -124,8 +131,7 @@ ImageSize? _webpSize(final Uint8List bytes) {
 
       return ImageSize(width + 1, height + 1);
     case 'VP8 ':
-      // Lossy keyframe: 3-byte frame tag, 3-byte start code,
-      // then 14-bit width/height.
+      // Lossy keyframe: 3-byte frame tag, 3-byte start code, then 14-bit width/height.
       if (bytes.length < 30 || bytes[23] != 0x9D || bytes[24] != 0x01 || bytes[25] != 0x2A) {
         return null;
       }

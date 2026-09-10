@@ -40,8 +40,8 @@ BookMetadata htmlMetadata(
   );
 }
 
-/// Reads the common Calibre/OPF metadata fields without requiring a complete
-/// EPUB manifest. TXTZ and HTMLZ use this as a sidecar manifest reader.
+/// Reads common OPF metadata fields without requiring a complete EPUB manifest. It also reads
+/// application-specific OPF `<meta>` properties used by TXTZ and HTMLZ sidecars.
 BookMetadata opfMetadata(
   final List<int> bytes,
   final BookFormat format, {
@@ -66,12 +66,14 @@ BookMetadata opfMetadata(
     final content = (element.getAttribute('content') ?? element.innerText).trim();
     if (name.isNotEmpty && content.isNotEmpty) metaValues[name.toLowerCase()] = content;
   }
+
   final identifierElements = elements.where((final element) => element.name.local == 'identifier');
   final identifiers = <String, String>{};
   var identifierIndex = 0;
   for (final element in identifierElements) {
     final content = element.innerText.trim();
     if (content.isEmpty) continue;
+
     final scheme = element.getAttribute('scheme') ?? element.getAttribute('opf:scheme');
     identifiers[scheme?.toLowerCase() ?? 'identifier-${identifierIndex++}'] = content;
   }

@@ -18,7 +18,6 @@ BinaryFile binaryFile(final String path, final List<int> bytes) {
 /// Creates a typed text entry while keeping the archive-relative path.
 TextFile textFile(final String path, final String content, {final String? type}) {
   final name = path.split('/').last;
-
   return TextFile(
     content: content,
     name: name,

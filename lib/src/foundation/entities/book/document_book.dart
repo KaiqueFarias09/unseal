@@ -48,7 +48,9 @@ class DocumentBook extends Book {
 
   /// Content files in source-defined order, falling back to extraction order.
   @override
-  List<ReadingOrderItem> get readingOrder => order == null
-      ? super.readingOrder
-      : <ReadingOrderItem>[for (final path in order!) ReadingOrderItem(name: path)];
+  List<ReadingOrderItem> get readingOrder {
+    return order == null
+        ? super.readingOrder
+        : <ReadingOrderItem>[for (final path in order!) ReadingOrderItem(name: path)];
+  }
 }

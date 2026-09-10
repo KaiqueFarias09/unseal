@@ -1,12 +1,10 @@
 import '../entities/entities.dart';
 
-/// Merges [overlay] metadata over [base], Calibre `smart_update`
-/// style: every overlay field that carries a value replaces the base
-/// one; base values survive only when the overlay has nothing.
+/// Merges [overlay] metadata over [base] with a field-wise overlay policy: every overlay field that
+/// carries a value replaces the base one; base values survive only when the overlay has nothing.
 ///
-/// Identifiers are merged per key (overlay keys win). The [overlay]
-/// format and cover win only when present; otherwise the base ones
-/// are kept.
+/// Identifiers are merged per key (overlay keys win). The [overlay] format and cover win only when
+/// present; otherwise the base ones are kept.
 BookMetadata mergeBookMetadata(final BookMetadata base, final BookMetadata overlay) {
   return BookMetadata(
     format: overlay.cover != null || overlay.title != null ? overlay.format : base.format,
@@ -31,9 +29,8 @@ BookMetadata mergeBookMetadata(final BookMetadata base, final BookMetadata overl
 
 /// Fills missing title/authors of [metadata] from the file name.
 ///
-/// Mirrors Calibre's fallback pattern: `Title - Author.ext` where the
-/// title part may contain dashes but the author may not. Files that
-/// do not match are returned unchanged.
+/// Mirrors the conventional fallback pattern: `Title - Author.ext` where the title part may contain
+/// dashes but the author may not. Files that do not match are returned unchanged.
 BookMetadata applyFilenameFallback(final BookMetadata metadata, final String filePath) {
   final hasTitle = metadata.title != null && metadata.title!.isNotEmpty;
 

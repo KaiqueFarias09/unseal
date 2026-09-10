@@ -3,8 +3,8 @@ import 'book_file.dart';
 
 /// Represents a text book file.
 ///
-/// This class extends [BookFile] and adds a [content] field
-/// of type [String] to hold the text content of the file.
+/// This class extends [BookFile] and adds a [content] field of type [String] to hold the text
+/// content of the file.
 class TextFile extends BookFile {
   /// Creates a new [TextFile].
   ///
@@ -14,7 +14,7 @@ class TextFile extends BookFile {
   /// The text content of the file.
   final String content;
 
-  /// The readable plain text of [content] (tags stripped, entities
-  /// decoded, whitespace collapsed). Computed on every access.
+  /// The readable plain text of [content] (tags stripped, entities decoded, whitespace collapsed).
+  /// Computed on every access.
   String get plainText => extractPlainText(content);
 }

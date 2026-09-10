@@ -26,7 +26,8 @@ final class BookCover {
   String get mimeType => type.mimeType;
 
   @override
-  String toString() =>
-      'BookCover(type: ${type.name}, bytes: ${bytes.length}, '
-      'size: ${width ?? '?'}x${height ?? '?'})';
+  String toString() {
+    return 'BookCover(type: ${type.name}, bytes: ${bytes.length}, '
+        'size: ${width ?? '?'}x${height ?? '?'})';
+  }
 }

@@ -3,22 +3,26 @@ import 'dart:typed_data';
 /// Adds MIME-type and filename helpers to [ImageType] values.
 extension ImageTypeX on ImageType {
   /// The IANA MIME type for this image format.
-  String get mimeType => switch (this) {
-    ImageType.jpeg => 'image/jpeg',
-    ImageType.png => 'image/png',
-    ImageType.gif => 'image/gif',
-    ImageType.webp => 'image/webp',
-    ImageType.bmp => 'image/bmp',
-  };
+  String get mimeType {
+    return switch (this) {
+      ImageType.jpeg => 'image/jpeg',
+      ImageType.png => 'image/png',
+      ImageType.gif => 'image/gif',
+      ImageType.webp => 'image/webp',
+      ImageType.bmp => 'image/bmp',
+    };
+  }
 
   /// The usual file extension (without leading dot) for this format.
-  String get fileExtension => switch (this) {
-    ImageType.jpeg => 'jpg',
-    ImageType.png => 'png',
-    ImageType.gif => 'gif',
-    ImageType.webp => 'webp',
-    ImageType.bmp => 'bmp',
-  };
+  String get fileExtension {
+    return switch (this) {
+      ImageType.jpeg => 'jpg',
+      ImageType.png => 'png',
+      ImageType.gif => 'gif',
+      ImageType.webp => 'webp',
+      ImageType.bmp => 'bmp',
+    };
+  }
 }
 
 /// Image formats detectable from magic bytes.
@@ -41,8 +45,8 @@ enum ImageType {
 
 /// Detects the image format of [bytes] from its magic bytes.
 ///
-/// Returns `null` when the data does not start with a known image
-/// signature. Only the first bytes of the buffer are inspected.
+/// Returns `null` when the data does not start with a known image signature. Only the first bytes
+/// of the buffer are inspected.
 ImageType? sniffImageType(final Uint8List bytes) {
   final length = bytes.length;
   if (length < 3) return null;

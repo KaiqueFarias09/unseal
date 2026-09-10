@@ -50,7 +50,7 @@ abstract class Book {
   ///
   /// The default is the extraction order of `files.html`; formats with an explicit order (the EPUB
   /// spine) override it, and comics list their pages with `isHtml: false`.
-  List<ReadingOrderItem> get readingOrder => <ReadingOrderItem>[
-    for (final file in files.html) ReadingOrderItem(name: file.path),
-  ];
+  List<ReadingOrderItem> get readingOrder {
+    return <ReadingOrderItem>[for (final file in files.html) ReadingOrderItem(name: file.path)];
+  }
 }

@@ -38,7 +38,7 @@ final class BookMetadata {
   /// The format the metadata was extracted from.
   final BookFormat format;
 
-  /// Tool or person that produced the file (e.g. `calibre (9.4.0)`).
+  /// Tool or person that produced the file, when the source records it.
   final String? bookProducer;
 
   /// Additional identifiers keyed by scheme (e.g. `asin`, `uuid`).
@@ -82,12 +82,13 @@ final class BookMetadata {
   /// one explicitly.
   final String? titleSort;
 
-  /// The title sort key to sort by: [titleSort] read from the file when present, otherwise computed
-  /// Calibre-style from [title] (leading article moved to the end), picking the article list from
-  /// [languages]. Null only without any title.
+  /// The title sort key to use: [titleSort] when present; otherwise, it is computed from [title] by
+  /// moving a leading article to the end and selecting the article list from [languages]. Returns
+  /// null when no title is available.
   String? get effectiveTitleSort {
     final stored = titleSort;
     if (stored != null && stored.isNotEmpty) return stored;
+
     final value = title;
     if (value == null || value.isEmpty) return null;
 
@@ -95,7 +96,7 @@ final class BookMetadata {
   }
 
   /// The author sort key to sort by: [authorSort] read from the file when present, otherwise
-  /// computed Calibre-style from [authors].
+  /// computed from [authors] using the canonical author sort rules.
   String? get effectiveAuthorSort {
     final stored = authorSort;
     if (stored != null && stored.isNotEmpty) return stored;
