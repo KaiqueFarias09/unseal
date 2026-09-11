@@ -4,18 +4,7 @@ library;
 
 /// The ISO 639-2/3 codes recognized as right-to-left: Aramaic, Arabic, Azeri, Hebrew, Dhivehi,
 /// Sorani (Central Kurdish), Syriac, Mandaic, Urdu and Farsi.
-const _rtlIsoCodes = <String>{
-  'ara', // Arabic
-  'heb', // Hebrew
-  'aze', // Azeri
-  'div', // Dhivehi
-  'arc', // Aramaic
-  'syc', // Syriac
-  'myz', // Mandaic
-  'ckb', // Sorani (Central Kurdish)
-  'urd', // Urdu
-  'fas', // Farsi (Persian)
-};
+const _rtlIsoCodes = <String>{'ara', 'heb', 'aze', 'div', 'arc', 'syc', 'myz', 'ckb', 'urd', 'fas'};
 
 /// The ISO 639-1 two-letter forms that canonicalize into the RTL set above (`ar` -> `ara`, `he` ->
 /// `heb`, ...). The other RTL codes have no two-letter form.

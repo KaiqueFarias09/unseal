@@ -1,12 +1,10 @@
-/// Sort-key algorithms for metadata fields that do not include explicit sort values.
+/// Author sort-key algorithms for metadata fields that do not include explicit sort values.
 ///
-/// These functions implement the established `title_sort`, `author_to_author_sort`, and
-/// `remove_bracketed_text` behavior. The implementation preserves byte-for-byte compatibility with
-/// existing computed keys.
+/// These functions implement the established `author_to_author_sort` and `remove_bracketed_text`
+/// behavior. The implementation preserves byte-for-byte compatibility with existing computed keys.
 ///
-/// When a book file omits a sort key, read `BookMetadata.titleSort`/`authorSort` first and fall
-/// back to these functions. The `effectiveTitleSort`/`effectiveAuthorSort` getters apply that
-/// fallback.
+/// When a book file omits an author sort key, read `BookMetadata.authorSort` first and fall back to
+/// these functions. The `effectiveAuthorSort` getter applies that fallback.
 library;
 
 const _authorNameCopywords = {
@@ -28,9 +26,6 @@ const _authorNameCopywords = {
   'Media',
   'Studios',
 };
-
-const _authorNamePrefixes = {'Mr', 'Mrs', 'Ms', 'Dr', 'Prof'};
-
 const _authorNameSuffixes = {
   'Jr',
   'Sr',
@@ -45,151 +40,6 @@ const _authorNameSuffixes = {
   'IV',
   'Junior',
   'Senior',
-};
-
-const _authorSurnamePrefixes = {'da', 'de', 'di', 'la', 'le', 'van', 'von'};
-
-/// Leading articles grouped by language for title sorting.
-const Map<String, List<String>> _titleSortArticles = {
-  'eng': [r'A\s+', r'The\s+', r'An\s+'],
-  'epo': [r'La\s+', r"L'", 'L´'],
-  'spa': [
-    r'El\s+',
-    r'La\s+',
-    r'Lo\s+',
-    r'Los\s+',
-    r'Las\s+',
-    r'Un\s+',
-    r'Una\s+',
-    r'Unos\s+',
-    r'Unas\s+',
-  ],
-  'fra': [
-    r'Le\s+',
-    r'La\s+',
-    r"L'",
-    r'L´',
-    r'L’',
-    r'Les\s+',
-    r'Un\s+',
-    r'Une\s+',
-    r'Des\s+',
-    r'De\s+(La\s+)?',
-    r"D'",
-    r'D´',
-    r'D’',
-  ],
-  'pol': [],
-  'ita': [
-    r'Lo\s+',
-    r'Il\s+',
-    r"L'",
-    r'L´',
-    r'La\s+',
-    r'Gli\s+',
-    r'I\s+',
-    r'Le\s+',
-    r'Uno\s+',
-    r'Un\s+',
-    r'Una\s+',
-    r"Un'",
-    r'Un´',
-    r'Dei\s+',
-    r'Degli\s+',
-    r'Delle\s+',
-    r'Del\s+',
-    r'Della\s+',
-    r'Dello\s+',
-    r"Dell'",
-    r'Dell´',
-  ],
-  'por': [r'A\s+', r'O\s+', r'Os\s+', r'As\s+', r'Um\s+', r'Uns\s+', r'Uma\s+', r'Umas\s+'],
-  'ron': [r'Un\s+', r'O\s+', r'Nişte\s+'],
-  'deu': [
-    r'Der\s+',
-    r'Die\s+',
-    r'Das\s+',
-    r'Den\s+',
-    r'Ein\s+',
-    r'Eine\s+',
-    r'Einen\s+',
-    r'Dem\s+',
-    r'Des\s+',
-    r'Einem\s+',
-    r'Eines\s+',
-  ],
-  'nld': [
-    r'De\s+',
-    r'Het\s+',
-    r'Een\s+',
-    r"'n\s+",
-    r"'s\s+",
-    r'Ene\s+',
-    r'Ener\s+',
-    r'Enes\s+',
-    r'Den\s+',
-    r'Der\s+',
-    r'Des\s+',
-    r"'t\s+",
-  ],
-  'swe': [r'En\s+', r'Ett\s+', r'Det\s+', r'Den\s+', r'De\s+'],
-  'tur': [r'Bir\s+'],
-  'afr': [r"'n\s+", r'Die\s+'],
-  'ell': [
-    r'O\s+',
-    r'I\s+',
-    r'To\s+',
-    r'Ta\s+',
-    r'Tus\s+',
-    r'Tis\s+',
-    r"'Enas\s+",
-    r"'Mia\s+",
-    r"'Ena\s+",
-    r"'Enan\s+",
-  ],
-  'hun': [r'A\s+', r'Az\s+', r'Egy\s+'],
-};
-
-/// Two-letter aliases for [_titleSortArticles] keys.
-const _languageAliases = {
-  'en': 'eng',
-  'eo': 'epo',
-  'es': 'spa',
-  'fr': 'fra',
-  'pl': 'pol',
-  'it': 'ita',
-  'pt': 'por',
-  'ro': 'ron',
-  'de': 'deu',
-  'nl': 'nld',
-  'sv': 'swe',
-  'tr': 'tur',
-  'af': 'afr',
-  'el': 'ell',
-  'hu': 'hun',
-};
-
-/// Cached compiled title-article patterns by canonical language.
-final Map<String, RegExp> _articlePatterns = {};
-
-/// Quote pairs removed before title article sorting.
-const _quotePairs = {
-  '"': ['"'],
-  "'": ["'"],
-  '“': ['”', '“'],
-  '”': ['”', '“'],
-  '„': ['”', '“'],
-  '‚': ['’', '‘'],
-  '’': ['’', '‘'],
-  '‘': ['’', '‘'],
-  '‹': ['›'],
-  '›': ['‹'],
-  '《': ['》'],
-  '〈': ['〉'],
-  '»': ['«', '»'],
-  '«': ['«', '»'],
-  '「': ['」'],
-  '『': ['』'],
 };
 
 /// Determines how a missing author sort key is derived from an author name.
@@ -254,6 +104,9 @@ String authorToAuthorSort(
   final Set<String>? namePrefixes,
   final Set<String>? nameSuffixes,
 }) {
+  const authorNamePrefixes = {'Mr', 'Mrs', 'Ms', 'Dr', 'Prof'};
+  const authorSurnamePrefixes = {'da', 'de', 'di', 'la', 'le', 'van', 'von'};
+
   if (author == null || author.isEmpty) return '';
   if (method == AuthorSortMethod.copy) return author;
 
@@ -269,7 +122,7 @@ String authorToAuthorSort(
       .toSet();
   if (lowerTokens.intersection(effectiveCopywords).isNotEmpty) return author;
 
-  final effectiveSurnamePrefixes = (surnamePrefixes ?? _authorSurnamePrefixes)
+  final effectiveSurnamePrefixes = (surnamePrefixes ?? authorSurnamePrefixes)
       .map((final word) => word.toLowerCase())
       .toSet();
   if (useSurnamePrefixes &&
@@ -278,28 +131,12 @@ String authorToAuthorSort(
     return author;
   }
 
-  final effectiveNamePrefixes = _withDotted((namePrefixes ?? _authorNamePrefixes));
-  var first = -1;
-
-  for (var i = 0; i < tokens.length; i++) {
-    if (!effectiveNamePrefixes.contains(tokens[i].toLowerCase())) {
-      first = i;
-
-      break;
-    }
-  }
+  final effectiveNamePrefixes = _withDotted((namePrefixes ?? authorNamePrefixes));
+  final first = _firstNonMatchingToken(tokens, effectiveNamePrefixes);
   if (first == -1) return author;
 
   final effectiveNameSuffixes = _withDotted((nameSuffixes ?? _authorNameSuffixes));
-  var last = -1;
-
-  for (var i = tokens.length - 1; i >= first; i--) {
-    if (!effectiveNameSuffixes.contains(tokens[i].toLowerCase())) {
-      last = i;
-
-      break;
-    }
-  }
+  var last = _lastNonMatchingToken(tokens, first, effectiveNameSuffixes);
   if (last == -1) return author;
 
   final suffix = tokens.sublist(last + 1).join(' ');
@@ -345,66 +182,20 @@ String authorsToSortString(
       .join(' & ');
 }
 
-/// The leading-article pattern for [lang] (e.g. `en`, `pt-BR`, `deu`), falling back to English
-/// articles for unknown languages.
-RegExp _articlePatternFor(final String? lang) {
-  final key = _canonicalLanguage(lang) ?? 'eng';
-  return _articlePatterns.putIfAbsent(key, () {
-    final articles = _titleSortArticles[key] ?? _titleSortArticles['eng']!;
-    if (articles.isEmpty) return RegExp(r'^$');
-
-    return RegExp('^(${articles.join('|')})', caseSensitive: false);
-  });
-}
-
-String? _canonicalLanguage(final String? lang) {
-  if (lang == null || lang.isEmpty) return null;
-
-  final lowered = lang.toLowerCase();
-  if (_titleSortArticles.containsKey(lowered)) return lowered;
-
-  final alias = _languageAliases[lowered];
-  if (alias != null) return alias;
-
-  for (final entry in _languageAliases.entries) {
-    if (lowered.startsWith(entry.key)) return entry.value;
+int _firstNonMatchingToken(final List<String> tokens, final Set<String> ignored) {
+  for (var i = 0; i < tokens.length; i++) {
+    if (!ignored.contains(tokens[i].toLowerCase())) return i;
   }
 
-  return null;
+  return -1;
 }
 
-String _stripMatchingQuote(final String title) {
-  if (title.isEmpty || !_quotePairs.containsKey(title[0])) return title;
-
-  final closing = _quotePairs[title[0]]!;
-
-  var result = title.substring(1);
-  if (result.isNotEmpty && closing.contains(result[result.length - 1])) {
-    result = result.substring(0, result.length - 1);
+int _lastNonMatchingToken(final List<String> tokens, final int first, final Set<String> ignored) {
+  for (var i = tokens.length - 1; i >= first; i--) {
+    if (!ignored.contains(tokens[i].toLowerCase())) return i;
   }
 
-  return result;
-}
-
-/// Computes the sortable form of a [title], moving a leading article to the end (`The Lord of the
-/// Rings` → `Lord of the Rings, The`).
-///
-/// Applies the established title-sort rules. [lang] selects the article list (e.g. `en`, `pt-BR`,
-/// `deu`); unknown languages use the English article list.
-String titleSort(final String title, {final String? lang}) {
-  var result = title.trim();
-  result = _stripMatchingQuote(result);
-
-  final match = _articlePatternFor(lang).firstMatch(result);
-  if (match == null) return result.trim();
-
-  final prep = match.group(1)!;
-  if (prep.isNotEmpty) {
-    result = '${result.substring(prep.length)}, $prep';
-    result = _stripMatchingQuote(result);
-  }
-
-  return result.trim();
+  return -1;
 }
 
 Set<String> _withDotted(final Set<String> words) {

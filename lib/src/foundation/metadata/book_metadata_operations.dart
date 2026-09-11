@@ -55,11 +55,6 @@ BookMetadata applyFilenameFallback(final BookMetadata metadata, final String fil
   );
 }
 
-/// Parses a series index such as `2`, `2.5` or `0,5`.
-double? parseSeriesIndex(final String? raw) {
-  return raw == null ? null : double.tryParse(raw.trim().replaceAll(',', '.'));
-}
-
 String _basenameWithoutExtension(final String filePath) {
   final slash = filePath.lastIndexOf('/');
   final base = slash == -1 ? filePath : filePath.substring(slash + 1);

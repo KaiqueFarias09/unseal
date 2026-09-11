@@ -2,11 +2,11 @@
 /// `<body>`, with entities decoded and whitespace kept as-is.
 ///
 /// A WebView-based reader walks the DOM text nodes rooted at `<body>` (skipping `script`/`style`)
-/// and concatenates them; [documentText] mirrors that exactly on the HTML source: everything
-/// outside `<body>` (head, title, doctype) contributes nothing, entities are decoded in a single
-/// pass (like the HTML parser), tags and comments contribute nothing, whitespace is kept as-is.
-/// Char offsets in this space are stable across reflow and match the DOM on the WebView side —
-/// search, CFI and reading positions all share this foundational representation.
+/// and concatenates them; [DocumentTextScanner.scan] mirrors that exactly on the HTML source:
+/// everything outside `<body>` (head, title, doctype) contributes nothing, entities are decoded in
+/// a single pass (like the HTML parser), tags and comments contribute nothing, whitespace is kept
+/// as-is. Char offsets in this space are stable across reflow and match the DOM on the WebView side
+/// — search, CFI and reading positions all share this foundational representation.
 library;
 
 import '../entities/file/text_file.dart';
@@ -57,7 +57,7 @@ const _namedEntities = <String, String>{
 /// Memoized document text keyed by [TextFile] instance.
 final Expando<String> _documentTextCache = Expando<String>();
 
-/// Extracts the canonical document text of an HTML/XHTML [html] source.
+/// Scans an HTML/XHTML source into the canonical document-text space.
 ///
 /// Single left-to-right pass over the input, bulk-copying text spans between markup (like the
 /// plain-text utility in `foundation/text/plain_text.dart`). The pass reproduces the output of the
@@ -67,10 +67,10 @@ final Expando<String> _documentTextCache = Expando<String>();
 ///   pipeline kept the text between the first `<body …>` and the *last* `</body>`);
 /// * complete `<script>`/`<style>` blocks, comments and CDATA sections are removed, with the
 ///   priority and per-rule input view of the old sequential passes — e.g. a script block is removed
-///   even when it sits inside what would later have been a comment, and a `-->` inside a CDATA
-///   section does not end a comment. A CDATA section collapses to the two characters `$1` — an
-///   artifact of the old `replaceAll(…, r'$1')` whose replacement Dart does not interpolate — and
-///   must stay for offset stability;
+///   even when it sits inside what would later have been a comment; a `-->` inside a CDATA section
+///   does not end a comment. A CDATA section collapses to the two characters `$1` — an artifact of
+///   the old `replaceAll(…, r'$1')` whose replacement Dart does not interpolate — and must stay for
+///   offset stability;
 /// * `<` opens a tag only before an ASCII letter or `/` (HTML5 tokenizer rule — the same view a
 ///   WebView DOM takes); elsewhere (`a < b > c`) it stays literal text. Declarations (`<!…>`) and
 ///   tags (`<…>`) run to the next effective `>`, and a `<` left with no effective `>` ahead stays
@@ -81,188 +81,182 @@ final Expando<String> _documentTextCache = Expando<String>();
 ///   markup still decodes (`&am<p></p>p;` → `&`), which the scanner reproduces by keeping a pending
 ///   entity across removed spans;
 /// * whitespace is kept as-is.
-String documentText(final String html) {
-  const ampersand = 0x26;
-  const hash = 0x23;
-  const lowerX = 0x78;
-  const upperX = 0x58;
-  const semicolon = 0x3B;
-  const dollar = 0x24;
-  const digitOne = 0x31;
-  const slash = 0x2F;
-  const question = 0x3F;
+///
+/// Scans one body range while keeping the state needed to decode entities across removed markup.
+final class DocumentTextScanner {
+  /// Creates a scanner for [html].
+  DocumentTextScanner(final String html) : _html = html, _units = html.codeUnits;
 
-  final units = html.codeUnits;
-  final (start, end) = _bodyRange(units);
-  final out = StringBuffer();
+  static const _ampersand = 0x26;
+  static const _hash = 0x23;
+  static const _lowerX = 0x78;
+  static const _upperX = 0x58;
+  static const _semicolon = 0x3B;
+  static const _dollar = 0x24;
+  static const _digitOne = 0x31;
+  static const _slash = 0x2F;
+  static const _question = 0x3F;
 
-  // Pending entity state: characters collected after a live '&' (the body without '&' and ';').
-  // Removed markup is transparent to it, mirroring the old pipeline where entities were matched on
-  // the final stripped string.
-  final pending = <int>[];
-  var isPending = false;
+  final String _html;
+  final List<int> _units;
+  final StringBuffer _out = StringBuffer();
+  final List<int> _pending = <int>[];
+  var _isPending = false;
+  var _isTagExhausted = false;
+  var _isStreamExhausted = false;
 
-  void flushPending() {
-    out.writeCharCode(ampersand);
-    out.write(String.fromCharCodes(pending));
-    pending.clear();
-    isPending = false;
-  }
+  /// Returns the canonical text after removing markup and decoding supported entities.
+  String scan() {
+    final (start, end) = _bodyRange(_units);
+    var i = start;
+    while (i < end) {
+      final unit = _units[i];
+      if (unit == _lessThan) {
+        final next = _consumeLessThan(i, end);
+        if (next != i) {
+          i = next;
 
-  // Ends a pending entity with the ';': decodes it, or keeps the whole `&…;` literal when
-  // [decodeEntity] rejects it.
-  void completePending() {
-    final body = String.fromCharCodes(pending);
-    final decoded = decodeEntity(body);
-    if (decoded == null) {
-      flushPending();
-      out.writeCharCode(semicolon);
-    } else {
-      out.write(decoded);
-      pending.clear();
-      isPending = false;
+          continue;
+        }
+
+        _writeUnit(unit);
+        i++;
+
+        continue;
+      }
+
+      if (unit == _ampersand) {
+        if (_isPending) _flushPending();
+        _isPending = true;
+        _pending.clear();
+        i++;
+
+        continue;
+      }
+
+      if (_isPending) {
+        _feedUnit(unit);
+        i++;
+
+        continue;
+      }
+
+      i = _writePlainRun(i, end);
     }
+    if (_isPending) _flushPending();
+
+    return _out.toString();
   }
 
-  // Feeds one live text character into the pending entity. Invalid characters flush the pending
-  // text literally and are reprocessed as plain text (or start a fresh entity when they are
-  // themselves an '&').
-  void feedUnit(final int unit) {
-    final length = pending.length;
-    final isNumeric = length > 0 && pending.first == hash;
-    final isHex = isNumeric && length > 1 && (pending[1] == lowerX || pending[1] == upperX);
+  int _consumeLessThan(final int start, final int end) {
+    final block = _scriptBlockEnd(_units, start, end);
+    if (block != -1) return block;
 
+    if (_startsWith(_units, start + 1, _commentOpen)) {
+      final close = _commentEnd(_units, start, end);
+      if (close != -1) return close;
+    }
+
+    if (_startsWith(_units, start + 1, _cdataOpen)) {
+      final close = _cdataEnd(_units, start, end);
+
+      if (close != -1) {
+        _writeUnit(_dollar);
+        _writeUnit(_digitOne);
+
+        return close;
+      }
+    }
+    final isDeclaration = start + 1 < end && _units[start + 1] == _bang;
+    if (isDeclaration && !_isStreamExhausted) {
+      final gt = _findGtEnding(_units, start + 2, end, isDeclarationSkipping: false);
+      if (gt != -1) return gt + 1;
+
+      _isStreamExhausted = true;
+      _isTagExhausted = true;
+    }
+    final next = start + 1 < end ? _units[start + 1] : -1;
+    final opensTag = _isAlpha(next) || next == _slash || next == _question;
+    if (!_isTagExhausted && opensTag) {
+      final gt = _findGtEnding(_units, start + 1, end, isDeclarationSkipping: true);
+      if (gt != -1) return gt + 1;
+
+      _isTagExhausted = true;
+    }
+
+    return start;
+  }
+
+  int _writePlainRun(final int start, final int end) {
+    var runEnd = start + 1;
+    while (runEnd < end) {
+      final next = _units[runEnd];
+      if (next == _lessThan || next == _ampersand) break;
+
+      runEnd++;
+    }
+    _out.write(_html.substring(start, runEnd));
+
+    return runEnd;
+  }
+
+  void _feedUnit(final int unit) {
+    final length = _pending.length;
+    final isNumeric = length > 0 && _pending.first == _hash;
+    final isHex = isNumeric && length > 1 && (_pending[1] == _lowerX || _pending[1] == _upperX);
     final closesEntity =
-        unit == semicolon && ((!isNumeric && length > 0) || (isNumeric && length > 1));
+        unit == _semicolon && ((!isNumeric && length > 0) || (isNumeric && length > 1));
     if (closesEntity) {
-      completePending();
+      _completePending();
       return;
     }
 
     final canAppend = switch (length) {
-      0 => unit == hash || _isAlpha(unit),
-      1 when isNumeric => unit == lowerX || unit == upperX || _isDigit(unit),
+      0 => unit == _hash || _isAlpha(unit),
+      1 when isNumeric => unit == _lowerX || unit == _upperX || _isDigit(unit),
       _ when isHex => _isHexUnit(unit) && length - 2 < 6,
       _ when isNumeric => _isDigit(unit) && length - 1 < 7,
       _ => _isAlphanumeric(unit) && length < 32,
     };
     if (canAppend) {
-      pending.add(unit);
+      _pending.add(unit);
       return;
     }
 
-    // Not part of the entity grammar: flush and reprocess.
-    flushPending();
-    if (unit == ampersand) {
-      isPending = true;
+    _flushPending();
+    if (unit == _ampersand) {
+      _isPending = true;
     } else {
-      out.writeCharCode(unit);
+      _out.writeCharCode(unit);
     }
   }
 
-  // Writes one live text character, resolving a pending entity first so output order is preserved.
-  void writeUnit(final int unit) {
-    if (isPending) flushPending();
-    out.writeCharCode(unit);
+  void _completePending() {
+    final decoded = decodeEntity(String.fromCharCodes(_pending));
+
+    if (decoded == null) {
+      _flushPending();
+      _out.writeCharCode(_semicolon);
+
+      return;
+    }
+
+    _out.write(decoded);
+    _pending.clear();
+    _isPending = false;
   }
 
-  // Lookahead failure flags. A failed tag scan means no effective '>' is left for tags;
-  // declarations may still close on their own '>'. A failed declaration scan means no '>' is left
-  // in the stream at all, so neither can match anymore.
-  var isTagExhausted = false;
-  var isStreamExhausted = false;
-
-  var i = start;
-  while (i < end) {
-    final unit = units[i];
-    if (unit == _lessThan) {
-      // Pass 1: complete <script>/<style> blocks.
-      final block = _scriptBlockEnd(units, i, end);
-      if (block != -1) {
-        i = block;
-
-        continue;
-      }
-      // Pass 2: comments (an unterminated '<!--' falls through).
-      if (_startsWith(units, i + 1, _commentOpen)) {
-        final close = _commentEnd(units, i, end);
-        if (close != -1) {
-          i = close;
-
-          continue;
-        }
-      }
-      // Pass 3: CDATA sections collapse to the literal `$1`.
-      if (_startsWith(units, i + 1, _cdataOpen)) {
-        final close = _cdataEnd(units, i, end);
-        if (close != -1) {
-          writeUnit(dollar);
-          writeUnit(digitOne);
-          i = close;
-
-          continue;
-        }
-      }
-      // Pass 4: declarations '<!…>' up to the next effective '>'.
-      final isDeclaration = i + 1 < end && units[i + 1] == _bang;
-      if (isDeclaration && !isStreamExhausted) {
-        final gt = _findGtEnding(units, i + 2, end, isDeclarationSkipping: false);
-        if (gt != -1) {
-          i = gt + 1;
-
-          continue;
-        }
-        isStreamExhausted = true;
-        isTagExhausted = true;
-      }
-      // Pass 5: tags '<…>' up to the next effective '>' (declarations were already removed at that
-      // point, so their '>' does not count). HTML5 tokenizer rule: '<' only opens a tag before an
-      // ASCII letter or '/'; before anything else (digit, whitespace, another '<', end of input) it
-      // is literal text — a browser DOM keeps 'a < b > c' intact, so the offset space does too.
-      final next = i + 1 < end ? units[i + 1] : -1;
-      final opensTag = _isAlpha(next) || next == slash || next == question;
-      if (!isTagExhausted && opensTag) {
-        final gt = _findGtEnding(units, i + 1, end, isDeclarationSkipping: true);
-        if (gt != -1) {
-          i = gt + 1;
-
-          continue;
-        }
-        isTagExhausted = true;
-      }
-      // Unterminated '<' or a '<' that opens no tag: literal text.
-      writeUnit(unit);
-      i++;
-
-      continue;
-    }
-    if (unit == ampersand) {
-      if (isPending) flushPending();
-      isPending = true;
-      pending.clear();
-      i++;
-
-      continue;
-    }
-    if (isPending) {
-      feedUnit(unit);
-      i++;
-
-      continue;
-    }
-    // Plain run: bulk-copy up to the next '<' or '&'.
-    var runEnd = i + 1;
-    while (runEnd < end) {
-      final next = units[runEnd];
-      if (next == _lessThan || next == ampersand) break;
-      runEnd++;
-    }
-    out.write(html.substring(i, runEnd));
-    i = runEnd;
+  void _flushPending() {
+    _out.writeCharCode(_ampersand);
+    _out.write(String.fromCharCodes(_pending));
+    _pending.clear();
+    _isPending = false;
   }
-  if (isPending) flushPending();
 
-  return out.toString();
+  void _writeUnit(final int unit) {
+    if (_isPending) _flushPending();
+    _out.writeCharCode(unit);
+  }
 }
 
 /// Returns the `(start, end)` range of the `<body>` inner source: the text after the first opening
@@ -301,10 +295,11 @@ String documentText(final String html) {
   }
 }
 
-/// Index right after a complete `<script>…</script>` / `<style>…</style>` span starting at [start],
-/// or `-1` when [start] opens no such block. Mirrors the old `<(script|style)\b[^>]*>.*?</\1>` with
-/// `dotAll` + `caseSensitive: false`: the name matches case-insensitively (so the backreference
-/// close does too), and the closing tag is the *first* one after the opening tag's `'>'`.
+/// Index right after a complete `<script>…</script>` / `<style>…</style>` span starting at [start].
+/// Returns `-1` when [start] opens no such block. Mirrors the old `<(script|style)\b[^>]*>.*?</\1>`
+/// with `dotAll` + `caseSensitive: false`: the name matches case-insensitively (so the
+/// backreference close does too), and the closing tag is the *first* one after the opening tag's
+/// `'>'`.
 int _scriptBlockEnd(final List<int> units, final int start, final int end) {
   const scriptName = <int>[0x73, 0x63, 0x72, 0x69, 0x70, 0x74];
   const styleName = <int>[0x73, 0x74, 0x79, 0x6C, 0x65];
@@ -467,7 +462,7 @@ String documentTextOf(final TextFile file) {
   final cached = _documentTextCache[file];
   if (cached != null) return cached;
 
-  final computed = documentText(file.content);
+  final computed = DocumentTextScanner(file.content).scan();
   _documentTextCache[file] = computed;
 
   return computed;

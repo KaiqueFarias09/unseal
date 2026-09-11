@@ -1,3 +1,8 @@
+part 'plain_text_writer.dart';
+
+const _greaterThan = 0x3E;
+
+/// Named entities recognized while extracting plain text.
 const _namedEntities = <String, String>{
   '&nbsp;': ' ',
   '&amp;': '&',
@@ -7,16 +12,6 @@ const _namedEntities = <String, String>{
   '&#39;': "'",
   '&apos;': "'",
 };
-
-const _greaterThan = 0x3E;
-const _space = 0x20;
-
-const _commentOpen = <int>[0x21, 0x2D, 0x2D]; // !--
-const _commentClose = <int>[0x2D, 0x2D, 0x3E]; // -->
-const _scriptName = <int>[0x73, 0x63, 0x72, 0x69, 0x70, 0x74];
-const _styleName = <int>[0x73, 0x74, 0x79, 0x6C, 0x65];
-const _scriptClose = <int>[0x3C, 0x2F, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x3E];
-const _styleClose = <int>[0x3C, 0x2F, 0x73, 0x74, 0x79, 0x6C, 0x65, 0x3E];
 
 /// Extracts the readable plain text out of an HTML/XHTML document.
 ///
@@ -38,29 +33,7 @@ String extractPlainText(final String html) {
 
   final units = html.codeUnits;
   final length = units.length;
-  final buffer = StringBuffer();
-  var isPendingSpace = false;
-  // Leading markup/whitespace is trimmed, so a pending space only flushes once real content has
-  // been emitted.
-  var isStarted = false;
-
-  // Decoded entities may themselves be whitespace (&#32;), so they go through the same collapse
-  // rule as literal characters.
-  void writeDecoded(final String text) {
-    for (var i = 0; i < text.length; i++) {
-      final codeUnit = text.codeUnitAt(i);
-      if (_isWhitespace(codeUnit)) {
-        isPendingSpace = true;
-      } else {
-        if (isPendingSpace) {
-          if (isStarted) buffer.writeCharCode(_space);
-          isPendingSpace = false;
-        }
-        isStarted = true;
-        buffer.writeCharCode(codeUnit);
-      }
-    }
-  }
+  final writer = _PlainTextWriter();
 
   var i = 0;
   while (i < length) {
@@ -68,7 +41,7 @@ String extractPlainText(final String html) {
     if (codeUnit == lessThan) {
       final after = _consumeMarkup(units, i);
       if (after > i) {
-        isPendingSpace = true;
+        writer.markPendingSpace();
         i = after;
 
         continue;
@@ -76,13 +49,13 @@ String extractPlainText(final String html) {
     } else if (codeUnit == ampersand) {
       final entity = _decodeEntity(html, units, i);
       if (entity != null) {
-        writeDecoded(entity.$1);
+        writer.writeDecoded(entity.$1);
         i += entity.$2;
 
         continue;
       }
     } else if (_isWhitespace(codeUnit)) {
-      isPendingSpace = true;
+      writer.markPendingSpace();
       i++;
 
       continue;
@@ -95,35 +68,28 @@ String extractPlainText(final String html) {
         if (next == lessThan || next == ampersand || _isWhitespace(next)) break;
         end++;
       }
-      if (isPendingSpace) {
-        if (isStarted) buffer.writeCharCode(_space);
-        isPendingSpace = false;
-      }
-      isStarted = true;
-      buffer.write(html.substring(i, end));
+      writer.writeText(html.substring(i, end));
       i = end;
 
       continue;
     }
 
     // A lone '<' that opens no markup, or an '&' that opens no known entity: one literal character.
-    if (isPendingSpace) {
-      if (isStarted) buffer.writeCharCode(_space);
-      isPendingSpace = false;
-    }
-    isStarted = true;
-    buffer.writeCharCode(codeUnit);
+    writer.writeUnit(codeUnit);
     i++;
   }
   // String.trim covers a few edge characters (e.g. U+0085) beyond the RegExp \s set collapsed
   // above, matching the previous implementation's final `.replaceAll(\s+, ' ').trim()`.
 
-  return buffer.toString().trim();
+  return writer.finish();
 }
 
 /// Returns the index right after the markup starting at [start], or [start] itself when the '<'
 /// opens no markup.
 int _consumeMarkup(final List<int> units, final int start) {
+  const commentOpen = <int>[0x21, 0x2D, 0x2D]; // !--
+  const commentClose = <int>[0x2D, 0x2D, 0x3E]; // -->
+
   // <script ...>...</script> / <style ...>...</style>: the closing tag must match the opening name
   // case-insensitively.
   final block = _blockElementLength(units, start);
@@ -131,9 +97,9 @@ int _consumeMarkup(final List<int> units, final int start) {
 
   // <!-- comment -->: without a closing '-->' the comment pattern never matches and the generic tag
   // rule takes over below.
-  if (_startsWith(units, start + 1, _commentOpen)) {
-    final close = _indexOf(units, start + 4, _commentClose);
-    if (close != -1) return close + _commentClose.length;
+  if (_startsWith(units, start + 1, commentOpen)) {
+    final close = _indexOf(units, start + 4, commentClose);
+    if (close != -1) return close + commentClose.length;
   }
 
   // Any other tag: from '<' up to and including the first '>'.
@@ -147,11 +113,16 @@ int _consumeMarkup(final List<int> units, final int start) {
 /// Index right after a `<script>...</script>` / `<style>...</style>` span starting at [start], or
 /// `null` when [start] opens no such block.
 int? _blockElementLength(final List<int> units, final int start) {
-  final isScript = _matchesName(units, start + 1, _scriptName);
-  if (!isScript && !_matchesName(units, start + 1, _styleName)) return null;
+  const scriptName = <int>[0x73, 0x63, 0x72, 0x69, 0x70, 0x74];
+  const styleName = <int>[0x73, 0x74, 0x79, 0x6C, 0x65];
+  const scriptClose = <int>[0x3C, 0x2F, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x3E];
+  const styleClose = <int>[0x3C, 0x2F, 0x73, 0x74, 0x79, 0x6C, 0x65, 0x3E];
 
-  final name = isScript ? _scriptName : _styleName;
-  final closing = isScript ? _scriptClose : _styleClose;
+  final isScript = _matchesName(units, start + 1, scriptName);
+  if (!isScript && !_matchesName(units, start + 1, styleName)) return null;
+
+  final name = isScript ? scriptName : styleName;
+  final closing = isScript ? scriptClose : styleClose;
   final afterName = start + 1 + name.length;
   // \b: the name must not run into another word character.
   if (afterName < units.length && _isWordUnit(units[afterName])) return null;
@@ -234,7 +205,8 @@ bool _matchesName(final List<int> units, final int at, final List<int> lowerName
 /// The RegExp `\s` set (ECMAScript): ASCII whitespace, NBSP, Zs category separators, line/paragraph
 /// separators and ZWNBSP.
 bool _isWhitespace(final int codeUnit) {
-  return codeUnit == _space ||
+  const space = 0x20;
+  return codeUnit == space ||
       (codeUnit >= 0x09 && codeUnit <= 0x0D) ||
       codeUnit == 0xA0 ||
       codeUnit == 0x1680 ||
@@ -304,79 +276,4 @@ int _indexOfIgnoreCase(final List<int> units, final int from, final List<int> lo
   }
 
   return -1;
-}
-
-/// Counts words in [text] according to the reader's compatibility rule for reading-time estimates.
-///
-/// Two rules combine into one count:
-///
-/// * every Asian code point — anything strictly above U+3000 — counts exactly one word. Chinese,
-///   Japanese and Korean characters carry no spaces, so per-character counting is the only
-///   meaningful estimate for them. The ideographic space U+3000 itself is *not* Asian (it is
-///   whitespace); and
-/// * the remaining text is whitespace-split the way Python's `str.split` splits (the ASCII
-///   whitespace set plus NBSP, the Unicode separator ranges and the ideographic space), so Latin
-///   and other spaced scripts keep their word count.
-///
-/// The following quirks are intentional so reading statistics stay stable across implementations:
-///
-/// * CJK punctuation (、。「」…) sits above U+3000 and therefore also counts one word per mark — a mild
-///   over-count;
-/// * space-less scripts such as Thai, Lao or Khmer stay whitespace-split, so a whole unbroken run
-///   counts as one word — an under-count;
-/// * astral code points (emoji, rare hanzi) are above U+3000 too and count one word each.
-int countWords(final String text) {
-  const ideographicSpace = 0x3000;
-
-  final units = text.codeUnits;
-  final length = units.length;
-  var nonAsianWords = 0;
-  var asianChars = 0;
-  var isInWord = false;
-  var i = 0;
-  while (i < length) {
-    var rune = units[i];
-    // Decode surrogate pairs so an astral code point counts once, not twice; a lone surrogate falls
-    // through with its own — Asian — code unit value.
-    if (_isHighSurrogate(rune) && i + 1 < length && _isLowSurrogate(units[i + 1])) {
-      rune = 0x10000 + ((rune - 0xD800) << 10) + (units[i + 1] - 0xDC00);
-      i += 2;
-    } else {
-      i++;
-    }
-    if (rune > ideographicSpace) {
-      asianChars++;
-      isInWord = false;
-    } else if (_isSplitWhitespace(rune)) {
-      isInWord = false;
-    } else if (!isInWord) {
-      isInWord = true;
-      nonAsianWords++;
-    }
-  }
-
-  return nonAsianWords + asianChars;
-}
-
-bool _isHighSurrogate(final int unit) => unit >= 0xD800 && unit <= 0xDBFF;
-
-bool _isLowSurrogate(final int unit) => unit >= 0xDC00 && unit <= 0xDFFF;
-
-/// The whitespace set Python's `str.split` splits on, restricted to code points at or below U+3000
-/// because everything above counts as Asian anyway. This is not the ECMAScript `\s` set used by
-/// [extractPlainText]: this set adds the file/group/record/unit separators and NEL, and drops
-/// ZWNBSP, so [countWords] matches the text reader's whitespace-splitting behavior.
-bool _isSplitWhitespace(final int rune) {
-  return rune == 0x20 ||
-      (rune >= 0x09 && rune <= 0x0D) ||
-      (rune >= 0x1C && rune <= 0x1F) ||
-      rune == 0x85 ||
-      rune == 0xA0 ||
-      rune == 0x1680 ||
-      (rune >= 0x2000 && rune <= 0x200A) ||
-      rune == 0x2028 ||
-      rune == 0x2029 ||
-      rune == 0x202F ||
-      rune == 0x205F ||
-      rune == 0x3000;
 }

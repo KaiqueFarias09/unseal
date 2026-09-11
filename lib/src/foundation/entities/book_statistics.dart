@@ -1,4 +1,4 @@
-import '../text/plain_text.dart';
+import '../text/word_count.dart';
 
 /// Basic reading statistics computed from book content.
 final class BookStatistics {

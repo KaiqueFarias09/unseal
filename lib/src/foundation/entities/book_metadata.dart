@@ -1,4 +1,5 @@
-import '../metadata/sort_keys.dart' as sort_keys;
+import '../metadata/sort_keys.dart';
+import '../metadata/title_sort.dart';
 import 'book_cover.dart';
 import 'book_format.dart';
 
@@ -92,7 +93,7 @@ final class BookMetadata {
     final value = title;
     if (value == null || value.isEmpty) return null;
 
-    return sort_keys.titleSort(value, lang: languages.isEmpty ? null : languages.first);
+    return computeTitleSortKey(value, language: languages.isEmpty ? null : languages.first);
   }
 
   /// The author sort key to sort by: [authorSort] read from the file when present, otherwise
@@ -102,7 +103,7 @@ final class BookMetadata {
     if (stored != null && stored.isNotEmpty) return stored;
     if (authors.isEmpty) return null;
 
-    return sort_keys.authorsToSortString(authors);
+    return authorsToSortString(authors);
   }
 
   /// Returns a copy with the provided fields replaced.
