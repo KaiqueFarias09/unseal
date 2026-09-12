@@ -12,11 +12,15 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  # VM lane: formatting, static analysis and the full `dart test` suite on
+  # the Dart VM. The four `test/web/*_test.dart` files are annotated
+  # `@TestOn('browser')`, so the VM runner skips them automatically and they
+  # are exercised exclusively by the `chrome` lane below.
+  vm:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # Note: This workflow uses the latest stable version of the Dart SDK.
       # You can specify other versions if desired, see documentation here:
@@ -27,16 +31,28 @@ jobs:
       - name: Install dependencies
         run: dart pub get
 
-      # Uncomment this step to verify the use of 'dart format' on each commit.
-      # - name: Verify formatting
-      #   run: dart format --output=none --set-exit-if-changed .
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
 
-      # Consider passing '--fatal-infos' for slightly stricter analysis.
       - name: Analyze project source
-        run: dart analyze
+        run: dart analyze --fatal-infos
 
-      # Your project will need to have tests in test/ and a dependency on
-      # package:test for this step to succeed. Note that Flutter projects will
-      # want to change this to 'flutter test'.
-      - name: Run tests
+      - name: Run VM tests
         run: dart test
+
+  # Browser lane: the four `@TestOn('browser')` files under test/web/ are
+  # compiled with dart2js and executed in Chrome. ubuntu-latest runners ship
+  # Google Chrome preinstalled, which the test runner discovers on PATH.
+  chrome:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@9a04e6d73cca37bd455e0608d7e5092f881fd603
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Run browser-only tests in Chrome
+        run: dart test -p chrome test/web/
