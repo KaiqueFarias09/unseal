@@ -18,6 +18,15 @@ Future<void> runMetadataBenchmarks() async {
     group.add(
       'BookReader.readMetadataSync — ${fixture.label}',
       () => BookReader.readMetadataSync(fixture.bytes),
+      fixtureId: fixture.fixtureId,
+    );
+  }
+  for (final fixture in asyncParsingFixtures) {
+    await group.addAsync(
+      'BookReader.readMetadataFromBytes — ${fixture.label}',
+      () => BookReader.readMetadataFromBytes(fixture.bytes),
+      fixtureId: fixture.fixtureId,
+      note: 'async-only format · isolate spawn + byte copy included',
     );
   }
 

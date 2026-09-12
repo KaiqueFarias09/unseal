@@ -1,5 +1,10 @@
 // Benchmarks for the public format detection API:
 // [detectFormat] and [refineMobiFormat].
+//
+// The detection group iterates every parsing fixture — the classic
+// fixtures plus the 15-fixture format matrix — so all 16 [BookFormat]
+// values are measured; the closing coverage scenario fails the run if
+// a format ever loses its fixture.
 
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
@@ -13,8 +18,27 @@ import 'fixtures.dart';
 void runDetectionBenchmarks() {
   final group = BenchmarkGroup('Format detection');
   for (final fixture in parsingFixtures) {
-    group.add('detectFormat — ${fixture.label}', () => detectFormat(fixture.bytes));
+    group.add(
+      'detectFormat — ${fixture.label}',
+      () => detectFormat(fixture.bytes),
+      fixtureId: fixture.fixtureId,
+    );
   }
-  group.add('refineMobiFormat — ${mobi6Alice.label}', () => refineMobiFormat(mobi6Alice.bytes));
-  group.add('refineMobiFormat — ${mobi8Alice.label}', () => refineMobiFormat(mobi8Alice.bytes));
+  for (final fixture in asyncParsingFixtures) {
+    group.add(
+      'detectFormat — ${fixture.label}',
+      () => detectFormat(fixture.bytes),
+      fixtureId: fixture.fixtureId,
+    );
+  }
+  group.add(
+    'refineMobiFormat — ${mobi6Alice.label}',
+    () => refineMobiFormat(mobi6Alice.bytes),
+    fixtureId: mobi6Alice.fixtureId,
+  );
+  group.add(
+    'refineMobiFormat — ${mobi8Alice.label}',
+    () => refineMobiFormat(mobi8Alice.bytes),
+    fixtureId: mobi8Alice.fixtureId,
+  );
 }
