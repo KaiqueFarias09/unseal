@@ -10,6 +10,8 @@
 
 import 'dart:io';
 
+import 'json_report.dart';
+
 /// The action a benchmark measures. Returns its last result so the
 /// harness can consume it.
 typedef BenchmarkAction = Object? Function();
@@ -23,6 +25,7 @@ final class BenchmarkResult {
   BenchmarkResult({
     required this.name,
     required this.iterations,
+    required this.warmupIterations,
     required this.note,
     required final List<double> samples,
   }) : samples = _sortedCopy(samples);
@@ -33,6 +36,9 @@ final class BenchmarkResult {
   /// How many times the action ran in total (inner runs included for
   /// batched benchmarks).
   final int iterations;
+
+  /// Untimed warm-up / calibration runs that preceded the samples.
+  final int warmupIterations;
 
   /// Optional trailing note shown in the extra column.
   final String? note;
@@ -129,6 +135,10 @@ BenchmarkResult runBenchmark(
   return _runPerIteration(name, action, effectiveBudget, probeMicros, note);
 }
 
+/// Untimed runs before the timed samples of [runBenchmark]: three JIT
+/// warm-ups plus three calibration probes.
+const int calibratedWarmupIterations = 6;
+
 BenchmarkResult _runBatched(
   final String name,
   final BenchmarkAction action,
@@ -152,8 +162,13 @@ BenchmarkResult _runBatched(
     samples.add(batch.elapsedMicroseconds / inner);
     runs += inner;
   } while (total.elapsed < budget && samples.length < 500);
-
-  return BenchmarkResult(name: name, iterations: runs, note: note, samples: samples);
+  return BenchmarkResult(
+    name: name,
+    iterations: runs,
+    warmupIterations: calibratedWarmupIterations,
+    note: note,
+    samples: samples,
+  );
 }
 
 BenchmarkResult _runPerIteration(
@@ -178,8 +193,13 @@ BenchmarkResult _runPerIteration(
     watch.stop();
     samples.add(watch.elapsedMicroseconds.toDouble());
   }
-
-  return BenchmarkResult(name: name, iterations: iterations, note: note, samples: samples);
+  return BenchmarkResult(
+    name: name,
+    iterations: iterations,
+    warmupIterations: calibratedWarmupIterations,
+    note: note,
+    samples: samples,
+  );
 }
 
 /// Measures an asynchronous [action] a fixed number of times — used
@@ -191,7 +211,7 @@ Future<BenchmarkResult> runAsyncBenchmark(
   final String? note,
 }) async {
   final count = iterations ?? (quickMode ? 3 : 5);
-  _consume(await action()); // Warm-up.
+  _consume(await action()); // Warm-up (one untimed run).
   final samples = <double>[];
   final watch = Stopwatch();
   for (var i = 0; i < count; i++) {
@@ -202,8 +222,13 @@ Future<BenchmarkResult> runAsyncBenchmark(
     watch.stop();
     samples.add(watch.elapsedMicroseconds.toDouble());
   }
-
-  return BenchmarkResult(name: name, iterations: count, note: note, samples: samples);
+  return BenchmarkResult(
+    name: name,
+    iterations: count,
+    warmupIterations: 1,
+    note: note,
+    samples: samples,
+  );
 }
 
 /// Measures the *first* access to a lazy member (e.g. `Book.statistics`
@@ -232,8 +257,13 @@ BenchmarkResult runFirstAccessBenchmark<T>(
     _consume(result);
     samples.add(watch.elapsedMicroseconds.toDouble());
   }
-
-  return BenchmarkResult(name: name, iterations: instances, note: note, samples: samples);
+  return BenchmarkResult(
+    name: name,
+    iterations: instances,
+    warmupIterations: 1,
+    note: note,
+    samples: samples,
+  );
 }
 
 void _consume(final Object? value) => _sink = Object.hash(_sink, value);
@@ -254,17 +284,22 @@ final class BenchmarkGroup {
   bool _headerPrinted = false;
 
   /// Adds a synchronous benchmark to the group.
+  ///
+  /// [fixtureId] tags the measured fixture in the JSON report (its
+  /// stable public id, e.g. a corpus-manifest id); rows without a
+  /// fixture record an empty id.
   void add(
     final String name,
     final BenchmarkAction action, {
     final int? inputBytes,
     final String? note,
+    final String? fixtureId,
   }) {
     if (!matchesFilter('$title — $name')) return;
 
     _printHeaderOnce();
     final result = runBenchmark(name, action, note: note);
-    printResult(result, inputBytes: inputBytes);
+    _emit(result, inputBytes: inputBytes, fixtureId: fixtureId);
   }
 
   /// Adds an asynchronous benchmark to the group.
@@ -273,12 +308,13 @@ final class BenchmarkGroup {
     final AsyncBenchmarkAction action, {
     final int? inputBytes,
     final String? note,
+    final String? fixtureId,
   }) async {
     if (!matchesFilter('$title — $name')) return;
 
     _printHeaderOnce();
     final result = await runAsyncBenchmark(name, action, note: note);
-    printResult(result, inputBytes: inputBytes);
+    _emit(result, inputBytes: inputBytes, fixtureId: fixtureId);
   }
 
   /// Adds a lazy first-access benchmark to the group.
@@ -288,17 +324,42 @@ final class BenchmarkGroup {
     final T Function() createInstance,
     final Object? Function(T instance) access, {
     final String? note,
+    final String? fixtureId,
   }) {
     if (!matchesFilter('$title — $name')) return;
 
     _printHeaderOnce();
     final result = runFirstAccessBenchmark<T>(name, count, createInstance, access, note: note);
-    printResult(result);
+    _emit(result, fixtureId: fixtureId);
+  }
+
+  /// One output step per measurement: the human table row (unless the
+  /// run is in JSON-only mode) plus the JSON contract record.
+  void _emit(final BenchmarkResult result, {final int? inputBytes, final String? fixtureId}) {
+    if (!jsonSuppression) {
+      printResult(result, inputBytes: inputBytes);
+    }
+    recordResult(
+      suite: suiteName,
+      scenario: '$title — ${result.name}',
+      iterations: result.iterations,
+      warmup: result.warmupIterations,
+      medianMicros: result.median,
+      p95Micros: result.p95,
+      checksum: sinkChecksum,
+      fixtureId: fixtureId ?? '',
+      sizeBytes: inputBytes ?? 0,
+      meanMicros: result.mean,
+      minMicros: result.min,
+      maxMicros: result.max,
+      note: result.note,
+    );
   }
 
   void _printHeaderOnce() {
-    if (_headerPrinted) return;
-
+    if (_headerPrinted || jsonSuppression) {
+      return;
+    }
     _headerPrinted = true;
     printGroupHeader(title);
   }
@@ -306,6 +367,9 @@ final class BenchmarkGroup {
 
 /// Prints the banner shown once at the start of a run.
 void printBanner() {
+  if (jsonSuppression) {
+    return;
+  }
   stdout
     ..writeln('eLivre public API benchmarks')
     ..writeln(
@@ -314,7 +378,7 @@ void printBanner() {
     )
     ..writeln(
       'Usage: dart run benchmark/e_livre_benchmarks.dart '
-      '[--filter=<text>] [--quick]',
+      '[--filter=<text>] [--quick] [--json[=<path>]]',
     );
 }
 
@@ -350,6 +414,9 @@ void printResult(final BenchmarkResult result, {final int? inputBytes}) {
 
 /// Prints the run summary shown after every group has run.
 void printFooter(final Duration total) {
+  if (jsonSuppression) {
+    return;
+  }
   stdout
     ..writeln()
     ..writeln(

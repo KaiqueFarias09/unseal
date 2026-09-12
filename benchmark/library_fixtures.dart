@@ -11,6 +11,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'benchmark_harness.dart' show formatBytes;
+import 'json_report.dart' show jsonSuppression;
 
 /// The supported real-book file extensions.
 const Set<String> _bookExtensions = <String>{'.epub', '.mobi', '.azw3', '.fb2'};
@@ -55,6 +56,9 @@ String? get libraryRoot => _libraryRoot;
 
 /// Prints the standard skip note for groups that need the real corpus.
 void skipLibraryGroup(final String groupLabel) {
+  if (jsonSuppression) {
+    return;
+  }
   stdout.writeln(
     '[$groupLabel] skipped — set ELIVRE_BENCH_LIBRARY to a Calibre '
     'library root to enable the real-corpus benchmarks.',
