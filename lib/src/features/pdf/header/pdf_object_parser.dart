@@ -1,6 +1,12 @@
 import 'dart:typed_data';
 
+import '../exceptions/pdf_exception.dart';
 import 'pdf_object.dart';
+
+/// Maximum PDF object nesting (arrays inside dictionaries inside
+/// arrays…) the parser tolerates. Real documents nest a handful of
+/// levels; anything beyond this cap is hostile by construction.
+const int maxPdfObjectNestingDepth = 64;
 
 /// Parses single PDF objects out of a document's raw bytes.
 ///
@@ -28,6 +34,8 @@ class PdfObjectParser {
   final int? Function(PdfDictionary dictionary)? _streamLengthOf;
 
   int _pos = 0;
+
+  int _nestingDepth = 0;
 
   /// Reads the `num gen obj` header at [offset].
   ///
@@ -108,6 +116,22 @@ class PdfObjectParser {
   }
 
   PdfObject _parseValue() {
+    // Bounded recursion: deep arrays/dictionaries are the classic
+    // stack-overflow fuzz vector, so the nesting depth is capped.
+    if (++_nestingDepth > maxPdfObjectNestingDepth) {
+      throw const PdfException(
+        'PDF object nesting exceeds the maximum depth of '
+        '$maxPdfObjectNestingDepth.',
+      );
+    }
+    try {
+      return _parseValueBounded();
+    } finally {
+      _nestingDepth--;
+    }
+  }
+
+  PdfObject _parseValueBounded() {
     _skipSpace();
     if (_atEnd()) return const PdfNull();
 
