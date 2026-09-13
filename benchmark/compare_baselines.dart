@@ -43,6 +43,16 @@ Future<void> main(final List<String> arguments) async {
   if (baseline['suite'] != current['suite']) {
     stdout.writeln('warning: suites differ (${baseline['suite']} vs ${current['suite']}).');
   }
+  if (baseline['platform'] != current['platform']) {
+    stdout
+      ..writeln(
+        'refusing to compare: platforms differ '
+        '(${baseline['platform']} vs ${current['platform']}).',
+      )
+      ..writeln('Benchmark numbers are machine-dependent by design.');
+    exitCode = 2;
+    return;
+  }
 
   final baselineRows = _index(baseline, filter);
   final currentRows = _index(current, filter);
