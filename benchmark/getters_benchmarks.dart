@@ -60,16 +60,19 @@ void runGetterBenchmarks() {
   group.add(
     'statistics — cached (${epubSmall.shortLabel})',
     () => epub.statistics,
+    processedBytes: 0,
     note: 'memoized late final',
   );
   group.add(
     'statistics — cached (${mobi6Alice.shortLabel})',
     () => mobi6.statistics,
+    processedBytes: 0,
     note: 'memoized late final',
   );
   group.add(
     'statistics — cached (${mobi8Alice.shortLabel})',
     () => mobi8.statistics,
+    processedBytes: 0,
     note: 'memoized late final',
   );
 
@@ -86,6 +89,7 @@ void runGetterBenchmarks() {
   group.add(
     'chapters — cached (${mobi6Alice.shortLabel})',
     () => mobi6.chapters,
+    processedBytes: 0,
     note: 'memoized late final',
   );
 

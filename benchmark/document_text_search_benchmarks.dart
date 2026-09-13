@@ -69,6 +69,7 @@ void _runDocumentTextGroup() {
     group.add(
       'documentTextOf — cached (same chapter)',
       () => documentTextOf(html),
+      processedBytes: 0,
       note: 'memoized Expando<TextFile> hit',
     );
     group.add(
@@ -119,6 +120,7 @@ void _addRealCorpusSectionBenchmarks(final BenchmarkGroup group) {
     '(${formatBytes(_htmlContentLength(book))})',
     () => <Object>[for (final section in sections) documentTextOf(section)],
     inputBytes: _htmlContentLength(book),
+    processedBytes: 0,
     note: 'memo hits over ${sections.length} sections',
   );
 }

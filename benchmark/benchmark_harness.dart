@@ -292,6 +292,7 @@ final class BenchmarkGroup {
     final String name,
     final BenchmarkAction action, {
     final int? inputBytes,
+    final int? processedBytes,
     final String? note,
     final String? fixtureId,
   }) {
@@ -299,7 +300,7 @@ final class BenchmarkGroup {
 
     _printHeaderOnce();
     final result = runBenchmark(name, action, note: note);
-    _emit(result, inputBytes: inputBytes, fixtureId: fixtureId);
+    _emit(result, inputBytes: inputBytes, processedBytes: processedBytes, fixtureId: fixtureId);
   }
 
   /// Adds an asynchronous benchmark to the group.
@@ -307,6 +308,7 @@ final class BenchmarkGroup {
     final String name,
     final AsyncBenchmarkAction action, {
     final int? inputBytes,
+    final int? processedBytes,
     final String? note,
     final String? fixtureId,
   }) async {
@@ -314,7 +316,7 @@ final class BenchmarkGroup {
 
     _printHeaderOnce();
     final result = await runAsyncBenchmark(name, action, note: note);
-    _emit(result, inputBytes: inputBytes, fixtureId: fixtureId);
+    _emit(result, inputBytes: inputBytes, processedBytes: processedBytes, fixtureId: fixtureId);
   }
 
   /// Adds a lazy first-access benchmark to the group.
@@ -335,9 +337,19 @@ final class BenchmarkGroup {
 
   /// One output step per measurement: the human table row (unless the
   /// run is in JSON-only mode) plus the JSON contract record.
-  void _emit(final BenchmarkResult result, {final int? inputBytes, final String? fixtureId}) {
+  ///
+  /// [processedBytes] separates the bytes a timed body REALLY traversed
+  /// from the logical [inputBytes]: an O(1) cache hit passes 0 so no
+  /// misleading MB/s rate is reported anywhere.
+  void _emit(
+    final BenchmarkResult result, {
+    final int? inputBytes,
+    final int? processedBytes,
+    final String? fixtureId,
+  }) {
+    final cacheHit = processedBytes != null && processedBytes == 0;
     if (!jsonSuppression) {
-      printResult(result, inputBytes: inputBytes);
+      printResult(result, inputBytes: cacheHit ? null : inputBytes);
     }
     recordResult(
       suite: suiteName,
@@ -349,6 +361,7 @@ final class BenchmarkGroup {
       checksum: sinkChecksum,
       fixtureId: fixtureId ?? '',
       sizeBytes: inputBytes ?? 0,
+      processedBytes: processedBytes,
       meanMicros: result.mean,
       minMicros: result.min,
       maxMicros: result.max,

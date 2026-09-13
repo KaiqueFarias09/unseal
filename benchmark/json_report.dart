@@ -91,11 +91,12 @@ void recordResult({
   required final int checksum,
   final String fixtureId = '',
   final int sizeBytes = 0,
+  final int? processedBytes,
   final double? meanMicros,
   final double? minMicros,
   final double? maxMicros,
   final String? note,
-  final String? error,
+  final Object? error,
 }) {
   final failed = error != null;
   if (failed) {
@@ -103,6 +104,10 @@ void recordResult({
   }
   final median = _round(medianMicros);
   // Map insertion order IS the stable key order of the contract.
+  // sizeBytes is the LOGICAL input size; processedBytes records how
+  // many bytes the timed body actually traversed (absent for whole-
+  // input work, 0 for O(1) cache hits — never report a throughput
+  // that was not really earned).
   _records.add(<String, Object?>{
     'schemaVersion': 1,
     'suite': suite,
@@ -118,7 +123,8 @@ void recordResult({
     'p95Micros': _round(p95Micros),
     'throughputPerSecond': median > 0 ? _round(1e6 / median) : 0.0,
     'checksum': checksum,
-    'status': failed ? 'error' : 'ok',
+    'status': failed ? 'fail' : 'ok',
+    'processedBytes': ?processedBytes,
     if (meanMicros != null) 'meanMicros': _round(meanMicros),
     if (minMicros != null) 'minMicros': _round(minMicros),
     if (maxMicros != null) 'maxMicros': _round(maxMicros),
@@ -138,8 +144,8 @@ Map<String, Object?> _envelope() {
     'sdk': sdkVersion,
     'commit': commitId,
     'quickMode': quickModeEnabled,
-    'status': ok ? 'ok' : 'error',
-    if (runError != null) 'error': runError,
+    'status': ok ? 'ok' : 'fail',
+    if (runError != null) 'error': {'type': runError},
     'results': _records,
   };
 }
@@ -147,6 +153,17 @@ Map<String, Object?> _envelope() {
 /// Read access to the records collected so far (for tools that embed
 /// the contract records into their own envelopes).
 List<Map<String, Object?>> collectedRecords() => List.of(_records);
+
+/// Clears all run state (records, failure flags, output mode). Test
+/// support only: production entry points run one report per process.
+void resetForTest() {
+  _records.clear();
+  _anyScenarioFailed = false;
+  attemptedScenarios = 0;
+  runError = null;
+  jsonMode = JsonMode.off;
+  jsonOutputPath = null;
+}
 
 /// Writes the accumulated report to the configured destination.
 ///
