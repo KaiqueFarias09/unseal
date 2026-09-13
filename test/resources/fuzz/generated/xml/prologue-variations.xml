@@ -1,0 +1,9 @@
+<?xml-stylesheet type="text/css" href="style.css"?>
+<!-- leading comment -->
+<container>
+  <item id="ogsop8">value</item>
+  <nested xmlns:extra="urn:example:extra" extra:flag="true">
+    <deep>text with	tabs and
+newlines</deep>
+  </nested>
+</container>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <book-title>tatig vepapu</book-title>
+      <author><first-name>tofo</first-name><last-name>magika</last-name></author>
+    </title-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Entities: &amp; &lt; &gt; &apos; &quot; &#65; &#x42;</p></title>
+      <p>Attribute xlink: "<a l:href="#note1">ref</a>"</p>
+      <p><![CDATA[raw <markup> & symbols inside cdata]]></p>
+      <!-- a comment with <angle> brackets -->
+      <empty-line/>
+    </section>
+  </body>
+</FictionBook>

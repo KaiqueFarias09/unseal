@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="uid" xml:lang="en">
+  <metadata>
+    <dc:identifier id="uid">urn:uuid:it9gdx0z-0000</dc:identifier>
+    <dc:title xml:lang="en">fuvuvac zemu</dc:title>
+    <dc:creator id="creator">furos peniv</dc:creator>
+    <meta refines="#creator" property="role" scheme="marc:relators">aut</meta>
+    <meta property="dcterms:modified">2026-01-01T00:00:00Z</meta>
+  </metadata>
+  <manifest>
+    <item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="c1"/>
+  </spine>
+</package>

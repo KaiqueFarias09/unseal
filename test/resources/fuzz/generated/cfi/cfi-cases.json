@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "seed": 42,
+  "valid": [
+    {
+      "cfi": "epubcfi(/6/4!/4)",
+      "expectValid": true,
+      "note": "indirection to bare element path"
+    },
+    {
+      "cfi": "epubcfi(/6/4!/4/4/1:40)",
+      "expectValid": true,
+      "note": "element step then odd text-offset step"
+    },
+    {
+      "cfi": "epubcfi(/6/4!/4/4/1:0)",
+      "expectValid": true,
+      "note": "zero character offset"
+    },
+    {
+      "cfi": "epubcfi(/6/4[spine4]!/4[body]/4[p4]/1:40)",
+      "expectValid": true,
+      "note": "id assertions on multiple steps"
+    },
+    {
+      "cfi": "epubcfi(/6/4!/4/4[we^^ird^[p4^]^;]/1:40)",
+      "expectValid": true,
+      "note": "escaped ^ [ ] ; characters inside an id assertion"
+    },
+    {
+      "cfi": "epubcfi(/6/4!/4,/6/4!/4/4/1:1,/6/4!/4/4/1:40)",
+      "expectValid": true,
+      "note": "three-part range with shared ancestor"
+    },
+    {
+      "cfi": "epubcfi(/6/4!/4/4/1:0,/6/2!/4/2/1:5)",
+      "expectValid": true,
+      "note": "two-part range spanning two spine documents"
+    },
+    {
+      "cfi": "epubcfi(/6/4!/4,/6/4!/4/4/1:40,/6/4!/4/4/1:40)",
+      "expectValid": true,
+      "note": "range whose start and end collapse to a point"
+    },
+    {
+      "cfi": "epubcfi(/6/4!/4/2/4/6/1:40)",
+      "expectValid": true,
+      "note": "deeply nested element path"
+    }
+  ],
+  "malformed": [
+    {
+      "cfi": "pubcfi(/6/4!/4)",
+      "expectValid": false,
+      "note": "missing opening wrapper character"
+    },
+    {
+      "cfi": "epubcfi(/6/4!/4))",
+      "expectValid": false,
+      "note": "unbalanced closing parenthesis"
+    },
+    {
+      "cfi": "epubCfi(/6/4!/4)",
+      "expectValid": false,
+      "note": "scheme is case-sensitive"
+    },
+    {
+      "cfi": "epubcfi(/6/4!/4/4)",
+      "expectValid": false,
+      "note": "odd step missing its colon and offset"
+    },
+    {
+      "cfi": "epubcfi()",
+      "expectValid": false,
+      "note": "empty path"
+    },
+    {
+      "cfi": "epubcfi(/6/3!/4)",
+      "expectValid": false,
+      "note": "odd step addressing a spine document"
+    },
+    {
+      "cfi": "epubcfi(/6/4[spine4]!/4[body]/4[p4]/1:40)",
+      "expectValid": false,
+      "note": "indirection marker replaced by assertion"
+    },
+    {
+      "cfi": "epubcfi(/6/4[spine4]!/4[body]/4[p4]/1:40)",
+      "expectValid": false,
+      "note": "unescaped closing bracket inside assertion"
+    },
+    {
+      "cfi": "epubcfi(64!4)",
+      "expectValid": false,
+      "note": "steps without leading slashes"
+    }
+  ]
+}

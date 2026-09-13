@@ -1,0 +1,10 @@
+<?xml version="1.0" standalone="yes"?>
+<!DOCTYPE book [
+  <!ELEMENT book (title,para+)>
+  <!ENTITY publisher "zemifo Press">
+  <!ENTITY long "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+]>
+<book>
+  <title>Internal &publisher; entity</title>
+  <para>lucanede &long; tail.</para>
+</book>
