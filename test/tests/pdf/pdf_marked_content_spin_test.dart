@@ -25,15 +25,7 @@ import 'pdf_fixture_builder.dart';
 /// bytes. The deterministic signature is the dropped text; the perf
 /// guard bounds the spin cost.
 void main() {
-  group(
-    // Skipped only while the fix lands in a separate commit; the fix
-    // commit removes the skip. Pre-fix failure signature, measured:
-    // text after the first property dictionary is dropped and ten
-    // fixture pages burn ~1.09 s (~109 ms/page), matching the
-    // outlier's per-page cost.
-    'PDF marked-content property dictionaries (BDC/DP)',
-    skip: 'repro committed before the fix; unskipped by the fix commit',
-    () {
+  group('PDF marked-content property dictionaries (BDC/DP)', () {
     test('content after a <hex>>> property dictionary is still extracted', () {
       final book = parsePdfBook(markedContentFixture().build());
 

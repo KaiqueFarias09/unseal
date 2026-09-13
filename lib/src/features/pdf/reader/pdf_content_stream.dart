@@ -868,6 +868,16 @@ final class _ContentLexer {
     final keyword = String.fromCharCodes(bytes, start, _pos);
     if (keyword == 'BI') _skipInlineImage();
 
+    if (keyword.isEmpty && _pos < bytes.length) {
+      // A delimiter the token shapes above cannot classify (a stray
+      // `>` from a mis-nested marked-content dictionary, a `)` or
+      // `]` in unexpected context): consume it so the interpreter
+      // always makes progress. Returning without advancing would
+      // spin here until the token budget burns (~108 ms per stream
+      // measured) and abort the rest of the content.
+      _pos++;
+    }
+
     return keyword;
   }
 
@@ -977,8 +987,12 @@ final class _ContentLexer {
   }
 
   /// Consumes a dictionary body up to its closing `>>`; content
-  /// streams only carry these inside inline images (skipped
-  /// wholesale), so the entries themselves are not kept.
+  /// streams only carry these inside inline images and marked-content
+  /// property lists (skipped wholesale), so the entries themselves
+  /// are not kept. Hex strings `<...>` and literal strings `(...)`
+  /// are skipped as units so their closing delimiters cannot be
+  /// mis-paired with the dictionary's own `>>` — the Tagged-PDF shape
+  /// `/Span<</ActualText<FEFF0044>>> BDC` must leave nothing behind.
   Map<String, Object?> _dictionary() {
     var depth = 1;
     while (!_atEnd() && depth > 0) {
@@ -991,6 +1005,31 @@ final class _ContentLexer {
       if (byte == 0x3E && _pos + 1 < bytes.length && bytes[_pos + 1] == 0x3E) {
         depth--;
         _pos += 2;
+        continue;
+      }
+      if (byte == 0x3C) {
+        // Hex string: skip to its own closing `>`.
+        _pos++;
+        while (!_atEnd() && bytes[_pos] != 0x3E) {
+          _pos++;
+        }
+        _pos++;
+        continue;
+      }
+      if (byte == 0x28) {
+        // Literal string: skip balanced parentheses with escapes.
+        _pos++;
+        var depth2 = 1;
+        while (!_atEnd() && depth2 > 0) {
+          final b = bytes[_pos];
+          if (b == 0x5C) {
+            _pos += 2;
+            continue;
+          }
+          if (b == 0x28) depth2++;
+          if (b == 0x29) depth2--;
+          _pos++;
+        }
         continue;
       }
       _pos++;
