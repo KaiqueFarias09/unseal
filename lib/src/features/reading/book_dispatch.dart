@@ -87,7 +87,7 @@ abstract final class BookDispatch {
   static BookMetadata readMetadataSync(final Uint8List bytes, {final String password = ''}) {
     switch (detectFormat(bytes)) {
       case DetectedFormat.epub:
-        final archive = ZipDecoder().decodeBytes(bytes);
+        final archive = decodeBookZip(bytes);
         if (_isEpubArchive(archive)) return readEpubMetadata(archive);
         if (_fb2Entry(archive) != null) return readFb2Metadata(bytes);
 
@@ -139,7 +139,7 @@ abstract final class BookDispatch {
 
   static bool _isCbcBytes(final Uint8List bytes) {
     try {
-      return _isCbcArchive(ZipDecoder().decodeBytes(bytes));
+      return _isCbcArchive(decodeBookZip(bytes));
     } on Object {
       return false;
     }
@@ -195,7 +195,7 @@ abstract final class BookDispatch {
   }
 
   static Book _parseZipBook(final Uint8List bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = decodeBookZip(bytes);
     if (_isEpubArchive(archive)) return parseEpubArchive(archive);
 
     if (_isCbcArchive(archive)) {

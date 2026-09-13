@@ -5,6 +5,8 @@ import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:xml/xml.dart';
 
+import '../../foundation/archive/archive_access.dart';
+
 import '../../foundation/entities/entities.dart';
 import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';

@@ -19,7 +19,7 @@ export 'container/epub_root_file.dart';
 
 /// Parses an EPUB from raw [bytes].
 EpubBook parseEpubBook(final Uint8List bytes) {
-  return parseEpubArchive(ZipDecoder().decodeBytes(bytes));
+  return parseEpubArchive(decodeBookZip(bytes));
 }
 
 /// Parses an already decoded EPUB [archive] into an [EpubBook].

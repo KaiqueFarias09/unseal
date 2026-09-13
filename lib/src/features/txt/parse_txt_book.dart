@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
+import '../../foundation/archive/archive_access.dart';
 
 import '../../foundation/entities/entities.dart';
 import '../../foundation/exceptions/elivre_exception.dart';
@@ -327,7 +328,7 @@ _TxtzArchiveContents _decodeTxtz(final Uint8List bytes) {
   }
 
   try {
-    return _readTxtzArchive(ZipDecoder().decodeBytes(bytes));
+    return _readTxtzArchive(decodeBookZip(bytes));
   } on InvalidBookException {
     rethrow;
   } on Exception catch (error) {

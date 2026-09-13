@@ -134,7 +134,7 @@ Archive _decodeHtmlzArchive(final List<int> bytes) {
   if (bytes.isEmpty) throw const HtmlException('HTMLZ archive is empty');
 
   try {
-    return ZipDecoder().decodeBytes(bytes);
+    return decodeBookZip(Uint8List.fromList(bytes));
   } on Exception catch (error) {
     throw HtmlException('Invalid HTMLZ ZIP archive: $error');
   }

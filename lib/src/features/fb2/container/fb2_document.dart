@@ -9,7 +9,7 @@ final class _Fb2Source {
     if (bytes.length > 2 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
       final Archive archive;
       try {
-        archive = ZipDecoder().decodeBytes(bytes);
+        archive = decodeBookZip(bytes);
       } on Exception catch (error) {
         throw Fb2Exception('Invalid FB2 ZIP archive: $error');
       }

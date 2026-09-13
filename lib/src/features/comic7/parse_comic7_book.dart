@@ -266,7 +266,7 @@ bool _startsWith(final Uint8List data, final List<int> prefix) {
 
 Archive _decodeZip(final Uint8List bytes) {
   try {
-    return ZipDecoder().decodeBytes(bytes);
+    return decodeBookZip(bytes);
   } on Object catch (error) {
     throw InvalidCbcCollectionException('CBC collection is not a valid ZIP archive: $error');
   }

@@ -1,7 +1,7 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
+import '../../foundation/archive/archive_access.dart';
 
 import '../../foundation/entities/entities.dart';
 import '../../foundation/images/image_dimensions.dart';
@@ -73,7 +73,7 @@ Iterable<({String name, Uint8List bytes})> _readArchiveFiles(
   final BookFormat format,
 ) sync* {
   if (format == BookFormat.cbz) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = decodeBookZip(bytes);
     for (final entry in archive.files) {
       if (!entry.isFile) continue;
 

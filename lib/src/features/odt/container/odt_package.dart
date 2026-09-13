@@ -10,7 +10,7 @@ final class _OdtPackage {
 
     final Archive archive;
     try {
-      archive = ZipDecoder().decodeBytes(bytes);
+      archive = decodeBookZip(bytes);
     } on Object catch (error) {
       throw InvalidOdtPackageException('ODT package is not a valid ZIP archive: $error');
     }

@@ -3,7 +3,7 @@ part of '../parse_docx_book.dart';
 /// Decodes a DOCX ZIP payload while preserving the package error contract.
 Archive _decodeDocxZip(final Uint8List bytes) {
   try {
-    return ZipDecoder().decodeBytes(bytes);
+    return decodeBookZip(bytes);
   } on Exception catch (error) {
     throw InvalidDocxPackageException('DOCX package is not a valid ZIP archive: $error');
   }

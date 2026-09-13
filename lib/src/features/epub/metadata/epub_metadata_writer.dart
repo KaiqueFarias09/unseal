@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:xml/xml.dart';
+import '../../../foundation/archive/archive_access.dart';
 
 import '../../../foundation/metadata/sort_keys.dart';
 import '../../../foundation/metadata/title_sort.dart';
@@ -79,7 +80,7 @@ final class EpubMetadataUpdate {
 /// and all content files survive). Identifiers and the cover image
 /// are not touched by this writer.
 Uint8List updateEpubMetadata(final Uint8List bytes, final EpubMetadataUpdate update) {
-  final archive = ZipDecoder().decodeBytes(bytes);
+  final archive = decodeBookZip(bytes);
   final rootFilePath = getEpubRootFilePath(archive);
   if (rootFilePath == null) {
     throw const FormatException('EPUB metadata writing error: no root file found.');
