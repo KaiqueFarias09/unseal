@@ -366,13 +366,33 @@ String? _rangeCfi(final _SectionDocuments documents) {
   final ranked = sampled.toList()
     ..sort((final a, final b) => b.$2.encode().length.compareTo(a.$2.encode().length));
   final chosen = ranked.take(3).toList()..sort((final a, final b) => a.$1.compareTo(b.$1));
+  // Range shape follows the resolver contract: the leading path carries
+  // only the steps the two boundaries share (never terminating in an
+  // offset); each boundary keeps its offset-bearing tail.
+  final startSteps = chosen[1].$2.start.segments.single.steps;
+  final endSteps = chosen[2].$2.start.segments.single.steps;
+  var shared = 0;
+  final cap = (startSteps.length < endSteps.length ? startSteps.length : endSteps.length) - 1;
+  while (shared < cap && _sameCfiStep(startSteps[shared], endSteps[shared])) {
+    shared++;
+  }
   final spine = EpubCfi.simple(steps: [6, (index + 1) * 2]);
 
   return EpubCfi(
-    start: EpubCfiPath(segments: [...spine.start.segments, ...chosen[0].$2.start.segments]),
-    rangeStart: chosen[1].$2.start,
-    rangeEnd: chosen[2].$2.start,
+    start: EpubCfiPath(
+      segments: [
+        ...spine.start.segments,
+        if (shared > 0) EpubCfiSegment(steps: startSteps.take(shared)),
+      ],
+    ),
+    rangeStart: EpubCfiPath(segments: [EpubCfiSegment(steps: startSteps.skip(shared))]),
+    rangeEnd: EpubCfiPath(segments: [EpubCfiSegment(steps: endSteps.skip(shared))]),
   ).encode();
+}
+
+/// Whether two CFI steps are identical for shared-prefix purposes.
+bool _sameCfiStep(final EpubCfiStep left, final EpubCfiStep right) {
+  return left.index == right.index && left.assertion == right.assertion;
 }
 
 /// The number of `/N` steps across every path of [cfi], including the
