@@ -144,6 +144,10 @@ Map<String, Object?> _envelope() {
   };
 }
 
+/// Read access to the records collected so far (for tools that embed
+/// the contract records into their own envelopes).
+List<Map<String, Object?>> collectedRecords() => List.of(_records);
+
 /// Writes the accumulated report to the configured destination.
 ///
 /// Call exactly once, at the end of the run (including crash paths via
