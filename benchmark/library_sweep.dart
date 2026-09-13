@@ -1,51 +1,54 @@
-// Robustness sweep and stratified sample benchmarks over a private
-// Calibre library, run entirely READ-ONLY.
+// Robustness sweep and stratified sample benchmarks over a PRIVATE
+// Calibre library, run entirely READ-ONLY and strictly opt-in.
 //
-// The library root is supplied at run time — `--library=<path>`, or the
-// `ELIVRE_CALIBRE_LIBRARY` / `ELIVRE_BENCH_LIBRARY` environment
-// variables — and is never written to. Every output record anonymizes
-// the book to a sha256 prefix of its library-relative path; file
-// paths, titles, authors and file names never reach any output.
+// Nothing runs implicitly: the library root must be supplied through
+// `--library=<path>` (or the `ELIVRE_CALIBRE_LIBRARY` /
+// `ELIVRE_BENCH_LIBRARY` environment variables), and the tracked
+// benchmark suites never invoke this tool. The library is never
+// written to.
+//
+// PRIVACY MODEL. File paths, titles, authors and file names never
+// reach any output of this tool. Every file is identified by a RANDOM
+// identifier generated once and persisted by the operator through
+// `--id-map=<file>`; the id map is the ONLY place path and id meet and
+// must stay outside the repository (the artifacts folder). Path-hash
+// ids were retired: truncated hashes of paths are too weak an
+// anonymization for private data.
 //
 // Modes:
 //
 //     dart run benchmark/library_sweep.dart inventory \
-//       --library=<root> --out=<inventory.json>
+//       --library=<root> --id-map=<file> --out=<inventory.json>
 //
 //     dart run benchmark/library_sweep.dart sweep \
-//       --library=<root> --checkpoint=<sweep-checkpoint.json> \
+//       --library=<root> --id-map=<file> --checkpoint=<file> \
 //       [--out=<sweep.json>] [--timeout-seconds=120] [--concurrency=2]
 //
 //     dart run benchmark/library_sweep.dart sample \
-//       --library=<root> --out=<sample.json> [--iterations=5]
+//       --library=<root> --id-map=<file> --out=<sample.json> [--iterations=5]
 //
-// * inventory  one pass listing every file (extension + size) plus a
+// * inventory  one pass listing every file (class + size) plus a
 //   read-only parse of metadata.db's book count.
-// * sweep      robustness pass over EVERY file through the isolate
-//   reader with a per-book timeout; resumable via the checkpoint file
-//   (completed items are kept, only pending items re-run). Items are
-//   classified: ok / failed / timeout / unsupported (DRM-protected,
-//   encrypted and unrecognized files are unsupported-capability, not
-//   parser crashes).
+// * sweep      robustness pass over every candidate book through a
+//   killable worker isolate with a per-book timeout; resumable via an
+//   atomically written checkpoint. Classification: book / sidecar /
+//   unsupported / drm / error / timeout — DRM-protected and encrypted
+//   files are unsupported-capability, never crashes.
 // * sample     repeated timing over a stratified per-format sample
 //   (smallest / median / largest per format), emitted as
-//   schemaVersion-1 benchmark contract records.
-//
-// This tool intentionally never references a concrete library path:
-// point it at any Calibre library.
+//   schemaVersion-1 benchmark contract rows.
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:e_livre/e_livre.dart';
 
 import 'json_report.dart' as contract;
-
-/// Readable status of one swept item.
-enum SweepStatus { ok, failed, timeout, unsupported }
 
 Future<void> main(final List<String> arguments) async {
   if (arguments.isEmpty) {
@@ -59,7 +62,18 @@ Future<void> main(final List<String> arguments) async {
   if (root == null) {
     stderr.writeln(
       'No library root: pass --library=<path> or set '
-      'ELIVRE_CALIBRE_LIBRARY / ELIVRE_BENCH_LIBRARY.',
+      'ELIVRE_CALIBRE_LIBRARY / ELIVRE_BENCH_LIBRARY. The private corpus '
+      'is strictly opt-in; nothing is discovered implicitly.',
+    );
+    exitCode = 64;
+    return;
+  }
+  if (options.idMap == null) {
+    stderr.writeln(
+      '--id-map=<file> is required: random ids are persisted there so '
+      'reports stay anonymized across resumes. Keep the map OUTSIDE the '
+      'repository (artifacts only) — it is the one file that joins ids '
+      'to paths.',
     );
     exitCode = 64;
     return;
@@ -82,7 +96,7 @@ Future<void> main(final List<String> arguments) async {
 void _usage() {
   stderr.writeln(
     'usage: dart run benchmark/library_sweep.dart <inventory|sweep|sample> '
-    '[--library=<root>] [--out=<file>] [--checkpoint=<file>] '
+    '--library=<root> --id-map=<file> [--out=<file>] [--checkpoint=<file>] '
     '[--timeout-seconds=<n>] [--concurrency=<n>] [--iterations=<n>]',
   );
 }
@@ -93,6 +107,7 @@ final class _Options {
   String? library;
   String? out;
   String? checkpoint;
+  String? idMap;
   int timeoutSeconds = 120;
   int concurrency = 2;
   int iterations = 5;
@@ -108,6 +123,8 @@ _Options _parseOptions(final Iterable<String> arguments) {
       options.out = value;
     } else if (argument.startsWith('--checkpoint=') && value != null) {
       options.checkpoint = value;
+    } else if (argument.startsWith('--id-map=') && value != null) {
+      options.idMap = value;
     } else if (argument.startsWith('--timeout-seconds=') && value != null) {
       options.timeoutSeconds = int.tryParse(value) ?? 120;
     } else if (argument.startsWith('--concurrency=') && value != null) {
@@ -130,14 +147,37 @@ String? _resolveRoot(final _Options options) {
   return Directory(candidate).existsSync() ? candidate : null;
 }
 
+// --- classification ---
+
+/// Readable sweep status of one item.
+enum SweepStatus { book, sidecar, unsupported, drm, error, timeout }
+
+/// Extensions the parser supports as [BookFormat] values.
+final Set<String> _bookExtensions = <String>{
+  for (final format in BookFormat.values) '.${format.name}',
+};
+
+/// Known book containers the library may hold that the parser
+/// deliberately does not support (legacy Kindle etc.); they stay on the
+/// parse track so DRM and unsupported outcomes are typed, not guessed.
+final Set<String> _legacyBookExtensions = <String>{'.azw', '.prc', '.tpz', '.azw1', '.kfx'};
+
+bool _isBookCandidate(final String extension) =>
+    _bookExtensions.contains(extension) || _legacyBookExtensions.contains(extension);
+
 // --- library enumeration ---
 
 /// One file of the library, anonymized.
 final class LibraryFile {
-  LibraryFile({required this.id, required this.extension, required this.sizeBytes});
+  LibraryFile({
+    required this.id,
+    required this.extension,
+    required this.sizeBytes,
+    required this.isBookCandidate,
+  });
 
-  /// sha256 prefix of the library-relative path (the only identifier
-  /// that ever reaches an output).
+  /// The RANDOM persisted id; the only identifier that ever reaches an
+  /// output.
   final String id;
 
   /// Lower-cased file extension, dot included (format signal only).
@@ -145,6 +185,9 @@ final class LibraryFile {
 
   /// File size in bytes.
   final int sizeBytes;
+
+  /// Whether the file goes through the parser.
+  final bool isBookCandidate;
 }
 
 /// The enumerated library plus its in-memory id→path map. The path map
@@ -159,7 +202,7 @@ final class LibraryScan {
   final Map<String, String> pathFor;
 }
 
-LibraryScan scanLibrary(final String root) {
+LibraryScan scanLibrary(final String root, final Map<String, String> idMap) {
   final files = <LibraryFile>[];
   final pathFor = <String, String>{};
   for (final entity in Directory(root).listSync(recursive: true)) {
@@ -167,10 +210,17 @@ LibraryScan scanLibrary(final String root) {
       continue;
     }
     final relative = _relativePathOf(root, entity);
-    final id = _anonymizedId(relative);
+    final id = idMap.putIfAbsent(relative, _randomId);
     final dot = relative.lastIndexOf('.');
     final extension = dot < 0 ? '' : relative.substring(dot).toLowerCase();
-    files.add(LibraryFile(id: id, extension: extension, sizeBytes: entity.lengthSync()));
+    files.add(
+      LibraryFile(
+        id: id,
+        extension: extension,
+        sizeBytes: entity.lengthSync(),
+        isBookCandidate: _isBookCandidate(extension),
+      ),
+    );
     pathFor[id] = entity.path;
   }
   files.sort((final a, final b) => a.id.compareTo(b.id));
@@ -180,14 +230,60 @@ LibraryScan scanLibrary(final String root) {
 String _relativePathOf(final String root, final File file) =>
     file.path.substring(root.length).replaceFirst(RegExp(r'^[\\/]'), '');
 
-/// sha256 prefix (12 hex chars) of the library-relative path.
-String _anonymizedId(final String relativePath) =>
-    sha256.convert(utf8.encode(relativePath)).toString().substring(0, 12);
+/// A fresh random identifier (not derived from the path).
+String _randomId() {
+  final random = Random.secure();
+  final bytes = Uint8List(6);
+  for (var i = 0; i < bytes.length; i++) {
+    bytes[i] = random.nextInt(256);
+  }
+  return bytes.map((final b) => b.toRadixString(16).padLeft(2, '0')).join();
+}
+
+/// The persisted id↔path map. Lives only where the operator puts it
+/// (artifacts); the tool refuses to run without it.
+final class PrivateIdMap {
+  PrivateIdMap(this.path, this.byPath);
+
+  final String path;
+  final Map<String, String> byPath;
+
+  static PrivateIdMap load(final String path) {
+    final file = File(path);
+    if (file.existsSync()) {
+      try {
+        final decoded = jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
+        return PrivateIdMap(
+          path,
+          (decoded['byPath'] as Map<String, Object?>).cast<String, String>(),
+        );
+      } on Object {
+        stderr.writeln('id map unreadable — regenerating (ids will change).');
+      }
+    }
+    return PrivateIdMap(path, <String, String>{});
+  }
+
+  /// Persists atomically (temp file + rename on the same volume).
+  void save() {
+    final file = File(path);
+    file.parent.createSync(recursive: true);
+    final tmp = File('${file.path}.tmp');
+    tmp.writeAsStringSync(
+      '${const JsonEncoder.withIndent('  ').convert({'schemaVersion': 1, 'kind': 'library-private-id-map', 'generatedAt': DateTime.now().toUtc().toIso8601String(), 'byPath': byPath})}\n',
+      flush: true,
+    );
+    tmp.renameSync(file.path);
+  }
+}
 
 // --- inventory ---
 
 Future<void> _runInventory(final String root, final _Options options) async {
-  final scan = scanLibrary(root);
+  final idMap = PrivateIdMap.load(options.idMap!);
+  final scan = scanLibrary(root, idMap.byPath);
+  idMap.save();
+
   final totalBytes = scan.files.fold<int>(0, (final sum, final f) => sum + f.sizeBytes);
 
   var metadataBooks = -1;
@@ -204,8 +300,12 @@ Future<void> _runInventory(final String root, final _Options options) async {
   }
 
   final byExtension = <String, int>{};
+  var bookCandidates = 0;
   for (final file in scan.files) {
     byExtension[file.extension] = (byExtension[file.extension] ?? 0) + 1;
+    if (file.isBookCandidate) {
+      bookCandidates++;
+    }
   }
 
   final inventory = <String, Object?>{
@@ -217,16 +317,23 @@ Future<void> _runInventory(final String root, final _Options options) async {
     'commit': contract.commitId,
     'files': scan.files.length,
     'totalBytes': totalBytes,
+    'bookCandidates': bookCandidates,
     'metadataDb': {'books': metadataBooks, 'bytes': metadataBytes},
     'byExtension': byExtension,
     'items': [
       for (final file in scan.files)
-        {'id': file.id, 'ext': file.extension, 'sizeBytes': file.sizeBytes},
+        {
+          'id': file.id,
+          'ext': file.extension,
+          'sizeBytes': file.sizeBytes,
+          'track': file.isBookCandidate ? 'book' : 'sidecar',
+        },
     ],
   };
   _writeJson(options.out ?? 'library-inventory.json', inventory);
   stdout.writeln(
     'inventory: ${scan.files.length} files, ${_mb(totalBytes)} MB, '
+    '$bookCandidates book candidates, '
     'metadata.db books: ${metadataBooks < 0 ? 'unreadable' : metadataBooks}',
   );
 }
@@ -239,7 +346,9 @@ Future<void> _runSweep(final String root, final _Options options) async {
     exitCode = 64;
     return;
   }
-  final scan = scanLibrary(root);
+  final idMap = PrivateIdMap.load(options.idMap!);
+  final scan = scanLibrary(root, idMap.byPath);
+  idMap.save();
   final entries = scan.files;
   final checkpoint = _Checkpoint.load(options.checkpoint!);
   final pending = List.of(
@@ -256,7 +365,9 @@ Future<void> _runSweep(final String root, final _Options options) async {
   Future<void> worker() async {
     while (pending.isNotEmpty) {
       final entry = pending.removeLast();
-      final record = await _sweepOne(scan, entry, options);
+      final record = entry.isBookCandidate
+          ? await _sweepBook(scan, entry, options)
+          : _sidecarRecord(entry);
       await checkpoint.record(entry.id, record);
       done++;
       stdout.writeln(
@@ -274,7 +385,6 @@ Future<void> _runSweep(final String root, final _Options options) async {
       .map((final entry) => checkpoint.completed[entry.id])
       .whereType<Map<String, Object?>>()
       .toList();
-  final totals = _totals(entries.length, items);
   final report = <String, Object?>{
     'schemaVersion': 1,
     'kind': 'library-sweep',
@@ -283,42 +393,47 @@ Future<void> _runSweep(final String root, final _Options options) async {
     'sdk': contract.sdkVersion,
     'commit': contract.commitId,
     'timeoutSeconds': options.timeoutSeconds,
-    'totals': totals,
+    'totals': _totals(entries.length, items),
     'items': items,
   };
   _writeJson(options.out ?? 'library-sweep.json', report);
-  stdout.writeln('sweep done: $totals');
+  stdout.writeln('sweep done: ${report['totals']}');
+}
+
+Map<String, Object?> _sidecarRecord(final LibraryFile entry) {
+  return <String, Object?>{
+    'id': entry.id,
+    'ext': entry.extension,
+    'sizeBytes': entry.sizeBytes,
+    'status': SweepStatus.sidecar.name,
+    'durationMs': 0,
+  };
 }
 
 Map<String, Object?> _totals(final int total, final List<Map<String, Object?>> items) {
-  var passed = 0;
-  var failed = 0;
-  var timeouts = 0;
-  var unsupported = 0;
+  final counts = <String, int>{};
   for (final item in items) {
-    switch (item['status']) {
-      case 'ok':
-        passed++;
-      case 'failed':
-        failed++;
-      case 'timeout':
-        timeouts++;
-      case 'unsupported':
-        unsupported++;
-    }
+    final status = item['status'] as String? ?? 'error';
+    counts[status] = (counts[status] ?? 0) + 1;
   }
   return {
     'total': total,
     'processed': items.length,
-    'passed': passed,
-    'failed': failed,
-    'timeouts': timeouts,
-    'unsupported': unsupported,
+    'book': counts['book'] ?? 0,
+    'sidecar': counts['sidecar'] ?? 0,
+    'unsupported': counts['unsupported'] ?? 0,
+    'drm': counts['drm'] ?? 0,
+    'fail': counts['fail'] ?? 0,
+    'timeouts': counts['timeout'] ?? 0,
     'pending': total - items.length,
   };
 }
 
-Future<Map<String, Object?>> _sweepOne(
+/// Parses one book candidate in a killable worker isolate.
+///
+/// The isolate is spawned per book and KILLED on timeout — a wedged
+/// parser cannot leak past its deadline the way a deadline loop would.
+Future<Map<String, Object?>> _sweepBook(
   final LibraryScan scan,
   final LibraryFile entry,
   final _Options options,
@@ -329,77 +444,131 @@ Future<Map<String, Object?>> _sweepOne(
     'sizeBytes': entry.sizeBytes,
   };
   final watch = Stopwatch()..start();
-  try {
-    final bytes = File(scan.pathFor[entry.id]!).readAsBytesSync();
-    final rssBefore = ProcessInfo.currentRss;
-    final Uint8List parseInput = bytes;
-    String bookFormat;
-    try {
-      final book = await BookReader.openFromBytes(
-        parseInput,
-      ).timeout(Duration(seconds: options.timeoutSeconds));
-      bookFormat = book.format.name;
-    } on TimeoutException {
-      watch.stop();
-      return record
-        ..['status'] = SweepStatus.timeout.name
-        ..['durationMs'] = watch.elapsedMilliseconds;
-    } on DrmProtectedException catch (error) {
-      return _unsupported(record, watch, error, 'parse');
-    } on FormatNotSupportedException catch (error) {
-      return _unsupported(record, watch, error, 'parse');
-    } on PdfEncryptedException catch (error) {
-      return _unsupported(record, watch, error, 'parse');
+  final rssBefore = ProcessInfo.currentRss;
+  final bytes = File(scan.pathFor[entry.id]!).readAsBytesSync();
+  final port = ReceivePort();
+  final errorPort = ReceivePort();
+  final done = Completer<Map<String, Object?>>();
+  late final Isolate isolate;
+
+  errorPort.listen((final message) {
+    if (!done.isCompleted) {
+      done.complete({
+        'status': SweepStatus.error.name,
+        'error': {'type': 'IsolateError', 'message': '$message'},
+        'phase': 'spawn',
+      });
     }
-    watch.stop();
-    return record
-      ..['status'] = SweepStatus.ok.name
-      ..['bookFormat'] = bookFormat
-      ..['durationMs'] = watch.elapsedMilliseconds
-      ..['rssDeltaMb'] = _mb(ProcessInfo.currentRss - rssBefore);
-  } on ELivreException catch (error) {
-    // A typed library exception the classification above does not
-    // recognize: still a failure, but with its exact type recorded.
-    watch.stop();
-    return record
-      ..['status'] = SweepStatus.failed.name
-      ..['phase'] = 'parse'
-      ..['error'] = error.runtimeType.toString()
-      ..['durationMs'] = watch.elapsedMilliseconds;
+  });
+  port.listen((final message) {
+    if (done.isCompleted) {
+      return;
+    }
+    final payload = message as Map;
+    done.complete(Map<String, Object?>.from(payload));
+  });
+
+  try {
+    isolate = await Isolate.spawn(_parseJob, _ParseJob(port.sendPort, bytes), errorsAreFatal: true);
   } on Object catch (error) {
-    // Everything not classified above is a failure worth escalating.
+    port.close();
+    errorPort.close();
     watch.stop();
     return record
-      ..['status'] = SweepStatus.failed.name
-      ..['error'] = error.runtimeType.toString()
+      ..['status'] = SweepStatus.error.name
+      ..['error'] = {'type': error.runtimeType.toString(), 'phase': 'spawn'}
       ..['durationMs'] = watch.elapsedMilliseconds;
+  }
+
+  final timeout = Duration(seconds: options.timeoutSeconds);
+  final result = await done.future.timeout(
+    timeout,
+    onTimeout: () {
+      isolate.kill(priority: Isolate.immediate);
+      return <String, Object?>{
+        'status': SweepStatus.timeout.name,
+        'error': {'type': 'TimeoutException', 'phase': 'parse'},
+      };
+    },
+  );
+  port.close();
+  errorPort.close();
+  watch.stop();
+
+  record['durationMs'] = watch.elapsedMilliseconds;
+  if (result['bookFormat'] is String) {
+    record['bookFormat'] = result['bookFormat'];
+  }
+  if (result['error'] is Map) {
+    record['error'] = result['error'];
+  }
+  switch (result['status']) {
+    case 'book':
+      record['status'] = SweepStatus.book.name;
+      record['rssDeltaMb'] = _mb(ProcessInfo.currentRss - rssBefore);
+    case 'drm':
+      record['status'] = SweepStatus.drm.name;
+      record['phase'] = 'parse';
+    case 'unsupported':
+      record['status'] = SweepStatus.unsupported.name;
+      record['phase'] = 'parse';
+    case 'fail':
+      record['status'] = SweepStatus.error.name;
+      record['phase'] = 'parse';
+    default:
+      record['status'] = result['status'];
+  }
+  return record;
+}
+
+/// Wire message for the worker isolate.
+final class _ParseJob {
+  _ParseJob(this.sendPort, this.bytes);
+
+  final SendPort sendPort;
+  final Uint8List bytes;
+}
+
+/// Worker entry: parses through the public async reader (it dispatches
+/// every format correctly, including the zip-refined 7-Zip containers)
+/// and classifies typed outcomes. A kill of this isolate also tears
+/// down any nested reader isolate it spawned.
+Future<void> _parseJob(final _ParseJob job) async {
+  try {
+    final book = await BookReader.openFromBytes(job.bytes);
+    job.sendPort.send({'status': 'book', 'bookFormat': book.format.name});
+  } on Object catch (error) {
+    job.sendPort.send(_classifyParseError(error));
   }
 }
 
-Map<String, Object?> _unsupported(
-  final Map<String, Object?> record,
-  final Stopwatch watch,
-  final Object error,
-  final String phase,
-) {
-  watch.stop();
-  return record
-    ..['status'] = SweepStatus.unsupported.name
-    ..['phase'] = phase
-    ..['error'] = error.runtimeType.toString()
-    ..['durationMs'] = watch.elapsedMilliseconds;
+/// Typed classification of one parse failure.
+Map<String, Object?> _classifyParseError(final Object error) {
+  if (error is DrmProtectedException || error is PdfEncryptedException) {
+    return {
+      'status': 'drm',
+      'error': {'type': error.runtimeType.toString()},
+    };
+  }
+  if (error is FormatNotSupportedException) {
+    return {
+      'status': 'unsupported',
+      'error': {'type': error.runtimeType.toString()},
+    };
+  }
+  return {
+    'status': 'fail',
+    'error': {'type': error.runtimeType.toString()},
+  };
 }
 
 // --- sample ---
 
 Future<void> _runSample(final String root, final _Options options) async {
-  final scan = scanLibrary(root);
-  final supported = scan.files
-      .where(
-        (final entry) =>
-            BookFormat.values.any((final format) => '.${format.name}' == entry.extension),
-      )
-      .toList();
+  final idMap = PrivateIdMap.load(options.idMap!);
+  final scan = scanLibrary(root, idMap.byPath);
+  idMap.save();
+  final supported = scan.files.where((final entry) => entry.isBookCandidate).toList();
 
   // Stratify: per format, the smallest / median / largest file.
   final byFormat = <String, List<LibraryFile>>{};
@@ -415,7 +584,7 @@ Future<void> _runSample(final String root, final _Options options) async {
   }
 
   stdout.writeln(
-    'sample: ${supported.length} supported files across ${byFormat.length} '
+    'sample: ${supported.length} book candidates across ${byFormat.length} '
     'formats; timing ${selected.length} strata (${options.iterations} iterations each)',
   );
 
@@ -427,16 +596,14 @@ Future<void> _runSample(final String root, final _Options options) async {
     Object? error;
     for (var i = 0; i < options.iterations + 1; i++) {
       final watch = Stopwatch()..start();
-      try {
-        final book = await BookReader.openFromBytes(
-          bytes,
-        ).timeout(Duration(seconds: options.timeoutSeconds));
-        // Consume the result so the parse cannot be eliminated.
-        contractChecksum = Object.hash(contractChecksum, book.format);
-      } on Object catch (caught) {
-        error = caught;
-      }
+      final parsed = await _timedParse(bytes, options);
       watch.stop();
+      if (parsed['status'] == 'book') {
+        // Consume the result so the parse cannot be eliminated.
+        contractChecksum = Object.hash(contractChecksum, parsed['bookFormat']);
+      } else {
+        error = parsed['error'];
+      }
       if (i > 0) {
         samples.add(watch.elapsedMicroseconds.toDouble());
       }
@@ -449,27 +616,29 @@ Future<void> _runSample(final String root, final _Options options) async {
     final p95 = samples.isEmpty
         ? 0.0
         : samples[((samples.length - 1) * 0.95).round().clamp(0, samples.length - 1)];
+    final ok = error == null;
     contract.recordResult(
       suite: 'e_livre',
       scenario: 'library sample — openFromBytes ${entry.extension} $bucket',
       iterations: samples.length,
-      warmup: error == null ? 1 : 0,
+      warmup: ok ? 1 : 0,
       medianMicros: median,
       p95Micros: p95,
       checksum: contractChecksum,
       fixtureId: entry.id,
       sizeBytes: entry.sizeBytes,
-      note: error == null ? null : 'skipped: ${error.runtimeType}',
+      error: ok ? null : _structuredError(error),
     );
     items.add({
       'id': entry.id,
       'ext': entry.extension,
       'sizeBytes': entry.sizeBytes,
-      'status': error == null ? 'ok' : 'error',
+      'status': ok ? SweepStatus.book.name : SweepStatus.error.name,
+      if (!ok) 'error': error,
       'medianMs': median / 1000,
     });
     stdout.writeln(
-      '${error == null ? "ok" : "error"} ${entry.id} ${entry.extension} '
+      '${ok ? "ok" : "fail"} ${entry.id} ${entry.extension} '
       '${_mb(entry.sizeBytes)}MB median ${(median / 1000).toStringAsFixed(1)}ms',
     );
   }
@@ -490,8 +659,44 @@ Future<void> _runSample(final String root, final _Options options) async {
   stdout.writeln('sample done: ${selected.length} strata');
 }
 
+/// One timed parse through a killable worker isolate.
+Future<Map<String, Object?>> _timedParse(final Uint8List bytes, final _Options options) async {
+  final port = ReceivePort();
+  final done = Completer<Map<String, Object?>>();
+  port.listen((final message) {
+    if (!done.isCompleted) {
+      done.complete(Map<String, Object?>.from(message as Map));
+    }
+  });
+  late final Isolate isolate;
+  isolate = await Isolate.spawn(_parseJob, _ParseJob(port.sendPort, bytes));
+  final result = await done.future.timeout(
+    options.timeoutSeconds.seconds,
+    onTimeout: () {
+      isolate.kill(priority: Isolate.immediate);
+      return <String, Object?>{
+        'status': 'timeout',
+        'error': {'type': 'TimeoutException', 'phase': 'parse'},
+      };
+    },
+  );
+  port.close();
+  return result;
+}
+
 /// Folded checksum over the sample's consumed parse results.
 int contractChecksum = 0;
+
+/// Normalizes any failure into the structured error contract field.
+Map<String, Object?> _structuredError(final Object? error) {
+  if (error is Map) {
+    return {
+      'type': (error['type'] ?? 'unknown').toString(),
+      if (error['phase'] != null) 'phase': error['phase'],
+    };
+  }
+  return {'type': error?.runtimeType.toString() ?? 'unknown', 'phase': 'parse'};
+}
 
 String _bucketOf(final LibraryFile entry) {
   const mb = 1024 * 1024;
@@ -506,17 +711,26 @@ String _bucketOf(final LibraryFile entry) {
 
 // --- io helpers ---
 
+/// Writes a JSON payload atomically: temp file on the SAME volume, then
+/// rename, so a crash can never leave a torn report or checkpoint.
 void _writeJson(final String path, final Map<String, Object?> payload) {
   final file = File(path);
   file.parent.createSync(recursive: true);
-  file.writeAsStringSync('${const JsonEncoder.withIndent('  ').convert(payload)}\n', flush: true);
+  final tmp = File('${file.path}.tmp');
+  tmp.writeAsStringSync('${const JsonEncoder.withIndent('  ').convert(payload)}\n', flush: true);
+  tmp.renameSync(file.path);
 }
 
 String _mb(final int bytes) => (bytes / (1024 * 1024)).toStringAsFixed(1);
 
-/// Crash-safe checkpoint: records completed items and writes after
-/// every item so an interrupted sweep keeps its results and only
-/// pending items re-run.
+extension on int {
+  Duration get seconds => Duration(seconds: this);
+}
+
+/// Crash-safe sweep checkpoint. Every completed item is recorded and
+/// the file is atomically rewritten (temp + fsync + rename on the same
+/// volume), so an interrupted sweep keeps its results and only pending
+/// items re-run.
 final class _Checkpoint {
   _Checkpoint(this.path, this.completed);
 
@@ -541,15 +755,22 @@ final class _Checkpoint {
   }
 
   Future<void> record(final String id, final Map<String, Object?> record) {
-    _chain = _chain.then((_) async {
+    _chain = _chain.then((_) {
       completed[id] = record;
       final payload = const JsonEncoder.withIndent(
         '  ',
       ).convert({'schemaVersion': 1, 'kind': 'library-sweep-checkpoint', 'completed': completed});
       final file = File(path);
       file.parent.createSync(recursive: true);
-      await file.writeAsString('$payload\n', flush: true);
+      final tmp = File('${file.path}.tmp');
+      tmp.writeAsStringSync('$payload\n', flush: true);
+      tmp.renameSync(file.path);
     });
     return _chain;
   }
 }
+
+/// Kept for id stability notes: the retired scheme hashed the relative
+/// path; old reports carrying such ids live in the quarantine folder.
+String retiredPathHashId(final String relativePath) =>
+    sha256.convert(utf8.encode(relativePath)).toString().substring(0, 12);
