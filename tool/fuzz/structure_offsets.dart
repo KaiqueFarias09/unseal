@@ -82,7 +82,8 @@ final class StructureScan {
     return SeedContainer.unknown;
   }
 
-  /// PalmDB files carry two 4-byte ASCII type/creator fields at offset 60.
+  /// PalmDB files carry two 4-byte ASCII type/creator fields at offset 60
+  /// and a plausible record count at offset 76.
   static bool _looksLikePalmDbType(final Uint8List bytes) {
     for (var i = 60; i < 68; i++) {
       final byte = bytes[i];
@@ -92,7 +93,11 @@ final class StructureScan {
       }
     }
     final typeHasContent = bytes.sublist(60, 64).any((final b) => b != 0);
-    return typeHasContent;
+    if (!typeHasContent) {
+      return false;
+    }
+    final recordCount = (bytes[76] << 8) | bytes[77];
+    return recordCount > 0 && recordCount <= 10000 && 78 + recordCount * 8 <= bytes.length;
   }
 
   static void _scanZip(final Uint8List bytes, final List<StructureOffset> offsets) {

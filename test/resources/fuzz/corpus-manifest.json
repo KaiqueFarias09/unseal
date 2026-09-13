@@ -1,0 +1,1052 @@
+{
+  "schemaVersion": 1,
+  "kind": "fuzz-corpus-manifest",
+  "root": "test/resources",
+  "files": [
+    {
+      "path": "test/resources/books/README.md",
+      "format": "manifest",
+      "bytes": 5523,
+      "sha256": "d64f957c16a641477e2e7d9e74bee2c63a344005e3f27da5f41480cea679cfc4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/american-beauty-trading-cards-1909.cbr",
+      "format": "cbr",
+      "bytes": 519452,
+      "sha256": "f822b233eb34e975811279056372219e08177fb431f4b9d222dc86f44659a446",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/halfpenny-surprise-1895.cbz",
+      "format": "cbz",
+      "bytes": 8017532,
+      "sha256": "8a14b99b228017ff88d5f180dfdc5ed88d49c467490ac42bf88261d7565dd03e",
+      "container": "zip",
+      "landmarks": 41
+    },
+    {
+      "path": "test/resources/books/comic/synthetic-collection.cbc",
+      "format": "cbc",
+      "bytes": 913,
+      "sha256": "d82083bc2ca862df54a3ee9947873f3e262a361b4113acd4d86841d1877f478e",
+      "container": "zip",
+      "landmarks": 7
+    },
+    {
+      "path": "test/resources/books/comic/synthetic-pages.cb7",
+      "format": "cb7",
+      "bytes": 306,
+      "sha256": "b00d2430c744119821b2f4e47900398d21372ef4642cf1f8f34b134803b37e9a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/synthetic-pages.cbz",
+      "format": "cbz",
+      "bytes": 627,
+      "sha256": "ba89fbce72adc0725ce9686f0a983265d760cbb18f321a1de0d5c2c68f76a3cc",
+      "container": "zip",
+      "landmarks": 7
+    },
+    {
+      "path": "test/resources/books/comic/synthetic-stored-pages.cbr",
+      "format": "cbr",
+      "bytes": 106,
+      "sha256": "19871d020affba36788fe403f4c0cb0bc5b2ca1eb9deee0f4c830f369fe916a4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/docx/synthetic.docx",
+      "format": "docx",
+      "bytes": 919,
+      "sha256": "ed93c54434fbed9e81e73ad05bc5081b44165be2b5e90fce374e9252cd9ed0bc",
+      "container": "zip",
+      "landmarks": 7
+    },
+    {
+      "path": "test/resources/books/epub/accessible-epub-3.epub",
+      "format": "epub",
+      "bytes": 4051892,
+      "sha256": "67f75b8e3cd1abe4bb143d91d5424191d5af3115c9d26ff029a38e19f8d16feb",
+      "container": "zip",
+      "landmarks": 77,
+      "bookId": "A11Y"
+    },
+    {
+      "path": "test/resources/books/epub/dom-casmurro-pt.epub",
+      "format": "epub",
+      "bytes": 220810,
+      "sha256": "6af63f38babff2631ceff374de2ce9f121372a5a25d10456c4b9f9cf9620d64b",
+      "container": "zip",
+      "landmarks": 29,
+      "bookId": "LOCALE-PT"
+    },
+    {
+      "path": "test/resources/books/epub/don-quijote-es.epub",
+      "format": "epub",
+      "bytes": 918869,
+      "sha256": "1e8a26017d9b58797fa20aab9ba0016153c2ca6613031ad7500fec9f1fcb2655",
+      "container": "zip",
+      "landmarks": 47,
+      "bookId": "LOCALE-ES"
+    },
+    {
+      "path": "test/resources/books/epub/elements-of-chemistry.epub",
+      "format": "epub",
+      "bytes": 10194479,
+      "sha256": "ef5da0283e8e3b5b76e541d3469bcc4e26f3c0dbb5e3396be708d5117f4f768b",
+      "container": "zip",
+      "landmarks": 245,
+      "bookId": "CHEM-PD"
+    },
+    {
+      "path": "test/resources/books/epub/elements-of-euclid.epub",
+      "format": "epub",
+      "bytes": 1330699,
+      "sha256": "8bc2452a06192e98da82a9880811f6e2a2ddebcec9e70c1678677833c05f1d70",
+      "container": "zip",
+      "landmarks": 1329,
+      "bookId": "MATH-PD"
+    },
+    {
+      "path": "test/resources/books/epub/hefty-water.epub",
+      "format": "epub",
+      "bytes": 3683,
+      "sha256": "1133a872bbe50df15b9a4928c33f693fd264f83276041b478aa6b076b1183fb3",
+      "container": "zip",
+      "landmarks": 11,
+      "bookId": "CHEM-RUBY"
+    },
+    {
+      "path": "test/resources/books/epub/les-miserables-fantine-fr.epub",
+      "format": "epub",
+      "bytes": 349990,
+      "sha256": "80d4b5b3d5d4d3756848db9fb8a65e43b0ad06177170acd84f1d36727c411f10",
+      "container": "zip",
+      "landmarks": 31,
+      "bookId": "LOCALE-FR"
+    },
+    {
+      "path": "test/resources/books/epub/mahabharata.epub",
+      "format": "epub",
+      "bytes": 11118097,
+      "sha256": "fd1b19a1258857fe31081e2a22b3013e84663501c731d88a27bc06cf476a8a06",
+      "container": "zip",
+      "landmarks": 4041,
+      "bookId": "SCRIPT-SA"
+    },
+    {
+      "path": "test/resources/books/epub/moby-dick-media-overlays.epub",
+      "format": "epub",
+      "bytes": 10627796,
+      "sha256": "749a9de094c26bc79351722a2bf320845dc5f6af2d5bf41a96d720d723b29a4c",
+      "container": "zip",
+      "landmarks": 315,
+      "bookId": "MO-EN"
+    },
+    {
+      "path": "test/resources/books/epub/page-blanche.epub",
+      "format": "epub",
+      "bytes": 3136922,
+      "sha256": "d2efb562f17d43cef50578d4d67dd7fd991f8f254b6f5a7c28bde7461ea783eb",
+      "container": "zip",
+      "landmarks": 51,
+      "bookId": "FXL"
+    },
+    {
+      "path": "test/resources/books/epub/regime-anti-cancer-arabic.epub",
+      "format": "epub",
+      "bytes": 110694,
+      "sha256": "5d10bf6a73f461b7b23294b6e34b72f2a1184c9543a424b4a0f737ed33967e96",
+      "container": "zip",
+      "landmarks": 23,
+      "bookId": "RTL-AR"
+    },
+    {
+      "path": "test/resources/books/epub/romance-of-the-three-kingdoms-zh.epub",
+      "format": "epub",
+      "bytes": 928786,
+      "sha256": "6b79064bcbd2fef24bd92ea9407fdc5ca6271e1bb29a4b53c4eb595a3a8527cf",
+      "container": "zip",
+      "landmarks": 41,
+      "bookId": "CJK-ZH"
+    },
+    {
+      "path": "test/resources/books/epub/rtl-he-israel-sailing.epub",
+      "format": "epub",
+      "bytes": 1358190,
+      "sha256": "10c397036d2eb54db172d05c9e3cda4382d04e8e9ce3ddd8741ba7058c3dcd4a",
+      "container": "zip",
+      "landmarks": 61,
+      "bookId": "RTL-HE"
+    },
+    {
+      "path": "test/resources/books/epub/tristram-shandy.epub",
+      "format": "epub",
+      "bytes": 1855666,
+      "sha256": "e72746e7783c4708353c45c40ba2cc1a40e8d044fc49d24a85ac05fa25ccd69e",
+      "container": "zip",
+      "landmarks": 741,
+      "bookId": "ODD-PD"
+    },
+    {
+      "path": "test/resources/books/epub/vertical-writing-ja.epub",
+      "format": "epub",
+      "bytes": 267252,
+      "sha256": "6623732b1aa7cefed26e2db95f7ac14c80360b99d328ed927b93548a96990c62",
+      "container": "zip",
+      "landmarks": 45,
+      "bookId": "VERT-JA"
+    },
+    {
+      "path": "test/resources/books/fb2/dziwna-historia-wolnelektury.fb2",
+      "format": "fb2",
+      "bytes": 24684,
+      "sha256": "a404534bbd75771a3d62278e654bd12649224dab698128086ecdf532fc94bc7a",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/books/fb2/synthetic-multilingual.fb2",
+      "format": "fb2",
+      "bytes": 1554,
+      "sha256": "993603dcffefab689d61ca0a266e5a2508eb5a9fa85514e0d4a3b16cd97ba610",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/books/html/synthetic.html",
+      "format": "html",
+      "bytes": 180,
+      "sha256": "24496b422df2cade8ebb6dbf1970d585813ef0333a9c873430a4a27e436c789c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/html/synthetic.htmlz",
+      "format": "htmlz",
+      "bytes": 988,
+      "sha256": "1274583485ff03ee13d76b204ef50f4ea95c6ee9b7e7e67b6e886949d7237a79",
+      "container": "zip",
+      "landmarks": 11
+    },
+    {
+      "path": "test/resources/books/licenses/LICENSE-CC-BY-SA-2.5.html",
+      "format": "html",
+      "bytes": 37788,
+      "sha256": "63bf4181f77b0ac2a3db232afedaa67ab51e2f7569d54e2c08fadceaa85f743d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/licenses/LICENSE-CC-BY-SA-3.0.txt",
+      "format": "txt",
+      "bytes": 22240,
+      "sha256": "3f941b3b89cf7b8370ceb83cc76d2120d471b58735d8ca60238a751a48d7f72f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/licenses/LICENSE-CC0-1.0.txt",
+      "format": "txt",
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/manifest.json",
+      "format": "manifest",
+      "bytes": 22411,
+      "sha256": "20e53afd8e867427e41d82057a0314e71047da0321b42a38159d61f6abbccd35",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/mobi/alice-kf8-pg.azw3",
+      "format": "azw3",
+      "bytes": 255486,
+      "sha256": "b3c9067848d28f8c0f36adbb198b306791884319e8b2f8ea7083f844d8876815",
+      "container": "palmDb",
+      "landmarks": 78
+    },
+    {
+      "path": "test/resources/books/mobi/alice-old-pg.mobi",
+      "format": "mobi",
+      "bytes": 241000,
+      "sha256": "29448cd44f3e6d3db391c6aefc438f53283142d9e8a41ef439718a5d84f36240",
+      "container": "palmDb",
+      "landmarks": 67
+    },
+    {
+      "path": "test/resources/books/mobi/synthetic.azw4",
+      "format": "azw4",
+      "bytes": 2201,
+      "sha256": "bb2eab58f9b9717caad41fcd09a9e0f9b5d77ab1f5ea2f40a7002d773f507d07",
+      "container": "pdf",
+      "landmarks": 21
+    },
+    {
+      "path": "test/resources/books/odt/synthetic.odt",
+      "format": "odt",
+      "bytes": 787,
+      "sha256": "124e128d86d003054caf1c175a27e91e42255fceca2ca273d3bbd633117aed24",
+      "container": "zip",
+      "landmarks": 7
+    },
+    {
+      "path": "test/resources/books/pdf/dickens-sample.pdf",
+      "format": "pdf",
+      "bytes": 14946,
+      "sha256": "97444cb3bf7199d3ef8320780053a76376a732a43f0e7011755c4338f6ff1f4f",
+      "container": "pdf",
+      "landmarks": 26
+    },
+    {
+      "path": "test/resources/books/pdf/elements-of-euclid-pg.pdf",
+      "format": "pdf",
+      "bytes": 1860807,
+      "sha256": "fa77c91ea6b1e31fe09dea4d9a4310e7f8345dba5be0563603f62e7742ffce5c",
+      "container": "pdf",
+      "landmarks": 4409
+    },
+    {
+      "path": "test/resources/books/txt/synthetic.txt",
+      "format": "txt",
+      "bytes": 137,
+      "sha256": "03e4c9d2e17d972c252022c5231b0e50041e3813eed33e18e410c4469cdef4cd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/txt/synthetic.txtz",
+      "format": "txtz",
+      "bytes": 945,
+      "sha256": "c8d807515aa90b331bbb2d79118c4e23d58f64cd3528deb7217688adae0f84ae",
+      "container": "zip",
+      "landmarks": 11
+    },
+    {
+      "path": "test/resources/calibre/metadata.db",
+      "format": "resource",
+      "bytes": 49152,
+      "sha256": "9fdc5fbcdfdc4e0565ee3a29730a2a163467f261701219abf35933717ffbf926",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/comic/sample.cbz",
+      "format": "cbz",
+      "bytes": 725,
+      "sha256": "58d81b519c4cf3a48c25dc38dc70ede863e93bd092abc4c365b96d6003240ce4",
+      "container": "zip",
+      "landmarks": 9
+    },
+    {
+      "path": "test/resources/epub/Alices Adventures in Wonderland.epub",
+      "format": "epub",
+      "bytes": 885898,
+      "sha256": "7a31d1251ede041d37c3a29566e72f6d420822c13e110e19b5d010b9b0751c14",
+      "container": "zip",
+      "landmarks": 103
+    },
+    {
+      "path": "test/resources/epub/linear-algebra.epub",
+      "format": "epub",
+      "bytes": 1747521,
+      "sha256": "4e0e5486d52438d79fd8532eb9eb541902127a2594d2acd5856d93008339cf78",
+      "container": "zip",
+      "landmarks": 273
+    },
+    {
+      "path": "test/resources/epub/structure-sample-01.epub",
+      "format": "epub",
+      "bytes": 1139419,
+      "sha256": "25cd987bd3be70950a015f1544ce394b4dae27f3fdacfb9dd0f9afbc14ac8fe4",
+      "container": "zip",
+      "landmarks": 111
+    },
+    {
+      "path": "test/resources/fb2/alice.fb2",
+      "format": "fb2",
+      "bytes": 3359920,
+      "sha256": "cb6880d28240ba52828e89e8496e1689da0a9090ce73dae9c646438f17b53065",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/fuzz/generated/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 3972,
+      "sha256": "8f58fe9e4743bd1d53e2eef3cff0ba80c3131a6bf6bb9a01ffe22a57d1828c3f",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/cfi/cfi-cases.json",
+      "format": "manifest",
+      "bytes": 2502,
+      "sha256": "c03c9604255d81fa5214e5d9ac352e0c91b212be98f88cc8b9096c6cf082b668",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/epub/epub-no-toc.epub",
+      "format": "epub",
+      "bytes": 1877,
+      "sha256": "be297b3a709616a0a7f834b53d06eae825ce86ead05bd11881e66ff175fabb71",
+      "container": "zip",
+      "landmarks": 13,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/epub/epub2-basic.epub",
+      "format": "epub",
+      "bytes": 1942,
+      "sha256": "27042df2b41d346091f549289dc0e1e9d68df94d64894a7d7a3bfb6d7c45fc6c",
+      "container": "zip",
+      "landmarks": 13,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/epub/epub3-cover.epub",
+      "format": "epub",
+      "bytes": 2496,
+      "sha256": "2cf986fbdb3897c9e1cb480c3daf018615be277e472438675d51516fda44b23e",
+      "container": "zip",
+      "landmarks": 17,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/epub/epub3-nav.epub",
+      "format": "epub",
+      "bytes": 2242,
+      "sha256": "195e4115e20fe250a05575755fb7fa48781b180511e23208498abd200f7a216a",
+      "container": "zip",
+      "landmarks": 15,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/images/gif87a.gif",
+      "format": "image",
+      "bytes": 35,
+      "sha256": "2fc70df2e661bde33be46204798145bde007183a441fd6538f4f0609ca5e022c",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/images/gradient.png",
+      "format": "image",
+      "bytes": 140,
+      "sha256": "09eb7f5a34a99de2d55c3ce1564c13c7c94d12fe3969b5336d0a1f98e17d3e8d",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/images/jpeg-truncated-scan.jpg",
+      "format": "image",
+      "bytes": 139,
+      "sha256": "6ce0046e4fc874f86e70c744b4b4699501505d8c53bd80e9d9ed66e681371dfc",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/images/png-bad-crc.png",
+      "format": "image",
+      "bytes": 67,
+      "sha256": "684d67b8a07cc8bee0114cb5b5b70eab74c47ca73dc6843beb633d1f59c9a346",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/images/png-truncated-idat.png",
+      "format": "image",
+      "bytes": 53,
+      "sha256": "8078461183940b788c2dc72e2df0ef564e462b392e1a137e6eceaaf4295781d0",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/images/tiny-gray.png",
+      "format": "image",
+      "bytes": 67,
+      "sha256": "a1abfd410973b0111c215baa879b9edcd739e601659ba44168269767cc2e9108",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/images/tiny.gif",
+      "format": "image",
+      "bytes": 35,
+      "sha256": "db3fd605f5a4ca7ddfcaafb87cb21bcfd715e92ee6c67d523632d197754dbfe5",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/images/tiny.jpg",
+      "format": "image",
+      "bytes": 141,
+      "sha256": "a876a4255a55c3fa6dce76ff582b79fbcd29188d3e343dffd7bf04a75f04a703",
+      "container": "unknown",
+      "landmarks": 0,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/mobi/palmdoc-compressed.mobi",
+      "format": "mobi",
+      "bytes": 851,
+      "sha256": "79bb75b479951fb243a22000903cef80a4d41416bae30236dfdec187c60657a5",
+      "container": "palmDb",
+      "landmarks": 3,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/mobi/palmdoc-none.mobi",
+      "format": "mobi",
+      "bytes": 912,
+      "sha256": "7410f2b1b1b95b2ef4f5d6eb46deda7402561a7f4670a3b4714687a1afb05e4f",
+      "container": "palmDb",
+      "landmarks": 3,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/pdf/flate-content.pdf",
+      "format": "pdf",
+      "bytes": 626,
+      "sha256": "cf0d84be827c33ae9ca40d55280fde7a8509d7833498d17f896280d9a59f0b9d",
+      "container": "pdf",
+      "landmarks": 14,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/pdf/info-metadata.pdf",
+      "format": "pdf",
+      "bytes": 732,
+      "sha256": "72820c28d01b3efafbef7e230a18f00b0067ca6831f3861218a1754638a9a489",
+      "container": "pdf",
+      "landmarks": 15,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/pdf/lzw-content.pdf",
+      "format": "pdf",
+      "bytes": 654,
+      "sha256": "397a61b8f1064108f08a5ad2513adfd84251a2dc502079e484d036a4ad6a1903",
+      "container": "pdf",
+      "landmarks": 14,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/pdf/minimal-text.pdf",
+      "format": "pdf",
+      "bytes": 597,
+      "sha256": "a149b04095d72992d699debf4ed42f5a6522d95be1dc6cb155b54775b815dbb4",
+      "container": "pdf",
+      "landmarks": 14,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/pdf/two-page-flate.pdf",
+      "format": "pdf",
+      "bytes": 913,
+      "sha256": "3225f1247b0508383d440369c79e30ce721f96ced8fc94544fa4a43940758824",
+      "container": "pdf",
+      "landmarks": 19,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/xml/dtd-internal-subset.xml",
+      "format": "xml-sidecar",
+      "bytes": 295,
+      "sha256": "d1533bc64a77e87f160b00d6846c5002cff07618824ff4487eefec1c2c4f23d7",
+      "container": "unknown",
+      "landmarks": 1,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/xml/fb2-style.fb2",
+      "format": "fb2",
+      "bytes": 668,
+      "sha256": "0db1d6ad03714eed034ad6bac3de6a114ed764e34b493812167bdfd5a249f628",
+      "container": "unknown",
+      "landmarks": 1,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/xml/opf-style.opf",
+      "format": "xml-sidecar",
+      "bytes": 683,
+      "sha256": "bf9e5490183ef7b30ce0bce354c1f681399a2e4e0a784ef112f39f24cb51fa20",
+      "container": "unknown",
+      "landmarks": 1,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/xml/prologue-variations.xml",
+      "format": "xml-sidecar",
+      "bytes": 253,
+      "sha256": "d81d051e4b3a0466de6b248293b7fba39ba370278e773bbd2330fcb8c1fd1cfb",
+      "container": "unknown",
+      "landmarks": 1,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/xml/utf8-bom.opf",
+      "format": "xml-sidecar",
+      "bytes": 686,
+      "sha256": "254774597e75e7fc180e3319e007d81c313559b63d21b9ac205d35593b9be772",
+      "container": "unknown",
+      "landmarks": 1,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/zip/mixed-methods.zip",
+      "format": "epub",
+      "bytes": 675,
+      "sha256": "0483aa0d3d6713b4359a7cc9fe12497773fa0d2ae71cb93f03596bb35bcdecee",
+      "container": "zip",
+      "landmarks": 7,
+      "generated": true
+    },
+    {
+      "path": "test/resources/fuzz/generated/zip/stored-method.zip",
+      "format": "epub",
+      "bytes": 290,
+      "sha256": "da1d63b959819e2dc0cf6602de0dde4b1ef80821e280a8774df228e7b7d49038",
+      "container": "zip",
+      "landmarks": 5,
+      "generated": true
+    },
+    {
+      "path": "test/resources/mobi/alice-joint.mobi",
+      "format": "mobi",
+      "bytes": 3748946,
+      "sha256": "2616d4731583c643baea3bcfb7118c886ca61da40f40d4bbd8c5c4d3834f68bc",
+      "container": "palmDb",
+      "landmarks": 153
+    },
+    {
+      "path": "test/resources/mobi/alice-kf8.azw3",
+      "format": "azw3",
+      "bytes": 969042,
+      "sha256": "7a97102cea9f1dab5f8372857a4e699f455725cddea5e66d23bfcee2ce64f2fc",
+      "container": "palmDb",
+      "landmarks": 97
+    },
+    {
+      "path": "test/resources/mobi/alice-old.mobi",
+      "format": "mobi",
+      "bytes": 3336854,
+      "sha256": "670c71afc82e29a1f4fc6b09bb2aa75430c9308438094d716b1055c54de1cd01",
+      "container": "palmDb",
+      "landmarks": 84
+    },
+    {
+      "path": "test/resources/pdf/dickens-sample.pdf",
+      "format": "pdf",
+      "bytes": 14946,
+      "sha256": "97444cb3bf7199d3ef8320780053a76376a732a43f0e7011755c4338f6ff1f4f",
+      "container": "pdf",
+      "landmarks": 26
+    },
+    {
+      "path": "test/resources/pdf/encrypted/MANIFEST.md",
+      "format": "manifest",
+      "bytes": 2721,
+      "sha256": "f7c0ab45c2d5c8993cf1ce6be3a00a373574df414c24ad731815d53d603c3cb9",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/encrypted/owner-only.pdf",
+      "format": "pdf",
+      "bytes": 15921,
+      "sha256": "52495fc1d3c9c0dbfd908b4a14de2f8aa1b36abda44de3326e67d4e01e8a1d76",
+      "container": "pdf",
+      "landmarks": 27
+    },
+    {
+      "path": "test/resources/pdf/encrypted/pr6531_1.pdf",
+      "format": "pdf",
+      "bytes": 43414,
+      "sha256": "a5584ab7da3a77a2d3726e8289d7740ad11df06375af95f81bd4c7cc63a7e4fc",
+      "container": "pdf",
+      "landmarks": 47
+    },
+    {
+      "path": "test/resources/pdf/encrypted/r3-rc4-128.pdf",
+      "format": "pdf",
+      "bytes": 15277,
+      "sha256": "49640342d774df5454eb379687918a09e90e3c6338e5afb89c67f6ab6f2201cb",
+      "container": "pdf",
+      "landmarks": 27
+    },
+    {
+      "path": "test/resources/pdf/encrypted/r4-aes128.pdf",
+      "format": "pdf",
+      "bytes": 15621,
+      "sha256": "10790ec0ef80e87cf286cd4897ac486b55479c201e5a82e7d3d80c1c61e8e53c",
+      "container": "pdf",
+      "landmarks": 27
+    },
+    {
+      "path": "test/resources/pdf/encrypted/r4-rc4-128.pdf",
+      "format": "pdf",
+      "bytes": 15380,
+      "sha256": "572501facf45230bc7e1e1bf7ffb708739dbbe0f55a6c6fd83e83a15421540df",
+      "container": "pdf",
+      "landmarks": 27
+    },
+    {
+      "path": "test/resources/pdf/encrypted/r5.pdf",
+      "format": "pdf",
+      "bytes": 15921,
+      "sha256": "436d4073d31b3422253b1500e43ed8e47b321a1cc975c38d1247503c0afdbbf2",
+      "container": "pdf",
+      "landmarks": 27
+    },
+    {
+      "path": "test/resources/pdf/encrypted/r6.pdf",
+      "format": "pdf",
+      "bytes": 15921,
+      "sha256": "3be0f607ffe86dfae6c07dfa2bad21179a35dadb36bb029a8a7e3e9286cf4330",
+      "container": "pdf",
+      "landmarks": 27
+    },
+    {
+      "path": "test/resources/pdf/gutenberg/MANIFEST.md",
+      "format": "manifest",
+      "bytes": 2531,
+      "sha256": "48dcc4ad88707fc6811d69c48f476353c9703757763f9e5de69e69dc3e89bd29",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/gutenberg/pg11-generated.pdf",
+      "format": "pdf",
+      "bytes": 151733,
+      "sha256": "24ff4c0c2dd7c071b85b6ac4c68eedfd7a66f067bb4cf69e545e4b24404c8971",
+      "container": "pdf",
+      "landmarks": 357
+    },
+    {
+      "path": "test/resources/pdf/gutenberg/pg1342-generated.pdf",
+      "format": "pdf",
+      "bytes": 648584,
+      "sha256": "c2332a76136505bd994cf101726c54016662a10b590e2c72fa6d76489dfd339c",
+      "container": "pdf",
+      "landmarks": 1464
+    },
+    {
+      "path": "test/resources/pdf/gutenberg/pg1661-generated.pdf",
+      "format": "pdf",
+      "bytes": 547463,
+      "sha256": "bfe37dc1cac833ad29df62a4cd62e2bb83ba291c05245dce0e62d7aa5399c700",
+      "container": "pdf",
+      "landmarks": 1253
+    },
+    {
+      "path": "test/resources/pdf/gutenberg/pg174-generated.pdf",
+      "format": "pdf",
+      "bytes": 393502,
+      "sha256": "11e2ea88e01d71ea24b22d03ff03dcc32494dc50f01be48b11d12390e1ed79a4",
+      "container": "pdf",
+      "landmarks": 869
+    },
+    {
+      "path": "test/resources/pdf/gutenberg/pg2701-generated.pdf",
+      "format": "pdf",
+      "bytes": 1051718,
+      "sha256": "2217d14071151e95bdf840fd4402e93dea1f4c524aef121eab17842a92aaa5e1",
+      "container": "pdf",
+      "landmarks": 2215
+    },
+    {
+      "path": "test/resources/pdf/gutenberg/pg5200-generated.pdf",
+      "format": "pdf",
+      "bytes": 110932,
+      "sha256": "5e36afbe15dd2701744e074e0de065c74d3da1c97bb97836405b74daaf41e5f9",
+      "container": "pdf",
+      "landmarks": 210
+    },
+    {
+      "path": "test/resources/pdf/gutenberg/pg84-generated.pdf",
+      "format": "pdf",
+      "bytes": 365521,
+      "sha256": "01ffba1ae914770f55c6ffa1bd629c2d806978fbe288c76500a4a606531d7095",
+      "container": "pdf",
+      "landmarks": 751
+    },
+    {
+      "path": "test/resources/pdf/gutenberg/pg98-generated.pdf",
+      "format": "pdf",
+      "bytes": 682470,
+      "sha256": "b705e830821dc18d9583635a4bc2c50cfc44eca18c6e9ec62b85644ef07d153d",
+      "container": "pdf",
+      "landmarks": 1600
+    },
+    {
+      "path": "test/resources/pdf/jbig2/issue12963.pdf",
+      "format": "pdf",
+      "bytes": 603342,
+      "sha256": "bd61f8496b77a479301705c00558ae8cd9e1c24cc8ee01817875f3f8dffb7b7e",
+      "container": "pdf",
+      "landmarks": 1553
+    },
+    {
+      "path": "test/resources/pdf/jbig2/jbig2_huffman_1.pdf",
+      "format": "pdf",
+      "bytes": 3014,
+      "sha256": "0657a95afdf82514e2730bc7fb61ba899e4f0aa3b8f15fdbdb7b028d28bf99ed",
+      "container": "pdf",
+      "landmarks": 43
+    },
+    {
+      "path": "test/resources/pdf/jbig2/jbig2_huffman_2.pdf",
+      "format": "pdf",
+      "bytes": 2350192,
+      "sha256": "84cd406fa27fa2c0e11bedcb8f8069db4d4ea57c261a05becf24416e0dd8ab1a",
+      "container": "pdf",
+      "landmarks": 1622
+    },
+    {
+      "path": "test/resources/pdf/jbig2/jbig2_symbol_offset.pdf",
+      "format": "pdf",
+      "bytes": 1157,
+      "sha256": "305b71c67829ef0bb8bddab9fa3ee763dcecd173f5fd996740d17212888fa97d",
+      "container": "pdf",
+      "landmarks": 18
+    },
+    {
+      "path": "test/resources/pdf/reference/ccitt/MANIFEST.md",
+      "format": "manifest",
+      "bytes": 1925,
+      "sha256": "34a93e72e4ffa92565ed1c68155d39fb587c2e2fefd476ac3615c5c9d90bde66",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/ccitt/ccitt_EndOfBlock_false.pdf",
+      "format": "pdf",
+      "bytes": 3256,
+      "sha256": "f2289b94e7e3f05f9e37754c399d3f525edf9444fb32c3279959cf64b575fe62",
+      "container": "pdf",
+      "landmarks": 38
+    },
+    {
+      "path": "test/resources/pdf/reference/ccitt/images_1bit_grayscale.pdf",
+      "format": "pdf",
+      "bytes": 4573,
+      "sha256": "afbed07b9fe25563b2604b81cd7186c91d4356e5428a05322b8b7eae88301e24",
+      "container": "pdf",
+      "landmarks": 42
+    },
+    {
+      "path": "test/resources/pdf/reference/ccitt/issue13372.pdf",
+      "format": "pdf",
+      "bytes": 85444,
+      "sha256": "2ed729efdc6a2f4454b9a468988798c556a88fa9b47507f6d3e357e4963df661",
+      "container": "pdf",
+      "landmarks": 35
+    },
+    {
+      "path": "test/resources/pdf/reference/ccitt/issue4379.pdf",
+      "format": "pdf",
+      "bytes": 4264,
+      "sha256": "6a6c99d02d3e45bdf9ad0418a17e777e07003673b00d60ec872faca1382faca6",
+      "container": "pdf",
+      "landmarks": 22
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/ccitt_EndOfBlock_false-10.pgm",
+      "format": "resource",
+      "bytes": 2106,
+      "sha256": "806d3d2ede92e15011ae8c7c14b88eb39e70f47b4fe651ec32aca4aa2cc8dc66",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/ccitt_EndOfBlock_false-11.pgm",
+      "format": "resource",
+      "bytes": 2106,
+      "sha256": "806d3d2ede92e15011ae8c7c14b88eb39e70f47b4fe651ec32aca4aa2cc8dc66",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/ccitt_EndOfBlock_false-6.pgm",
+      "format": "resource",
+      "bytes": 2106,
+      "sha256": "dede74c0f9e798968f62947ae2c2dd45ed6f7b2932deea362ba6f26146151a2d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/ccitt_EndOfBlock_false-7.pgm",
+      "format": "resource",
+      "bytes": 2106,
+      "sha256": "dede74c0f9e798968f62947ae2c2dd45ed6f7b2932deea362ba6f26146151a2d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/ccitt_EndOfBlock_false-8.pgm",
+      "format": "resource",
+      "bytes": 2106,
+      "sha256": "508abcfb920cf6ce06925b07d90d31b66675d478eeaaa1f037f8680d99e9acc1",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/ccitt_EndOfBlock_false-9.pgm",
+      "format": "resource",
+      "bytes": 2106,
+      "sha256": "508abcfb920cf6ce06925b07d90d31b66675d478eeaaa1f037f8680d99e9acc1",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/images_1bit_grayscale-10.pgm",
+      "format": "resource",
+      "bytes": 5226,
+      "sha256": "e21918243b1e63dc395877e1b2c2ccd80dc34ad5551514d79ec67e67e37effe0",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/images_1bit_grayscale-9.pgm",
+      "format": "resource",
+      "bytes": 5226,
+      "sha256": "a9c5f4690e8ef9afec36b44c6f1a21abb1df01d986f1de3a466212c387b19f1c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/issue13372-14.pgm",
+      "format": "resource",
+      "bytes": 491606,
+      "sha256": "7948fb0891b43f15cd79aa5e703e8437c805df5d7d54c6d67a51a1fbcb04b061",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/issue4379-1.pgm",
+      "format": "txt",
+      "bytes": 800000,
+      "sha256": "562851a53468dc80a7287afd287c0d91ce4aaf282a91a72821aca9f16c1b9139",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/jbig2_huffman_1-1.pgm",
+      "format": "resource",
+      "bytes": 3584,
+      "sha256": "973a9ef092a826bac72b2f214ec54ad6b514aad31844cf9279115239b3d1ea0a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/jbig2_huffman_1-11.pgm",
+      "format": "resource",
+      "bytes": 296,
+      "sha256": "75589842ff650cf6a3ec54173b17c4400c9a4d21bcaae30fe7b90554d44114e3",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/jbig2_huffman_1-7.pgm",
+      "format": "resource",
+      "bytes": 3584,
+      "sha256": "973a9ef092a826bac72b2f214ec54ad6b514aad31844cf9279115239b3d1ea0a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/reference/goldens/jbig2_symbol_offset-6.pgm",
+      "format": "resource",
+      "bytes": 1848,
+      "sha256": "85a69c4ca3ad2bb4292ecb83385215d349525f0814e233b5e12956eec997eae3",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/sidecar/alice.epub",
+      "format": "epub",
+      "bytes": 885898,
+      "sha256": "7a31d1251ede041d37c3a29566e72f6d420822c13e110e19b5d010b9b0751c14",
+      "container": "zip",
+      "landmarks": 103
+    },
+    {
+      "path": "test/resources/sidecar/metadata.opf",
+      "format": "xml-sidecar",
+      "bytes": 671,
+      "sha256": "6cf2bd57041ef8a05f0a5df4098daaca97f62efb1a8750676c342514b8530050",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/sidecar_named/alice.epub",
+      "format": "epub",
+      "bytes": 885898,
+      "sha256": "7a31d1251ede041d37c3a29566e72f6d420822c13e110e19b5d010b9b0751c14",
+      "container": "zip",
+      "landmarks": 103
+    },
+    {
+      "path": "test/resources/sidecar_named/alice.opf",
+      "format": "xml-sidecar",
+      "bytes": 505,
+      "sha256": "6cb68985eab0c790857120b125cca5143fec3306919fd1f08b129919ee80b218",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/sidecar_named/metadata.opf",
+      "format": "xml-sidecar",
+      "bytes": 473,
+      "sha256": "ef084c34aa9c1e00cfc96071f2a57eb884aad0d3bbf3cd0325ea10ec71e2996a",
+      "container": "unknown",
+      "landmarks": 1
+    }
+  ],
+  "counts": {
+    "total": 122,
+    "totalBytes": 83038619,
+    "byFormat": {
+      "manifest": 7,
+      "cbr": 2,
+      "cbz": 3,
+      "cbc": 1,
+      "cb7": 1,
+      "docx": 1,
+      "epub": 26,
+      "fb2": 4,
+      "html": 2,
+      "htmlz": 1,
+      "txt": 4,
+      "azw3": 2,
+      "mobi": 5,
+      "azw4": 1,
+      "odt": 1,
+      "pdf": 31,
+      "txtz": 1,
+      "resource": 14,
+      "image": 8,
+      "xml-sidecar": 7
+    }
+  }
+}
