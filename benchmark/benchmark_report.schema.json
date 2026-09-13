@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://e-livre.dev/schemas/benchmark-report.schema.json",
+  "title": "eLivre benchmark report (schemaVersion 1)",
+  "description": "Envelope emitted by every eLivre benchmark suite (dart run benchmark/*_benchmarks.dart --json[=path], ELIVRE_*_BENCH_JSON, viewer.js JSON_OUT, library_sweep sample). The `results` records share one stable field contract across all suites.",
+  "type": "object",
+  "required": ["schemaVersion", "suite", "platform", "sdk", "commit", "status", "results"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "suite": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "platform": { "type": "string", "description": "e.g. macos-arm64; never a hostname" },
+    "sdk": { "type": "string" },
+    "commit": { "type": "string" },
+    "quickMode": { "type": "boolean" },
+    "kind": { "type": "string" },
+    "status": { "enum": ["ok", "fail"] },
+    "error": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string" },
+        "phase": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "results": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/record" }
+    }
+  },
+  "definitions": {
+    "record": {
+      "type": "object",
+      "description": "One measured scenario. The first fifteen keys are the stable contract and must be emitted in exactly this order; extras follow.",
+      "required": [
+        "schemaVersion",
+        "suite",
+        "scenario",
+        "platform",
+        "sdk",
+        "commit",
+        "fixtureId",
+        "sizeBytes",
+        "iterations",
+        "warmupIterations",
+        "medianMicros",
+        "p95Micros",
+        "throughputPerSecond",
+        "checksum",
+        "status"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "suite": { "type": "string" },
+        "scenario": { "type": "string", "minLength": 1 },
+        "platform": { "type": "string" },
+        "sdk": { "type": "string" },
+        "commit": { "type": "string" },
+        "fixtureId": {
+          "type": "string",
+          "description": "Stable public fixture id (corpus-manifest id or anonymized random id); empty when the scenario has no fixture."
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Logical size of the benchmark input."
+        },
+        "iterations": { "type": "integer", "minimum": 0 },
+        "warmupIterations": { "type": "integer", "minimum": 0 },
+        "medianMicros": { "type": "number", "minimum": 0 },
+        "p95Micros": { "type": "number", "minimum": 0 },
+        "throughputPerSecond": { "type": "number", "minimum": 0 },
+        "checksum": {
+          "type": "integer",
+          "description": "Fold of consumed results; proves the measured work ran and defeats dead-code elimination."
+        },
+        "status": { "enum": ["ok", "fail"] },
+        "processedBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Bytes the timed body actually traversed. 0 marks an O(1) cache hit; absent when the body processes the whole input."
+        },
+        "meanMicros": { "type": "number", "minimum": 0 },
+        "minMicros": { "type": "number", "minimum": 0 },
+        "maxMicros": { "type": "number", "minimum": 0 },
+        "note": { "type": "string" },
+        "error": {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "type": "string" },
+            "phase": { "type": "string" },
+            "message": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}
