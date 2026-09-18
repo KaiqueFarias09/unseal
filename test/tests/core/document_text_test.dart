@@ -1,8 +1,8 @@
 import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
 
-/// Ported from the e_livre_viewer `document_text_test.dart` suite
-/// when the canonical text model moved into this library.
+/// Preserves the document-text regression coverage introduced when the
+/// canonical text model moved into this library.
 void main() {
   test('matches DOM textContent semantics', () {
     // Tags contribute nothing, exactly like textContent.

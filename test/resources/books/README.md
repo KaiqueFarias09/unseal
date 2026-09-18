@@ -1,7 +1,8 @@
 # Multilingual and Edge-Case Book Corpus
 
-This directory contains redistribution-safe fixtures selected for parser, viewer, localization,
-reading-direction, accessibility, and narration testing. `manifest.json` is the canonical inventory.
+This directory contains redistribution-safe fixtures selected for parser,
+localization, reading-direction, accessibility, and media-overlay testing.
+`manifest.json` is the canonical inventory.
 
 ## Layout
 

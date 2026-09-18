@@ -1,0 +1,24 @@
+# Repository and local tooling
+.git/
+.github/
+.dart_tool/
+.steward/
+.standardctl/
+.vscode/
+.idea/
+AGENTS.md
+steward.yaml
+
+# Generated output
+build/
+coverage/
+pubspec.lock
+*.log
+*.swp
+.DS_Store
+
+# Development-only suites and tooling
+benchmark/
+docs/
+test/
+tool/

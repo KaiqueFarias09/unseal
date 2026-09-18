@@ -150,7 +150,7 @@
       "license_file": "licenses/LICENSE-CC-BY-SA-3.0.txt",
       "bytes": 10627796,
       "sha256": "749a9de094c26bc79351722a2bf320845dc5f6af2d5bf41a96d720d723b29a4c",
-      "focus": ["media-overlays", "smil", "audio", "narration"]
+      "focus": ["media-overlays", "smil", "audio", "timing"]
     },
     {
       "id": "ODD-PD",

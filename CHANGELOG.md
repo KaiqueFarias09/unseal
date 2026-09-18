@@ -1,4 +1,4 @@
-## 3.0.0 - Unreleased
+## 3.0.0 - September 18, 2026
 
 This is the consolidated eLivre v3 release. Intermediate development
 labels were never published; their changes are included here as one major
