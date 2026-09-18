@@ -33,6 +33,7 @@ migrate_working_dir/
 build/
 coverage/
 .steward/
+.standardctl/
 
 # Node oracle dependencies (reproducible via package.json + package-lock.json)
 tool/reference/node_modules/
