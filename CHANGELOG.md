@@ -41,6 +41,16 @@ release with breaking changes after 2.0.0.
   cover behavior where the format supports it.
 - **Reading heuristics**: punctuation normalization, scene-break
   detection, chapter guessing and line unwrapping for reflowable text.
+- **Deterministic robustness infrastructure**: tracked fuzz seeds and
+  generated cases carry a reproducible manifest (hashes, sizes, format
+  families and structural landmarks). The normal suite keeps a quick release
+  gate, while opt-in tagged campaigns run deterministic byte/structure
+  mutations in killable isolates with deadlines.
+- **Structured performance tooling**: one benchmark matrix covers all 16
+  supported formats and can emit versioned JSON, compare same-machine
+  baselines, or alternate A/B commands. A separate, strictly opt-in Calibre
+  library sweep is read-only, resumable, timeout-bounded and anonymizes files
+  with persisted random IDs whose private map stays outside the repository.
 
 - **Calibre format expansion**: TXT/TXZ, HTML/HTMLZ, DOCX, ODT, AZW4,
   CB7 and CBC are now detected and parsed into the common book model.
@@ -204,11 +214,24 @@ release with breaking changes after 2.0.0.
 - **Dependencies and platform baseline**: the package now requires Dart
   3.8 or newer and uses `web`, `pointycastle` and `koni_archive` for
   browser, PDF-security and archive capabilities.
+- **Release validation**: CI has independent Dart VM and browser lanes so
+  conditional implementations are compiled and tested on both runtimes. The
+  publication archive is explicitly filtered by `.pubignore`, and PDF
+  fixtures are marked binary for stable Git handling.
 - Search no longer rescans `files.html` linearly for every section
   (O(n²) → map lookup).
 
 ### Fixed
 
+- **Hostile and malformed inputs fail safely**: empty inputs and corrupt ZIP
+  containers now produce typed eLivre exceptions; all ZIP-backed formats
+  reject encrypted entries, symbolic links, unsupported compression, forged
+  sizes, entries over 512 MiB, aggregate expansion over 1 GiB, and excessive
+  expansion ratios before or during inflation. Deep PDF object graphs and FB2
+  XML trees are bounded instead of risking stack exhaustion.
+- **PDF and FB2 regressions**: marked-content dictionaries no longer leave the
+  PDF content lexer spinning, nested PDF objects and deeply nested FB2 fail
+  predictably, and the affected parsing paths have focused regression tests.
 - EPUB cover resolution now follows spec precedence: EPUB 3
   `cover-image`, EPUB 2 `<meta name="cover">`, guide references, then
   heuristics, instead of an id-substring match.
@@ -285,6 +308,10 @@ release with breaking changes after 2.0.0.
 
 ### Removed
 
+- A machine-specific experimental outlier profiler was removed from the
+  release. Its private-path assumptions and non-portable state made it unsafe
+  to ship; the reproducible benchmark matrix, baseline comparator, and
+  privacy-preserving library sweep cover the supported workflows instead.
 - The legacy `EBook` entry point and its `openFromFile`/
   `readMetadataFromFile` contracts were replaced by `BookReader`.
 - The public `EpubCfi.serialize()` alias was removed in favor of the

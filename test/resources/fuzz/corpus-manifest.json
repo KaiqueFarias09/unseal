@@ -6,8 +6,8 @@
     {
       "path": "test/resources/books/README.md",
       "format": "manifest",
-      "bytes": 5523,
-      "sha256": "d64f957c16a641477e2e7d9e74bee2c63a344005e3f27da5f41480cea679cfc4",
+      "bytes": 5519,
+      "sha256": "0012e5ee3ec467faa701f7d6ed28c3382118c4749f6804ad5031bfc911f8c092",
       "container": "unknown",
       "landmarks": 0
     },
@@ -261,8 +261,8 @@
     {
       "path": "test/resources/books/manifest.json",
       "format": "manifest",
-      "bytes": 22411,
-      "sha256": "20e53afd8e867427e41d82057a0314e71047da0321b42a38159d61f6abbccd35",
+      "bytes": 22408,
+      "sha256": "1a24daa8fbd9ecf068dff0bea72210223000a6094bc64b67260f937164ad2f3e",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1025,7 +1025,7 @@
   ],
   "counts": {
     "total": 122,
-    "totalBytes": 83038619,
+    "totalBytes": 83038612,
     "byFormat": {
       "manifest": 7,
       "cbr": 2,

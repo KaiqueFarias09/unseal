@@ -215,6 +215,13 @@ its own facsimile renderer.
 
 ### Input and archive boundaries
 
+- Every ZIP-backed format goes through the same bounded decoder. Before
+  inflation, eLivre rejects containers declaring more than 1 GiB in total,
+  entries larger than 512 MiB, or an expansion ratio above 200x once the
+  declared output exceeds 32 MiB. The materialized output is bounded again,
+  so forged central-directory sizes cannot bypass the limit. Encrypted
+  entries, symbolic links, and compression methods other than stored or
+  deflated are rejected with `InvalidBookException`.
 - CBR supports a deliberate subset of RAR. Unsupported compression modes,
   solid or split archives, and encrypted entries are rejected.
 - CB7 entries are bounded and parsed asynchronously. Unsupported codecs and
@@ -264,6 +271,11 @@ input from corrupted or protected content. Common types include:
 - `EpubException`, `MobiException`, and `Fb2Exception` for parser-specific
   errors.
 
+Empty inputs, corrupt ZIP containers, and excessively deep PDF or FB2
+structures are normalized to these typed failures instead of leaking parser
+implementation errors such as `RangeError`, `FormatException`, or stack
+overflows.
+
 ## Design principles and inspirations
 
 The project is guided by a few practical goals:
@@ -301,16 +313,44 @@ dart analyze
 dart test
 ```
 
+The default suite is the fast release gate. The deterministic extended fuzz
+campaign is opt-in:
+
+```sh
+dart test --tags fuzz
+dart run tool/fuzz_corpus_inventory.dart --check-manifest
+```
+
+Tracked seeds and generated cases live under `test/resources/fuzz/`; their
+manifest records sizes, hashes, format families, and structural landmarks.
+The same mutation seed always produces the same bytes, while parsing runs in
+killable isolates with deadlines so a hang cannot stall the test process.
+
 The benchmark suite measures detection, full parsing, metadata-only reads,
 isolate entry points, and lazy getters against the repository fixtures:
 
 ```sh
 dart run benchmark/e_livre_benchmarks.dart --quick
 dart run benchmark/e_livre_benchmarks.dart
+dart run benchmark/e_livre_benchmarks.dart --json=artifacts/current.json
+dart run benchmark/compare_baselines.dart artifacts/baseline.json artifacts/current.json
 ```
 
 Benchmark results depend on the machine. Compare runs from the same machine
-when evaluating a change.
+when evaluating a change. The benchmark matrix covers all 16 supported
+formats and emits versioned JSON reports. For a private Calibre library, the
+explicitly opt-in `benchmark/library_sweep.dart` tool performs read-only,
+timeout-bounded inventory, sweep, and stratified-sample runs. It never writes
+to the library and requires a random-ID map outside the repository so paths,
+titles, authors, and file names do not enter reports.
+
+```sh
+dart run benchmark/library_sweep.dart inventory --library=/books --id-map=/private/library-ids.json --out=artifacts/inventory.json
+dart run benchmark/library_sweep.dart sweep --library=/books --id-map=/private/library-ids.json --checkpoint=artifacts/sweep.checkpoint.json --out=artifacts/sweep.json
+```
+
+CI runs the release suite separately on the Dart VM and in Chrome to exercise
+both native and browser implementations.
 
 The [`example/`](example/) directory contains a minimal Flutter app that loads
 the bundled Alice in Wonderland EPUB and displays a parsed summary. It is a
