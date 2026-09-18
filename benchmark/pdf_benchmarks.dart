@@ -18,7 +18,6 @@ const String _realFixture = 'test/resources/pdf/dickens-sample.pdf';
 /// every PDF under `ELIVRE_BENCH_PDF_DIR` when configured.
 Future<void> runPdfBenchmarks() async {
   final group = BenchmarkGroup('PDF');
-
   final realFile = File(_realFixture);
   if (realFile.existsSync()) {
     final bytes = realFile.readAsBytesSync();
@@ -39,9 +38,11 @@ Future<void> runPdfBenchmarks() async {
 
   final corpusRoot = Platform.environment['ELIVRE_BENCH_PDF_DIR'];
   if (corpusRoot == null) return;
+
   final corpus = Directory(corpusRoot);
   if (!corpus.existsSync()) {
     stdout.writeln('[PDF corpus] skipped — $corpusRoot does not exist.');
+
     return;
   }
 
@@ -54,6 +55,7 @@ Future<void> runPdfBenchmarks() async {
         ..sort((final a, final b) => a.path.compareTo(b.path));
   if (files.isEmpty) {
     stdout.writeln('[PDF corpus] skipped — no PDF files under $corpusRoot.');
+
     return;
   }
 
@@ -64,6 +66,7 @@ Future<void> runPdfBenchmarks() async {
     } on Exception {
       continue;
     }
+
     final label = file.path.split('/').last;
     group.add(
       'parsePdfBook — $label',

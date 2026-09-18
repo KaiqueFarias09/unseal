@@ -35,7 +35,6 @@ final String cjkTextSample = List.filled(200, _cjkParagraph).join();
 /// Runs the text and image utility benchmarks.
 void runUtilityBenchmarks() {
   final group = BenchmarkGroup('Text & image utilities');
-
   group.add('extractPlainText — small HTML snippet', () => extractPlainText(_smallHtml));
   final html = largestHtmlFile;
   if (html != null) {
@@ -72,9 +71,8 @@ void runUtilityBenchmarks() {
 
 void _addImageBenchmark(final BenchmarkGroup group, final ImageType type) {
   final bytes = imageSample(type);
-  if (bytes == null) {
-    return;
-  }
+  if (bytes == null) return;
+
   final label = '${type.name} (${formatBytes(bytes.length)})';
   group.add('imageSize — $label', () => imageSize(bytes));
   group.add('sniffImageType — $label', () => sniffImageType(bytes));

@@ -32,12 +32,14 @@ Future<void> main(final List<String> arguments) async {
       'dart run benchmark/e_livre_benchmarks.dart '
       '[--filter=<text>] [--quick]',
     );
+
     return;
   }
   if (!_parseArguments(arguments)) {
     exitCode = 64; // Usage error.
     return;
   }
+
   printBanner();
   final total = Stopwatch()..start();
 
@@ -73,8 +75,10 @@ bool _parseArguments(final List<String> arguments) {
       benchmarkFilter = argument;
     } else {
       stderr.writeln('Unknown option: $argument');
+
       return false;
     }
   }
+
   return true;
 }

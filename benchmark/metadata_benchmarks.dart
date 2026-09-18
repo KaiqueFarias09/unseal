@@ -1,7 +1,7 @@
 // Benchmarks for the public metadata-only reads: the synchronous
 // fast path [BookReader.readMetadataSync] and the isolate-based
 // [BookReader.readMetadataFromBytes] / [BookReader.readMetadataFromPath]
-// (the latter includes the Calibre sidecar merge).
+// (the latter includes the sidecar metadata merge).
 
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations

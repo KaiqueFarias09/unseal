@@ -21,7 +21,6 @@ void runGetterBenchmarks() {
   final comic = BookReader.parseBook(comicSample.bytes) as ComicBook;
 
   final group = BenchmarkGroup('Parsed book getters');
-
   group.add(
     'metadata — EpubBook (${epubSmall.shortLabel})',
     () => epub.metadata,
@@ -100,11 +99,11 @@ void runGetterBenchmarks() {
     );
   }
 
-  group.add('title — EpubBook', () => epub.title);
-  group.add('title — MobiBook', () => mobi6.title);
-  group.add('title — Fb2Book', () => fb2.title);
-  group.add('creators — MobiBook', () => mobi6.creators);
-  group.add('version — EpubBook', () => epub.version);
+  group.add('metadata.title — EpubBook', () => epub.metadata.title);
+  group.add('title — MobiBook', () => mobi6.metadata.title);
+  group.add('title — Fb2Book', () => fb2.metadata.title);
+  group.add('authors — MobiBook', () => mobi6.metadata.authors);
+  group.add('package.version — EpubBook', () => epub.package.version);
   group.add('pageCount — ComicBook', () => comic.pageCount);
   group.add('images — EpubBook (alice)', () => aliceEpub.images);
   group.add('content — EpubBook (alice)', () => aliceEpub.content);
@@ -118,26 +117,11 @@ void _runMetadataUtilityBenchmarks(final BookMetadata template) {
   // directly: no title and no authors triggers the filename fallback.
   const bareMetadata = BookMetadata(format: BookFormat.epub);
   const fallbackPath = '/books/Dune - Frank Herbert.epub';
-  final statistics = BookStatistics.fromTexts([
-    ?plainTextSample,
-  ]);
-
-  group.add(
-    'BookMetadata.copyWith',
-    () => template.copyWith(title: 'Benchmark', isbn: '978-0'),
-  );
+  final statistics = BookStatistics.fromTexts([?plainTextSample]);
+  group.add('BookMetadata.copyWith', () => template.copyWith(title: 'Benchmark', isbn: '978-0'));
   group.add('mergeBookMetadata', () => mergeBookMetadata(template, template));
-  group.add(
-    'applyFilenameFallback — hit',
-    () => applyFilenameFallback(bareMetadata, fallbackPath),
-  );
-  group.add(
-    'applyFilenameFallback — miss',
-    () => applyFilenameFallback(template, fallbackPath),
-  );
+  group.add('applyFilenameFallback — hit', () => applyFilenameFallback(bareMetadata, fallbackPath));
+  group.add('applyFilenameFallback — miss', () => applyFilenameFallback(template, fallbackPath));
   group.add('parseSeriesIndex', () => parseSeriesIndex('2.5'));
-  group.add(
-    'BookStatistics.estimatedReadingTime',
-    statistics.estimatedReadingTime,
-  );
+  group.add('BookStatistics.estimatedReadingTime', statistics.estimatedReadingTime);
 }

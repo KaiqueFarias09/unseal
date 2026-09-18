@@ -1,12 +1,12 @@
-// Benchmarks for the canonical document text ([documentText]) and the
+// Benchmarks for the canonical document text ([DocumentTextScanner.scan]) and the
 // full-text search built on it ([BookSearch.search]).
 //
-// [documentText] is the shared character offset space of search, CFI
+// [DocumentTextScanner.scan] is the shared character offset space of search, CFI
 // and reading positions; its implementation is a single-pass scanner
 // that bulk-copies text spans between markup. The first group pairs it
 // against [extractPlainText] — the single-pass text utility — on the
 // exact same input (cold compute, then [documentTextOf]'s Expando
-// memo), then times [documentText] on individual sections of a real
+// memo), then times [DocumentTextScanner.scan] on individual sections of a real
 // multi-section book so the per-KB cost is visible.
 //
 // `BookSearch.search` memoizes the document text of every section
@@ -46,12 +46,12 @@ void _runDocumentTextGroup() {
 
   // Deliberate A/B: the same chapter through the single-pass scanner
   // and through the single-pass whitespace-collapsing utility, plus
-  // the memoized accessor built on [documentText].
+  // the memoized accessor built on [DocumentTextScanner.scan].
   final html = largestHtmlFile;
   if (html != null) {
     group.add(
       'documentText(html) — chapter (${formatBytes(html.content.length)})',
-      () => documentText(html.content),
+      () => DocumentTextScanner(html.content).scan(),
       inputBytes: html.content.length,
       note: 'single-pass scanner; search/CFI offset space',
     );
@@ -82,7 +82,7 @@ void _runDocumentTextGroup() {
   _addRealCorpusSectionBenchmarks(group);
 }
 
-/// Times [documentText] on individual sections of the real-corpus
+/// Times [DocumentTextScanner.scan] on individual sections of the real-corpus
 /// Shakespeare EPUB: the largest section plus four around the median
 /// content length, each row carrying its own input size so the
 /// per-KB cost can be compared across section sizes, then the whole
@@ -93,15 +93,17 @@ void _addRealCorpusSectionBenchmarks(final BenchmarkGroup group) {
   final book = _shakespeareEpub();
   if (book == null) {
     skipLibraryGroup('documentText — real corpus');
+
     return;
   }
+
   final sections = book.files.html;
   for (final section in _representativeSections(sections, _representativeSectionCount)) {
     final rank = sections.indexOf(section) + 1;
     group.add(
       'documentText(html) — shakespeare ${section.name.split('/').last} '
       '(${formatBytes(section.content.length)})',
-      () => documentText(section.content),
+      () => DocumentTextScanner(section.content).scan(),
       inputBytes: section.content.length,
       note: 'html section $rank of ${sections.length}',
     );
@@ -189,6 +191,7 @@ void _addRealCorpusSearchBenchmarks(final BenchmarkGroup group) {
   final book = _shakespeareEpub();
   if (book == null) {
     skipLibraryGroup('BookSearch.search — real corpus');
+
     return;
   }
   // Rare words so a full scan of every section happens before the
@@ -248,6 +251,7 @@ void _addSearch(
   // warm variant below.
   final probe = book.search(query, mode: mode);
   final matches = '${probe.matches.length} match${probe.matches.length == 1 ? '' : 'es'}';
+
   group.addFirstAccess<Book>(
     '$label — ${mode.name} "$query" (cold)',
     coldSamples,
@@ -268,9 +272,8 @@ void _addSearch(
 /// Memoized untimed parse of the real-corpus book; `null` when no
 /// library is configured, the book is missing, or it fails to parse.
 EpubBook? _shakespeareEpub() {
-  if (_shakespeareResolved) {
-    return _shakespeareBook;
-  }
+  if (_shakespeareResolved) return _shakespeareBook;
+
   _shakespeareResolved = true;
   final book = libraryRoot == null ? null : findLibraryBook(_shakespeareFileName);
   if (book != null) {
@@ -281,6 +284,7 @@ EpubBook? _shakespeareEpub() {
       stdout.writeln('[${book.name}] skipped — parsing failed: $error');
     }
   }
+
   return _shakespeareBook;
 }
 
@@ -292,17 +296,17 @@ Uint8List? _shakespeareBytes;
 bool _shakespeareResolved = false;
 
 /// Total HTML content size of [book], as a throughput hint.
-int _htmlContentLength(final Book book) =>
-    book.files.html.fold<int>(0, (final total, final file) => total + file.content.length);
+int _htmlContentLength(final Book book) {
+  return book.files.html.fold<int>(0, (final total, final file) => total + file.content.length);
+}
 
 /// Picks [count] sections by content length: the largest plus the
 /// rest evenly around the median, returned smallest first.
 List<TextFile> _representativeSections(final List<TextFile> sections, final int count) {
   final sorted = sections.toList()
     ..sort((final a, final b) => a.content.length.compareTo(b.content.length));
-  if (sorted.length <= count) {
-    return sorted;
-  }
+  if (sorted.length <= count) return sorted;
+
   final largest = sorted.removeLast();
   final median = sorted.length ~/ 2;
   final below = (count - 1) ~/ 2;
@@ -311,6 +315,7 @@ List<TextFile> _representativeSections(final List<TextFile> sections, final int 
     for (var offset = -below; offset <= above; offset++)
       sorted[(median + offset).clamp(0, sorted.length - 1)],
   };
+
   return <TextFile>[...picks, largest]
     ..sort((final a, final b) => a.content.length.compareTo(b.content.length));
 }

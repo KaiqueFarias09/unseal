@@ -34,8 +34,10 @@ final class BookFixture {
   final String? displayName;
 
   /// Short display label, e.g. `vertical-writing-ja.epub (261 KB)`.
-  String get label => '${displayName ?? name.split('/').last} '
-      '(${formatBytes(bytes.length)})';
+  String get label {
+    return '${displayName ?? name.split('/').last} '
+        '(${formatBytes(bytes.length)})';
+  }
 
   /// The fixture name without size, for labels that add their own
   /// context.
@@ -45,10 +47,7 @@ final class BookFixture {
 final Map<String, BookFixture> _cache = <String, BookFixture>{};
 
 /// Loads `test/resources/[relativePath]`, caching by path.
-BookFixture loadFixture(
-  final String relativePath, {
-  final String? displayName,
-}) {
+BookFixture loadFixture(final String relativePath, {final String? displayName}) {
   return _cache.putIfAbsent(relativePath, () {
     final file = File(_locate('test/resources/$relativePath'));
     if (!file.existsSync()) {
@@ -57,6 +56,7 @@ BookFixture loadFixture(
         'Run the benchmarks from the repository root.',
       );
     }
+
     return BookFixture(
       name: relativePath,
       path: file.path,
@@ -70,39 +70,39 @@ String _locate(final String relative) {
   var directory = Directory.current;
   for (var i = 0; i < 4; i++) {
     final candidate = File('${directory.path}/$relative');
-    if (candidate.existsSync()) {
-      return candidate.path;
-    }
+    if (candidate.existsSync()) return candidate.path;
+
     final parent = directory.parent;
-    if (parent.path == directory.path) {
-      break;
-    }
+    if (parent.path == directory.path) break;
+
     directory = parent;
   }
+
   return relative;
 }
 
 /// All fixtures exercised by the parse / metadata-read benchmarks.
-List<BookFixture> get parsingFixtures => <BookFixture>[
-      epubSmall,
-      epubAlice,
-      epubLinearAlgebra,
-      epubFixedLayout,
-      mobi6Alice,
-      mobi8Alice,
-      mobiJointAlice,
-      fb2Alice,
-      comicSample,
-    ];
+List<BookFixture> get parsingFixtures {
+  return <BookFixture>[
+    epubSmall,
+    epubAlice,
+    epubLinearAlgebra,
+    epubFixedLayout,
+    mobi6Alice,
+    mobi8Alice,
+    mobiJointAlice,
+    fb2Alice,
+    comicSample,
+  ];
+}
 
 /// A small vertical-writing EPUB.
 BookFixture get epubSmall => loadFixture('books/epub/vertical-writing-ja.epub');
 
 /// Alice in Wonderland as an EPUB (868 KB).
-BookFixture get epubAlice => loadFixture(
-      'epub/Alices Adventures in Wonderland.epub',
-      displayName: 'alice.epub',
-    );
+BookFixture get epubAlice {
+  return loadFixture('epub/Alices Adventures in Wonderland.epub', displayName: 'alice.epub');
+}
 
 /// A math textbook EPUB (1.7 MB).
 BookFixture get epubLinearAlgebra => loadFixture('epub/linear-algebra.epub');
@@ -125,7 +125,7 @@ BookFixture get fb2Alice => loadFixture('fb2/alice.fb2');
 /// A small CBZ comic (4 KB).
 BookFixture get comicSample => loadFixture('comic/sample.cbz');
 
-/// The EPUB carrying a Calibre `metadata.opf` sidecar.
+/// The EPUB carrying a `metadata.opf` sidecar.
 BookFixture get epubWithSidecar => loadFixture('sidecar/alice.epub');
 
 bool _derivedReady = false;
@@ -137,25 +137,27 @@ final Map<ImageType, Uint8List> _images = <ImageType, Uint8List>{};
 /// benchmarks. `null` when no fixture carries HTML.
 TextFile? get largestHtmlFile {
   _ensureDerived();
+
   return _largestHtml;
 }
 
 /// The plain text of [largestHtmlFile], computed once.
 String? get plainTextSample {
   _ensureDerived();
+
   return _plainText;
 }
 
 /// A cached image of [type] extracted from the fixtures, or `null`.
 Uint8List? imageSample(final ImageType type) {
   _ensureDerived();
+
   return _images[type];
 }
 
 void _ensureDerived() {
-  if (_derivedReady) {
-    return;
-  }
+  if (_derivedReady) return;
+
   _derivedReady = true;
   final books = <Book>[
     BookReader.parseBook(epubAlice.bytes),
@@ -170,12 +172,12 @@ void _ensureDerived() {
       }
     }
     for (final file in book.files.html) {
-      if (_largestHtml == null ||
-          file.content.length > _largestHtml!.content.length) {
+      if (_largestHtml == null || file.content.length > _largestHtml!.content.length) {
         _largestHtml = file;
       }
     }
   }
+
   final html = _largestHtml;
   if (html != null) {
     _plainText = extractPlainText(html.content);

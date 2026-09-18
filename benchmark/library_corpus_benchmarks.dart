@@ -1,7 +1,7 @@
 // Whole-library throughput benchmarks over the user's real corpus.
 //
 // Unlike every other group — which measures one fixture book at a
-// time — these scan the entire configured Calibre library in a single
+// time — these scan the entire configured library in a single
 // pass, exercising mixed formats at library scale. The corpus root
 // comes from `ELIVRE_BENCH_LIBRARY` (see `library_fixtures.dart`);
 // the whole group skips gracefully when it is unset.
@@ -29,12 +29,13 @@ const String _familiaRomanaAzw3 = 'Familia Romana (Lingua Latina) - Hans H. Orbe
 Future<void> runLibraryCorpusBenchmarks() async {
   if (libraryRoot == null || libraryBooks.isEmpty) {
     skipLibraryGroup('Real library corpus');
+
     return;
   }
+
   final group = BenchmarkGroup('Real library corpus');
   final books = libraryBooks;
   final totalBytes = books.fold<int>(0, (final sum, final book) => sum + book.size);
-
   group.add(
     'parseBook — whole library, single pass (${books.length} books)',
     () => _runLibraryPass(books, totalBytes, BookReader.parseBook, _parsePassTable),
@@ -81,11 +82,13 @@ Object? _runLibraryPass(
       error = caught;
       failures++;
     }
+
     watch.stop();
     table.record(book, watch.elapsed, error);
   }
   total.stop();
   table.finish(books: books, totalBytes: totalBytes, elapsed: total.elapsed, failures: failures);
+
   return fingerprint;
 }
 
@@ -106,10 +109,13 @@ Future<void> _addGiantBookBenchmarks(
       '[Real library corpus] "$displayName" not found in the library — '
       'giant-book benchmarks omitted.',
     );
+
     return;
   }
+
   final label = '$displayName (${formatBytes(book.size)})';
   final bytes = book.read();
+
   group.add(
     'BookReader.parseBook — $label',
     () => BookReader.parseBook(bytes),
@@ -127,17 +133,18 @@ Future<void> _addOpenFromBytesBenchmark(
   final String label,
 ) async {
   final name = 'BookReader.openFromBytes — $label';
-  if (!matchesFilter('${group.title} — $name')) {
-    return;
-  }
+  if (!matchesFilter('${group.title} — $name')) return;
+
   try {
     // Trial run first: on constrained machines the doubled peak memory
     // can fail; omit the benchmark rather than break the suite.
     await BookReader.openFromBytes(bytes).timeout(const Duration(minutes: 5));
   } on Object catch (error) {
     stdout.writeln('[Real library corpus] $name probe failed — omitted ($error).');
+
     return;
   }
+
   await group.addAsync(
     name,
     () => BookReader.openFromBytes(bytes),
@@ -157,9 +164,8 @@ final class _FirstPassTable {
   bool _printed = false;
 
   void begin() {
-    if (_printed) {
-      return;
-    }
+    if (_printed) return;
+
     _printed = true;
     stdout
       ..writeln()
@@ -168,9 +174,8 @@ final class _FirstPassTable {
   }
 
   void record(final LibraryBook book, final Duration elapsed, final Object? error) {
-    if (!_printed) {
-      return;
-    }
+    if (!_printed) return;
+
     final duration = error == null
         ? (elapsed.inMicroseconds / 1000).toStringAsFixed(1).padLeft(10)
         : 'FAILED'.padLeft(10);
@@ -183,9 +188,8 @@ final class _FirstPassTable {
     required final Duration elapsed,
     required final int failures,
   }) {
-    if (!_printed) {
-      return;
-    }
+    if (!_printed) return;
+
     final milliseconds = (elapsed.inMicroseconds / 1000).toStringAsFixed(1).padLeft(10);
     stdout.writeln(
       '${formatBytes(totalBytes).padLeft(10)}$milliseconds  '

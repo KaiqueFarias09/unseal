@@ -1,17 +1,16 @@
-/// Calibre-scale benchmarks: the dependency-free `metadata.db` reader
-/// and sort-key computation at library volume.
+/// Benchmarks for library-sized inputs: dependency-free `metadata.db` reads and sort-key
+/// computation over real, fixture, and synthetic book collections.
 ///
-/// The `Calibre metadata.db` group parses the real `metadata.db` of
+/// The metadata database group parses the real `metadata.db` of
 /// the library pointed at by `ELIVRE_BENCH_LIBRARY` — sqlite-master
 /// schema discovery, whole-table b-tree scans and the book / author /
 /// series / tag / identifier / format joins — and compares it against
 /// the reduced-schema fixture under `test/resources` (48 KB, 3 books)
 /// so the cost of a real library's bigger schema is visible.
 ///
-/// The `Sort keys at volume` group computes Calibre-compatible
-/// title/author sort keys over every book of the real corpus (falling
-/// back to in-repo fixtures when no library is configured) plus a
-/// 1000-title synthetic volume derived from those titles. The real
+/// The `Sort keys at volume` group computes the package's title and author sort keys for each
+/// readable, titled book in the real corpus. It falls back to in-repository fixtures when no
+/// library is configured and derives a 1000-title synthetic volume from that corpus. The real
 /// corpus carries Portuguese classics — `O cortiço`, `Os Maias`,
 /// `A Moreninha`, `Memórias Póstumas de Brás Cubas` — so per-language
 /// leading-article handling (`O `, `A `, `Os ` moved to the end) is
@@ -29,8 +28,7 @@ import 'benchmark_harness.dart';
 import 'fixtures.dart';
 import 'library_fixtures.dart';
 
-/// Runs both Calibre-scale groups: the metadata.db reader and the
-/// sort-key volume benchmarks.
+/// Runs both library-scale groups: the metadata.db reader and the sort-key volume benchmarks.
 void runCalibreScaleBenchmarks() {
   _runCalibreDatabaseBenchmarks();
   _runSortKeyBenchmarks();
@@ -40,13 +38,17 @@ void _runCalibreDatabaseBenchmarks() {
   final root = libraryRoot;
   if (root == null) {
     skipLibraryGroup('Calibre metadata.db');
+
     return;
   }
+
   final dbFile = File('$root/metadata.db');
   if (!dbFile.existsSync()) {
     stdout.writeln('[Calibre metadata.db] skipped — no metadata.db under $root.');
+
     return;
   }
+
   final realBytes = dbFile.readAsBytesSync(); // untimed input load
   final realBooks = CalibreDatabase.parse(realBytes).books.length;
   final fixtureDb = loadFixture('calibre/metadata.db');
@@ -72,8 +74,10 @@ void _runSortKeyBenchmarks() {
   final corpus = _collectCorpus();
   if (corpus.isEmpty) {
     stdout.writeln('[Sort keys at volume] skipped — no readable book metadata.');
+
     return;
   }
+
   final synthetic = _syntheticVolume(corpus, 1000);
   final fallback = libraryRoot == null;
 
@@ -90,12 +94,13 @@ void _runSortKeyBenchmarks() {
     note: 'varied reprises of the corpus titles',
   );
   group.add(
-    'title sort — pt-BR articles (lang pt-BR)',
+    'title sort — pt-BR articles (language pt-BR)',
     () {
       var sink = 0;
       for (final book in synthetic) {
-        sink += titleSort(book.title, lang: 'pt-BR').length;
+        sink += computeTitleSortKey(book.title, language: 'pt-BR').length;
       }
+
       return sink;
     },
     inputBytes: _titleCharacterCount(synthetic),
@@ -124,9 +129,8 @@ final class _CorpusBook {
 /// to the in-repo fixtures when no library is configured; unreadable
 /// books are skipped with a printed warning.
 List<_CorpusBook> _collectCorpus() {
-  if (libraryRoot == null) {
-    return _fixtureCorpus();
-  }
+  if (libraryRoot == null) return _fixtureCorpus();
+
   final corpus = <_CorpusBook>[];
   var untitled = 0;
   for (final book in libraryBooks) {
@@ -135,8 +139,10 @@ List<_CorpusBook> _collectCorpus() {
       final title = metadata.title;
       if (title == null || title.isEmpty) {
         untitled++;
+
         continue;
       }
+
       corpus.add(_fromMetadata(metadata));
     } catch (error) {
       stdout.writeln('[Sort keys at volume] skipped ${book.name} — $error');
@@ -145,6 +151,7 @@ List<_CorpusBook> _collectCorpus() {
   if (untitled > 0) {
     stdout.writeln('[Sort keys at volume] $untitled books without a title skipped.');
   }
+
   return corpus;
 }
 
@@ -163,8 +170,10 @@ List<_CorpusBook> _fixtureCorpus() {
     final metadata = BookReader.readMetadataSync(fixture.bytes);
     final title = metadata.title;
     if (title == null || title.isEmpty) continue;
+
     corpus.add(_fromMetadata(metadata));
   }
+
   return corpus;
 }
 
@@ -206,6 +215,7 @@ List<_CorpusBook> _syntheticVolume(final List<_CorpusBook> corpus, final int cou
       ),
     );
   }
+
   return synthetic;
 }
 
@@ -214,9 +224,10 @@ List<_CorpusBook> _syntheticVolume(final List<_CorpusBook> corpus, final int cou
 int _computeSortKeys(final List<_CorpusBook> books) {
   var sink = 0;
   for (final book in books) {
-    sink += titleSort(book.title, lang: book.language).length;
+    sink += computeTitleSortKey(book.title, language: book.language).length;
     sink += authorsToSortString(book.authors).length;
   }
+
   return sink;
 }
 
@@ -229,6 +240,7 @@ int _characterCount(final List<_CorpusBook> books) {
       total += author.length;
     }
   }
+
   return total;
 }
 
@@ -238,5 +250,6 @@ int _titleCharacterCount(final List<_CorpusBook> books) {
   for (final book in books) {
     total += book.title.length;
   }
+
   return total;
 }

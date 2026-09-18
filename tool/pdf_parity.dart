@@ -1,6 +1,5 @@
-/// PDF parity harness: measures how close eLivre's pure-Dart PDF
-/// extraction is to the Calibre/Poppler reference tooling on the same
-/// files. Report-only by design — the numbers are a ruler, not a gate.
+/// PDF parity harness: compares eLivre's pure-Dart PDF processing with external reference tools.
+/// It is report-only; the numbers do not gate the build.
 ///
 /// Levels:
 ///
@@ -18,9 +17,8 @@
 ///    HTML files in numeric filename order and scores the whole book
 ///    against the concatenation of eLivre's canonical page texts.
 ///
-/// Reference binaries are resolved inside the Calibre app bundle
-/// (`/Applications/calibre.app`); when the bundle is absent the
-/// harness prints a note and exits 0 (skipped).
+/// Reference binaries are resolved from the reference bundle path defined by the tool. When the
+/// bundle is absent, the harness prints a note and exits 0 (skipped).
 ///
 /// Usage:
 ///
@@ -48,7 +46,7 @@ import 'package:path/path.dart' as p;
 /// Directory scanned when no positional argument is given.
 const String _defaultDirectory = 'test/resources/pdf';
 
-/// Root of the Calibre app bundle holding the reference binaries.
+/// Root of the reference-tool bundle holding the binaries.
 const String _calibreBundle = '/Applications/calibre.app';
 
 /// Page similarity above which a page counts as aligned.
@@ -160,7 +158,7 @@ class _Tools {
   /// Creates the tool set.
   const _Tools({this.pdftotext, this.pdfinfo, this.ebookConvert});
 
-  /// Discovers the binaries inside the Calibre app bundle.
+  /// Discovers the reference binaries inside the reference bundle path.
   factory _Tools.discover() {
     String? locate(final String relative) {
       final candidate = '$_calibreBundle/$relative';
@@ -174,13 +172,13 @@ class _Tools {
     );
   }
 
-  /// `pdftotext` (Poppler, shipped inside Calibre's utils app).
+  /// `pdftotext` from the bundled Poppler utilities.
   final String? pdftotext;
 
-  /// `pdfinfo` (Poppler, shipped inside Calibre's utils app).
+  /// `pdfinfo` from the bundled Poppler utilities.
   final String? pdfinfo;
 
-  /// Calibre's conversion driver.
+  /// The bundled EPUB conversion driver.
   final String? ebookConvert;
 }
 
@@ -327,7 +325,7 @@ class _ReflowReport {
   /// Whole-book lesser/greater character ratio, or null on failure.
   final double? charRatio;
 
-  /// Normalized Calibre EPUB text length, or null on failure.
+  /// Normalized reference EPUB text length, or null on failure.
   final int? referenceChars;
 
   /// Normalized eLivre canonical text length, or null on failure.
@@ -409,6 +407,7 @@ Future<_ProcessOutput?> _runCommand(
       stdoutEncoding: const Utf8Codec(allowMalformed: true),
       stderrEncoding: const Utf8Codec(allowMalformed: true),
     ).timeout(timeout);
+
     return _ProcessOutput(result.exitCode, result.stdout as String, result.stderr as String);
   } on ProcessException {
     return null;
@@ -425,7 +424,7 @@ Future<_ProcessOutput?> _runCommand(
 /// 1. Remove soft hyphen U+00AD (hyphenation artifact), BOM U+FEFF and
 ///    zero-width space U+200B: invisible on both sides.
 /// 2. Fold ligatures to expanded forms (fi, fl, ff, ffi, ffl) because
-///    PDF cmaps and Calibre's HTML disagree on which form survives.
+///    PDF cmaps and the converted HTML can disagree on which form survives.
 /// 3. Fold fancy quotes, dashes, primes and the ellipsis to their
 ///    ASCII shapes for the same reason.
 /// 4. Collapse whitespace runs (newlines included) to one space and
@@ -444,6 +443,7 @@ String _normalizeText(final String input, {required final bool caseInsensitive})
   if (caseInsensitive) {
     text = text.toLowerCase();
   }
+
   return text;
 }
 
@@ -469,6 +469,7 @@ double _diceBigramSimilarity(final String a, final String b) {
       bag[bigram] = remaining - 1;
     }
   }
+
   return 2 * overlap / (a.length - 1 + (b.length - 1));
 }
 
@@ -478,6 +479,7 @@ double _lengthRatio(final String a, final String b) {
   if (greater == 0) {
     return 1;
   }
+
   return math.min(a.length, b.length) / greater;
 }
 
@@ -524,19 +526,23 @@ _CliParse _parseOptions(final List<String> arguments) {
           if (value == null || value.isEmpty) {
             stderr.writeln('error: --json requires a file path.');
             _printUsage(stderr);
+
             return const _CliParse(null, 2);
           }
           jsonPath = value;
         default:
           stderr.writeln('error: unknown option $name.');
           _printUsage(stderr);
+
           return const _CliParse(null, 2);
       }
+
       continue;
     }
     if (argument.startsWith('-')) {
       stderr.writeln('error: unknown option $argument.');
       _printUsage(stderr);
+
       return const _CliParse(null, 2);
     }
     if (positional != null) {
@@ -587,6 +593,7 @@ List<File> _collectPdfs(final Directory root) {
     }
   }
   files.sort((final a, final b) => a.path.compareTo(b.path));
+
   return files;
 }
 
@@ -619,6 +626,7 @@ Future<List<_PageMetric>> _compareExtraction({
     ]);
     if (output == null) {
       errors.add('page $page: failed to start pdftotext.');
+
       continue;
     }
     if (output.exitCode != 0) {
@@ -626,6 +634,7 @@ Future<List<_PageMetric>> _compareExtraction({
         'page $page: pdftotext exited ${output.exitCode}: '
         '${_snippet(output.standardError)}',
       );
+
       continue;
     }
     final reference = _normalizeText(output.standardOutput, caseInsensitive: caseInsensitive);
@@ -642,6 +651,7 @@ Future<List<_PageMetric>> _compareExtraction({
       ),
     );
   }
+
   return metrics;
 }
 
@@ -690,6 +700,7 @@ Future<_MetadataReport> _compareMetadata({
     _compareAuthorField(reported['Author'], ours.authors, caseInsensitive),
     _comparePageField(reported['Pages'], pageCount),
   ];
+
   return _MetadataReport(true, fields, null);
 }
 
@@ -713,6 +724,7 @@ _MetadataField _compareTextualField(
   final matches =
       _normalizeText(pdfinfoValue, caseInsensitive: caseInsensitive) ==
       _normalizeText(eLivreValue, caseInsensitive: caseInsensitive);
+
   return _MetadataField(field, matches ? 'match' : 'diff', pdfinfoValue, eLivreValue);
 }
 
@@ -738,6 +750,7 @@ _MetadataField _compareAuthorField(
   ).split(',').map((final name) => name.trim()).where((final name) => name.isNotEmpty).toSet();
   final ours = authors.map(fold).toSet();
   final matches = reference.length == ours.length && reference.containsAll(ours);
+
   return _MetadataField('Author', matches ? 'match' : 'diff', pdfinfoValue, authors.join(', '));
 }
 
@@ -747,11 +760,12 @@ _MetadataField _comparePageField(final String? pdfinfoValue, final int pageCount
   if (parsed == null) {
     return _MetadataField('Pages', 'missing', pdfinfoValue, '$pageCount');
   }
+
   return _MetadataField('Pages', parsed == pageCount ? 'match' : 'diff', '$parsed', '$pageCount');
 }
 
 /// Zero-pads digit runs so plain string order matches numeric order
-/// for the `index_split_000.html`-style names Calibre emits.
+/// for names such as `index_split_000.html`.
 String _naturalKey(final String name) =>
     name.replaceAllMapped(RegExp(r'(\d+)'), (final match) => match[1]!.padLeft(8, '0'));
 
@@ -760,7 +774,7 @@ String _naturalKey(final String name) =>
 String _canonicalBookText(final PdfBook book) =>
     book.pageTexts.map((final page) => page.text).join('\n');
 
-/// Runs the reflow level for one book: converts to EPUB with Calibre,
+/// Runs the reflow level for one book: converts to EPUB with the reference driver,
 /// unpacks it and scores the concatenated `documentText` of the
 /// content HTML files (numeric filename order) against the
 /// concatenation of eLivre's canonical page texts.
@@ -816,10 +830,11 @@ Future<_ReflowReport> _compareReflow({
     final buffer = StringBuffer();
     for (final entry in htmlEntries) {
       final content = entry.content as List<int>;
-      buffer.write(documentText(utf8.decode(content, allowMalformed: true)));
+      buffer.write(DocumentTextScanner(utf8.decode(content, allowMalformed: true)).scan());
     }
     final reference = _normalizeText(buffer.toString(), caseInsensitive: caseInsensitive);
     final ours = _normalizeText(_canonicalBookText(book), caseInsensitive: caseInsensitive);
+
     return _ReflowReport(
       available: true,
       error: null,
@@ -942,6 +957,11 @@ void _printConsoleReport(final List<_BookReport> books, final _Options options) 
     stdout.writeln(line(row));
   }
 
+  _printBookDiagnostics(books, options);
+  _printComparisonSummary(books, options);
+}
+
+void _printBookDiagnostics(final List<_BookReport> books, final _Options options) {
   for (final book in books) {
     for (final error in book.errors) {
       stdout.writeln('  ! ${book.displayPath}: $error');
@@ -971,7 +991,9 @@ void _printConsoleReport(final List<_BookReport> books, final _Options options) 
       stdout.writeln('  reflow ${book.displayPath}: ${book.reflow.error}');
     }
   }
+}
 
+void _printComparisonSummary(final List<_BookReport> books, final _Options options) {
   final comparedPages = books.fold<int>(0, (final sum, final book) => sum + book.pages.length);
   final globalMean = comparedPages == 0
       ? 0.0
@@ -1030,6 +1052,7 @@ List<String> _tableRow(final _BookReport book, final _Options options) {
     extras.add(similarity == null ? 'reflow n/a' : 'reflow ${similarity.toStringAsFixed(4)}');
   }
   final worst = book.worstPage;
+
   return <String>[
     book.displayPath,
     '${book.pageCount}',
@@ -1181,6 +1204,7 @@ Future<void> _runImageParity(final _Options options) async {
       'skipped: the pdf.js oracle is not installed '
       '(npm install --prefix tool/reference brings in pdfjs-dist 3.11.174).',
     );
+
     return;
   }
 
@@ -1209,11 +1233,13 @@ Future<void> _runImageParity(final _Options options) async {
       document = PdfDocument.parse(pdf.readAsBytesSync());
     } on PdfException catch (error) {
       stdout.writeln('scanning $relative... skipped ($error)');
+
       continue;
     }
     final images = _collectImageXObjects(document);
     if (images.isEmpty) {
       stdout.writeln('scanning $relative... no bitmap images');
+
       continue;
     }
     for (final entry in images.entries) {
@@ -1248,13 +1274,16 @@ Map<int, PdfStream> _collectImageXObjects(final PdfDocument document) {
   for (final page in PdfPageTree.parse(document)) {
     final resources = document.resolve(page.resources);
     if (resources is! PdfDictionary) continue;
+
     final xobjects = document.resolve(resources['XObject']);
     if (xobjects is! PdfDictionary) continue;
     for (final name in xobjects.entries.keys) {
       final stream = document.resolve(xobjects.entries[name]);
       if (stream is! PdfStream) continue;
+
       final subtype = document.resolve(stream.dictionary['Subtype']);
       if (subtype is! PdfName || subtype.value != 'Image') continue;
+
       final filter = document.resolve(stream.dictionary['Filter'] ?? const PdfNull());
       final filterName = filter is PdfName
           ? filter.value
@@ -1267,6 +1296,7 @@ Map<int, PdfStream> _collectImageXObjects(final PdfDocument document) {
       if (number != 0) images[number] = stream;
     }
   }
+
   return images;
 }
 
@@ -1278,97 +1308,37 @@ Future<_ImageMetric> _compareImage({
   required final _Options options,
   required final bool oracleReady,
 }) async {
-  int widthOf(PdfStream target) {
-    for (final key in const ['Width', 'W']) {
-      final value = document.resolve(target.dictionary[key] ?? const PdfNull());
-      if (value is PdfNumber) return value.value.toInt();
-    }
-    return 0;
-  }
-
-  int heightOf(PdfStream target) {
-    for (final key in const ['Height', 'H']) {
-      final value = document.resolve(target.dictionary[key] ?? const PdfNull());
-      if (value is PdfNumber) return value.value.toInt();
-    }
-    return 0;
-  }
-
-  final width = widthOf(stream);
-  final height = heightOf(stream);
+  final width = _imageDimension(document, stream, const ['Width', 'W']);
+  final height = _imageDimension(document, stream, const ['Height', 'H']);
   try {
     final packed = decodePdfStream(stream, document.resolve);
     final bitmap = PdfBitmap.fromPacked(width: width, height: height, packed: packed);
     final ours = bitmap.toGrayBytes();
-
-    final goldenPath = p.join(
-      _goldensDirectory,
-      '${p.basenameWithoutExtension(pdf.path)}-$object.pgm',
+    final loaded = await _loadReferenceRaster(
+      pdf: pdf,
+      object: object,
+      options: options,
+      oracleReady: oracleReady,
     );
-    List<int> reference;
-    if (options.updateGoldens || oracleReady) {
-      final rasterFile = File(
-        '${Directory.systemTemp.path}/'
-        'elivre-parity-${DateTime.now().microsecondsSinceEpoch}.pgm',
-      );
-      final result = await Process.run('node', <String>[
-        _oracleScript,
-        pdf.path,
-        '$object',
-        rasterFile.path,
-      ]);
-      if (result.exitCode != 0) {
-        return _ImageMetric(
-          file: p.relative(pdf.path),
-          object: object,
-          width: width,
-          height: height,
-          differing: 0,
-          total: 0,
-          error:
-              'oracle failed (exit ${result.exitCode}): '
-              '${(result.stderr as String).trim()}',
-        );
-      }
-      reference = _pgmRaster(rasterFile.readAsBytesSync());
-      if (options.updateGoldens) {
-        final goldenDir = Directory(_goldensDirectory);
-        if (!goldenDir.existsSync()) goldenDir.createSync(recursive: true);
-        File(goldenPath).writeAsBytesSync(reference);
-      }
-    } else {
-      final golden = File(goldenPath);
-      if (!golden.existsSync()) {
-        return _ImageMetric(
-          file: p.relative(pdf.path),
-          object: object,
-          width: width,
-          height: height,
-          differing: 0,
-          total: 0,
-          error: 'no golden raster at $goldenPath',
-        );
-      }
-      reference = _pgmRaster(golden.readAsBytesSync());
+    if (loaded.error != null) {
+      return _imageError(pdf, object, width, height, loaded.error!);
     }
+    final reference = loaded.pixels!;
 
     if (reference.length != ours.length) {
-      return _ImageMetric(
-        file: p.relative(pdf.path),
-        object: object,
-        width: width,
-        height: height,
-        differing: 0,
-        total: 0,
-        error:
-            'raster size mismatch: oracle ${reference.length} px, '
-            'library ${ours.length} px',
+      return _imageError(
+        pdf,
+        object,
+        width,
+        height,
+        'raster size mismatch: oracle ${reference.length} px, library ${ours.length} px',
       );
     }
     var differing = 0;
     for (var i = 0; i < reference.length; i++) {
       if (reference[i] != ours[i]) differing++;
     }
+
     return _ImageMetric(
       file: p.relative(pdf.path),
       object: object,
@@ -1390,6 +1360,86 @@ Future<_ImageMetric> _compareImage({
   }
 }
 
+int _imageDimension(final PdfDocument document, final PdfStream stream, final List<String> keys) {
+  for (final key in keys) {
+    final value = document.resolve(stream.dictionary[key] ?? const PdfNull());
+    if (value is PdfNumber) return value.value.toInt();
+  }
+
+  return 0;
+}
+
+final class _ReferenceRaster {
+  const _ReferenceRaster({this.pixels, this.error});
+
+  final List<int>? pixels;
+  final String? error;
+}
+
+Future<_ReferenceRaster> _loadReferenceRaster({
+  required final File pdf,
+  required final int object,
+  required final _Options options,
+  required final bool oracleReady,
+}) async {
+  final goldenPath = p.join(
+    _goldensDirectory,
+    '${p.basenameWithoutExtension(pdf.path)}-$object.pgm',
+  );
+  if (options.updateGoldens || oracleReady) {
+    final rasterFile = File(
+      '${Directory.systemTemp.path}/'
+      'elivre-parity-${DateTime.now().microsecondsSinceEpoch}.pgm',
+    );
+    final result = await Process.run('node', <String>[
+      _oracleScript,
+      pdf.path,
+      '$object',
+      rasterFile.path,
+    ]);
+    if (result.exitCode != 0) {
+      return _ReferenceRaster(
+        error:
+            'oracle failed (exit ${result.exitCode}): '
+            '${(result.stderr as String).trim()}',
+      );
+    }
+    final pixels = _pgmRaster(rasterFile.readAsBytesSync());
+    if (options.updateGoldens) {
+      final goldenDir = Directory(_goldensDirectory);
+      if (!goldenDir.existsSync()) goldenDir.createSync(recursive: true);
+      File(goldenPath).writeAsBytesSync(pixels);
+    }
+
+    return _ReferenceRaster(pixels: pixels);
+  }
+
+  final golden = File(goldenPath);
+  if (!golden.existsSync()) {
+    return _ReferenceRaster(error: 'no golden raster at $goldenPath');
+  }
+
+  return _ReferenceRaster(pixels: _pgmRaster(golden.readAsBytesSync()));
+}
+
+_ImageMetric _imageError(
+  final File pdf,
+  final int object,
+  final int width,
+  final int height,
+  final String error,
+) {
+  return _ImageMetric(
+    file: p.relative(pdf.path),
+    object: object,
+    width: width,
+    height: height,
+    differing: 0,
+    total: 0,
+    error: error,
+  );
+}
+
 /// Parses the gray raster out of a P5 PGM written by the oracle.
 List<int> _pgmRaster(final List<int> pgm) {
   final text = String.fromCharCodes(pgm);
@@ -1397,6 +1447,7 @@ List<int> _pgmRaster(final List<int> pgm) {
   if (!text.startsWith('P5') || headerEnd < 0) {
     throw const PdfException('oracle did not produce a P5 PGM raster.');
   }
+
   return pgm.sublist(headerEnd + 4);
 }
 
@@ -1408,6 +1459,7 @@ void _printImageReport(final List<_ImageMetric> metrics) {
   for (final metric in metrics) {
     if (metric.error != null) {
       stdout.writeln('  ${metric.file}  obj ${metric.object}: ERROR ${metric.error}');
+
       continue;
     }
     final file = metric.file.padRight(25);
@@ -1438,6 +1490,7 @@ Future<void> main(final List<String> arguments) async {
       await stderr.flush();
       exit(parsed.exitCode);
     }
+
     return;
   }
   final options = parsed.options!;
@@ -1452,6 +1505,7 @@ Future<void> main(final List<String> arguments) async {
       'skipped: Calibre is not installed at $_calibreBundle; '
       'the PDF parity harness needs its pdftotext, pdfinfo and ebook-convert.',
     );
+
     return;
   }
   final tools = _Tools.discover();

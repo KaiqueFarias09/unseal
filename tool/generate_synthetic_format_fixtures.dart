@@ -175,6 +175,7 @@ Future<Uint8List> _buildCb7() async {
   const comicInfo =
       '<ComicInfo><Title>eLivre CB7 Fixture</Title>'
       '<Writer>eLivre contributors</Writer><LanguageISO>mul</LanguageISO></ComicInfo>';
+
   await writer.addBytes(
     koni.ArchiveEntrySpec(path: 'ComicInfo.xml'),
     Uint8List.fromList(utf8.encode(comicInfo)),
@@ -185,11 +186,13 @@ Future<Uint8List> _buildCb7() async {
   return sink.takeBytes();
 }
 
-Uint8List _buildCbc(final Uint8List cb7) => _zip(<String, List<int>>{
-  'comics.txt': utf8.encode('first.cb7:First collection title\nsecond.cb7:Second title\n'),
-  'first.cb7': cb7,
-  'second.cb7': cb7,
-});
+Uint8List _buildCbc(final Uint8List cb7) {
+  return _zip(<String, List<int>>{
+    'comics.txt': utf8.encode('first.cb7:First collection title\nsecond.cb7:Second title\n'),
+    'first.cb7': cb7,
+    'second.cb7': cb7,
+  });
+}
 
 Uint8List _buildCbz() {
   const comicInfo = '''
@@ -215,46 +218,47 @@ Uint8List _buildCbz() {
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
 
-ArchiveFile _archiveFile(final String name, final List<int> bytes) =>
-    ArchiveFile(name, bytes.length, bytes)..lastModTime = 946684800;
+ArchiveFile _archiveFile(final String name, final List<int> bytes) {
+  return ArchiveFile(name, bytes.length, bytes)..lastModTime = 946684800;
+}
+
+void _addStoredCbrFile(final BytesBuilder builder, final String name, final List<int> data) {
+  final nameBytes = ascii.encode(name);
+  final headerSize = 32 + nameBytes.length;
+  final header = ByteData(headerSize);
+  var offset = 2; // Header CRC is intentionally unchecked by the fixture reader.
+  header.setUint8(offset, 0x74);
+  offset += 1;
+  header.setUint16(offset, 0x8000, Endian.little);
+  offset += 2;
+  header.setUint16(offset, headerSize, Endian.little);
+  offset += 2;
+  header.setUint32(offset, data.length, Endian.little);
+  offset += 4;
+  header.setUint32(offset, data.length, Endian.little);
+  offset += 4;
+  header.setUint8(offset, 0);
+  offset += 1;
+  offset += 8; // File CRC and DOS timestamp.
+  header.setUint8(offset, 29);
+  offset += 1;
+  header.setUint8(offset, 0x30); // Stored, not compressed.
+  offset += 1;
+  header.setUint16(offset, nameBytes.length, Endian.little);
+  offset += 2;
+  header.setUint32(offset, 0x20, Endian.little);
+  offset += 4;
+  header.buffer.asUint8List().setRange(offset, offset + nameBytes.length, nameBytes);
+  builder
+    ..add(header.buffer.asUint8List())
+    ..add(data);
+}
 
 Uint8List _buildCbr() {
   final builder = BytesBuilder(copy: false)..add(const [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]);
 
-  void addStoredFile(final String name, final List<int> data) {
-    final nameBytes = ascii.encode(name);
-    final headerSize = 32 + nameBytes.length;
-    final header = ByteData(headerSize);
-    var offset = 2; // Header CRC is intentionally unchecked by the fixture reader.
-    header.setUint8(offset, 0x74);
-    offset += 1;
-    header.setUint16(offset, 0x8000, Endian.little);
-    offset += 2;
-    header.setUint16(offset, headerSize, Endian.little);
-    offset += 2;
-    header.setUint32(offset, data.length, Endian.little);
-    offset += 4;
-    header.setUint32(offset, data.length, Endian.little);
-    offset += 4;
-    header.setUint8(offset, 0);
-    offset += 1;
-    offset += 8; // File CRC and DOS timestamp.
-    header.setUint8(offset, 29);
-    offset += 1;
-    header.setUint8(offset, 0x30); // Stored, not compressed.
-    offset += 1;
-    header.setUint16(offset, nameBytes.length, Endian.little);
-    offset += 2;
-    header.setUint32(offset, 0x20, Endian.little);
-    offset += 4;
-    header.buffer.asUint8List().setRange(offset, offset + nameBytes.length, nameBytes);
-    builder
-      ..add(header.buffer.asUint8List())
-      ..add(data);
-  }
-
-  addStoredFile('002.jpg', const [0xFF, 0xD8, 0xFF, 0xE0, 4, 5, 6]);
-  addStoredFile('001.jpg', const [0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3]);
+  _addStoredCbrFile(builder, '002.jpg', const [0xFF, 0xD8, 0xFF, 0xE0, 4, 5, 6]);
+  _addStoredCbrFile(builder, '001.jpg', const [0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3]);
 
   final end = ByteData(7)
     ..setUint8(2, 0x7B)

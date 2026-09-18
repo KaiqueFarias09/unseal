@@ -42,6 +42,7 @@ final class BenchmarkResult {
 
   static List<double> _sortedCopy(final List<double> list) {
     final copy = list.toList()..sort();
+
     return copy;
   }
 
@@ -49,8 +50,9 @@ final class BenchmarkResult {
   double get median => _percentile(50);
 
   /// Arithmetic mean of all samples.
-  double get mean =>
-      samples.isEmpty ? 0 : samples.fold<double>(0, _add) / samples.length;
+  double get mean {
+    return samples.isEmpty ? 0 : samples.fold<double>(0, _add) / samples.length;
+  }
 
   /// 95th percentile sample.
   double get p95 => _percentile(95);
@@ -67,10 +69,10 @@ final class BenchmarkResult {
   static double _add(final double a, final double b) => a + b;
 
   double _percentile(final int p) {
-    if (samples.isEmpty) {
-      return 0;
-    }
+    if (samples.isEmpty) return 0;
+
     final index = ((p / 100) * (samples.length - 1)).round();
+
     return samples[index.clamp(0, samples.length - 1)];
   }
 }
@@ -90,6 +92,7 @@ int get sinkChecksum => _sink;
 /// Whether [name] passes the active [benchmarkFilter].
 bool matchesFilter(final String name) {
   final filter = benchmarkFilter;
+
   return filter == null || name.toLowerCase().contains(filter.toLowerCase());
 }
 
@@ -121,9 +124,8 @@ BenchmarkResult runBenchmark(
     }
   }
 
-  if (probeMicros < 200) {
-    return _runBatched(name, action, effectiveBudget, probeMicros, note);
-  }
+  if (probeMicros < 200) return _runBatched(name, action, effectiveBudget, probeMicros, note);
+
   return _runPerIteration(name, action, effectiveBudget, probeMicros, note);
 }
 
@@ -150,12 +152,8 @@ BenchmarkResult _runBatched(
     samples.add(batch.elapsedMicroseconds / inner);
     runs += inner;
   } while (total.elapsed < budget && samples.length < 500);
-  return BenchmarkResult(
-    name: name,
-    iterations: runs,
-    note: note,
-    samples: samples,
-  );
+
+  return BenchmarkResult(name: name, iterations: runs, note: note, samples: samples);
 }
 
 BenchmarkResult _runPerIteration(
@@ -166,10 +164,10 @@ BenchmarkResult _runPerIteration(
   final String? note,
 ) {
   final minimum = probeMicros > 1e6 ? 3 : 5;
-  final iterations =
-      (budget.inMicroseconds / (probeMicros < 1 ? 1 : probeMicros))
-          .round()
-          .clamp(minimum, 100000);
+  final iterations = (budget.inMicroseconds / (probeMicros < 1 ? 1 : probeMicros)).round().clamp(
+    minimum,
+    100000,
+  );
   final samples = <double>[];
   final watch = Stopwatch();
   for (var i = 0; i < iterations; i++) {
@@ -180,12 +178,8 @@ BenchmarkResult _runPerIteration(
     watch.stop();
     samples.add(watch.elapsedMicroseconds.toDouble());
   }
-  return BenchmarkResult(
-    name: name,
-    iterations: iterations,
-    note: note,
-    samples: samples,
-  );
+
+  return BenchmarkResult(name: name, iterations: iterations, note: note, samples: samples);
 }
 
 /// Measures an asynchronous [action] a fixed number of times — used
@@ -208,12 +202,8 @@ Future<BenchmarkResult> runAsyncBenchmark(
     watch.stop();
     samples.add(watch.elapsedMicroseconds.toDouble());
   }
-  return BenchmarkResult(
-    name: name,
-    iterations: count,
-    note: note,
-    samples: samples,
-  );
+
+  return BenchmarkResult(name: name, iterations: count, note: note, samples: samples);
 }
 
 /// Measures the *first* access to a lazy member (e.g. `Book.statistics`
@@ -242,19 +232,15 @@ BenchmarkResult runFirstAccessBenchmark<T>(
     _consume(result);
     samples.add(watch.elapsedMicroseconds.toDouble());
   }
-  return BenchmarkResult(
-    name: name,
-    iterations: instances,
-    note: note,
-    samples: samples,
-  );
+
+  return BenchmarkResult(name: name, iterations: instances, note: note, samples: samples);
 }
 
 void _consume(final Object? value) => _sink = Object.hash(_sink, value);
 
-Duration _defaultBudget() => quickMode
-    ? const Duration(milliseconds: 300)
-    : const Duration(milliseconds: 1500);
+Duration _defaultBudget() {
+  return quickMode ? const Duration(milliseconds: 300) : const Duration(milliseconds: 1500);
+}
 
 /// Collects the benchmarks of one group, printing the group header
 /// lazily before the first benchmark that matches the filter.
@@ -274,9 +260,8 @@ final class BenchmarkGroup {
     final int? inputBytes,
     final String? note,
   }) {
-    if (!matchesFilter('$title — $name')) {
-      return;
-    }
+    if (!matchesFilter('$title — $name')) return;
+
     _printHeaderOnce();
     final result = runBenchmark(name, action, note: note);
     printResult(result, inputBytes: inputBytes);
@@ -289,9 +274,8 @@ final class BenchmarkGroup {
     final int? inputBytes,
     final String? note,
   }) async {
-    if (!matchesFilter('$title — $name')) {
-      return;
-    }
+    if (!matchesFilter('$title — $name')) return;
+
     _printHeaderOnce();
     final result = await runAsyncBenchmark(name, action, note: note);
     printResult(result, inputBytes: inputBytes);
@@ -305,24 +289,16 @@ final class BenchmarkGroup {
     final Object? Function(T instance) access, {
     final String? note,
   }) {
-    if (!matchesFilter('$title — $name')) {
-      return;
-    }
+    if (!matchesFilter('$title — $name')) return;
+
     _printHeaderOnce();
-    final result = runFirstAccessBenchmark<T>(
-      name,
-      count,
-      createInstance,
-      access,
-      note: note,
-    );
+    final result = runFirstAccessBenchmark<T>(name, count, createInstance, access, note: note);
     printResult(result);
   }
 
   void _printHeaderOnce() {
-    if (_headerPrinted) {
-      return;
-    }
+    if (_headerPrinted) return;
+
     _headerPrinted = true;
     printGroupHeader(title);
   }
@@ -359,8 +335,7 @@ void printGroupHeader(final String title) {
 void printResult(final BenchmarkResult result, {final int? inputBytes}) {
   final extras = <String>[
     if (result.note != null) result.note!,
-    if (inputBytes != null && result.median > 0)
-      _formatRate(inputBytes / result.median),
+    if (inputBytes != null && result.median > 0) _formatRate(inputBytes / result.median),
   ];
   stdout.writeln(
     '${result.name.padRight(56)}'
@@ -386,53 +361,47 @@ void printFooter(final Duration total) {
 
 /// Formats a byte count for display (188 KB, 6.4 MB, ...).
 String formatBytes(final int bytes) {
-  if (bytes >= 1000000) {
-    return '${_trimBytes(bytes / 1000000)} MB';
-  }
-  if (bytes >= 1000) {
-    return '${_trimBytes(bytes / 1000)} KB';
-  }
+  if (bytes >= 1000000) return '${_trimBytes(bytes / 1000000)} MB';
+  if (bytes >= 1000) return '${_trimBytes(bytes / 1000)} KB';
+
   return '$bytes B';
 }
 
-String _trimBytes(final double value) =>
-    value >= 100 ? value.round().toString() : value.toStringAsFixed(1);
+String _trimBytes(final double value) {
+  return value >= 100 ? value.round().toString() : value.toStringAsFixed(1);
+}
 
 /// Formats a duration given in microseconds adaptively.
 String formatMicros(final double micros) {
-  if (micros < 1) {
-    return '${(micros * 1000).toStringAsFixed(0)} ns';
-  }
+  if (micros < 1) return '${(micros * 1000).toStringAsFixed(0)} ns';
   if (micros < 1000) {
     return '${micros.toStringAsFixed(micros < 10 ? 2 : 1)} µs';
   }
-  if (micros < 1e6) {
-    return '${(micros / 1000).toStringAsFixed(2)} ms';
-  }
+  if (micros < 1e6) return '${(micros / 1000).toStringAsFixed(2)} ms';
+
   return '${(micros / 1e6).toStringAsFixed(2)} s';
 }
 
 /// Formats a count compactly (865k, 1.2M, ...).
 String compactCount(final int count) {
-  if (count < 1000) {
-    return count.toString();
-  }
+  if (count < 1000) return count.toString();
   if (count < 1e6) {
     return '${(count / 1e3).toStringAsFixed(count < 1e4 ? 1 : 0)}k';
   }
+
   return '${(count / 1e6).toStringAsFixed(1)}M';
 }
 
 /// Formats an operations-per-second rate compactly.
 String compactRate(final double rate) {
-  if (rate < 1000) {
-    return rate.toStringAsFixed(0);
-  }
+  if (rate < 1000) return rate.toStringAsFixed(0);
   if (rate < 1e6) {
     return '${(rate / 1e3).toStringAsFixed(rate < 1e4 ? 1 : 0)}k';
   }
+
   return '${(rate / 1e6).toStringAsFixed(1)}M';
 }
 
-String _formatRate(final double megaBytesPerSecond) =>
-    '${megaBytesPerSecond.toStringAsFixed(megaBytesPerSecond < 10 ? 1 : 0)} MB/s';
+String _formatRate(final double megaBytesPerSecond) {
+  return '${megaBytesPerSecond.toStringAsFixed(megaBytesPerSecond < 10 ? 1 : 0)} MB/s';
+}

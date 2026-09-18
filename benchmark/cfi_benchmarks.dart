@@ -72,14 +72,12 @@ final class _SectionDocuments {
   EpubCfiDocument? at(final int contentIndex) {
     return _cache.putIfAbsent(contentIndex, () {
       final sections = _book.readingOrder;
-      if (contentIndex < 0 || contentIndex >= sections.length) {
-        return null;
-      }
+      if (contentIndex < 0 || contentIndex >= sections.length) return null;
+
       for (final file in _book.files.html) {
-        if (file.path == sections[contentIndex].name) {
-          return EpubCfiDocument.parse(file.content);
-        }
+        if (file.path == sections[contentIndex].name) return EpubCfiDocument.parse(file.content);
       }
+
       return null;
     });
   }
@@ -90,14 +88,14 @@ final class _SectionDocuments {
     EpubCfiDocument? document;
     for (var i = 0; i < sectionCount; i++) {
       final candidate = at(i);
-      if (candidate == null) {
-        continue;
-      }
+      if (candidate == null) continue;
+
       if (document == null || candidate.text.length > document.text.length) {
         index = i;
         document = candidate;
       }
     }
+
     return (index, document);
   }
 
@@ -112,6 +110,7 @@ final class _SectionDocuments {
 EpubCfi _bookCfi(final EpubCfiDocument document, final int contentIndex, final int offset) {
   final spine = EpubCfi.simple(steps: [6, (contentIndex + 1) * 2]);
   final local = document.cfiForOffset(offset);
+
   return EpubCfi(start: EpubCfiPath(segments: [...spine.start.segments, ...local.start.segments]));
 }
 
@@ -120,10 +119,9 @@ EpubCfi _bookCfi(final EpubCfiDocument document, final int contentIndex, final i
 int? _workableIndex(final _SectionDocuments documents, final int from, final int count) {
   for (var i = from.clamp(0, count - 1); i < count; i++) {
     final document = documents.at(i);
-    if (document != null && document.text.isNotEmpty) {
-      return i;
-    }
+    if (document != null && document.text.isNotEmpty) return i;
   }
+
   return null;
 }
 
@@ -140,14 +138,14 @@ _CfiTarget? _targetAt(
   final sections = book.readingOrder;
   final requested = (orderFraction * (sections.length - 1)).round();
   final index = _workableIndex(documents, requested, sections.length);
-  if (index == null) {
-    return null;
-  }
+  if (index == null) return null;
+
   final document = documents.at(index)!;
   final textLength = document.text.length;
   final offset = (textFraction * textLength).round().clamp(0, textLength);
   final cfi = EpubCfi.parse(book.buildEpubCfi(contentIndex: index, offsetInText: offset));
   final place = 'section ${index + 1}/${sections.length}';
+
   return _CfiTarget(
     label: label.isEmpty ? place : '$label ($place)',
     contentIndex: index,
@@ -227,9 +225,8 @@ void _addResolveBenchmarks(
       textFraction: 0.5,
       label: label,
     );
-    if (target == null) {
-      continue;
-    }
+    if (target == null) continue;
+
     group.add('resolveCfi — ${target.label}', () => book.resolveCfi(target.cfi));
     // Pre-touch so the cached entry below hits the warm document
     // cache instead of re-parsing the section XML.
@@ -263,9 +260,8 @@ void _addBuildBenchmarks(
       orderFraction: orderFraction,
       textFraction: textFraction,
     );
-    if (target == null) {
-      continue;
-    }
+    if (target == null) continue;
+
     final percent = (textFraction * 100).round();
     group.add(
       'buildEpubCfi — ${target.label} · $percent% into text',
@@ -292,13 +288,11 @@ void _addRoundtripBenchmark(
   final targets = <_CfiTarget>[];
   for (var k = 0; k < 10; k++) {
     final target = _targetAt(book, documents, orderFraction: k / 9, textFraction: 0.5);
-    if (target != null) {
-      targets.add(target);
-    }
+    if (target != null) targets.add(target);
   }
-  if (targets.isEmpty) {
-    return;
-  }
+
+  if (targets.isEmpty) return;
+
   group.add('roundtrip build → parse → resolve', () {
     Object? last;
     for (final target in targets) {
@@ -307,6 +301,7 @@ void _addRoundtripBenchmark(
       );
       last = book.resolveCfi(cfi);
     }
+
     return last;
   }, note: '${targets.length} positions per run');
   // Pre-touch every section so the cached round trip below never
@@ -324,6 +319,7 @@ void _addRoundtripBenchmark(
         );
         last = book.resolveCfi(cfi);
       }
+
       return last;
     },
     note: '${targets.length} positions, section documents cached',
@@ -336,9 +332,8 @@ String? _deepestBookCfi(final _SectionDocuments documents) {
   String? longest;
   for (var i = 0; i < documents.sectionCount; i++) {
     final document = documents.at(i);
-    if (document == null || document.text.isEmpty) {
-      continue;
-    }
+    if (document == null || document.text.isEmpty) continue;
+
     final textLength = document.text.length;
     for (var k = 0; k <= 32; k++) {
       final offset = (textLength * k / 32).round().clamp(0, textLength);
@@ -348,6 +343,7 @@ String? _deepestBookCfi(final _SectionDocuments documents) {
       }
     }
   }
+
   return longest;
 }
 
@@ -358,19 +354,20 @@ String? _deepestBookCfi(final _SectionDocuments documents) {
 /// is the longest parse input the book can supply.
 String? _rangeCfi(final _SectionDocuments documents) {
   final (index, document) = documents.largestTextSection();
-  if (index < 0 || document == null) {
-    return null;
-  }
+  if (index < 0 || document == null) return null;
+
   final textLength = document.text.length;
   final sampled = <(int, EpubCfi)>[];
   for (var k = 0; k <= 64; k++) {
     final offset = (textLength * k / 64).round().clamp(0, textLength);
     sampled.add((offset, document.cfiForOffset(offset)));
   }
+
   final ranked = sampled.toList()
     ..sort((final a, final b) => b.$2.encode().length.compareTo(a.$2.encode().length));
   final chosen = ranked.take(3).toList()..sort((final a, final b) => a.$1.compareTo(b.$1));
   final spine = EpubCfi.simple(steps: [6, (index + 1) * 2]);
+
   return EpubCfi(
     start: EpubCfiPath(segments: [...spine.start.segments, ...chosen[0].$2.start.segments]),
     rangeStart: chosen[1].$2.start,
@@ -383,26 +380,24 @@ String? _rangeCfi(final _SectionDocuments documents) {
 int _stepCount(final EpubCfi cfi) {
   var total = 0;
   for (final path in <EpubCfiPath?>[cfi.start, cfi.rangeStart, cfi.rangeEnd]) {
-    if (path == null) {
-      continue;
-    }
+    if (path == null) continue;
+
     for (final segment in path.segments) {
       total += segment.steps.length;
     }
   }
+
   return total;
 }
 
 /// The raw XHTML of the section at [contentIndex], or `null`.
 String? _htmlOf(final EpubBook book, final int contentIndex) {
   final sections = book.readingOrder;
-  if (contentIndex < 0 || contentIndex >= sections.length) {
-    return null;
-  }
+  if (contentIndex < 0 || contentIndex >= sections.length) return null;
+
   for (final file in book.files.html) {
-    if (file.path == sections[contentIndex].name) {
-      return file.content;
-    }
+    if (file.path == sections[contentIndex].name) return file.content;
   }
+
   return null;
 }

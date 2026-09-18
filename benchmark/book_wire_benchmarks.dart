@@ -125,6 +125,7 @@ String _wireNote(final Map<String, Object?> json, final List<Object> blobs, fina
       blobBytes += convert.utf8.encode(blob).length;
     }
   }
+
   final total = jsonBytes + blobBytes;
   final factor = (total / fileBytes).toStringAsFixed(fileBytes < total ? 2 : 3);
 

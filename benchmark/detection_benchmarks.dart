@@ -13,17 +13,8 @@ import 'fixtures.dart';
 void runDetectionBenchmarks() {
   final group = BenchmarkGroup('Format detection');
   for (final fixture in parsingFixtures) {
-    group.add(
-      'detectFormat — ${fixture.label}',
-      () => detectFormat(fixture.bytes),
-    );
+    group.add('detectFormat — ${fixture.label}', () => detectFormat(fixture.bytes));
   }
-  group.add(
-    'refineMobiFormat — ${mobi6Alice.label}',
-    () => refineMobiFormat(mobi6Alice.bytes),
-  );
-  group.add(
-    'refineMobiFormat — ${mobi8Alice.label}',
-    () => refineMobiFormat(mobi8Alice.bytes),
-  );
+  group.add('refineMobiFormat — ${mobi6Alice.label}', () => refineMobiFormat(mobi6Alice.bytes));
+  group.add('refineMobiFormat — ${mobi8Alice.label}', () => refineMobiFormat(mobi8Alice.bytes));
 }

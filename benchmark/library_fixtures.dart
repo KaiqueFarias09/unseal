@@ -1,7 +1,7 @@
-// Real-corpus fixtures loaded from the user's Calibre library.
+// Real-corpus fixtures loaded from the user's configured library.
 //
 // The library root comes from the `ELIVRE_BENCH_LIBRARY` environment
-// variable (e.g. `/Users/kaiquefarias/Calibre Library`). Book files
+// variable (for example, `/Users/example/Library`). Book files
 // stay outside the repository and load by path at runtime; groups
 // built on this loader skip gracefully — with a printed note — when
 // the variable is unset, the directory is missing, or a named book is
@@ -15,7 +15,7 @@ import 'benchmark_harness.dart' show formatBytes;
 /// The supported real-book file extensions.
 const Set<String> _bookExtensions = <String>{'.epub', '.mobi', '.azw3', '.fb2'};
 
-/// A real book from the Calibre library, referenced by path.
+/// A real book from the configured library, referenced by path.
 ///
 /// Bytes load on demand through [read] so a whole-library scan never
 /// holds every book in memory at once.
@@ -44,9 +44,8 @@ List<LibraryBook>? _books;
 
 String? _resolveRoot() {
   final value = Platform.environment['ELIVRE_BENCH_LIBRARY'];
-  if (value == null || !Directory(value).existsSync()) {
-    return null;
-  }
+  if (value == null || !Directory(value).existsSync()) return null;
+
   return value;
 }
 
@@ -66,9 +65,8 @@ void skipLibraryGroup(final String groupLabel) {
 /// root is configured.
 List<LibraryBook> get libraryBooks {
   final root = _libraryRoot;
-  if (root == null) {
-    return const <LibraryBook>[];
-  }
+  if (root == null) return const <LibraryBook>[];
+
   return _books ??=
       Directory(root)
           .listSync(recursive: true)
@@ -76,6 +74,7 @@ List<LibraryBook> get libraryBooks {
           .where((final file) => _bookExtensions.contains(_extension(file.path)))
           .map((final file) {
             final size = file.lengthSync();
+
             return LibraryBook(name: _fileName(file.path), path: file.path, size: size);
           })
           .toList()
@@ -86,19 +85,20 @@ List<LibraryBook> get libraryBooks {
 /// library root is configured or no book matches.
 LibraryBook? findLibraryBook(final String name) {
   for (final book in libraryBooks) {
-    if (book.name == name) {
-      return book;
-    }
+    if (book.name == name) return book;
   }
+
   return null;
 }
 
 String _extension(final String path) {
   final dot = path.lastIndexOf('.');
+
   return dot < 0 ? '' : path.substring(dot).toLowerCase();
 }
 
 String _fileName(final String path) {
   final slash = path.lastIndexOf(Platform.pathSeparator);
+
   return slash < 0 ? path : path.substring(slash + 1);
 }

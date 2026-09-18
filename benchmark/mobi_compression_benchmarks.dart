@@ -62,6 +62,7 @@ void _addAliceRecordBenchmark(final BenchmarkGroup group) {
   if (pdb.count < 2 || header.compressionType != 2) {
     return;
   }
+
   final record = pdb.record(1);
   final decompressed = decompressPalmdoc(record);
   group.add(
@@ -105,8 +106,10 @@ void _addRealSampleBenchmark(final BenchmarkGroup group) {
         'HUFF-compressed .mobi / .azw3 there to enable it.',
       );
     }
+
     return;
   }
+
   final pdb = PdbHeader.parse(file.readAsBytesSync());
   final header = MobiHeader.parse(pdb.record(0), pdb.ident);
   if (header.compressionType != 0x4448 ||
@@ -115,8 +118,10 @@ void _addRealSampleBenchmark(final BenchmarkGroup group) {
     if (matchesFilter(name)) {
       stdout.writeln('[$name] skipped — $_realSamplePath is not HUFF/CDIC compressed.');
     }
+
     return;
   }
+
   final huff = HuffReader(<Uint8List>[
     for (var i = header.huffOffset; i < header.huffOffset + header.huffRecordCount; i++)
       pdb.record(i),
@@ -146,6 +151,7 @@ Uint8List _unpackAll(final List<Uint8List> records, final Uint8List Function(Uin
   for (final record in records) {
     builder.add(unpack(record));
   }
+
   return builder.takeBytes();
 }
 
@@ -157,6 +163,7 @@ _ProseFixtures _buildFixtures(final int targetBytes) {
   final palmdocRecords = <Uint8List>[for (final record in records) _compressPalmdoc(record)];
   _verifyRoundTrip('PalmDOC', plain, palmdocRecords, decompressPalmdoc);
   _verifyRoundTrip('HUFF/CDIC', plain, records, _huff.unpack);
+
   return _ProseFixtures(plain: plain, palmdocRecords: palmdocRecords, huffRecords: records);
 }
 
@@ -168,6 +175,7 @@ Uint8List _proseBytes(final int targetBytes) {
   if (base == null || base.isEmpty) {
     throw StateError('No plain text sample available from the EPUB fixtures.');
   }
+
   final source = Uint8List.fromList(base.codeUnits); // ASCII prose from the EPUB.
   final plain = Uint8List(targetBytes);
   var filled = 0;
@@ -176,10 +184,12 @@ Uint8List _proseBytes(final int targetBytes) {
     plain.setRange(filled, filled + chunk, source);
     filled += chunk;
   }
+
   var end = targetBytes;
   while (end > 0 && plain[end - 1] != 0x20 && plain[end - 1] != 0x0A) {
     end--;
   }
+
   return Uint8List.sublistView(plain, 0, end);
 }
 
@@ -200,96 +210,123 @@ List<Uint8List> _splitTextRecords(final Uint8List plain) {
 /// by an ASCII letter folds into its single-byte pair form — so
 /// spaces are held back one byte until the fold is ruled out.
 Uint8List _compressPalmdoc(final Uint8List record) {
-  final out = BytesBuilder(copy: false);
-  const hashSlots = 1 << 16;
-  final heads = Int32List(hashSlots)..fillRange(0, hashSlots, -1);
-  var pendingSpace = false;
+  return _PalmDocCompressor(record).compress();
+}
 
-  int hash3(final int i) =>
-      ((record[i] * 31 + record[i + 1]) * 31 + record[i + 2]) & (hashSlots - 1);
+final class _PalmDocCompressor {
+  _PalmDocCompressor(this._record) : _heads = Int32List(_hashSlots)..fillRange(0, _hashSlots, -1);
 
-  void emitLiteral(final int b) {
-    if ((b >= 0x01 && b <= 0x08) || b >= 0x80) {
+  static const int _hashSlots = 1 << 16;
+
+  final Uint8List _record;
+  final BytesBuilder _out = BytesBuilder(copy: false);
+  final Int32List _heads;
+  bool _pendingSpace = false;
+
+  Uint8List compress() {
+    var index = 0;
+    while (index < _record.length) {
+      index = _writeToken(index);
+    }
+    if (_pendingSpace) _out.addByte(0x20);
+
+    return _out.takeBytes();
+  }
+
+  int _writeToken(final int index) {
+    final byte = _record[index];
+    if (byte == 0x20) return _holdSpace(index);
+    if (_tryFoldSpace(byte, index)) return index + 1;
+    _flushPendingSpace();
+
+    final match = _findMatch(index);
+    if (match != null) return _writeMatch(index, match);
+    _writeLiteral(byte);
+    _register(index);
+
+    return index + 1;
+  }
+
+  int _holdSpace(final int index) {
+    if (_pendingSpace) _out.addByte(0x20);
+    _pendingSpace = true;
+    _register(index);
+
+    return index + 1;
+  }
+
+  bool _tryFoldSpace(final int byte, final int index) {
+    if (!_pendingSpace || byte < 0x40 || byte > 0x7F) return false;
+    _out.addByte(byte | 0x80);
+    _register(index);
+    _pendingSpace = false;
+
+    return true;
+  }
+
+  void _flushPendingSpace() {
+    if (!_pendingSpace) return;
+    _out.addByte(0x20);
+    _pendingSpace = false;
+  }
+
+  _PalmDocMatch? _findMatch(final int index) {
+    if (index + 3 > _record.length) return null;
+    final candidate = _heads[_hash3(index)];
+    final distance = index - candidate;
+    if (candidate < 0 || distance < 1 || distance > 2047) return null;
+
+    final remaining = _record.length - index;
+    final limit = remaining < 10 ? remaining : 10;
+    var length = 0;
+    while (length < limit && _record[candidate + length] == _record[index + length]) {
+      length++;
+    }
+
+    if (length < 3) return null;
+
+    return _PalmDocMatch(distance: distance, length: length);
+  }
+
+  int _writeMatch(final int index, final _PalmDocMatch match) {
+    final pair = (match.distance << 3) | (match.length - 3);
+    _out
+      ..addByte(0x80 | (pair >> 8))
+      ..addByte(pair & 0xFF);
+    for (var offset = 0; offset < match.length; offset++) {
+      _register(index + offset);
+    }
+
+    return index + match.length;
+  }
+
+  void _writeLiteral(final int byte) {
+    if ((byte >= 0x01 && byte <= 0x08) || byte >= 0x80) {
       // Control bytes 1..8 and raw bytes >= 0x80 need the escape
       // form: `1` copies the following byte verbatim.
-      out
+      _out
         ..addByte(0x01)
-        ..addByte(b);
+        ..addByte(byte);
     } else {
-      out.addByte(b);
+      _out.addByte(byte);
     }
   }
 
-  var i = 0;
-  while (i < record.length) {
-    final b = record[i];
-    if (b == 0x20) {
-      if (pendingSpace) {
-        out.addByte(0x20); // Two spaces in a row: flush the held one.
-      }
-      pendingSpace = true;
-      if (i + 3 <= record.length) {
-        heads[hash3(i)] = i;
-      }
-      i++;
-      continue;
-    }
-    if (pendingSpace && b >= 0x40 && b <= 0x7F) {
-      out.addByte(b | 0x80); // The held space folds into this byte.
-      if (i + 3 <= record.length) {
-        heads[hash3(i)] = i;
-      }
-      pendingSpace = false;
-      i++;
-      continue;
-    }
-    if (pendingSpace) {
-      out.addByte(0x20); // The fold is ruled out; emit the space raw.
-      pendingSpace = false;
-    }
-
-    var matchLength = 0;
-    var matchDistance = 0;
-    if (i + 3 <= record.length) {
-      final candidate = heads[hash3(i)];
-      final distance = i - candidate;
-      if (candidate >= 0 && distance >= 1 && distance <= 2047) {
-        final remaining = record.length - i;
-        final limit = remaining < 10 ? remaining : 10;
-        while (matchLength < limit && record[candidate + matchLength] == record[i + matchLength]) {
-          matchLength++;
-        }
-        if (matchLength >= 3) {
-          matchDistance = distance;
-        } else {
-          matchLength = 0;
-        }
-      }
-    }
-
-    if (matchLength >= 3) {
-      final pair = (matchDistance << 3) | (matchLength - 3);
-      out
-        ..addByte(0x80 | (pair >> 8))
-        ..addByte(pair & 0xFF);
-      for (var j = 0; j < matchLength; j++) {
-        if (i + 3 <= record.length) {
-          heads[hash3(i)] = i;
-        }
-        i++;
-      }
-    } else {
-      emitLiteral(b);
-      if (i + 3 <= record.length) {
-        heads[hash3(i)] = i;
-      }
-      i++;
-    }
+  void _register(final int index) {
+    if (index + 3 <= _record.length) _heads[_hash3(index)] = index;
   }
-  if (pendingSpace) {
-    out.addByte(0x20);
+
+  int _hash3(final int index) {
+    return ((_record[index] * 31 + _record[index + 1]) * 31 + _record[index + 2]) &
+        (_hashSlots - 1);
   }
-  return out.takeBytes();
+}
+
+final class _PalmDocMatch {
+  const _PalmDocMatch({required this.distance, required this.length});
+
+  final int distance;
+  final int length;
 }
 
 /// Guards the fixture: [unpack] over [records] must reproduce [plain].
@@ -317,6 +354,7 @@ bool _sameBytes(final Uint8List a, final Uint8List b) {
       return false;
     }
   }
+
   return true;
 }
 

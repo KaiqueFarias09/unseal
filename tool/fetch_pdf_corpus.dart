@@ -18,7 +18,6 @@ void main() async {
 
   var totalBytes = _corpusBytes(corpusDir);
   var failures = 0;
-
   for (final id in _corpusIds) {
     final existing = _existingBook(corpusDir, id);
     if (existing != null) {
@@ -28,6 +27,7 @@ void main() async {
     if (totalBytes >= _maxCorpusBytes) {
       stderr.writeln('pg$id: corpus cap of $_maxCorpusBytes bytes reached.');
       failures++;
+
       break;
     }
 
@@ -35,6 +35,7 @@ void main() async {
     if (book == null) {
       stderr.writeln('pg$id: every source failed; missing from the corpus.');
       failures++;
+
       continue;
     }
 
@@ -43,6 +44,7 @@ void main() async {
       book.deleteSync();
       stderr.writeln('pg$id: ${_name(book)} is $size bytes, over the size cap; skipped.');
       failures++;
+
       continue;
     }
 
@@ -81,8 +83,10 @@ Future<File?> _downloadNative(final Directory corpusDir, final int id) async {
   for (final pattern in _nativeUrls) {
     if (!await _curl(pattern.replaceAll('{id}', '$id'), target)) continue;
     if (_hasPdfHeader(target)) return target;
+
     target.deleteSync();
   }
+
   return null;
 }
 
@@ -99,9 +103,11 @@ Future<File?> _generateFromText(final Directory corpusDir, final int id) async {
     final book = File('${corpusDir.path}/pg$id-generated.pdf');
     await book.writeAsBytes(result.stdout as List<int>);
     if (_hasPdfHeader(book)) return book;
+
     book.deleteSync();
   }
   text.deleteSync();
+
   return null;
 }
 
@@ -115,6 +121,7 @@ Future<bool> _curl(final String url, final File target) async {
     target.path,
     url,
   ]);
+
   return result.exitCode == 0 && target.existsSync();
 }
 
@@ -124,20 +131,25 @@ File? _existingBook(final Directory corpusDir, final int id) {
     final candidate = File('${corpusDir.path}/$name');
     if (candidate.existsSync() && _hasPdfHeader(candidate)) return candidate;
   }
+
   return null;
 }
 
 /// Total bytes of the PDFs already in [corpusDir].
-int _corpusBytes(final Directory corpusDir) => corpusDir
-    .listSync()
-    .whereType<File>()
-    .where((final file) => file.path.endsWith('.pdf'))
-    .fold(0, (final sum, final file) => sum + file.lengthSync());
+int _corpusBytes(final Directory corpusDir) {
+  return corpusDir
+      .listSync()
+      .whereType<File>()
+      .where((final file) => file.path.endsWith('.pdf'))
+      .fold(0, (final sum, final file) => sum + file.lengthSync());
+}
 
 /// Whether [file] starts with the `%PDF` magic.
 bool _hasPdfHeader(final File file) {
   if (file.lengthSync() < 4) return false;
+
   final head = file.readAsBytesSync().sublist(0, 4);
+
   return head[0] == 0x25 && head[1] == 0x50 && head[2] == 0x44 && head[3] == 0x46;
 }
 
