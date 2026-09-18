@@ -14,10 +14,10 @@ ArchiveFile? findArchiveFile(final Archive archive, final String entryPath) {
   for (final file in archive.files) {
     if (!file.isFile) continue;
 
-    if (file.name == normalized ||
-        normalizeZipPath(file.name).toLowerCase() == normalized.toLowerCase()) {
-      return file;
-    }
+    final normalizedFileName = normalizeZipPath(file.name).toLowerCase();
+    if (file.name != normalized && normalizedFileName != normalized.toLowerCase()) continue;
+
+    return file;
   }
 
   return null;
@@ -27,11 +27,10 @@ ArchiveFile? findArchiveFile(final Archive archive, final String entryPath) {
 String resolveItemPath(final String? rootFilePath, final String href) {
   final hrefWithoutFragment = href.split('#').first;
   final directory = path.posix.dirname(rootFilePath ?? '');
-  final joined = directory == '.' || directory.isEmpty
-      ? hrefWithoutFragment
-      : '$directory/$hrefWithoutFragment';
 
-  return normalizeZipPath(joined);
+  return normalizeZipPath(
+    directory == '.' || directory.isEmpty ? hrefWithoutFragment : '$directory/$hrefWithoutFragment',
+  );
 }
 
 /// Normalizes a zip entry path: forward slashes, resolved `.`/`..` segments, no leading slash.
@@ -42,7 +41,6 @@ String normalizeZipPath(final String zipPath) {
 
     if (segment == '..') {
       if (segments.isNotEmpty) segments.removeLast();
-
       continue;
     }
 
