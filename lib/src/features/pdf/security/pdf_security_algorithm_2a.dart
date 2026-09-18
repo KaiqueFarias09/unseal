@@ -97,6 +97,7 @@ final class PdfSecurityAlgorithm2A {
     final o = values.ownerValue;
     final u = values.userValue;
     if (o.length < 48 || u.length < 48) return null;
+
     final ownerValidation = Uint8List.sublistView(o, 32, 40);
     final ownerKeySalt = Uint8List.sublistView(o, 40, 48);
     final u48 = Uint8List.sublistView(u, 0, 48);
@@ -118,6 +119,7 @@ final class PdfSecurityAlgorithm2A {
   static bool verifyPerms(final PdfSecurityAlgorithm2AValues values, final Uint8List fileKey) {
     final perms = values.permsValue;
     if (perms.length != 16) return false;
+
     final plain = aesEcbDecrypt(fileKey, perms);
     final p = values.permissions;
     if (plain[0] != (p & 0xFF) ||
@@ -185,8 +187,9 @@ final class PdfSecurityAlgorithm2A {
   }
 
   /// Truncates the UTF-8 password to the algorithm's 127-byte cap.
-  static Uint8List _truncate(final Uint8List password) =>
-      password.length <= 127 ? password : Uint8List.sublistView(password, 0, 127);
+  static Uint8List _truncate(final Uint8List password) {
+    return password.length <= 127 ? password : Uint8List.sublistView(password, 0, 127);
+  }
 
   static Uint8List _concat(final List<Uint8List> parts) {
     final out = BytesBuilder(copy: false);

@@ -1,7 +1,7 @@
 import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
 
-/// Edge-case regression tests for [documentText] and its memoized
+/// Edge-case regression tests for [DocumentTextScanner.scan] and its memoized
 /// accessor [documentTextOf].
 ///
 /// The expected values were derived from the original multi-pass
@@ -13,200 +13,206 @@ void main() {
     group('body extraction', () {
       test('keeps only the inner body, attributes included', () {
         expect(
-          documentText(
+          DocumentTextScanner(
             '<html><head><title>T</title></head>'
             '<body class="chapter" data-x="1"><p>inner</p></body></html>',
-          ),
+          ).scan(),
           'inner',
         );
       });
 
       test('matches body tags case-insensitively', () {
-        expect(documentText('<BODY><P>UP</P></BODY>'), 'UP');
+        expect(DocumentTextScanner('<BODY><P>UP</P></BODY>').scan(), 'UP');
       });
 
       test('falls back to the whole source without a closing body', () {
-        expect(documentText('<body><p>never closed'), 'never closed');
-        expect(documentText('x</body>y'), 'xy');
+        expect(DocumentTextScanner('<body><p>never closed').scan(), 'never closed');
+        expect(DocumentTextScanner('x</body>y').scan(), 'xy');
       });
 
       test('cuts at the last </body> like the old greedy pipeline', () {
-        expect(documentText('<body><p>a</p></body><body><p>b</p></body>'), 'ab');
-        expect(documentText('intro<body>inner</body>tail'), 'inner');
+        expect(DocumentTextScanner('<body><p>a</p></body><body><p>b</p></body>').scan(), 'ab');
+        expect(DocumentTextScanner('intro<body>inner</body>tail').scan(), 'inner');
       });
 
       test('skips a body tag that never closes before the next one', () {
-        expect(documentText('a<body b < c>inner</body>z'), 'inner');
+        expect(DocumentTextScanner('a<body b < c>inner</body>z').scan(), 'inner');
       });
     });
 
     group('comments', () {
       test('removes comments and everything up to the first -->', () {
-        expect(documentText('a<!-- x -->b'), 'ab');
-        expect(documentText('<!-- <!-- inner --> outer -->tail'), ' outer -->tail');
-        expect(documentText('a<!--1-->b<!--2-->c'), 'abc');
-        expect(documentText('<!---->'), '');
+        expect(DocumentTextScanner('a<!-- x -->b').scan(), 'ab');
+        expect(DocumentTextScanner('<!-- <!-- inner --> outer -->tail').scan(), ' outer -->tail');
+        expect(DocumentTextScanner('a<!--1-->b<!--2-->c').scan(), 'abc');
+        expect(DocumentTextScanner('<!---->').scan(), '');
       });
 
       test('abruptly closed comments are declarations and vanish', () {
-        expect(documentText('<!-->'), '');
-        expect(documentText('<!--->'), '');
+        expect(DocumentTextScanner('<!-->').scan(), '');
+        expect(DocumentTextScanner('<!--->').scan(), '');
       });
 
       test('unterminated comments stay literal without a >, else are eaten', () {
-        expect(documentText('x<!-- y'), 'x<!-- y');
-        expect(documentText('<!-- a > b -->tail'), 'tail');
+        expect(DocumentTextScanner('x<!-- y').scan(), 'x<!-- y');
+        expect(DocumentTextScanner('<!-- a > b -->tail').scan(), 'tail');
       });
 
       test('a script block is removed even when it sits in a comment', () {
-        expect(documentText('<!-- <script>x</script> -->'), '');
-        expect(documentText('<!-- a <script>b-->c</script> d -->'), '');
+        expect(DocumentTextScanner('<!-- <script>x</script> -->').scan(), '');
+        expect(DocumentTextScanner('<!-- a <script>b-->c</script> d -->').scan(), '');
       });
     });
 
     group('CDATA sections', () {
       test(r'collapse to the literal $1 artifact of the old pipeline', () {
-        expect(documentText('<p><![CDATA[<b>raw</b>]]></p>'), r'$1');
-        expect(documentText('<![CDATA[&amp;]]>'), r'$1');
-        expect(documentText('<![CDATA[x]]>ok'), r'$1ok');
+        expect(DocumentTextScanner('<p><![CDATA[<b>raw</b>]]></p>').scan(), r'$1');
+        expect(DocumentTextScanner('<![CDATA[&amp;]]>').scan(), r'$1');
+        expect(DocumentTextScanner('<![CDATA[x]]>ok').scan(), r'$1ok');
       });
 
       test('unterminated CDATA without > stays literal, with > is a declaration', () {
-        expect(documentText('<![CDATA[unclosed'), '<![CDATA[unclosed');
-        expect(documentText('<![CDATA[a > b'), ' b');
+        expect(DocumentTextScanner('<![CDATA[unclosed').scan(), '<![CDATA[unclosed');
+        expect(DocumentTextScanner('<![CDATA[a > b').scan(), ' b');
       });
 
       test('the first ]]> ends the section, inner CDATA is content', () {
-        expect(documentText('<![CDATA[<![CDATA[x]]>]]>'), r'$1]]>');
-        expect(documentText('<![CDATA[a]]]>b'), '\$1b');
+        expect(DocumentTextScanner('<![CDATA[<![CDATA[x]]>]]>').scan(), r'$1]]>');
+        expect(DocumentTextScanner('<![CDATA[a]]]>b').scan(), '\$1b');
       });
 
       test('entity halves glue across the CDATA span', () {
-        expect(documentText('&<![CDATA[amp]]>;'), r'&$1;');
-        expect(documentText('&<![CDATA[amp;]]>'), r'&$1');
+        expect(DocumentTextScanner('&<![CDATA[amp]]>;').scan(), r'&$1;');
+        expect(DocumentTextScanner('&<![CDATA[amp;]]>').scan(), r'&$1');
       });
     });
 
     group('unterminated markup', () {
       test('a lone < stays literal', () {
-        expect(documentText('abc <def'), 'abc <def');
-        expect(documentText('a < b'), 'a < b');
-        expect(documentText('<!x no gt ever'), '<!x no gt ever');
+        expect(DocumentTextScanner('abc <def').scan(), 'abc <def');
+        expect(DocumentTextScanner('a < b').scan(), 'a < b');
+        expect(DocumentTextScanner('<!x no gt ever').scan(), '<!x no gt ever');
       });
 
       test('a < before a non-tag character stays literal text', () {
         // HTML5 tokenizer rule: only <letter> and </ open markup, so a
         // browser DOM keeps these strings intact — and so does the
         // offset space now.
-        expect(documentText('a < b > c'), 'a < b > c');
-        expect(documentText('2 < 3 and 5 > 4'), '2 < 3 and 5 > 4');
-        expect(documentText('a<<b>c'), 'a<c');
+        expect(DocumentTextScanner('a < b > c').scan(), 'a < b > c');
+        expect(DocumentTextScanner('2 < 3 and 5 > 4').scan(), '2 < 3 and 5 > 4');
+        expect(DocumentTextScanner('a<<b>c').scan(), 'a<c');
         // The second < still opens real markup (and a removed block):
-        expect(documentText('<<script>x</script>p>'), '<p>');
-        expect(documentText('<<!--x-->p>'), '<p>');
+        expect(DocumentTextScanner('<<script>x</script>p>').scan(), '<p>');
+        expect(DocumentTextScanner('<<!--x-->p>').scan(), '<p>');
       });
     });
 
     group('entities', () {
       test('decodes named and numeric references once', () {
         expect(
-          documentText('a &amp; b &lt;tag&gt; caf&eacute; a&nbsp;b'),
+          DocumentTextScanner('a &amp; b &lt;tag&gt; caf&eacute; a&nbsp;b').scan(),
           'a & b <tag> caf\xE9 a\xA0b',
         );
-        expect(documentText('&#65;&#x42;'), 'AB');
-        expect(documentText('&#X41;'), 'A');
-        expect(documentText('&#x4a;&#x4A;'), 'JJ');
-        expect(documentText('&#x1F4DA;'), '\u{1F4DA}');
-        expect(documentText('&amp;lt;'), '&lt;');
-        expect(documentText('&#38;#60;'), '&#60;');
+        expect(DocumentTextScanner('&#65;&#x42;').scan(), 'AB');
+        expect(DocumentTextScanner('&#X41;').scan(), 'A');
+        expect(DocumentTextScanner('&#x4a;&#x4A;').scan(), 'JJ');
+        expect(DocumentTextScanner('&#x1F4DA;').scan(), '\u{1F4DA}');
+        expect(DocumentTextScanner('&amp;lt;').scan(), '&lt;');
+        expect(DocumentTextScanner('&#38;#60;').scan(), '&#60;');
       });
 
       test('maps NUL and C1 controls to the replacement character', () {
-        expect(documentText('&#145;&#146;&#147;'), '\uFFFD\uFFFD\uFFFD');
-        expect(documentText('a&#0;b'), 'a\uFFFDb');
-        expect(documentText('&#x8f;'), '\uFFFD');
+        expect(DocumentTextScanner('&#145;&#146;&#147;').scan(), '\uFFFD\uFFFD\uFFFD');
+        expect(DocumentTextScanner('a&#0;b').scan(), 'a\uFFFDb');
+        expect(DocumentTextScanner('&#x8f;').scan(), '\uFFFD');
       });
 
       test('out-of-range numerics stay literal', () {
-        expect(documentText('&#1114112;'), '&#1114112;');
-        expect(documentText('&#x110000;'), '&#x110000;');
-        expect(documentText('&#1114111;&#x10FFFF;'), '\u{10FFFF}\u{10FFFF}');
-        expect(documentText('&#99999999;'), '&#99999999;');
-        expect(documentText('&#1234567;'), '&#1234567;');
+        expect(DocumentTextScanner('&#1114112;').scan(), '&#1114112;');
+        expect(DocumentTextScanner('&#x110000;').scan(), '&#x110000;');
+        expect(DocumentTextScanner('&#1114111;&#x10FFFF;').scan(), '\u{10FFFF}\u{10FFFF}');
+        expect(DocumentTextScanner('&#99999999;').scan(), '&#99999999;');
+        expect(DocumentTextScanner('&#1234567;').scan(), '&#1234567;');
       });
 
       test('unknown or malformed references stay literal', () {
-        expect(documentText('a &nosuchentity; b'), 'a &nosuchentity; b');
-        expect(documentText('&a;'), '&a;');
-        expect(documentText('&#;'), '&#;');
-        expect(documentText('&#x;'), '&#x;');
-        expect(documentText('&#x41'), '&#x41');
-        expect(documentText('&#65'), '&#65');
-        expect(documentText('&amp'), '&amp');
-        expect(documentText('a & b'), 'a & b');
-        expect(documentText('&&amp;&;'), '&&&;');
-        expect(documentText('&amp;&lt;&gt;'), '&<>');
-        expect(documentText('&AMP;&Amp;'), '&AMP;&Amp;');
+        expect(DocumentTextScanner('a &nosuchentity; b').scan(), 'a &nosuchentity; b');
+        expect(DocumentTextScanner('&a;').scan(), '&a;');
+        expect(DocumentTextScanner('&#;').scan(), '&#;');
+        expect(DocumentTextScanner('&#x;').scan(), '&#x;');
+        expect(DocumentTextScanner('&#x41').scan(), '&#x41');
+        expect(DocumentTextScanner('&#65').scan(), '&#65');
+        expect(DocumentTextScanner('&amp').scan(), '&amp');
+        expect(DocumentTextScanner('a & b').scan(), 'a & b');
+        expect(DocumentTextScanner('&&amp;&;').scan(), '&&&;');
+        expect(DocumentTextScanner('&amp;&lt;&gt;').scan(), '&<>');
+        expect(DocumentTextScanner('&AMP;&Amp;').scan(), '&AMP;&Amp;');
         expect(
-          documentText('&thisisaverylongentitynamethatoverruns;'),
+          DocumentTextScanner('&thisisaverylongentitynamethatoverruns;').scan(),
           '&thisisaverylongentitynamethatoverruns;',
         );
       });
 
       test('entities glued by removed markup still decode', () {
-        expect(documentText('&am<p></p>p;'), '&');
-        expect(documentText('&am<script></script>p;'), '&');
-        expect(documentText('&am<!-- x -->p;'), '&');
-        expect(documentText('&am<!DOCTYPE x>p;'), '&');
-        expect(documentText('&am<![CDATA[]]>p;'), r'&am$1p;');
-        expect(documentText('&#<p>6</p>5;'), 'A');
-        expect(documentText('&#<p>x</p>41;'), 'A');
+        expect(DocumentTextScanner('&am<p></p>p;').scan(), '&');
+        expect(DocumentTextScanner('&am<script></script>p;').scan(), '&');
+        expect(DocumentTextScanner('&am<!-- x -->p;').scan(), '&');
+        expect(DocumentTextScanner('&am<!DOCTYPE x>p;').scan(), '&');
+        expect(DocumentTextScanner('&am<![CDATA[]]>p;').scan(), r'&am$1p;');
+        expect(DocumentTextScanner('&#<p>6</p>5;').scan(), 'A');
+        expect(DocumentTextScanner('&#<p>x</p>41;').scan(), 'A');
       });
     });
 
     group('script and style blocks', () {
       test('removes complete blocks regardless of tag case', () {
-        expect(documentText('a<script>bad()</script>b'), 'ab');
-        expect(documentText('<SCRIPT>bad()</SCRIPT>ok'), 'ok');
-        expect(documentText('<SCRIPT>bad()</script>ok'), 'ok');
-        expect(documentText('<script>bad()</SCRIPT>ok'), 'ok');
-        expect(documentText('<script type="text/javascript" src="a.js">bad()</script>t'), 't');
-        expect(documentText('a<style>p{color:red}</style>b'), 'ab');
+        expect(DocumentTextScanner('a<script>bad()</script>b').scan(), 'ab');
+        expect(DocumentTextScanner('<SCRIPT>bad()</SCRIPT>ok').scan(), 'ok');
+        expect(DocumentTextScanner('<SCRIPT>bad()</script>ok').scan(), 'ok');
+        expect(DocumentTextScanner('<script>bad()</SCRIPT>ok').scan(), 'ok');
+        expect(
+          DocumentTextScanner('<script type="text/javascript" src="a.js">bad()</script>t').scan(),
+          't',
+        );
+        expect(DocumentTextScanner('a<style>p{color:red}</style>b').scan(), 'ab');
       });
 
       test('a closing tag inside a string does not end the block early', () {
-        expect(documentText('<script>var s = "</style>";</script>ok'), 'ok');
-        expect(documentText('<style>a</script>b</style>ok'), 'ok');
-        expect(documentText('<script><!--\ndocument.write("-->")\n// --></script>ok'), 'ok');
+        expect(DocumentTextScanner('<script>var s = "</style>";</script>ok').scan(), 'ok');
+        expect(DocumentTextScanner('<style>a</script>b</style>ok').scan(), 'ok');
+        expect(
+          DocumentTextScanner('<script><!--\ndocument.write("-->")\n// --></script>ok').scan(),
+          'ok',
+        );
       });
 
       test('script look-alikes fall back to plain tag removal', () {
-        expect(documentText('a<script>x</p>y'), 'axy');
-        expect(documentText('<scriptx>not a block</scriptx>ok'), 'not a blockok');
-        expect(documentText('a<script/>b'), 'ab');
-        expect(documentText('a<script src="x>y">z</script>b'), 'ab');
-        expect(documentText('<script>1()</script>x<script>2()</script>y'), 'xy');
+        expect(DocumentTextScanner('a<script>x</p>y').scan(), 'axy');
+        expect(DocumentTextScanner('<scriptx>not a block</scriptx>ok').scan(), 'not a blockok');
+        expect(DocumentTextScanner('a<script/>b').scan(), 'ab');
+        expect(DocumentTextScanner('a<script src="x>y">z</script>b').scan(), 'ab');
+        expect(DocumentTextScanner('<script>1()</script>x<script>2()</script>y').scan(), 'xy');
       });
     });
 
     group('declarations', () {
       test('removes doctypes, PIs and other <!…> spans', () {
-        expect(documentText('<!DOCTYPE html><p>x</p>'), 'x');
-        expect(documentText('<?xml version="1.0"?><p>x</p>'), 'x');
-        expect(documentText('<![CDATA[<!y>]]>z'), '\$1z');
+        expect(DocumentTextScanner('<!DOCTYPE html><p>x</p>').scan(), 'x');
+        expect(DocumentTextScanner('<?xml version="1.0"?><p>x</p>').scan(), 'x');
+        expect(DocumentTextScanner('<![CDATA[<!y>]]>z').scan(), '\$1z');
       });
 
       test('a tag opener is removed while a later declaration still closes', () {
         // The '</sec' opener never finds a tag '>' (the declaration's
         // '>' is consumed by pass 4 first), yet the declaration itself
         // is still removed.
-        expect(documentText('</sec<!tion>'), '</sec');
+        expect(DocumentTextScanner('</sec<!tion>').scan(), '</sec');
       });
     });
 
     group('whitespace', () {
       test('is kept as-is', () {
-        expect(documentText('<p>line1\n   line2\ttab</p>'), 'line1\n   line2\ttab');
+        expect(DocumentTextScanner('<p>line1\n   line2\ttab</p>').scan(), 'line1\n   line2\ttab');
       });
     });
   });
@@ -231,7 +237,7 @@ void main() {
         path: 'chapter1.html',
         content: '<body><p>caf&eacute; &#8212; text</p></body>',
       );
-      expect(documentTextOf(file), documentText(file.content));
+      expect(documentTextOf(file), DocumentTextScanner(file.content).scan());
       expect(documentTextOf(file), 'caf\xE9 \u2014 text');
     });
 
@@ -281,7 +287,7 @@ Book _epubFixture(final String html) {
         identifiers: const ['test-id-1'],
         uniqueIdentifierValue: 'test-id-1',
       ),
-      manifest: Epub2Manifest(
+      manifest: Manifest(
         items: [ManifestItem(path: 'chapter1.html', id: 'c1', mediaType: 'application/xhtml+xml')],
       ),
       spine: Spine(tocId: null, items: const ['c1']),

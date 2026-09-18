@@ -39,7 +39,7 @@ Book buildUnicodeEpub(final String html) {
         identifiers: const ['test-id-1'],
         uniqueIdentifierValue: 'test-id-1',
       ),
-      manifest: Epub2Manifest(
+      manifest: Manifest(
         items: [ManifestItem(path: 'chapter1.html', id: 'c1', mediaType: 'application/xhtml+xml')],
       ),
       spine: Spine(tocId: null, items: const ['c1']),

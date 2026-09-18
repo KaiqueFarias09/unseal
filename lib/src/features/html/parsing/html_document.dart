@@ -1,43 +1,37 @@
-import 'package:html/dom.dart' as dom;
-import 'package:html/parser.dart' as html_parser;
-
-import '../../../foundation/entities/entities.dart';
-import '../../../foundation/text/xml_encoding.dart';
-import '../metadata/html_metadata.dart';
+part of '../parse_html_book.dart';
 
 /// The decoded HTML content and the values needed by a document book.
-final class HtmlDocumentData {
+final class _HtmlDocument {
   /// Creates parsed HTML data.
-  const HtmlDocumentData({required this.file, required this.metadata, required this.navigation});
+  const _HtmlDocument({required this.file, required this.metadata, required this.navigation});
 
   /// The source content retained as a reader-facing HTML file.
   final TextFile file;
 
   /// Metadata read from the HTML document.
-  final HtmlMetadataValues metadata;
+  final _HtmlMetadata metadata;
 
   /// Navigation generated from the document headings.
   final Navigation navigation;
 }
 
 /// Decodes and analyzes an HTML/HTM/XHTML source without rewriting its body.
-HtmlDocumentData parseHtmlDocument(final List<int> bytes, {required final String path}) {
-  final content = decodeXmlText(bytes);
-  final metadata = metadataValuesFromHtml(content);
-  final document = html_parser.parse(content);
-  final navigation = navigationFromHtmlDocument(document, path, metadata.title);
+_HtmlDocument _parseHtmlDocument(final List<int> bytes, {required final String path}) {
+  final source = _decodeHtmlSource(bytes);
+  final metadata = _metadataFromHtml(source.document);
+  final navigation = _navigationFromHtmlDocument(source.document, path, metadata.title);
   final name = path.split('/').last;
-  final extension = _extension(name);
+  final extension = _htmlExtension(name);
 
-  return HtmlDocumentData(
-    file: TextFile(name: name, type: extension, path: path, content: content),
+  return _HtmlDocument(
+    file: TextFile(name: name, type: extension, path: path, content: source.content),
     metadata: metadata,
     navigation: navigation,
   );
 }
 
 /// Creates a heading-based navigation tree using h1-h6 levels.
-Navigation navigationFromHtmlDocument(
+Navigation _navigationFromHtmlDocument(
   final dom.Document document,
   final String path,
   final String? title,
@@ -45,7 +39,6 @@ Navigation navigationFromHtmlDocument(
   final roots = <NavPoint>[];
   final stack = <_HeadingFrame>[];
   var playOrder = 0;
-
   for (final heading in document.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
     final label = heading.text.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (label.isEmpty) continue;
@@ -76,9 +69,16 @@ Navigation navigationFromHtmlDocument(
   return Navigation(title: title ?? '', navPoints: roots);
 }
 
-String _extension(final String name) {
+({String content, dom.Document document}) _decodeHtmlSource(final List<int> bytes) {
+  final content = decodeXmlText(bytes);
+
+  return (content: content, document: html_parser.parse(content));
+}
+
+String _htmlExtension(final String name) {
   final dot = name.lastIndexOf('.');
   if (dot <= 0 || dot == name.length - 1) return 'html';
+
   return name.substring(dot + 1).toLowerCase();
 }
 

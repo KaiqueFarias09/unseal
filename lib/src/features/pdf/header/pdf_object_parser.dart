@@ -38,6 +38,7 @@ class PdfObjectParser {
     _pos = offset;
     final number = _tryReadInt();
     if (number == null) return null;
+
     _skipSpace();
     final generation = _tryReadInt() ?? 0;
     _skipSpace();
@@ -100,6 +101,7 @@ class PdfObjectParser {
     final restore = _pos;
     final token = _tryReadKeyword();
     if (token == keyword) return true;
+
     _pos = restore;
 
     return false;
@@ -148,6 +150,7 @@ class PdfObjectParser {
       if (!isNumeric) break;
       _pos++;
     }
+
     var literal = String.fromCharCodes(bytes, start, _pos);
     // PDF tolerates `4.` and `-.5`; Dart's double parser does not
     // accept a trailing dot.
@@ -187,6 +190,7 @@ class PdfObjectParser {
       if (byte == 0x5C) {
         _pos++;
         if (_atEnd()) break;
+
         final escape = bytes[_pos];
         switch (escape) {
           case 0x6E:
@@ -226,6 +230,7 @@ class PdfObjectParser {
               for (var digit = 0; digit < 2 && !_atEnd(); digit++) {
                 final next = bytes[_pos];
                 if (next < 0x30 || next > 0x37) break;
+
                 octal = octal * 8 + (next - 0x30);
                 _pos++;
               }
@@ -236,13 +241,16 @@ class PdfObjectParser {
               _pos++;
             }
         }
+
         continue;
       }
       if (byte == 0x28) depth++;
       if (byte == 0x29) {
         depth--;
+
         if (depth == 0) {
           _pos++;
+
           break;
         }
       }
@@ -269,14 +277,16 @@ class PdfObjectParser {
           byte == 0x20) {
         continue;
       }
+
       final value = _hexValue(byte);
       if (value == null) continue;
       if (pending < 0) {
         pending = value;
-      } else {
-        out.addByte(pending * 16 + value);
-        pending = -1;
+        continue;
       }
+
+      out.addByte(pending * 16 + value);
+      pending = -1;
     }
     if (pending >= 0) out.addByte(pending * 16);
 
@@ -291,15 +301,18 @@ class PdfObjectParser {
       if (_atEnd()) break;
       if (bytes[_pos] == 0x5D) {
         _pos++;
+
         break;
       }
+
       final value = _parseValue();
       if (value is PdfNumber) {
         final reference = _maybeIndirectRef(value);
         items.add(reference ?? value);
-      } else {
-        items.add(value);
+        continue;
       }
+
+      items.add(value);
     }
 
     return PdfArray(items);
@@ -318,11 +331,14 @@ class PdfObjectParser {
       if (bytes[_pos] != 0x2F) {
         // Not a key: skip the stray byte and keep going.
         _pos++;
+
         continue;
       }
+
       final key = _parseName();
       _skipSpace();
       if (_atEnd()) break;
+
       final value = _parseValue();
       entries[key.value] = value is PdfNumber ? (_maybeIndirectRef(value) ?? value) : value;
     }
@@ -341,9 +357,11 @@ class PdfObjectParser {
 
       return null;
     }
+
     _skipSpace();
     final token = _tryReadKeyword();
     if (token == 'R') return PdfIndirectRef(first.intValue, generation);
+
     _pos = restore;
 
     return null;
@@ -356,6 +374,7 @@ class PdfObjectParser {
       if (byte < 0x30 || byte > 0x39) break;
       _pos++;
     }
+
     if (_pos == start) return null;
 
     return int.tryParse(String.fromCharCodes(bytes, start, _pos));
@@ -399,6 +418,7 @@ class PdfObjectParser {
     // before its trailing EOL.
     for (var pos = from; pos + 9 <= bytes.length; pos++) {
       if (!_keywordAt(pos, 'endstream')) continue;
+
       var end = pos;
       while (end > from && (bytes[end - 1] == 0x0D || bytes[end - 1] == 0x0A)) {
         end--;
@@ -412,6 +432,7 @@ class PdfObjectParser {
 
   bool _keywordAt(final int offset, final String keyword) {
     if (offset + keyword.length > bytes.length) return false;
+
     for (var i = 0; i < keyword.length; i++) {
       if (bytes[offset + i] != keyword.codeUnitAt(i)) return false;
     }

@@ -10,7 +10,7 @@ import '../package/epub_package.dart';
 import '../package/page_progression_direction.dart';
 
 /// A parsed EPUB 2.0 / 3.0 book.
-class EpubBook extends Book implements EpubDocument {
+final class EpubBook extends Book implements EpubDocument {
   /// Creates an [EpubBook] from already parsed parts.
   EpubBook({
     required this.navigation,
@@ -51,51 +51,33 @@ class EpubBook extends Book implements EpubDocument {
   @override
   List<TextFile> get content => files.html;
 
-  /// The book creator (main author).
-  String? get creator => package.metadata.creator;
-
   /// The image files.
   @override
   List<BinaryFile> get images => files.images;
-
-  /// The book language.
-  String get language => package.metadata.language;
 
   /// The format-agnostic metadata of this book.
   @override
   BookMetadata get metadata => epubBookMetadata(package, cover);
 
-  /// The book publisher.
-  String? get publisher => package.metadata.publisher;
-
   /// The EPUB spine in reading order.
   @override
-  List<ReadingOrderItem> get readingOrder => spinePaths == null
-      ? super.readingOrder
-      : <ReadingOrderItem>[for (final path in spinePaths!) ReadingOrderItem(name: path)];
-
-  /// The book title.
-  String get title => package.metadata.title;
-
-  /// The unique identifier value of the package.
-  String get uid => package.metadata.uniqueIdentifierValue;
-
-  /// The EPUB version (`2.0` or `3.0`).
-  String get version => package.version;
+  List<ReadingOrderItem> get readingOrder {
+    return spinePaths == null
+        ? super.readingOrder
+        : <ReadingOrderItem>[for (final path in spinePaths!) ReadingOrderItem(name: path)];
+  }
 
   /// The page-flow direction a reader should honor for this book.
   ///
-  /// Precedence mirrors Calibre's
-  /// `set_page_progression_direction_if_needed`: the spine's declared
-  /// `page-progression-direction` wins; when the book declares no
-  /// direction, `rtl` is inferred from the book's primary language
-  /// ([isRtlLanguage]); books that declare neither stay
+  /// The spine's declared `page-progression-direction` wins; when the book
+  /// declares no direction, `rtl` is inferred from the book's primary
+  /// language ([isRtlLanguage]); books that declare neither stay
   /// [PageProgressionDirection.unspecified].
   PageProgressionDirection get effectivePageProgressionDirection {
     final declared = package.spine.pageProgressionDirection;
     if (declared != PageProgressionDirection.unspecified) return declared;
 
-    return isRtlLanguage(language)
+    return isRtlLanguage(package.metadata.language)
         ? PageProgressionDirection.rtl
         : PageProgressionDirection.unspecified;
   }

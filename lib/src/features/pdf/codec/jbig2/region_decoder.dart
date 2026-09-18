@@ -15,6 +15,15 @@ import 'huffman_decoder.dart';
 import 'mmr_decoder.dart';
 import 'segment_decoder.dart';
 
+/// The largest byte allocation one decode may request. Corrupt or
+/// hostile headers declare absurd dimensions; the cap turns them into
+/// clean PdfExceptions instead of out-of-memory kills. 64 MiB of
+/// pixels is seven times the largest page in the corpus (A4 300dpi).
+const int _jbig2MaxAllocBytes = 64 * 1024 * 1024;
+
+/// The largest symbol count one dictionary or region may request.
+const int _jbig2MaxSymbols = 1 << 20;
+
 /// One decoding pass over a segment window: the MQ decoder, the
 /// shared arithmetic contexts and the raw bytes
 /// (`DecodingContext` in pdf.js).
@@ -89,7 +98,6 @@ List<Uint8List> _decodeBitmapTemplate0(
         (row1[1] << 6) |
         (row1[2] << 5) |
         (row1[3] << 4);
-
     for (var j = 0; j < width; j++) {
       final pixel = decoder.readBit(contexts, contextLabel);
       row[j] = pixel;
@@ -108,31 +116,23 @@ List<Uint8List> _decodeBitmapTemplate0(
 }
 
 /// Whether [at] holds the standard template-0 AT pixels.
-bool _isStandardAt0(final List<Point> at) =>
-    at.length == 4 &&
-    at[0].x == 3 &&
-    at[0].y == -1 &&
-    at[1].x == -3 &&
-    at[1].y == -1 &&
-    at[2].x == 2 &&
-    at[2].y == -2 &&
-    at[3].x == -2 &&
-    at[3].y == -2;
+bool _isStandardAt0(final List<Point> at) {
+  return at.length == 4 &&
+      at[0].x == 3 &&
+      at[0].y == -1 &&
+      at[1].x == -3 &&
+      at[1].y == -1 &&
+      at[2].x == 2 &&
+      at[2].y == -2 &&
+      at[3].x == -2 &&
+      at[3].y == -2;
+}
 
 /// 6.2 Generic Region Decoding Procedure (`decodeBitmap` in
 /// pdf.js). The skip mask of the original is dropped from this
 /// signature: ENABLESKIP is unsupported, as in pdf.js's halftone
 /// path.
 // pdf.js jbig2.js decodeBitmap
-/// The largest byte allocation one decode may request. Corrupt or
-/// hostile headers declare absurd dimensions; the cap turns them into
-/// clean PdfExceptions instead of out-of-memory kills. 64 MiB of
-/// pixels is seven times the largest page in the corpus (A4 300dpi).
-const int _jbig2MaxAllocBytes = 64 * 1024 * 1024;
-
-/// The largest symbol count one dictionary or region may request.
-const int _jbig2MaxSymbols = 1 << 20;
-
 /// Guards a width x height row allocation (one byte per pixel).
 int jbig2CheckedPixels(final int width, final int height) {
   if (width < 0 ||
@@ -142,21 +142,22 @@ int jbig2CheckedPixels(final int width, final int height) {
       width * height > _jbig2MaxAllocBytes) {
     throw PdfException('JBIG2 error: region ${width}x$height exceeds the allocation budget.');
   }
+
   return width * height;
 }
 
 /// 6.2 Generic Region Decoding Procedure (`decodeBitmap` in pdf.js);
 /// every region and symbol bitmap funnels through here.
 List<Uint8List> jbig2DecodeBitmap(
-  final bool mmr,
   final int width,
   final int height,
   final int templateIndex,
-  final bool prediction,
   final List<Point> at,
-  final Jbig2DecodingContext decodingContext,
-) {
-  if (mmr) {
+  final Jbig2DecodingContext decodingContext, {
+  required final bool isMmr,
+  required final bool isPredictionEnabled,
+}) {
+  if (isMmr) {
     return decodeMmrBitmap(
       decodingContext.data,
       decodingContext.start,
@@ -167,126 +168,173 @@ List<Uint8List> jbig2DecodeBitmap(
   }
 
   // Use optimized version for the most common case
-  if (templateIndex == 0 && !prediction && _isStandardAt0(at)) {
+  if (templateIndex == 0 && !isPredictionEnabled && _isStandardAt0(at)) {
     return _decodeBitmapTemplate0(width, height, decodingContext);
   }
 
-  final template = <Point>[...jbig2CodingTemplates[templateIndex], ...at];
+  return _Jbig2BitmapDecoder(
+    width: width,
+    height: height,
+    templateIndex: templateIndex,
+    at: at,
+    decodingContext: decodingContext,
+    isPredictionEnabled: isPredictionEnabled,
+  ).decode();
+}
 
-  // Sorting is non-standard, and it is not required. But sorting increases
-  // the number of template bits that can be reused from the previous
-  // contextLabel in the main loop.
-  template.sort((final a, final b) => a.y - b.y != 0 ? a.y - b.y : a.x - b.x);
+final class _Jbig2BitmapDecoder {
+  _Jbig2BitmapDecoder({
+    required this.width,
+    required this.height,
+    required this.templateIndex,
+    required this.at,
+    required this.decodingContext,
+    required this.isPredictionEnabled,
+  });
 
-  final templateLength = template.length;
-  final templateX = Int8List(templateLength);
-  final templateY = Int8List(templateLength);
-  final changingTemplateEntries = <int>[];
-  var reuseMask = 0;
-  var minX = 0, maxX = 0, minY = 0;
+  final int width;
+  final int height;
+  final int templateIndex;
+  final List<Point> at;
+  final Jbig2DecodingContext decodingContext;
+  final bool isPredictionEnabled;
 
-  for (var k = 0; k < templateLength; k++) {
-    templateX[k] = template[k].x;
-    templateY[k] = template[k].y;
-    if (template[k].x < minX) {
-      minX = template[k].x;
-    }
-    if (template[k].x > maxX) {
-      maxX = template[k].x;
-    }
-    if (template[k].y < minY) {
-      minY = template[k].y;
-    }
-    // Check if the template pixel appears in two consecutive context labels,
-    // so it can be reused. Otherwise, we add it to the list of changing
-    // template entries.
-    if (k < templateLength - 1 &&
-        template[k].y == template[k + 1].y &&
-        template[k].x == template[k + 1].x - 1) {
-      reuseMask |= 1 << (templateLength - 1 - k);
-    } else {
-      changingTemplateEntries.add(k);
-    }
-  }
-  final changingEntriesLength = changingTemplateEntries.length;
-
-  final changingTemplateX = Int8List(changingEntriesLength);
-  final changingTemplateY = Int8List(changingEntriesLength);
-  final changingTemplateBit = Uint16List(changingEntriesLength);
-  for (var c = 0; c < changingEntriesLength; c++) {
-    final k = changingTemplateEntries[c];
-    changingTemplateX[c] = template[k].x;
-    changingTemplateY[c] = template[k].y;
-    changingTemplateBit[c] = 1 << (templateLength - 1 - k);
-  }
-
-  // Get the safe bounding box edges from the width, height, minX, maxX, minY
-  final sbbLeft = -minX;
-  final sbbTop = -minY;
-  final sbbRight = width - maxX;
-
-  jbig2CheckedPixels(width, height);
-  final pseudoPixelContext = jbig2ReusedContexts[templateIndex];
-  var row = Uint8List(width);
-  final bitmap = <Uint8List>[];
-
-  final decoder = decodingContext.decoder;
-  final contexts = decodingContext.contextCache.getContexts('GB');
-
-  var ltp = 0;
-  var contextLabel = 0;
-  for (var i = 0; i < height; i++) {
-    if (prediction) {
-      final sltp = decoder.readBit(contexts, pseudoPixelContext);
-      ltp ^= sltp;
+  List<Uint8List> decode() {
+    jbig2CheckedPixels(width, height);
+    final template = _BitmapTemplate(templateIndex, at, width);
+    final bitmap = <Uint8List>[];
+    final decoder = decodingContext.decoder;
+    final contexts = decodingContext.contextCache.getContexts('GB');
+    final pseudoPixelContext = jbig2ReusedContexts[templateIndex];
+    var row = Uint8List(width);
+    var ltp = 0;
+    var contextLabel = 0;
+    for (var i = 0; i < height; i++) {
+      if (isPredictionEnabled) {
+        ltp = _nextLtp(decoder, contexts, pseudoPixelContext, ltp);
+      }
       if (ltp != 0) {
-        bitmap.add(row); // duplicate previous row
+        bitmap.add(row);
         continue;
       }
-    }
-    row = Uint8List.fromList(row);
-    bitmap.add(row);
-    for (var j = 0; j < width; j++) {
-      // Are we in the middle of a scanline, so we can reuse contextLabel
-      // bits?
-      if (j >= sbbLeft && j < sbbRight && i >= sbbTop) {
-        // If yes, we can just shift the bits that are reusable and only
-        // fetch the remaining ones.
-        contextLabel = (contextLabel << 1) & reuseMask;
-        for (var k = 0; k < changingEntriesLength; k++) {
-          final i0 = i + changingTemplateY[k];
-          final j0 = j + changingTemplateX[k];
-          // Out-of-range template pixels (possible with a corrupt AT)
-          // contribute 0 instead of throwing.
-          if (i0 >= 0 && i0 < bitmap.length && j0 >= 0 && j0 < width) {
-            final bit = bitmap[i0][j0];
-            if (bit != 0) {
-              contextLabel |= changingTemplateBit[k];
-            }
-          }
-        }
-      } else {
-        // compute the contextLabel from scratch
-        contextLabel = 0;
-        var shift = templateLength - 1;
-        for (var k = 0; k < templateLength; k++, shift--) {
-          final j0 = j + templateX[k];
-          if (j0 >= 0 && j0 < width) {
-            final i0 = i + templateY[k];
-            if (i0 >= 0 && i0 < bitmap.length) {
-              final bit = bitmap[i0][j0];
-              if (bit != 0) {
-                contextLabel |= bit << shift;
-              }
-            }
-          }
-        }
+      row = Uint8List.fromList(row);
+      bitmap.add(row);
+      for (var j = 0; j < width; j++) {
+        contextLabel = template.contextFor(i, j, bitmap, contextLabel);
+        row[j] = decoder.readBit(contexts, contextLabel);
       }
-      if (width == 6 && height == 6) {}
-      row[j] = decoder.readBit(contexts, contextLabel);
+    }
+
+    return bitmap;
+  }
+
+  int _nextLtp(
+    final Jbig2ArithmeticDecoder decoder,
+    final Uint8List contexts,
+    final int pseudoPixelContext,
+    final int ltp,
+  ) {
+    return ltp ^ decoder.readBit(contexts, pseudoPixelContext);
+  }
+}
+
+final class _BitmapTemplate {
+  _BitmapTemplate(final int templateIndex, final List<Point> at, final int width)
+    : _points = <Point>[...jbig2CodingTemplates[templateIndex], ...at],
+      _width = width {
+    // Sorting is non-standard but maximizes context reuse between adjacent
+    // pixels, matching the pdf.js implementation.
+    _points.sort((final a, final b) => a.y - b.y != 0 ? a.y - b.y : a.x - b.x);
+    _templateX = Int8List(_points.length);
+    _templateY = Int8List(_points.length);
+    final changingEntries = <int>[];
+    for (var index = 0; index < _points.length; index++) {
+      final point = _points[index];
+      _templateX[index] = point.x;
+      _templateY[index] = point.y;
+      if (point.x < _minX) _minX = point.x;
+      if (point.x > _maxX) _maxX = point.x;
+      if (point.y < _minY) _minY = point.y;
+      if (index < _points.length - 1 &&
+          point.y == _points[index + 1].y &&
+          point.x == _points[index + 1].x - 1) {
+        _reuseMask |= 1 << (_points.length - 1 - index);
+      } else {
+        changingEntries.add(index);
+      }
+    }
+    _changingX = Int8List(changingEntries.length);
+    _changingY = Int8List(changingEntries.length);
+    _changingBits = Uint16List(changingEntries.length);
+    for (var index = 0; index < changingEntries.length; index++) {
+      final pointIndex = changingEntries[index];
+      _changingX[index] = _points[pointIndex].x;
+      _changingY[index] = _points[pointIndex].y;
+      _changingBits[index] = 1 << (_points.length - 1 - pointIndex);
     }
   }
-  return bitmap;
+
+  final List<Point> _points;
+  final int _width;
+  late final Int8List _templateX;
+  late final Int8List _templateY;
+  late final Int8List _changingX;
+  late final Int8List _changingY;
+  late final Uint16List _changingBits;
+  int _reuseMask = 0;
+  int _minX = 0;
+  int _maxX = 0;
+  int _minY = 0;
+
+  int contextFor(
+    final int rowIndex,
+    final int columnIndex,
+    final List<Uint8List> bitmap,
+    final int previousContext,
+  ) {
+    if (columnIndex >= -_minX && columnIndex < _width - _maxX && rowIndex >= -_minY) {
+      return _reusedContext(rowIndex, columnIndex, bitmap, previousContext);
+    }
+
+    return _fullContext(rowIndex, columnIndex, bitmap);
+  }
+
+  int _reusedContext(
+    final int rowIndex,
+    final int columnIndex,
+    final List<Uint8List> bitmap,
+    final int previousContext,
+  ) {
+    var context = (previousContext << 1) & _reuseMask;
+    for (var index = 0; index < _changingX.length; index++) {
+      final row = rowIndex + _changingY[index];
+      final column = columnIndex + _changingX[index];
+      if (row >= 0 && row < bitmap.length && column >= 0 && column < _width) {
+        if (bitmap[row][column] != 0) {
+          context |= _changingBits[index];
+        }
+      }
+    }
+
+    return context;
+  }
+
+  int _fullContext(final int rowIndex, final int columnIndex, final List<Uint8List> bitmap) {
+    var context = 0;
+    for (var index = 0; index < _templateX.length; index++) {
+      final column = columnIndex + _templateX[index];
+      final row = rowIndex + _templateY[index];
+      if (column < 0 || column >= _width || row < 0 || row >= bitmap.length) {
+        continue;
+      }
+      final bit = bitmap[row][column];
+      if (bit != 0) {
+        context |= bit << (_templateX.length - 1 - index);
+      }
+    }
+
+    return context;
+  }
 }
 
 /// 6.3.2 Generic Refinement Region Decoding Procedure
@@ -299,10 +347,10 @@ List<Uint8List> jbig2DecodeRefinement(
   final List<Uint8List> referenceBitmap,
   final int offsetX,
   final int offsetY,
-  final bool prediction,
   final List<Point> at,
-  final Jbig2DecodingContext decodingContext,
-) {
+  final Jbig2DecodingContext decodingContext, {
+  required final bool isPredictionEnabled,
+}) {
   var codingTemplate = jbig2RefinementTemplates[templateIndex].coding;
   if (templateIndex == 0) {
     codingTemplate = <Point>[...codingTemplate, at[0]];
@@ -331,6 +379,7 @@ List<Uint8List> jbig2DecodeRefinement(
     // the empty read as well, but as a raw RangeError.
     throw const PdfException('JBIG2 error: refinement reference is empty.');
   }
+
   final referenceWidth = referenceBitmap[0].length;
   final referenceHeight = referenceBitmap.length;
 
@@ -343,7 +392,7 @@ List<Uint8List> jbig2DecodeRefinement(
 
   var ltp = 0;
   for (var i = 0; i < height; i++) {
-    if (prediction) {
+    if (isPredictionEnabled) {
       final sltp = decoder.readBit(contexts, pseudoPixelContext);
       ltp ^= sltp;
       if (ltp != 0) {
@@ -385,8 +434,6 @@ List<Uint8List> jbig2DecodeRefinement(
 /// return value is the exported symbol list.
 // pdf.js jbig2.js decodeSymbolDictionary
 List<List<Uint8List>> jbig2DecodeSymbolDictionary(
-  final bool huffman,
-  final bool refinement,
   final List<List<Uint8List>> symbols,
   final int numberOfNewSymbols,
   final int numberOfExportedSymbols,
@@ -396,214 +443,288 @@ List<List<Uint8List>> jbig2DecodeSymbolDictionary(
   final int refinementTemplateIndex,
   final List<Point> refinementAt,
   final Jbig2DecodingContext decodingContext,
-  final Jbig2BitReader? huffmanInput,
-) {
-  if (huffman && refinement) {
-    throw const PdfException('JBIG2 error: symbol refinement with Huffman is not supported.');
-  }
+  final Jbig2BitReader? huffmanInput, {
+  required final bool isHuffmanEnabled,
+  required final bool isRefinementEnabled,
+}) {
+  return _Jbig2SymbolDictionaryDecoder(
+    symbols: symbols,
+    numberOfNewSymbols: numberOfNewSymbols,
+    numberOfExportedSymbols: numberOfExportedSymbols,
+    huffmanTables: huffmanTables,
+    templateIndex: templateIndex,
+    at: at,
+    refinementTemplateIndex: refinementTemplateIndex,
+    refinementAt: refinementAt,
+    decodingContext: decodingContext,
+    huffmanInput: huffmanInput,
+    isHuffmanEnabled: isHuffmanEnabled,
+    isRefinementEnabled: isRefinementEnabled,
+  ).decode();
+}
 
-  final newSymbols = <List<Uint8List>>[];
-  var currentHeight = 0;
-  var symbolCodeLength = jbig2Log2(symbols.length + numberOfNewSymbols);
+final class _Jbig2SymbolDictionaryDecoder {
+  _Jbig2SymbolDictionaryDecoder({
+    required this.symbols,
+    required this.numberOfNewSymbols,
+    required this.numberOfExportedSymbols,
+    required this.huffmanTables,
+    required this.templateIndex,
+    required this.at,
+    required this.refinementTemplateIndex,
+    required this.refinementAt,
+    required this.decodingContext,
+    required this.huffmanInput,
+    required this.isHuffmanEnabled,
+    required this.isRefinementEnabled,
+  });
 
-  final decoder = decodingContext.decoder;
-  final contextCache = decodingContext.contextCache;
-  Jbig2HuffmanTable? tableB1;
-  List<int>? symbolWidths;
-  if (huffman) {
-    tableB1 = jbig2GetStandardTable(1); // standard table B.1
-    symbolWidths = <int>[];
-    symbolCodeLength = symbolCodeLength > 1 ? symbolCodeLength : 1; // 6.5.8.2.3
-  }
-  var heightClassGuard = 0;
-  while (newSymbols.length < numberOfNewSymbols) {
-    // Corrupt headers announce millions of symbols; the out-of-band
-    // pattern alone terminates this loop, so bound it outright.
-    if (++heightClassGuard > _jbig2MaxSymbols) {
-      throw const PdfException('JBIG2 error: symbol dictionary does not terminate.');
+  final List<List<Uint8List>> symbols;
+  final int numberOfNewSymbols;
+  final int numberOfExportedSymbols;
+  final Jbig2SymbolDictionaryHuffmanTables? huffmanTables;
+  final int templateIndex;
+  final List<Point> at;
+  final int refinementTemplateIndex;
+  final List<Point> refinementAt;
+  final Jbig2DecodingContext decodingContext;
+  final Jbig2BitReader? huffmanInput;
+  final bool isHuffmanEnabled;
+  final bool isRefinementEnabled;
+  final List<List<Uint8List>> newSymbols = <List<Uint8List>>[];
+  final List<int> symbolWidths = <int>[];
+  late final Jbig2HuffmanTable _exportTable;
+  late final int _symbolCodeLength;
+  int _currentHeight = 0;
+
+  Jbig2ArithmeticDecoder get _decoder => decodingContext.decoder;
+
+  Jbig2ContextCache get _contextCache => decodingContext.contextCache;
+
+  List<List<Uint8List>> decode() {
+    if (isHuffmanEnabled && isRefinementEnabled) {
+      throw const PdfException('JBIG2 error: symbol refinement with Huffman is not supported.');
     }
-    final deltaHeight = huffman
+    _symbolCodeLength = _initialiseTables();
+    _decodeHeightClasses();
+
+    return _exportSymbols();
+  }
+
+  int _initialiseTables() {
+    var codeLength = jbig2Log2(symbols.length + numberOfNewSymbols);
+    if (isHuffmanEnabled) {
+      _exportTable = jbig2GetStandardTable(1); // standard table B.1
+      codeLength = codeLength > 1 ? codeLength : 1; // 6.5.8.2.3
+    }
+
+    return codeLength;
+  }
+
+  void _decodeHeightClasses() {
+    var guard = 0;
+    while (newSymbols.length < numberOfNewSymbols) {
+      if (++guard > _jbig2MaxSymbols) {
+        throw const PdfException('JBIG2 error: symbol dictionary does not terminate.');
+      }
+      _decodeHeightClass();
+    }
+  }
+
+  void _decodeHeightClass() {
+    final deltaHeight = isHuffmanEnabled
         ? huffmanTables!.tableDeltaHeight.decode(huffmanInput!)!
-        : decodeJbig2Integer(contextCache.getContexts('IADH'), 'IADH', decoder)!; // 6.5.6
-    currentHeight += deltaHeight;
+        : decodeJbig2Integer(_contextCache.getContexts('IADH'), 'IADH', _decoder)!;
+    _currentHeight += deltaHeight;
     var currentWidth = 0;
     var totalWidth = 0;
-    final firstSymbol = huffman ? symbolWidths!.length : 0;
+    final firstSymbol = isHuffmanEnabled ? symbolWidths.length : 0;
     while (true) {
-      final deltaWidth = huffman
-          ? huffmanTables!.tableDeltaWidth.decode(huffmanInput!) // 6.5.7
-          : decodeJbig2Integer(contextCache.getContexts('IADW'), 'IADW', decoder);
+      final deltaWidth = isHuffmanEnabled
+          ? huffmanTables!.tableDeltaWidth.decode(huffmanInput!)
+          : decodeJbig2Integer(_contextCache.getContexts('IADW'), 'IADW', _decoder);
       if (deltaWidth == null) {
-        break; // OOB
+        break;
       }
       currentWidth += deltaWidth;
       totalWidth += currentWidth;
-      List<Uint8List> bitmap;
-      if (refinement) {
-        // 6.5.8.2 Refinement/aggregate-coded symbol bitmap
-        final numberOfInstances = decodeJbig2Integer(
-          contextCache.getContexts('IAAI'),
-          'IAAI',
-          decoder,
-        )!;
-        if (numberOfInstances > 1) {
-          bitmap = jbig2DecodeTextRegion(
-            huffman,
-            refinement,
-            currentWidth,
-            currentHeight,
-            0,
-            numberOfInstances,
-            1, // strip size
-            [...symbols, ...newSymbols],
-            symbolCodeLength,
-            0, // transposed
-            0, // ds offset
-            1, // top left 7.4.3.1.1
-            0, // OR operator
-            null,
-            refinementTemplateIndex,
-            refinementAt,
-            decodingContext,
-            0,
-            null,
-          );
-        } else {
-          final symbolId = decodeJbig2Iaid(
-            contextCache.getContexts(jbig2IaidContextId),
-            decoder,
-            symbolCodeLength,
-          );
-          final rdx = decodeJbig2Integer(
-            contextCache.getContexts('IARDX'),
-            'IARDX',
-            decoder,
-          )!; // 6.4.11.3
-          final rdy = decodeJbig2Integer(
-            contextCache.getContexts('IARDY'),
-            'IARDY',
-            decoder,
-          )!; // 6.4.11.4
-          final symbol = symbolId < symbols.length
-              ? symbols[symbolId]
-              : newSymbols[symbolId - symbols.length];
-          bitmap = jbig2DecodeRefinement(
-            currentWidth,
-            currentHeight,
-            refinementTemplateIndex,
-            symbol,
-            rdx,
-            rdy,
-            false,
-            refinementAt,
-            decodingContext,
-          );
-        }
-        newSymbols.add(bitmap);
-      } else if (huffman) {
-        // Store only symbol width and decode a collective bitmap when the
-        // height class is done.
-        symbolWidths!.add(currentWidth);
-      } else {
-        // 6.5.8.1 Direct-coded symbol bitmap
-        bitmap = jbig2DecodeBitmap(
-          false,
-          currentWidth,
-          currentHeight,
-          templateIndex,
-          false,
-          at,
-          decodingContext,
-        );
-        newSymbols.add(bitmap);
-      }
+      _decodeSymbol(currentWidth);
     }
-    if (huffman && !refinement) {
-      // 6.5.9 Height class collective bitmap
-      final bitmapSize = huffmanTables!.tableBitmapSize.decode(huffmanInput!)!;
-      huffmanInput.byteAlign();
-      List<Uint8List> collectiveBitmap;
-      if (bitmapSize == 0) {
-        // Uncompressed collective bitmap
-        collectiveBitmap = jbig2ReadUncompressedBitmap(huffmanInput, totalWidth, currentHeight);
-      } else {
-        // MMR collective bitmap
-        final originalEnd = huffmanInput.end;
-        final bitmapEnd = huffmanInput.position + bitmapSize;
-        huffmanInput.end = bitmapEnd;
-        collectiveBitmap = decodeMmrBitmap(
-          huffmanInput.data,
-          huffmanInput.position,
-          bitmapEnd,
-          totalWidth,
-          currentHeight,
-        );
-        huffmanInput.end = originalEnd;
-        huffmanInput.position = bitmapEnd;
-      }
-      final numberOfSymbolsDecoded = symbolWidths!.length;
-      if (firstSymbol == numberOfSymbolsDecoded - 1) {
-        // collectiveBitmap is a single symbol.
-        newSymbols.add(collectiveBitmap);
-      } else {
-        // Divide collectiveBitmap into symbols.
-        var xMin = 0;
-        for (var i = firstSymbol; i < numberOfSymbolsDecoded; i++) {
-          final bitmapWidth = symbolWidths[i];
-          final xMax = xMin + bitmapWidth;
-          final symbolBitmap = <Uint8List>[];
-          for (var y = 0; y < currentHeight; y++) {
-            symbolBitmap.add(Uint8List.sublistView(collectiveBitmap[y], xMin, xMax));
-          }
-          newSymbols.add(symbolBitmap);
-          xMin = xMax;
-        }
-      }
+    if (isHuffmanEnabled && !isRefinementEnabled) {
+      _decodeCollectiveBitmap(firstSymbol, totalWidth);
     }
   }
 
-  // 6.5.10 Exported symbols
-  final exportedSymbols = <List<Uint8List>>[];
-  final flags = <bool>[];
-  var currentFlag = false;
-  final totalSymbolsLength = symbols.length + numberOfNewSymbols;
-  var exportGuard = 0;
-  while (flags.length < totalSymbolsLength) {
-    if (++exportGuard > _jbig2MaxSymbols) {
-      throw const PdfException('JBIG2 error: exported symbols do not terminate.');
+  void _decodeSymbol(final int currentWidth) {
+    if (isRefinementEnabled) {
+      newSymbols.add(_decodeRefinedSymbol(currentWidth));
+
+      return;
     }
-    final runLength = huffman
-        ? tableB1!.decode(huffmanInput!)
-        : decodeJbig2Integer(contextCache.getContexts('IAEX'), 'IAEX', decoder);
-    var run = runLength ?? 0;
-    // A corrupt stream can decode an absurd run length; flags past the
-    // total are never read, so stop as soon as the buffer is full.
-    while (run-- > 0 && flags.length < totalSymbolsLength) {
-      flags.add(currentFlag);
+    if (isHuffmanEnabled) {
+      symbolWidths.add(currentWidth);
+
+      return;
     }
-    currentFlag = !currentFlag;
+    newSymbols.add(
+      jbig2DecodeBitmap(
+        currentWidth,
+        _currentHeight,
+        templateIndex,
+        at,
+        decodingContext,
+        isMmr: false,
+        isPredictionEnabled: false,
+      ),
+    );
   }
-  var i = 0;
-  for (final symbol in symbols) {
-    if (flags[i]) {
-      exportedSymbols.add(symbol);
+
+  List<Uint8List> _decodeRefinedSymbol(final int currentWidth) {
+    final numberOfInstances = decodeJbig2Integer(
+      _contextCache.getContexts('IAAI'),
+      'IAAI',
+      _decoder,
+    )!;
+    if (numberOfInstances > 1) {
+      return jbig2DecodeTextRegion(
+        currentWidth,
+        _currentHeight,
+        0,
+        numberOfInstances,
+        1,
+        [...symbols, ...newSymbols],
+        _symbolCodeLength,
+        0,
+        0,
+        1,
+        0,
+        null,
+        refinementTemplateIndex,
+        refinementAt,
+        decodingContext,
+        0,
+        null,
+        isHuffmanEnabled: isHuffmanEnabled,
+        isRefinementEnabled: isRefinementEnabled,
+      );
     }
-    i++;
+
+    final symbolId = decodeJbig2Iaid(
+      _contextCache.getContexts(jbig2IaidContextId),
+      _decoder,
+      _symbolCodeLength,
+    );
+    final rdx = decodeJbig2Integer(_contextCache.getContexts('IARDX'), 'IARDX', _decoder)!;
+    final rdy = decodeJbig2Integer(_contextCache.getContexts('IARDY'), 'IARDY', _decoder)!;
+    final symbol = symbolId < symbols.length
+        ? symbols[symbolId]
+        : newSymbols[symbolId - symbols.length];
+
+    return jbig2DecodeRefinement(
+      currentWidth,
+      _currentHeight,
+      refinementTemplateIndex,
+      symbol,
+      rdx,
+      rdy,
+      refinementAt,
+      decodingContext,
+      isPredictionEnabled: false,
+    );
   }
-  for (var j = 0; j < numberOfNewSymbols; i++, j++) {
-    if (flags[i]) {
-      exportedSymbols.add(newSymbols[j]);
+
+  void _decodeCollectiveBitmap(final int firstSymbol, final int totalWidth) {
+    final input = huffmanInput!;
+    final bitmapSize = huffmanTables!.tableBitmapSize.decode(input)!;
+    input.byteAlign();
+    final collectiveBitmap = bitmapSize == 0
+        ? jbig2ReadUncompressedBitmap(input, totalWidth, _currentHeight)
+        : _decodeMmrCollectiveBitmap(bitmapSize, totalWidth);
+    _appendCollectiveSymbols(firstSymbol, collectiveBitmap);
+  }
+
+  List<Uint8List> _decodeMmrCollectiveBitmap(final int bitmapSize, final int totalWidth) {
+    final input = huffmanInput!;
+    final originalEnd = input.end;
+    final bitmapEnd = input.position + bitmapSize;
+    input.end = bitmapEnd;
+    final bitmap = decodeMmrBitmap(
+      input.data,
+      input.position,
+      bitmapEnd,
+      totalWidth,
+      _currentHeight,
+    );
+    input.end = originalEnd;
+    input.position = bitmapEnd;
+
+    return bitmap;
+  }
+
+  void _appendCollectiveSymbols(final int firstSymbol, final List<Uint8List> bitmap) {
+    final lastSymbol = symbolWidths.length;
+    if (firstSymbol == lastSymbol - 1) {
+      newSymbols.add(bitmap);
+
+      return;
+    }
+
+    var xMin = 0;
+    for (var index = firstSymbol; index < lastSymbol; index++) {
+      final xMax = xMin + symbolWidths[index];
+      final symbolBitmap = <Uint8List>[];
+      for (var y = 0; y < _currentHeight; y++) {
+        symbolBitmap.add(Uint8List.sublistView(bitmap[y], xMin, xMax));
+      }
+      newSymbols.add(symbolBitmap);
+      xMin = xMax;
     }
   }
-  return exportedSymbols;
+
+  List<List<Uint8List>> _exportSymbols() {
+    final flags = _readExportFlags();
+    final exported = <List<Uint8List>>[];
+    var index = 0;
+    for (final symbol in symbols) {
+      if (flags[index++]) {
+        exported.add(symbol);
+      }
+    }
+    for (var newIndex = 0; newIndex < numberOfNewSymbols; newIndex++) {
+      if (flags[index++]) {
+        exported.add(newSymbols[newIndex]);
+      }
+    }
+
+    return exported;
+  }
+
+  List<bool> _readExportFlags() {
+    final flags = <bool>[];
+    var currentFlag = false;
+    final totalSymbolsLength = symbols.length + numberOfNewSymbols;
+    var guard = 0;
+    while (flags.length < totalSymbolsLength) {
+      if (++guard > _jbig2MaxSymbols) {
+        throw const PdfException('JBIG2 error: exported symbols do not terminate.');
+      }
+      var run = isHuffmanEnabled
+          ? _exportTable.decode(huffmanInput!) ?? 0
+          : decodeJbig2Integer(_contextCache.getContexts('IAEX'), 'IAEX', _decoder) ?? 0;
+      while (run-- > 0 && flags.length < totalSymbolsLength) {
+        flags.add(currentFlag);
+      }
+      currentFlag = !currentFlag;
+    }
+
+    return flags;
+  }
 }
 
 /// 6.4 Text region decoding procedure (`decodeTextRegion` in
 /// pdf.js). [huffmanTables] is non-null only for the Huffman path.
 // pdf.js jbig2.js decodeTextRegion
 List<Uint8List> jbig2DecodeTextRegion(
-  final bool huffman,
-  final bool refinement,
   final int width,
   final int height,
   final int defaultPixelValue,
@@ -620,178 +741,278 @@ List<Uint8List> jbig2DecodeTextRegion(
   final List<Point> refinementAt,
   final Jbig2DecodingContext decodingContext,
   final int logStripSize,
-  final Jbig2BitReader? huffmanInput,
-) {
-  if (huffman && refinement) {
-    throw const PdfException('JBIG2 error: refinement with Huffman is not supported.');
-  }
-  if (combinationOperator != 0 && combinationOperator != 2) {
-    throw PdfException('JBIG2 error: operator $combinationOperator is not supported.');
-  }
+  final Jbig2BitReader? huffmanInput, {
+  required final bool isHuffmanEnabled,
+  required final bool isRefinementEnabled,
+}) {
+  return _Jbig2TextRegionDecoder(
+    width: width,
+    height: height,
+    defaultPixelValue: defaultPixelValue,
+    numberOfSymbolInstances: numberOfSymbolInstances,
+    stripSize: stripSize,
+    inputSymbols: inputSymbols,
+    symbolCodeLength: symbolCodeLength,
+    transposed: transposed,
+    dsOffset: dsOffset,
+    referenceCorner: referenceCorner,
+    combinationOperator: combinationOperator,
+    huffmanTables: huffmanTables,
+    refinementTemplateIndex: refinementTemplateIndex,
+    refinementAt: refinementAt,
+    decodingContext: decodingContext,
+    logStripSize: logStripSize,
+    huffmanInput: huffmanInput,
+    isHuffmanEnabled: isHuffmanEnabled,
+    isRefinementEnabled: isRefinementEnabled,
+  ).decode();
+}
 
-  // Prepare bitmap
-  jbig2CheckedPixels(width, height);
-  final bitmap = List<Uint8List>.generate(height, (final i) {
-    final row = Uint8List(width);
-    if (defaultPixelValue != 0) {
-      row.fillRange(0, width, defaultPixelValue);
+final class _Jbig2TextRegionDecoder {
+  _Jbig2TextRegionDecoder({
+    required this.width,
+    required this.height,
+    required this.defaultPixelValue,
+    required this.numberOfSymbolInstances,
+    required this.stripSize,
+    required this.inputSymbols,
+    required this.symbolCodeLength,
+    required this.transposed,
+    required this.dsOffset,
+    required this.referenceCorner,
+    required this.combinationOperator,
+    required this.huffmanTables,
+    required this.refinementTemplateIndex,
+    required this.refinementAt,
+    required this.decodingContext,
+    required this.logStripSize,
+    required this.huffmanInput,
+    required this.isHuffmanEnabled,
+    required this.isRefinementEnabled,
+  });
+
+  final int width;
+  final int height;
+  final int defaultPixelValue;
+  final int numberOfSymbolInstances;
+  final int stripSize;
+  final List<List<Uint8List>> inputSymbols;
+  final int symbolCodeLength;
+  final int transposed;
+  final int dsOffset;
+  final int referenceCorner;
+  final int combinationOperator;
+  final Jbig2TextRegionHuffmanTables? huffmanTables;
+  final int refinementTemplateIndex;
+  final List<Point> refinementAt;
+  final Jbig2DecodingContext decodingContext;
+  final int logStripSize;
+  final Jbig2BitReader? huffmanInput;
+  final bool isHuffmanEnabled;
+  final bool isRefinementEnabled;
+
+  Jbig2ArithmeticDecoder get _decoder => decodingContext.decoder;
+
+  Jbig2ContextCache get _contextCache => decodingContext.contextCache;
+
+  List<Uint8List> decode() {
+    if (isHuffmanEnabled && isRefinementEnabled) {
+      throw const PdfException('JBIG2 error: refinement with Huffman is not supported.');
     }
-    return row;
-  }, growable: true);
-
-  final decoder = decodingContext.decoder;
-  final contextCache = decodingContext.contextCache;
-  var stripT = huffman
-      ? -(huffmanTables!.tableDeltaT.decode(huffmanInput!) ?? 0)
-      : -(decodeJbig2Integer(contextCache.getContexts('IADT'), 'IADT', decoder) ?? 0); // 6.4.6
-  var firstS = 0;
-  var i = 0;
-  var instanceGuard = 0;
-  while (i < numberOfSymbolInstances) {
-    // Real-world streams may declare more instances than they contain and
-    // rely on OOB to terminate the region, as pdf.js does. Keep the
-    // termination guard on the actual loop instead of trusting that count.
-    if (++instanceGuard > _jbig2MaxSymbols) {
-      throw const PdfException('JBIG2 error: text region does not terminate.');
+    if (combinationOperator != 0 && combinationOperator != 2) {
+      throw PdfException('JBIG2 error: operator $combinationOperator is not supported.');
     }
-    final deltaT = huffman
-        ? huffmanTables!.tableDeltaT.decode(huffmanInput!) ??
-              0 // 6.4.6
-        : decodeJbig2Integer(contextCache.getContexts('IADT'), 'IADT', decoder) ?? 0;
-    stripT += deltaT;
-
-    final deltaFirstS = huffman
-        ? huffmanTables!.tableFirstS.decode(huffmanInput!) ??
-              0 // 6.4.7
-        : decodeJbig2Integer(contextCache.getContexts('IAFS'), 'IAFS', decoder) ?? 0;
-    firstS += deltaFirstS;
-    var currentS = firstS;
-    do {
-      var currentT = 0; // 6.4.9
-      if (stripSize > 1) {
-        currentT = huffman
-            ? huffmanInput!.readBits(logStripSize)
-            : decodeJbig2Integer(contextCache.getContexts('IAIT'), 'IAIT', decoder) ?? 0;
+    jbig2CheckedPixels(width, height);
+    final bitmap = _emptyBitmap();
+    var stripT = -_readDeltaT();
+    var firstS = 0;
+    var instance = 0;
+    var guard = 0;
+    while (instance < numberOfSymbolInstances) {
+      if (++guard > _jbig2MaxSymbols) {
+        throw const PdfException('JBIG2 error: text region does not terminate.');
       }
-      final t = stripSize * stripT + currentT;
-      final symbolId = huffman
-          ? huffmanTables!.symbolIdTable.decode(huffmanInput!) ??
-                (throw const PdfException('JBIG2 error: symbol id decode failed.'))
-          : decodeJbig2Iaid(
-              contextCache.getContexts(jbig2IaidContextId),
-              decoder,
-              symbolCodeLength,
-            );
-      final applyRefinement =
-          refinement &&
-          (huffman
-              ? huffmanInput!.readBit() != 0
-              : (decodeJbig2Integer(contextCache.getContexts('IARI'), 'IARI', decoder) ?? 0) != 0);
-      if (symbolId < 0 || symbolId >= inputSymbols.length || inputSymbols[symbolId].isEmpty) {
-        // pdf.js hits the same malformed input as a raw TypeError; the
-        // library contract turns it into a PdfException.
-        throw const PdfException('JBIG2 error: text region symbol out of range.');
-      }
-      var symbolBitmap = inputSymbols[symbolId];
-      var symbolWidth = symbolBitmap[0].length;
-      var symbolHeight = symbolBitmap.length;
-      if (applyRefinement) {
-        final rdw =
-            decodeJbig2Integer(contextCache.getContexts('IARDW'), 'IARDW', decoder) ??
-            0; // 6.4.11.1
-        final rdh =
-            decodeJbig2Integer(contextCache.getContexts('IARDH'), 'IARDH', decoder) ??
-            0; // 6.4.11.2
-        final rdx =
-            decodeJbig2Integer(contextCache.getContexts('IARDX'), 'IARDX', decoder) ??
-            0; // 6.4.11.3
-        final rdy =
-            decodeJbig2Integer(contextCache.getContexts('IARDY'), 'IARDY', decoder) ??
-            0; // 6.4.11.4
-        symbolWidth += rdw;
-        symbolHeight += rdh;
-        symbolBitmap = jbig2DecodeRefinement(
-          symbolWidth,
-          symbolHeight,
-          refinementTemplateIndex,
-          symbolBitmap,
-          (rdw >> 1) + rdx,
-          (rdh >> 1) + rdy,
-          false,
-          refinementAt,
-          decodingContext,
-        );
-      }
-      final offsetT = t - (referenceCorner & 1 != 0 ? 0 : symbolHeight - 1);
-      final offsetS = currentS - (referenceCorner & 2 != 0 ? symbolWidth - 1 : 0);
-      if (transposed != 0) {
-        // Place Symbol Bitmap from T1,S1
-        for (var s2 = 0; s2 < symbolHeight; s2++) {
-          final row = offsetS + s2 >= 0 && offsetS + s2 < bitmap.length
-              ? bitmap[offsetS + s2]
-              : null;
-          if (row == null) {
-            continue;
-          }
-          final symbolRow = symbolBitmap[s2];
-          // To ignore Parts of Symbol bitmap which goes
-          // outside bitmap region
-          final maxWidth = width - offsetT < symbolWidth ? width - offsetT : symbolWidth;
-          if (combinationOperator == 0) {
-            // OR
-            for (var t2 = 0; t2 < maxWidth; t2++) {
-              if (offsetT + t2 >= 0) {
-                row[offsetT + t2] |= symbolRow[t2];
-              }
-            }
-          } else {
-            // XOR
-            for (var t2 = 0; t2 < maxWidth; t2++) {
-              if (offsetT + t2 >= 0) {
-                row[offsetT + t2] ^= symbolRow[t2];
-              }
-            }
-          }
+      stripT += _readDeltaT();
+      firstS += _readDeltaFirstS();
+      var currentS = firstS;
+      while (true) {
+        currentS = _decodeInstance(stripT, currentS, bitmap);
+        instance++;
+        final deltaS = _readDeltaS();
+        if (deltaS == null) {
+          break;
         }
-        currentS += symbolHeight - 1;
+        currentS += deltaS + dsOffset;
+      }
+    }
+
+    return bitmap;
+  }
+
+  List<Uint8List> _emptyBitmap() {
+    return List<Uint8List>.generate(height, (final _) {
+      final row = Uint8List(width);
+      if (defaultPixelValue != 0) {
+        row.fillRange(0, width, defaultPixelValue);
+      }
+
+      return row;
+    }, growable: true);
+  }
+
+  int _readDeltaT() {
+    return isHuffmanEnabled
+        ? huffmanTables!.tableDeltaT.decode(huffmanInput!) ?? 0
+        : decodeJbig2Integer(_contextCache.getContexts('IADT'), 'IADT', _decoder) ?? 0;
+  }
+
+  int _readDeltaFirstS() {
+    return isHuffmanEnabled
+        ? huffmanTables!.tableFirstS.decode(huffmanInput!) ?? 0
+        : decodeJbig2Integer(_contextCache.getContexts('IAFS'), 'IAFS', _decoder) ?? 0;
+  }
+
+  int? _readDeltaS() {
+    return isHuffmanEnabled
+        ? huffmanTables!.tableDeltaS.decode(huffmanInput!)
+        : decodeJbig2Integer(_contextCache.getContexts('IADS'), 'IADS', _decoder);
+  }
+
+  int _decodeInstance(final int stripT, final int currentS, final List<Uint8List> bitmap) {
+    final currentT = stripSize > 1 ? _readCurrentT() : 0;
+    final symbolId = _readSymbolId();
+    if (symbolId < 0 || symbolId >= inputSymbols.length || inputSymbols[symbolId].isEmpty) {
+      throw const PdfException('JBIG2 error: text region symbol out of range.');
+    }
+
+    var symbolBitmap = inputSymbols[symbolId];
+    var symbolWidth = symbolBitmap[0].length;
+    var symbolHeight = symbolBitmap.length;
+    if (_shouldRefine()) {
+      final refined = _refineSymbol(symbolBitmap, symbolWidth, symbolHeight);
+      symbolBitmap = refined.$1;
+      symbolWidth = refined.$2;
+      symbolHeight = refined.$3;
+    }
+    final t = stripSize * stripT + currentT;
+    final offsetT = t - (referenceCorner & 1 != 0 ? 0 : symbolHeight - 1);
+    final offsetS = currentS - (referenceCorner & 2 != 0 ? symbolWidth - 1 : 0);
+    if (transposed != 0) {
+      _drawTransposed(bitmap, symbolBitmap, offsetT, offsetS, symbolWidth, symbolHeight);
+
+      return currentS + symbolHeight - 1;
+    }
+    _drawNormal(bitmap, symbolBitmap, offsetT, offsetS, symbolWidth, symbolHeight);
+
+    return currentS + symbolWidth - 1;
+  }
+
+  int _readCurrentT() {
+    return isHuffmanEnabled
+        ? huffmanInput!.readBits(logStripSize)
+        : decodeJbig2Integer(_contextCache.getContexts('IAIT'), 'IAIT', _decoder) ?? 0;
+  }
+
+  int _readSymbolId() {
+    return isHuffmanEnabled
+        ? huffmanTables!.symbolIdTable.decode(huffmanInput!) ??
+              (throw const PdfException('JBIG2 error: symbol id decode failed.'))
+        : decodeJbig2Iaid(
+            _contextCache.getContexts(jbig2IaidContextId),
+            _decoder,
+            symbolCodeLength,
+          );
+  }
+
+  bool _shouldRefine() {
+    if (!isRefinementEnabled) {
+      return false;
+    }
+
+    return isHuffmanEnabled
+        ? huffmanInput!.readBit() != 0
+        : (decodeJbig2Integer(_contextCache.getContexts('IARI'), 'IARI', _decoder) ?? 0) != 0;
+  }
+
+  (List<Uint8List>, int, int) _refineSymbol(
+    final List<Uint8List> symbolBitmap,
+    final int symbolWidth,
+    final int symbolHeight,
+  ) {
+    final rdw = decodeJbig2Integer(_contextCache.getContexts('IARDW'), 'IARDW', _decoder) ?? 0;
+    final rdh = decodeJbig2Integer(_contextCache.getContexts('IARDH'), 'IARDH', _decoder) ?? 0;
+    final rdx = decodeJbig2Integer(_contextCache.getContexts('IARDX'), 'IARDX', _decoder) ?? 0;
+    final rdy = decodeJbig2Integer(_contextCache.getContexts('IARDY'), 'IARDY', _decoder) ?? 0;
+    final width = symbolWidth + rdw;
+    final height = symbolHeight + rdh;
+    final refined = jbig2DecodeRefinement(
+      width,
+      height,
+      refinementTemplateIndex,
+      symbolBitmap,
+      (rdw >> 1) + rdx,
+      (rdh >> 1) + rdy,
+      refinementAt,
+      decodingContext,
+      isPredictionEnabled: false,
+    );
+
+    return (refined, width, height);
+  }
+
+  void _drawTransposed(
+    final List<Uint8List> bitmap,
+    final List<Uint8List> symbolBitmap,
+    final int offsetT,
+    final int offsetS,
+    final int symbolWidth,
+    final int symbolHeight,
+  ) {
+    final maxWidth = width - offsetT < symbolWidth ? width - offsetT : symbolWidth;
+    for (var rowIndex = 0; rowIndex < symbolHeight; rowIndex++) {
+      final destinationIndex = offsetS + rowIndex;
+      if (destinationIndex < 0 || destinationIndex >= bitmap.length) {
+        continue;
+      }
+      _combineRow(bitmap[destinationIndex], symbolBitmap[rowIndex], offsetT, maxWidth);
+    }
+  }
+
+  void _drawNormal(
+    final List<Uint8List> bitmap,
+    final List<Uint8List> symbolBitmap,
+    final int offsetT,
+    final int offsetS,
+    final int symbolWidth,
+    final int symbolHeight,
+  ) {
+    for (var rowIndex = 0; rowIndex < symbolHeight; rowIndex++) {
+      final destinationIndex = offsetT + rowIndex;
+      if (destinationIndex < 0 || destinationIndex >= bitmap.length) {
+        continue;
+      }
+      _combineRow(bitmap[destinationIndex], symbolBitmap[rowIndex], offsetS, symbolWidth);
+    }
+  }
+
+  void _combineRow(
+    final Uint8List destination,
+    final Uint8List source,
+    final int offset,
+    final int length,
+  ) {
+    for (var index = 0; index < length; index++) {
+      final destinationIndex = offset + index;
+      if (destinationIndex < 0 || destinationIndex >= destination.length) {
+        continue;
+      }
+      if (combinationOperator == 0) {
+        destination[destinationIndex] |= source[index];
       } else {
-        for (var t2 = 0; t2 < symbolHeight; t2++) {
-          final row = offsetT + t2 >= 0 && offsetT + t2 < bitmap.length
-              ? bitmap[offsetT + t2]
-              : null;
-          if (row == null) {
-            continue;
-          }
-          final symbolRow = symbolBitmap[t2];
-          if (combinationOperator == 0) {
-            // OR
-            for (var s2 = 0; s2 < symbolWidth; s2++) {
-              if (offsetS + s2 >= 0 && offsetS + s2 < width) {
-                row[offsetS + s2] |= symbolRow[s2];
-              }
-            }
-          } else {
-            // XOR
-            for (var s2 = 0; s2 < symbolWidth; s2++) {
-              if (offsetS + s2 >= 0 && offsetS + s2 < width) {
-                row[offsetS + s2] ^= symbolRow[s2];
-              }
-            }
-          }
-        }
-        currentS += symbolWidth - 1;
+        destination[destinationIndex] ^= source[index];
       }
-      i++;
-      final deltaS = huffman
-          ? huffmanTables!.tableDeltaS.decode(huffmanInput!) // 6.4.8
-          : decodeJbig2Integer(contextCache.getContexts('IADS'), 'IADS', decoder);
-      if (deltaS == null) {
-        break; // OOB
-      }
-      currentS += deltaS + dsOffset;
-    } while (true);
+    }
   }
-  return bitmap;
 }
 
 /// Reads an uncompressed collective bitmap
@@ -811,6 +1032,7 @@ List<Uint8List> jbig2ReadUncompressedBitmap(
     }
     reader.byteAlign();
   }
+
   return bitmap;
 }
 
@@ -819,15 +1041,15 @@ List<Uint8List> jbig2ReadUncompressedBitmap(
 /// split into [maxPatternIndex] + 1 pattern tiles.
 // pdf.js jbig2.js decodePatternDictionary
 List<List<Uint8List>> jbig2DecodePatternDictionary(
-  final bool mmr,
   final int patternWidth,
   final int patternHeight,
   final int maxPatternIndex,
   final int template,
-  final Jbig2DecodingContext decodingContext,
-) {
+  final Jbig2DecodingContext decodingContext, {
+  required final bool isMmr,
+}) {
   final at = <Point>[];
-  if (!mmr) {
+  if (!isMmr) {
     at.add(Point(-patternWidth, 0));
     if (template == 0) {
       at.addAll(<Point>[Point(-3, -1), Point(2, -2), Point(-2, -2)]);
@@ -835,13 +1057,13 @@ List<List<Uint8List>> jbig2DecodePatternDictionary(
   }
   final collectiveWidth = (maxPatternIndex + 1) * patternWidth;
   final collectiveBitmap = jbig2DecodeBitmap(
-    mmr,
     collectiveWidth,
     patternHeight,
     template,
-    false,
     at,
     decodingContext,
+    isMmr: isMmr,
+    isPredictionEnabled: false,
   );
   // Divide collective bitmap into patterns.
   final patterns = <List<Uint8List>>[];
@@ -853,6 +1075,7 @@ List<List<Uint8List>> jbig2DecodePatternDictionary(
         Uint8List.sublistView(collectiveBitmap[y], xMin, xMax),
     ]);
   }
+
   return patterns;
 }
 
@@ -861,13 +1084,11 @@ List<List<Uint8List>> jbig2DecodePatternDictionary(
 /// (Annex C) rendered through the pattern grid.
 // pdf.js jbig2.js decodeHalftoneRegion
 List<Uint8List> jbig2DecodeHalftoneRegion(
-  final bool mmr,
   final List<List<Uint8List>> patterns,
   final int template,
   final int regionWidth,
   final int regionHeight,
   final int defaultPixelValue,
-  final bool enableSkip,
   final int combinationOperator,
   final int gridWidth,
   final int gridHeight,
@@ -875,9 +1096,11 @@ List<Uint8List> jbig2DecodeHalftoneRegion(
   final int gridOffsetY,
   final int gridVectorX,
   final int gridVectorY,
-  final Jbig2DecodingContext decodingContext,
-) {
-  if (enableSkip) {
+  final Jbig2DecodingContext decodingContext, {
+  required final bool isMmr,
+  required final bool isSkipEnabled,
+}) {
+  if (isSkipEnabled) {
     throw const PdfException('JBIG2 error: skip is not supported.');
   }
   if (combinationOperator != 0) {
@@ -886,94 +1109,196 @@ List<Uint8List> jbig2DecodeHalftoneRegion(
     );
   }
 
-  // Prepare bitmap.
-  final regionBitmap = List<Uint8List>.generate(regionHeight, (final _) {
-    final row = Uint8List(regionWidth);
-    if (defaultPixelValue != 0) {
-      row.fillRange(0, regionWidth, defaultPixelValue);
-    }
-    return row;
-  }, growable: true);
+  return _Jbig2HalftoneDecoder(
+    patterns: patterns,
+    template: template,
+    regionWidth: regionWidth,
+    regionHeight: regionHeight,
+    defaultPixelValue: defaultPixelValue,
+    gridWidth: gridWidth,
+    gridHeight: gridHeight,
+    gridOffsetX: gridOffsetX,
+    gridOffsetY: gridOffsetY,
+    gridVectorX: gridVectorX,
+    gridVectorY: gridVectorY,
+    decodingContext: decodingContext,
+    isMmr: isMmr,
+  ).decode();
+}
 
-  final numberOfPatterns = patterns.length;
-  final pattern0 = patterns[0];
-  final patternWidth = pattern0[0].length;
-  final patternHeight = pattern0.length;
-  final bitsPerValue = jbig2Log2(numberOfPatterns);
-  final at = <Point>[];
-  at.add(Point(template <= 1 ? 3 : 2, -1));
-  if (template == 0) {
-    at.addAll(<Point>[Point(-3, -1), Point(2, -2), Point(-2, -2)]);
+final class _Jbig2HalftoneDecoder {
+  _Jbig2HalftoneDecoder({
+    required this.patterns,
+    required this.template,
+    required this.regionWidth,
+    required this.regionHeight,
+    required this.defaultPixelValue,
+    required this.gridWidth,
+    required this.gridHeight,
+    required this.gridOffsetX,
+    required this.gridOffsetY,
+    required this.gridVectorX,
+    required this.gridVectorY,
+    required this.decodingContext,
+    required this.isMmr,
+  });
+
+  final List<List<Uint8List>> patterns;
+  final int template;
+  final int regionWidth;
+  final int regionHeight;
+  final int defaultPixelValue;
+  final int gridWidth;
+  final int gridHeight;
+  final int gridOffsetX;
+  final int gridOffsetY;
+  final int gridVectorX;
+  final int gridVectorY;
+  final Jbig2DecodingContext decodingContext;
+  final bool isMmr;
+
+  List<Uint8List> decode() {
+    final bitmap = _emptyBitmap();
+    final pattern = patterns[0];
+    final patternWidth = pattern[0].length;
+    final patternHeight = pattern.length;
+    final bitsPerValue = jbig2Log2(patterns.length);
+    final planes = _readBitPlanes(bitsPerValue);
+    _render(bitmap, planes, bitsPerValue, patternWidth, patternHeight);
+
+    return bitmap;
   }
-  // Annex C. Gray-scale Image Decoding Procedure.
-  final grayScaleBitPlanes = List<List<Uint8List>?>.filled(bitsPerValue, null);
-  for (var i = bitsPerValue - 1; i >= 0; i--) {
-    if (mmr) {
-      // MMR bit planes are in one continuous stream. Only EOFB codes
-      // indicate the end of each bitmap, so EOFBs must be decoded.
-      grayScaleBitPlanes[i] = decodeMmrBitmap(
-        decodingContext.data,
-        decodingContext.start,
-        decodingContext.end,
-        gridWidth,
-        gridHeight,
-        endOfBlock: true,
-      );
-    } else {
-      grayScaleBitPlanes[i] = jbig2DecodeBitmap(
-        false,
-        gridWidth,
-        gridHeight,
-        template,
-        false,
-        at,
-        decodingContext,
-      );
+
+  List<Uint8List> _emptyBitmap() {
+    return List<Uint8List>.generate(regionHeight, (final _) {
+      final row = Uint8List(regionWidth);
+      if (defaultPixelValue != 0) {
+        row.fillRange(0, regionWidth, defaultPixelValue);
+      }
+
+      return row;
+    }, growable: true);
+  }
+
+  List<List<Uint8List>?> _readBitPlanes(final int bitsPerValue) {
+    final at = <Point>[Point(template <= 1 ? 3 : 2, -1)];
+    if (template == 0) {
+      at.addAll(<Point>[Point(-3, -1), Point(2, -2), Point(-2, -2)]);
+    }
+    final planes = List<List<Uint8List>?>.filled(bitsPerValue, null);
+    for (var index = bitsPerValue - 1; index >= 0; index--) {
+      planes[index] = isMmr
+          ? decodeMmrBitmap(
+              decodingContext.data,
+              decodingContext.start,
+              decodingContext.end,
+              gridWidth,
+              gridHeight,
+              endOfBlock: true,
+            )
+          : jbig2DecodeBitmap(
+              gridWidth,
+              gridHeight,
+              template,
+              at,
+              decodingContext,
+              isMmr: false,
+              isPredictionEnabled: false,
+            );
+    }
+
+    return planes;
+  }
+
+  void _render(
+    final List<Uint8List> bitmap,
+    final List<List<Uint8List>?> planes,
+    final int bitsPerValue,
+    final int patternWidth,
+    final int patternHeight,
+  ) {
+    for (var row = 0; row < gridHeight; row++) {
+      for (var column = 0; column < gridWidth; column++) {
+        final patternIndex = _patternIndex(planes, bitsPerValue, row, column);
+        final x = (gridOffsetX + row * gridVectorY + column * gridVectorX).toSigned(32) >> 8;
+        final y = (gridOffsetY + row * gridVectorX - column * gridVectorY).toSigned(32) >> 8;
+        _drawPattern(bitmap, patterns[patternIndex], x, y, patternWidth, patternHeight);
+      }
     }
   }
-  // 6.6.5.2 Rendering the patterns.
-  for (var mg = 0; mg < gridHeight; mg++) {
-    for (var ng = 0; ng < gridWidth; ng++) {
-      var bit = 0;
-      var patternIndex = 0;
-      for (var j = bitsPerValue - 1; j >= 0; j--) {
-        bit ^= grayScaleBitPlanes[j]![mg][ng]; // Gray decoding
-        patternIndex |= bit << j;
+
+  int _patternIndex(
+    final List<List<Uint8List>?> planes,
+    final int bitsPerValue,
+    final int row,
+    final int column,
+  ) {
+    var bit = 0;
+    var patternIndex = 0;
+    for (var index = bitsPerValue - 1; index >= 0; index--) {
+      bit ^= planes[index]![row][column];
+      patternIndex |= bit << index;
+    }
+
+    return patternIndex;
+  }
+
+  void _drawPattern(
+    final List<Uint8List> bitmap,
+    final List<Uint8List> pattern,
+    final int x,
+    final int y,
+    final int patternWidth,
+    final int patternHeight,
+  ) {
+    final fits =
+        x >= 0 && x + patternWidth <= regionWidth && y >= 0 && y + patternHeight <= regionHeight;
+    if (fits) {
+      _drawContained(bitmap, pattern, x, y, patternWidth, patternHeight);
+
+      return;
+    }
+    _drawClipped(bitmap, pattern, x, y, patternWidth, patternHeight);
+  }
+
+  void _drawContained(
+    final List<Uint8List> bitmap,
+    final List<Uint8List> pattern,
+    final int x,
+    final int y,
+    final int patternWidth,
+    final int patternHeight,
+  ) {
+    for (var row = 0; row < patternHeight; row++) {
+      final destination = bitmap[y + row];
+      final source = pattern[row];
+      for (var column = 0; column < patternWidth; column++) {
+        destination[x + column] |= source[column];
       }
-      final patternBitmap = patterns[patternIndex];
-      // JS `>>` runs on int32, so the uint32 grid offsets wrap
-      // negative exactly as pdf.js's do before the shift.
-      final x = (gridOffsetX + mg * gridVectorY + ng * gridVectorX).toSigned(32) >> 8;
-      final y = (gridOffsetY + mg * gridVectorX - ng * gridVectorY).toSigned(32) >> 8;
-      // Draw patternBitmap at (x, y).
-      if (x >= 0 &&
-          x + patternWidth <= regionWidth &&
-          y >= 0 &&
-          y + patternHeight <= regionHeight) {
-        for (var i = 0; i < patternHeight; i++) {
-          final regionRow = regionBitmap[y + i];
-          final patternRow = patternBitmap[i];
-          for (var j = 0; j < patternWidth; j++) {
-            regionRow[x + j] |= patternRow[j];
-          }
-        }
-      } else {
-        for (var i = 0; i < patternHeight; i++) {
-          final regionY = y + i;
-          if (regionY < 0 || regionY >= regionHeight) {
-            continue;
-          }
-          final regionRow = regionBitmap[regionY];
-          final patternRow = patternBitmap[i];
-          for (var j = 0; j < patternWidth; j++) {
-            final regionX = x + j;
-            if (regionX >= 0 && regionX < regionWidth) {
-              regionRow[regionX] |= patternRow[j];
-            }
-          }
+    }
+  }
+
+  void _drawClipped(
+    final List<Uint8List> bitmap,
+    final List<Uint8List> pattern,
+    final int x,
+    final int y,
+    final int patternWidth,
+    final int patternHeight,
+  ) {
+    for (var row = 0; row < patternHeight; row++) {
+      final destinationRow = y + row;
+      if (destinationRow < 0 || destinationRow >= regionHeight) {
+        continue;
+      }
+      final destination = bitmap[destinationRow];
+      final source = pattern[row];
+      for (var column = 0; column < patternWidth; column++) {
+        final destinationColumn = x + column;
+        if (destinationColumn >= 0 && destinationColumn < regionWidth) {
+          destination[destinationColumn] |= source[column];
         }
       }
     }
   }
-  return regionBitmap;
 }

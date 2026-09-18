@@ -106,6 +106,16 @@ void main() {
       expect(metadata.cover, isNull);
     });
 
+    test('ignores impossible OPF calendar dates instead of normalizing them', () {
+      final metadata = _metadataOpf().replaceFirst('2024-05-06', '2024-02-31');
+      final bytes = _zip(<String, List<int>>{
+        'metadata.opf': convert.utf8.encode(metadata),
+        'book.txt': convert.utf8.encode('body'),
+      });
+
+      expect(readTxtzMetadata(bytes).publishedAt, isNull);
+    });
+
     test('rejects archive path traversal before exposing entries', () {
       final bytes = _zip(<String, List<int>>{
         '../outside.txt': convert.utf8.encode('unsafe'),

@@ -1,7 +1,7 @@
 import 'epub_package.dart';
 
 /// EPUB 3 package document and its parsed components.
-class Epub3Package extends EpubPackage {
+final class Epub3Package extends EpubPackage {
   /// Creates an EPUB 3 package.
   Epub3Package({
     required super.version,
@@ -20,7 +20,7 @@ class Epub3Package extends EpubPackage {
 }
 
 /// EPUB 3 metadata, including accessibility and media-overlay fields.
-class Epub3Metadata extends Metadata {
+final class Epub3Metadata extends Metadata {
   /// Creates EPUB 3 metadata from its package-document fields.
   Epub3Metadata({
     required super.rights,
@@ -57,56 +57,47 @@ class Epub3Metadata extends Metadata {
   });
 
   /// Schema.org vocabulary values declared for the publication.
-  List<String> schemaOrgs;
+  final List<String> schemaOrgs;
 
   /// Accessibility summaries declared for the publication.
-  List<String> accessibilitySummaries;
+  final List<String> accessibilitySummaries;
 
   /// Accessibility features declared for the publication.
-  List<String> accessibilityFeatures;
+  final List<String> accessibilityFeatures;
 
   /// Educational role assigned to the publication.
-  String educationalRole;
+  final String educationalRole;
 
   /// Typical age range for the publication.
-  String typicalAgeRange;
+  final String typicalAgeRange;
 
   /// Last modification timestamp declared by the EPUB package.
-  String modified;
+  final String modified;
 
   /// Rendition metadata declared for the publication.
-  String rendition;
+  final String rendition;
 
   /// Collection to which the publication belongs.
-  String belongsToCollection;
+  final String belongsToCollection;
 
   /// Source publication or resource for this publication.
-  String sourceOf;
+  final String sourceOf;
 
   /// Record identifier for the publication.
-  String recordIdentifier;
+  final String recordIdentifier;
 
   /// Total overlay duration from `<meta property="media:duration">`
   /// (EPUB 3 media overlays).
-  String mediaDuration;
+  final String mediaDuration;
 
   /// CSS class the reading system toggles on the currently narrated
   /// element (`media:active-class`).
-  String mediaActiveClass;
+  final String mediaActiveClass;
 
   /// CSS class applied while playback is active
   /// (`media:playback-active-class`).
-  String mediaPlaybackActiveClass;
+  final String mediaPlaybackActiveClass;
 
   /// Narrator of the audio narration (`dc:narrator`).
-  String narrator;
-}
-
-/// EPUB 3 manifest with package-level properties.
-class Epub3Manifest extends Manifest {
-  /// Creates an EPUB 3 manifest.
-  Epub3Manifest({required super.items, required this.properties});
-
-  /// Properties declared on the EPUB 3 manifest element.
-  final String properties;
+  final String narrator;
 }

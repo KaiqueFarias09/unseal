@@ -1,16 +1,9 @@
-import 'package:html/parser.dart' as html_parser;
-import 'package:xml/xml.dart';
-
-import '../../../foundation/entities/entities.dart';
-import '../container/docx_package.dart';
-import '../container/docx_relationships.dart';
-import '../exceptions/exceptions.dart';
-import '../styles/docx_styles.dart';
+part of '../parse_docx_book.dart';
 
 /// XHTML, navigation, and referenced images produced from a DOCX document.
-final class DocxRenderedDocument {
+final class _DocxRenderedDocument {
   /// Creates the complete rendering result consumed by the DOCX façade.
-  const DocxRenderedDocument({
+  const _DocxRenderedDocument({
     required this.xhtml,
     required this.navigation,
     required this.referencedImages,
@@ -27,15 +20,15 @@ final class DocxRenderedDocument {
 }
 
 /// Renders the main WordprocessingML document and its derived navigation.
-DocxRenderedDocument renderDocxDocument(
+_DocxRenderedDocument _renderDocxDocument(
   final XmlDocument document,
   final String documentPath,
-  final Map<String, DocxRelationship> relationships,
-  final Map<String, DocxStyle> styles,
-  final DocxNumbering numbering,
+  final Map<String, _DocxRelationship> relationships,
+  final Map<String, _DocxStyle> styles,
+  final _DocxNumbering numbering,
   final String? title,
 ) {
-  final body = docxChild(document.rootElement, 'body');
+  final body = _docxChild(document.rootElement, 'body');
   if (body == null) {
     throw InvalidDocxXmlException(document.rootElement.name.qualified, 'w:document has no w:body');
   }
@@ -49,7 +42,7 @@ DocxRenderedDocument renderDocxDocument(
   final output = StringBuffer()
     ..write('<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head>')
     ..write('<meta charset="utf-8"/>')
-    ..write('<title>${_escapeHtml(title ?? '')}</title>')
+    ..write('<title>${_escapeDocxText(title ?? '')}</title>')
     ..write('</head><body>');
 
   String? listKind;
@@ -72,7 +65,7 @@ DocxRenderedDocument renderDocxDocument(
           output.write('<$listKind>');
         }
         output.write(
-          '<li data-list-level="${list.level}">${_renderParagraphContent(element, context, styles)}</li>',
+          '<li data-list-level="${list.level}">${_renderParagraphContent(element, context)}</li>',
         );
       } else {
         closeList();
@@ -88,7 +81,7 @@ DocxRenderedDocument renderDocxDocument(
   output.write('</body></html>');
   final xhtml = output.toString();
 
-  return DocxRenderedDocument(
+  return _DocxRenderedDocument(
     xhtml: xhtml,
     navigation: _htmlNavigation(xhtml, title: title ?? ''),
     referencedImages: referencedImages,
@@ -98,46 +91,39 @@ DocxRenderedDocument renderDocxDocument(
 String _renderParagraph(
   final XmlElement paragraph,
   final _RenderContext context,
-  final Map<String, DocxStyle> styles,
+  final Map<String, _DocxStyle> styles,
 ) {
   final level = _headingLevel(paragraph, styles);
-  final content = _renderParagraphContent(paragraph, context, styles);
-  if (level != null) {
-    context.headingCount++;
-    return '<h$level id="heading-${context.headingCount}">$content</h$level>';
-  }
+  final content = _renderParagraphContent(paragraph, context);
+  if (level == null) return '<p>$content</p>';
 
-  return '<p>$content</p>';
+  context.headingCount++;
+
+  return '<h$level id="heading-${context.headingCount}">$content</h$level>';
 }
 
-String _renderParagraphContent(
-  final XmlElement paragraph,
-  final _RenderContext context,
-  final Map<String, DocxStyle> styles,
-) {
+String _renderParagraphContent(final XmlElement paragraph, final _RenderContext context) {
   final output = StringBuffer();
   for (final child in paragraph.children.whereType<XmlElement>()) {
     if (child.name.local == 'pPr') continue;
-    output.write(_renderInline(child, context, styles));
+
+    output.write(_renderInline(child, context));
   }
 
   return output.isEmpty ? '&nbsp;' : output.toString();
 }
 
-String _renderInline(
-  final XmlElement element,
-  final _RenderContext context,
-  final Map<String, DocxStyle> styles,
-) {
+String _renderInline(final XmlElement element, final _RenderContext context) {
   switch (element.name.local) {
     case 'r':
       return _renderRun(element, context);
     case 'hyperlink':
-      final content = _renderChildren(element, context, styles);
-      final relationshipId = docxAttribute(element, 'id');
+      final content = _renderChildren(element, context);
+      final relationshipId = _docxAttribute(element, 'id');
       final relationship = relationshipId == null ? null : context.relationships[relationshipId];
-      if (relationship == null || relationship.external == false) return content;
-      return '<a href="${_escapeHtml(relationship.target)}">$content</a>';
+      if (relationship == null || !relationship.isExternal) return content;
+
+      return '<a href="${_escapeDocxAttribute(relationship.target)}">$content</a>';
     case 'fldSimple':
     case 'smartTag':
     case 'sdt':
@@ -145,31 +131,27 @@ String _renderInline(
     case 'ins':
     case 'moveFrom':
     case 'moveTo':
-      return _renderChildren(element, context, styles);
+      return _renderChildren(element, context);
     case 'proofErr':
     case 'bookmarkStart':
     case 'bookmarkEnd':
       return '';
     default:
-      return _renderChildren(element, context, styles);
+      return _renderChildren(element, context);
   }
 }
 
-String _renderChildren(
-  final XmlElement parent,
-  final _RenderContext context,
-  final Map<String, DocxStyle> styles,
-) {
+String _renderChildren(final XmlElement parent, final _RenderContext context) {
   final output = StringBuffer();
   for (final child in parent.children.whereType<XmlElement>()) {
-    output.write(_renderInline(child, context, styles));
+    output.write(_renderInline(child, context));
   }
 
   return output.toString();
 }
 
 String _renderRun(final XmlElement run, final _RenderContext context) {
-  final properties = docxChild(run, 'rPr');
+  final properties = _docxChild(run, 'rPr');
   final output = StringBuffer();
   for (final child in run.children.whereType<XmlElement>()) {
     switch (child.name.local) {
@@ -177,7 +159,7 @@ String _renderRun(final XmlElement run, final _RenderContext context) {
         break;
       case 't':
       case 'delText':
-        output.write(_escapeHtml(child.innerText));
+        output.write(_escapeDocxText(child.innerText));
       case 'tab':
         output.write('&#9;');
       case 'br':
@@ -192,10 +174,10 @@ String _renderRun(final XmlElement run, final _RenderContext context) {
       case 'object':
         output.write(_renderImage(child, context));
       case 'sym':
-        final char = docxAttribute(child, 'char');
+        final char = _docxAttribute(child, 'char');
         if (char != null && char.length >= 4) {
           final value = int.tryParse(char.substring(char.length - 4), radix: 16);
-          if (value != null) output.write(_escapeHtml(String.fromCharCode(value)));
+          if (value != null) output.write(_escapeDocxText(String.fromCharCode(value)));
         }
     }
   }
@@ -208,25 +190,27 @@ String _renderRun(final XmlElement run, final _RenderContext context) {
   if (_onOff(properties, 'u')) content = '<u>$content</u>';
   if (_onOff(properties, 'strike')) content = '<del>$content</del>';
 
-  final vertical = docxAttribute(docxChild(properties, 'vertAlign'), 'val');
+  final vertical = _docxAttribute(_docxChild(properties, 'vertAlign'), 'val');
   if (vertical == 'superscript') content = '<sup>$content</sup>';
   if (vertical == 'subscript') content = '<sub>$content</sub>';
 
   final styles = <String>[];
-  final color = docxAttribute(docxChild(properties, 'color'), 'val');
+  final color = _docxAttribute(_docxChild(properties, 'color'), 'val');
   if (color != null && color.toLowerCase() != 'auto' && _isHexColor(color)) {
     styles.add('color:#${color.toLowerCase()}');
   }
-  final highlight = docxAttribute(docxChild(properties, 'highlight'), 'val');
+  final highlight = _docxAttribute(_docxChild(properties, 'highlight'), 'val');
   if (highlight != null) styles.add('background-color:${_highlightColor(highlight)}');
-  final size = double.tryParse(docxAttribute(docxChild(properties, 'sz'), 'val') ?? '');
+  final size = double.tryParse(_docxAttribute(_docxChild(properties, 'sz'), 'val') ?? '');
   if (size != null && size > 0) styles.add('font-size:${size / 2}pt');
   if (_onOff(properties, 'smallCaps')) styles.add('font-variant:small-caps');
 
   final rtl = _onOff(properties, 'rtl');
   if (styles.isNotEmpty || rtl) {
     final attributes = <String>[];
-    if (styles.isNotEmpty) attributes.add('style="${_escapeHtml(styles.join(';'))}"');
+    if (styles.isNotEmpty) {
+      attributes.add('style="${_escapeDocxAttribute(styles.join(';'))}"');
+    }
     if (rtl) attributes.add('dir="rtl"');
     content = '<span ${attributes.join(' ')}>$content</span>';
   }
@@ -238,26 +222,31 @@ String _renderImage(final XmlElement container, final _RenderContext context) {
   String? relationshipId;
   for (final element in container.descendants.whereType<XmlElement>()) {
     if (element.name.local != 'blip' && element.name.local != 'imagedata') continue;
-    relationshipId = docxAttribute(element, 'embed') ?? docxAttribute(element, 'id');
+
+    relationshipId = _docxAttribute(element, 'embed') ?? _docxAttribute(element, 'id');
     if (relationshipId != null) break;
   }
+
   if (relationshipId == null) return '';
 
   final relationship = context.relationships[relationshipId];
-  if (relationship == null || relationship.external) return '';
+  if (relationship == null || relationship.isExternal) return '';
+
   context.referencedImages.add(relationship.target);
-  final source = relativeDocxPartPath(context.documentPath, relationship.target);
+  final source = _relativeDocxPartPath(context.documentPath, relationship.target);
   final alt = _imageAlt(container);
 
-  return '<img src="${_escapeHtml(source)}" alt="${_escapeHtml(alt)}" />';
+  return '<img src="${_escapeDocxAttribute(source)}" alt="${_escapeDocxAttribute(alt)}" />';
 }
 
 String _imageAlt(final XmlElement container) {
   for (final element in container.descendants.whereType<XmlElement>()) {
     if (element.name.local != 'docPr') continue;
-    final descr = docxAttribute(element, 'descr');
+
+    final descr = _docxAttribute(element, 'descr');
     if (descr != null && descr.isNotEmpty) return descr;
-    final name = docxAttribute(element, 'name');
+
+    final name = _docxAttribute(element, 'name');
     if (name != null && name.isNotEmpty) return name;
   }
 
@@ -267,7 +256,7 @@ String _imageAlt(final XmlElement container) {
 String _renderTable(
   final XmlElement table,
   final _RenderContext context,
-  final Map<String, DocxStyle> styles,
+  final Map<String, _DocxStyle> styles,
 ) {
   final output = StringBuffer('<table class="docx-table"><tbody>');
   for (final row in table.children.whereType<XmlElement>()) {
@@ -275,22 +264,24 @@ String _renderTable(
     output.write('<tr>');
     for (final cell in row.children.whereType<XmlElement>()) {
       if (cell.name.local != 'tc') continue;
-      final cellProperties = docxChild(cell, 'tcPr');
-      final span = int.tryParse(docxAttribute(docxChild(cellProperties, 'gridSpan'), 'val') ?? '');
+      final cellProperties = _docxChild(cell, 'tcPr');
+      final span = int.tryParse(
+        _docxAttribute(_docxChild(cellProperties, 'gridSpan'), 'val') ?? '',
+      );
       final attributes = span != null && span > 1 ? ' colspan="$span"' : '';
       output.write('<td$attributes>');
-      var rendered = false;
+      var hasRenderedContent = false;
       for (final child in cell.children.whereType<XmlElement>()) {
         if (child.name.local == 'tcPr') continue;
         if (child.name.local == 'p') {
           output.write(_renderParagraph(child, context, styles));
-          rendered = true;
+          hasRenderedContent = true;
         } else if (child.name.local == 'tbl') {
           output.write(_renderTable(child, context, styles));
-          rendered = true;
+          hasRenderedContent = true;
         }
       }
-      if (!rendered) output.write('&nbsp;');
+      if (!hasRenderedContent) output.write('&nbsp;');
       output.write('</td>');
     }
     output.write('</tr>');
@@ -300,36 +291,41 @@ String _renderTable(
   return output.toString();
 }
 
-int? _headingLevel(final XmlElement paragraph, final Map<String, DocxStyle> styles) {
-  final properties = docxChild(paragraph, 'pPr');
-  final styleId = docxAttribute(docxChild(properties, 'pStyle'), 'val');
+int? _headingLevel(final XmlElement paragraph, final Map<String, _DocxStyle> styles) {
+  final properties = _docxChild(paragraph, 'pPr');
+  final styleId = _docxAttribute(_docxChild(properties, 'pStyle'), 'val');
   final style = styleId == null ? null : styles[styleId];
   final styleName = style?.name ?? styleId ?? '';
   final match = RegExp(r'heading\s*([1-9])', caseSensitive: false).firstMatch(styleName);
   if (match != null) return _clampHeading(int.parse(match.group(1)!));
-  if (style?.outlineLevel != null) return _clampHeading(style!.outlineLevel! + 1);
+
+  final outlineLevel = style?.outlineLevel;
+  if (outlineLevel != null) return _clampHeading(outlineLevel + 1);
 
   final directOutline = int.tryParse(
-    docxAttribute(docxChild(properties, 'outlineLvl'), 'val') ?? '',
+    _docxAttribute(_docxChild(properties, 'outlineLvl'), 'val') ?? '',
   );
   if (directOutline != null) return _clampHeading(directOutline + 1);
 
   return null;
 }
 
-int _clampHeading(final int value) => value < 1
-    ? 1
-    : value > 6
-    ? 6
-    : value;
+int _clampHeading(final int value) {
+  if (value < 1) return 1;
+  if (value > 6) return 6;
 
-_ListInfo? _listInfo(final XmlElement paragraph, final DocxNumbering numbering) {
-  final properties = docxChild(paragraph, 'pPr');
-  final numProperties = docxChild(properties, 'numPr');
+  return value;
+}
+
+_ListInfo? _listInfo(final XmlElement paragraph, final _DocxNumbering numbering) {
+  final properties = _docxChild(paragraph, 'pPr');
+  final numProperties = _docxChild(properties, 'numPr');
   if (numProperties == null) return null;
-  final numId = int.tryParse(docxAttribute(docxChild(numProperties, 'numId'), 'val') ?? '');
+
+  final numId = int.tryParse(_docxAttribute(_docxChild(numProperties, 'numId'), 'val') ?? '');
   if (numId == null) return null;
-  final level = int.tryParse(docxAttribute(docxChild(numProperties, 'ilvl'), 'val') ?? '') ?? 0;
+
+  final level = int.tryParse(_docxAttribute(_docxChild(numProperties, 'ilvl'), 'val') ?? '') ?? 0;
   final format = numbering.format(numId, level);
   final kind = format == 'bullet' || format == 'none' ? 'ul' : 'ol';
 
@@ -337,12 +333,24 @@ _ListInfo? _listInfo(final XmlElement paragraph, final DocxNumbering numbering) 
 }
 
 bool _onOff(final XmlElement? parent, final String localName) {
-  final value = docxAttribute(docxChild(parent, localName), 'val');
-  if (value == null) return docxChild(parent, localName) != null;
-  return value != '0' && value.toLowerCase() != 'false' && value.toLowerCase() != 'off';
+  final property = _docxChild(parent, localName);
+  if (property == null) return false;
+
+  final value = _docxAttribute(property, 'val')?.toLowerCase();
+  if (value == null) return true;
+
+  return value != '0' && value != 'false' && value != 'off' && value != 'none';
 }
 
 bool _isHexColor(final String value) => RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(value);
+
+String _escapeDocxText(final String value) {
+  return const convert.HtmlEscape(convert.HtmlEscapeMode.element).convert(value);
+}
+
+String _escapeDocxAttribute(final String value) {
+  return const convert.HtmlEscape(convert.HtmlEscapeMode.attribute).convert(value);
+}
 
 String _highlightColor(final String value) {
   const colors = <String, String>{
@@ -368,13 +376,6 @@ String _highlightColor(final String value) {
   return colors[value] ?? value;
 }
 
-String _escapeHtml(final String value) => value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-
 Navigation _htmlNavigation(final String source, {required final String title}) {
   final document = html_parser.parse(source);
   final headings = document.querySelectorAll('h1,h2,h3,h4,h5,h6');
@@ -384,6 +385,7 @@ Navigation _htmlNavigation(final String source, {required final String title}) {
   for (final heading in headings) {
     final label = heading.text.trim();
     if (label.isEmpty) continue;
+
     final localName = heading.localName ?? 'h1';
     final level = int.tryParse(localName.substring(1)) ?? 1;
     final id = heading.attributes['id'] ?? 'heading-${order + 1}';
@@ -426,7 +428,7 @@ final class _RenderContext {
   });
 
   final String documentPath;
-  final Map<String, DocxRelationship> relationships;
+  final Map<String, _DocxRelationship> relationships;
   final Set<String> referencedImages;
   int headingCount = 0;
 }

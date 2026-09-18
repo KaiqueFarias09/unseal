@@ -19,40 +19,29 @@ import '../html/parse_html_book.dart';
 import '../mobi/parse_mobi_book.dart';
 import '../odt/parse_odt_book.dart';
 import '../pdf/parse_pdf_book.dart';
-import '../txt/archive/txtz_archive.dart';
 import '../txt/parse_txt_book.dart';
-
-/// Runs synchronous parsing on the execution adapter selected by Platform.
-typedef BookParseExecutor = Future<Book> Function(Book Function() parse, Uint8List bytes);
-
-/// Runs synchronous metadata extraction on the execution adapter selected by Platform.
-typedef MetadataReadExecutor =
-    Future<BookMetadata> Function(BookMetadata Function() read, Uint8List bytes);
 
 /// Owns platform-neutral format detection and parse/read dispatch.
 // This internal namespace keeps all format selection in Reading.
 // ignore: avoid_classes_with_only_static_members
 abstract final class BookDispatch {
-  /// Parses the book from [bytes], opening encrypted PDFs with
-  /// [password].
+  /// Parses the book from [bytes], opening encrypted PDFs with [password].
   static Future<Book> openFromBytes(
     final Uint8List bytes, {
-    required final BookParseExecutor execute,
+    required final Future<Book> Function(Book Function() parse, Uint8List bytes) execute,
     final String password = '',
   }) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
     final detected = detectFormat(bytes);
-    if (detected == DetectedFormat.comic7 ||
-        detected == DetectedFormat.epub && _isCbcBytes(bytes)) {
-      return _parseBookAsync(bytes, password: password, detected: detected);
-    }
+    if (detected == DetectedFormat.comic7) return parseComic7Book(bytes);
+    if (detected == DetectedFormat.epub && _isCbcBytes(bytes)) return parseCbcBook(bytes);
 
     return execute(() => parseBook(bytes, password: password), bytes);
   }
 
-  /// Synchronously parses [bytes] with the matching format adapter,
-  /// opening encrypted PDFs with [password].
+  /// Synchronously parses [bytes] with the matching format adapter, opening encrypted PDFs with
+  /// [password].
   static Book parseBook(final Uint8List bytes, {final String password = ''}) {
     switch (detectFormat(bytes)) {
       case DetectedFormat.epub:
@@ -78,41 +67,40 @@ abstract final class BookDispatch {
     }
   }
 
-  /// Reads only metadata from [bytes], opening encrypted PDFs with
-  /// [password].
+  /// Reads only metadata from [bytes], opening encrypted PDFs with [password].
   static Future<BookMetadata> readMetadataFromBytes(
     final Uint8List bytes, {
-    required final MetadataReadExecutor execute,
+    required final Future<BookMetadata> Function(BookMetadata Function() read, Uint8List bytes)
+    execute,
     final String password = '',
   }) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
     final detected = detectFormat(bytes);
-    if (detected == DetectedFormat.comic7 ||
-        detected == DetectedFormat.epub && _isCbcBytes(bytes)) {
-      return _readMetadataAsync(bytes, detected: detected);
-    }
+    if (detected == DetectedFormat.comic7) return readComic7Metadata(bytes);
+    if (detected == DetectedFormat.epub && _isCbcBytes(bytes)) return readCbcMetadata(bytes);
 
     return execute(() => readMetadataSync(bytes, password: password), bytes);
   }
 
-  /// Synchronously reads metadata from [bytes], opening encrypted
-  /// PDFs with [password].
+  /// Synchronously reads metadata from [bytes], opening encrypted PDFs with [password].
   static BookMetadata readMetadataSync(final Uint8List bytes, {final String password = ''}) {
     switch (detectFormat(bytes)) {
       case DetectedFormat.epub:
         final archive = ZipDecoder().decodeBytes(bytes);
         if (_isEpubArchive(archive)) return readEpubMetadata(archive);
-        if (_hasFb2Entry(archive)) return readFb2Metadata(bytes);
+        if (_fb2Entry(archive) != null) return readFb2Metadata(bytes);
+
         if (_isCbcArchive(archive)) {
           throw const FormatNotSupportedException(
             'CBC metadata is asynchronous; use BookReader.readMetadataFromBytes.',
           );
         }
+
         if (_isDocxArchive(archive)) return readDocxMetadataFromArchive(archive);
         if (_isOdtArchive(archive)) return readOdtMetadataFromArchive(archive);
         if (_isHtmlzArchive(archive)) return readHtmlzMetadataFromArchive(archive);
-        if (_isTxtzArchive(archive)) return readTxtzMetadata(bytes);
+        if (isTxtzArchive(archive)) return readTxtzMetadataFromArchive(archive);
 
         return readComicMetadata(bytes);
       case DetectedFormat.mobiFamily:
@@ -136,38 +124,18 @@ abstract final class BookDispatch {
     }
   }
 
-  static Future<Book> _parseBookAsync(
-    final Uint8List bytes, {
-    required final DetectedFormat detected,
-    required final String password,
-  }) async {
-    if (detected == DetectedFormat.comic7) return parseComic7Book(bytes);
-    final archive = ZipDecoder().decodeBytes(bytes);
-    if (_isCbcArchive(archive)) return parseCbcBook(bytes);
-
-    return parseBook(bytes, password: password);
+  static ArchiveFile? _fb2Entry(final Archive archive) {
+    return archive.files.firstWhereOrNull(
+      (final file) => file.isFile && file.name.toLowerCase().endsWith('.fb2'),
+    );
   }
 
-  static Future<BookMetadata> _readMetadataAsync(
-    final Uint8List bytes, {
-    required final DetectedFormat detected,
-  }) async {
-    if (detected == DetectedFormat.comic7) return readComic7Metadata(bytes);
-    final archive = ZipDecoder().decodeBytes(bytes);
-    if (_isCbcArchive(archive)) return readCbcMetadata(bytes);
-
-    return readMetadataSync(bytes);
+  static bool _isEpubArchive(final Archive archive) {
+    return archive.files.any(
+          (final file) => file.isFile && file.name == 'META-INF/container.xml',
+        ) ||
+        findEpubRootFilePath(archive) != null;
   }
-
-  static ArchiveFile? _fb2Entry(final Archive archive) => archive.files.firstWhereOrNull(
-    (final file) => file.isFile && file.name.toLowerCase().endsWith('.fb2'),
-  );
-
-  static bool _hasFb2Entry(final Archive archive) => _fb2Entry(archive) != null;
-
-  static bool _isEpubArchive(final Archive archive) =>
-      archive.files.any((final file) => file.isFile && file.name == 'META-INF/container.xml') ||
-      findEpubRootFilePath(archive) != null;
 
   static bool _isCbcBytes(final Uint8List bytes) {
     try {
@@ -177,23 +145,25 @@ abstract final class BookDispatch {
     }
   }
 
-  static bool _isCbcArchive(final Archive archive) => archive.files.any(
-    (final file) => file.isFile && normalizeZipPath(file.name).toLowerCase() == 'comics.txt',
-  );
+  static bool _isCbcArchive(final Archive archive) {
+    return archive.files.any(
+      (final file) => file.isFile && normalizeZipPath(file.name).toLowerCase() == 'comics.txt',
+    );
+  }
 
-  static bool _isDocxArchive(final Archive archive) =>
-      findArchiveFile(archive, 'word/document.xml') != null;
+  static bool _isDocxArchive(final Archive archive) {
+    return findArchiveFile(archive, 'word/document.xml') != null;
+  }
 
-  static bool _isOdtArchive(final Archive archive) =>
-      findArchiveFile(archive, 'content.xml') != null;
+  static bool _isOdtArchive(final Archive archive) {
+    return findArchiveFile(archive, 'content.xml') != null;
+  }
 
-  static bool _isHtmlzArchive(final Archive archive) => archive.files.any(
-    (final file) =>
-        file.isFile && !normalizeZipPath(file.name).contains('/') && _isHtmlName(file.name),
-  );
-
-  static bool _isTxtzArchive(final Archive archive) =>
-      archive.files.any((final file) => file.isFile && isTxtzTextExtension(_extension(file.name)));
+  static bool _isHtmlzArchive(final Archive archive) {
+    return archive.files.any((final file) {
+      return file.isFile && !normalizeZipPath(file.name).contains('/') && _isHtmlName(file.name);
+    });
+  }
 
   static bool _isImageName(final String name) {
     final lower = name.toLowerCase();
@@ -206,8 +176,9 @@ abstract final class BookDispatch {
         lower.endsWith('.bmp');
   }
 
-  static bool _looksLikeComic(final Archive archive) =>
-      archive.files.any((final file) => file.isFile && _isImageName(file.name));
+  static bool _looksLikeComic(final Archive archive) {
+    return archive.files.any((final file) => file.isFile && _isImageName(file.name));
+  }
 
   static bool _isHtmlName(final String path) {
     final extension = _extension(path);
@@ -238,7 +209,7 @@ abstract final class BookDispatch {
     if (_isDocxArchive(archive)) return parseDocxArchive(archive);
     if (_isOdtArchive(archive)) return parseOdtArchive(archive);
     if (_isHtmlzArchive(archive)) return parseHtmlzArchive(archive);
-    if (_isTxtzArchive(archive)) return parseTxtzArchive(readTxtzArchive(archive));
+    if (isTxtzArchive(archive)) return parseTxtzArchive(archive);
     if (_looksLikeComic(archive)) return parseComicBook(bytes);
 
     throw const FormatNotSupportedException(

@@ -30,11 +30,9 @@ const _namedEntities = <String, String>{
 String extractPlainText(final String html) {
   const lessThan = 0x3C;
   const ampersand = 0x26;
-
   final units = html.codeUnits;
   final length = units.length;
   final writer = _PlainTextWriter();
-
   var i = 0;
   while (i < length) {
     final codeUnit = units[i];
@@ -43,40 +41,44 @@ String extractPlainText(final String html) {
       if (after > i) {
         writer.markPendingSpace();
         i = after;
-
         continue;
       }
-    } else if (codeUnit == ampersand) {
+      // A lone '<' that opens no markup: one literal character.
+      writer.writeUnit(codeUnit);
+      i++;
+
+      continue;
+    }
+    if (codeUnit == ampersand) {
       final entity = _decodeEntity(html, units, i);
       if (entity != null) {
         writer.writeDecoded(entity.$1);
         i += entity.$2;
-
         continue;
       }
-    } else if (_isWhitespace(codeUnit)) {
+      // An '&' that opens no known entity: one literal character.
+      writer.writeUnit(codeUnit);
+      i++;
+
+      continue;
+    }
+    if (_isWhitespace(codeUnit)) {
       writer.markPendingSpace();
       i++;
 
       continue;
-    } else {
-      // Plain run: bulk-copy up to the next '<', '&' or whitespace. Runs never contain whitespace,
-      // so the pending space (if any) is flushed right before them.
-      var end = i + 1;
-      while (end < length) {
-        final next = units[end];
-        if (next == lessThan || next == ampersand || _isWhitespace(next)) break;
-        end++;
-      }
-      writer.writeText(html.substring(i, end));
-      i = end;
-
-      continue;
     }
 
-    // A lone '<' that opens no markup, or an '&' that opens no known entity: one literal character.
-    writer.writeUnit(codeUnit);
-    i++;
+    // Plain run: bulk-copy up to the next '<', '&' or whitespace. Runs never contain whitespace,
+    // so the pending space (if any) is flushed right before them.
+    var end = i + 1;
+    while (end < length) {
+      final next = units[end];
+      if (next == lessThan || next == ampersand || _isWhitespace(next)) break;
+      end++;
+    }
+    writer.writeText(html.substring(i, end));
+    i = end;
   }
   // String.trim covers a few edge characters (e.g. U+0085) beyond the RegExp \s set collapsed
   // above, matching the previous implementation's final `.replaceAll(\s+, ' ').trim()`.
@@ -132,10 +134,10 @@ int? _blockElementLength(final List<int> units, final int start) {
   for (var i = afterName; i < units.length; i++) {
     if (units[i] == _greaterThan) {
       openEnd = i;
-
       break;
     }
   }
+
   if (openEnd == -1) return null;
 
   // Lazy search for the exact closing tag; when absent, only the opening tag is consumed as a plain
@@ -171,7 +173,6 @@ bool _matchesName(final List<int> units, final int at, final List<int> lowerName
 
   if (start + 2 < units.length && units[start + 1] == hash) {
     final digits = start + 2;
-
     if (units[digits] == lowerX) {
       // &#xHH...; hexadecimal reference.
       var end = digits + 1;
@@ -202,10 +203,27 @@ bool _matchesName(final List<int> units, final int at, final List<int> lowerName
   return null;
 }
 
+int _indexOfIgnoreCase(final List<int> units, final int from, final List<int> lowercasePattern) {
+  for (var i = from; i + lowercasePattern.length <= units.length; i++) {
+    var isMatched = true;
+    for (var j = 0; j < lowercasePattern.length; j++) {
+      if (_toLowerCase(units[i + j]) != lowercasePattern[j]) {
+        isMatched = false;
+        break;
+      }
+    }
+
+    if (isMatched) return i;
+  }
+
+  return -1;
+}
+
 /// The RegExp `\s` set (ECMAScript): ASCII whitespace, NBSP, Zs category separators, line/paragraph
 /// separators and ZWNBSP.
 bool _isWhitespace(final int codeUnit) {
   const space = 0x20;
+
   return codeUnit == space ||
       (codeUnit >= 0x09 && codeUnit <= 0x0D) ||
       codeUnit == 0xA0 ||
@@ -252,26 +270,10 @@ int _indexOf(final List<int> units, final int from, final List<int> pattern) {
     for (var j = 0; j < pattern.length; j++) {
       if (units[i + j] != pattern[j]) {
         isMatched = false;
-
         break;
       }
     }
-    if (isMatched) return i;
-  }
 
-  return -1;
-}
-
-int _indexOfIgnoreCase(final List<int> units, final int from, final List<int> lowercasePattern) {
-  for (var i = from; i + lowercasePattern.length <= units.length; i++) {
-    var isMatched = true;
-    for (var j = 0; j < lowercasePattern.length; j++) {
-      if (_toLowerCase(units[i + j]) != lowercasePattern[j]) {
-        isMatched = false;
-
-        break;
-      }
-    }
     if (isMatched) return i;
   }
 

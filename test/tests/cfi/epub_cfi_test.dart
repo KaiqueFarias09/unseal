@@ -38,10 +38,8 @@ void main() {
       expect(cfi.encode(), 'epubcfi(/6/4!/4/1:5[some text;s=b])');
     });
 
-    test('accepts bare paths without the epubcfi() wrapper', () {
-      final cfi = EpubCfi.parse('/6/4!/4/1:1');
-      expect(cfi.start.segments, hasLength(2));
-      expect(cfi.start.segments[1].steps.last.charOffset, 1);
+    test('requires the EPUB CFI scheme wrapper', () {
+      expect(() => EpubCfi.parse('/6/4!/4/1:1'), throwsFormatException);
     });
 
     test('rejects malformed CFIs', () {
@@ -49,6 +47,10 @@ void main() {
       expect(() => EpubCfi.parse('epubcfi(/6/4!)'), throwsFormatException);
       expect(() => EpubCfi.parse('epubcfi(/6/4!/x)'), throwsFormatException);
       expect(() => EpubCfi.parse('epubcfi(/6/4, /6/4)'), throwsFormatException);
+      expect(() => EpubCfi.parse('epubcfi(/06/4)'), throwsFormatException);
+      expect(() => EpubCfi.parse('epubcfi(/6/4:1/2)'), throwsFormatException);
+      expect(() => EpubCfi.parse('epubcfi(/6/4[bad,assertion])'), throwsFormatException);
+      expect(() => EpubCfi.parse('epubcfi(/6/4[bad^xescape])'), throwsFormatException);
     });
 
     test('rejects temporal and spatial terminators', () {
@@ -64,6 +66,38 @@ void main() {
 
       const range = 'epubcfi(/6/4!/4/2,/1:0,/3:15)';
       expect(EpubCfi.parse(range).encode(), range);
+    });
+
+    test('escapes every reserved assertion delimiter, including commas', () {
+      final cfi = EpubCfi.simple(steps: [2], idAssertion: r'we^ird[id],value;');
+      const encoded = r'epubcfi(/2[we^^ird^[id^]^,value^;])';
+      expect(cfi.encode(), encoded);
+      expect(EpubCfi.parse(encoded).idAssertion, r'we^ird[id],value;');
+    });
+
+    test('supports the spec range form with an empty start subpath', () {
+      const encoded = 'epubcfi(/6/4!/4/2,,/1:2)';
+      final cfi = EpubCfi.parse(encoded);
+      expect(cfi.rangeStart!.segments, isEmpty);
+      expect(cfi.encode(), encoded);
+    });
+
+    test('rejects side bias on ranges', () {
+      expect(() => EpubCfi.parse('epubcfi(/6/4!/4/2,/1:0[;s=a],/3:2)'), throwsFormatException);
+    });
+
+    test('cannot represent a half-range', () {
+      expect(
+        () => EpubCfi(
+          start: EpubCfiPath(
+            segments: [
+              EpubCfiSegment(steps: [EpubCfiStep(index: 2)]),
+            ],
+          ),
+          rangeStart: EpubCfiPath(segments: const []),
+        ),
+        throwsArgumentError,
+      );
     });
   });
 
@@ -106,8 +140,8 @@ void main() {
     });
 
     test('resolves hand-written CFIs into the right section', () {
-      // /6/2 targets the first spine item; /1:0 its first text node.
-      final location = book.resolveCfi(EpubCfi.parse('epubcfi(/6/2!/1:0)'));
+      // /6/2 targets the first spine item; /4 targets its XHTML body.
+      final location = book.resolveCfi(EpubCfi.parse('epubcfi(/6/2!/4)'));
       expect(location, isNotNull);
       expect(location!.contentIndex, 0);
       expect(location.charOffset, 0);
@@ -116,6 +150,10 @@ void main() {
 
     test('returns null for CFIs outside the book', () {
       expect(book.resolveCfi(EpubCfi.parse('epubcfi(/6/9999!/2)')), isNull);
+    });
+
+    test('does not reinterpret a local path as a complete book CFI', () {
+      expect(book.resolveCfi(EpubCfi.parse('epubcfi(/4/2/1:0)')), isNull);
     });
 
     test('throws when building past the end of a section', () {

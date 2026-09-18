@@ -45,6 +45,45 @@ void main() {
   });
 
   group('sort keys and book producer', () {
+    test('reads Dublin Core metadata through an arbitrary namespace prefix', () {
+      final package = parsePackage(
+        '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">'
+        '<metadata xmlns:dct="http://purl.org/dc/elements/1.1/">'
+        '<dct:title>Prefix-independent title</dct:title>'
+        '<dct:creator>Prefix-independent author</dct:creator>'
+        '<dct:language>pt-BR</dct:language>'
+        '<dct:identifier id="uid">prefix-id</dct:identifier>'
+        '</metadata>'
+        '<manifest><item id="chapter" href="chapter.xhtml" '
+        'media-type="application/xhtml+xml"/></manifest>'
+        '<spine><itemref idref="chapter"/></spine>'
+        '</package>',
+      );
+
+      expect(package.metadata.title, 'Prefix-independent title');
+      expect(package.metadata.creator, 'Prefix-independent author');
+      expect(package.metadata.language, 'pt-BR');
+      expect(package.metadata.uniqueIdentifierValue, 'prefix-id');
+    });
+
+    test('reports missing required manifest attributes as EPUB errors', () {
+      final malformed = _opf(
+        '3.0',
+        '<dc:title>Missing href</dc:title>',
+      ).replaceFirst(' href="toc.ncx"', '');
+
+      expect(
+        () => parsePackage(malformed),
+        throwsA(
+          isA<EpubException>().having(
+            (final error) => error.message,
+            'message',
+            contains('manifest item is missing the href attribute'),
+          ),
+        ),
+      );
+    });
+
     test('reads opf:file-as attributes and the bkp contributor', () {
       final package = parsePackage(
         _opf(

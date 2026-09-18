@@ -24,7 +24,6 @@ void main() {
 
     final comic.ComicBook Function(Uint8List) parseComic = comic.parseComicBook;
     final comic.BookMetadata Function(Uint8List) readComicMetadata = comic.readComicMetadata;
-    final int Function(String, String) compareComicPaths = comic.compareNatural;
 
     final Future<comic7.ComicBook> Function(Uint8List) parseComic7 = comic7.parseComic7Book;
     final Future<comic7.BookMetadata> Function(Uint8List) readComic7Metadata =
@@ -57,8 +56,7 @@ void main() {
     final fb2.BookMetadata Function(Uint8List) readFb2Metadata = fb2.readFb2Metadata;
 
     final html.DocumentBook Function(List<int>, {String fileName}) parseHtml = html.parseHtmlBook;
-    final html.BookMetadata Function(List<int>, {String fileName}) readHtmlMetadata =
-        html.readHtmlMetadata;
+    final html.BookMetadata Function(List<int>) readHtmlMetadata = html.readHtmlMetadata;
     final html.DocumentBook Function(List<int>) parseHtmlz = html.parseHtmlzBook;
     final html.DocumentBook Function(Archive) parseHtmlzArchive = html.parseHtmlzArchive;
     final html.BookMetadata Function(List<int>) readHtmlzMetadata = html.readHtmlzMetadata;
@@ -82,23 +80,8 @@ void main() {
     final txt.BookMetadata Function(Uint8List, {String? sourceName}) readTxtMetadata =
         txt.readTxtMetadata;
     final txt.DocumentBook Function(Uint8List, {String? sourceName}) parseTxtz = txt.parseTxtzBook;
-    final txt.DocumentBook Function(txt.TxtzArchiveContents, {String? sourceName})
-    parseTxtzArchive = txt.parseTxtzArchive;
     final txt.BookMetadata Function(Uint8List, {String? sourceName}) readTxtzMetadata =
         txt.readTxtzMetadata;
-    final String Function(String?) txtHtmlPath = txt.txtHtmlPath;
-    final txt.TxtzArchiveContents Function(Archive) readTxtzArchive = txt.readTxtzArchive;
-    final bool Function(String) isTxtzTextExtension = txt.isTxtzTextExtension;
-    final int Function(String, String) compareTxtzPaths = txt.compareTxtzPaths;
-    final txt.TxtzMetadata? Function(List<int>, {required String metadataPath}) parseTxtzMetadata =
-        txt.parseTxtzMetadata;
-    final String Function(List<int>) decodeTxt = txt.decodeTxtBytes;
-    final String Function(String) normalizeTxt = txt.normalizeTxtText;
-    final txt.TxtRenderedDocument Function(String, {String title, String formatting}) renderTxt =
-        txt.renderTxtDocument;
-    final (String?, List<String>) Function(String, {String? sourceName}) txtHeaderMetadata =
-        txt.txtHeaderMetadata;
-    final Uint8List Function(Uint8List, [int]) metadataTxtPrefix = txt.metadataTxtPrefix;
 
     expect(<Object>[
       extractAzw4Payload,
@@ -107,7 +90,6 @@ void main() {
       readAzw4Metadata,
       parseComic,
       readComicMetadata,
-      compareComicPaths,
       parseComic7,
       readComic7Metadata,
       parseCbc,
@@ -145,18 +127,7 @@ void main() {
       parseTxt,
       readTxtMetadata,
       parseTxtz,
-      parseTxtzArchive,
       readTxtzMetadata,
-      txtHtmlPath,
-      readTxtzArchive,
-      isTxtzTextExtension,
-      compareTxtzPaths,
-      parseTxtzMetadata,
-      decodeTxt,
-      normalizeTxt,
-      renderTxt,
-      txtHeaderMetadata,
-      metadataTxtPrefix,
-    ], hasLength(56));
+    ], hasLength(44));
   });
 }

@@ -1,18 +1,11 @@
-import 'dart:typed_data';
-
-import 'package:archive/archive.dart';
-import 'package:xml/xml.dart';
-
-import '../../../foundation/archive/archive_access.dart';
-import '../../../foundation/text/xml_encoding.dart';
-import '../exceptions/exceptions.dart';
+part of '../parse_odt_book.dart';
 
 /// Validated ODT container plus its package-level XML documents.
-final class OdtPackage {
-  OdtPackage._({required this.archive, required this.content, this.meta, this.styles});
+final class _OdtPackage {
+  _OdtPackage._({required this.archive, required this.content, this.meta, this.styles});
 
   /// Decodes and validates an ODT package from [bytes].
-  factory OdtPackage.fromBytes(final Uint8List bytes) {
+  factory _OdtPackage.fromBytes(final Uint8List bytes) {
     if (bytes.isEmpty) throw const InvalidOdtPackageException('ODT package is empty.');
 
     final Archive archive;
@@ -22,11 +15,11 @@ final class OdtPackage {
       throw InvalidOdtPackageException('ODT package is not a valid ZIP archive: $error');
     }
 
-    return OdtPackage.fromArchive(archive);
+    return _OdtPackage.fromArchive(archive);
   }
 
   /// Validates an already decoded ODT [archive].
-  factory OdtPackage.fromArchive(final Archive archive) {
+  factory _OdtPackage.fromArchive(final Archive archive) {
     final contentEntry = findArchiveFile(archive, 'content.xml');
     if (contentEntry == null) throw const MissingOdtPartException('content.xml');
 
@@ -38,11 +31,11 @@ final class OdtPackage {
         'root element must be office:document-content, found ${root.name.qualified}',
       );
     }
-    if (odtFindDescendant(root, 'body') == null) {
+    if (_odtFindDescendant(root, 'body') == null) {
       throw InvalidOdtXmlException(contentEntry.name, 'document has no office:body element');
     }
 
-    return OdtPackage._(
+    return _OdtPackage._(
       archive: archive,
       content: content,
       meta: _optionalXml(archive, 'meta.xml'),
@@ -64,7 +57,7 @@ final class OdtPackage {
 }
 
 /// Finds the first descendant whose namespace-local name is [localName].
-XmlElement? odtFindDescendant(final XmlElement root, final String localName) {
+XmlElement? _odtFindDescendant(final XmlElement root, final String localName) {
   for (final element in root.descendants.whereType<XmlElement>()) {
     if (element.name.local == localName) return element;
   }
@@ -73,8 +66,9 @@ XmlElement? odtFindDescendant(final XmlElement root, final String localName) {
 }
 
 /// Finds the first direct child whose namespace-local name is [localName].
-XmlElement? odtFindChild(final XmlElement? root, final String localName) {
+XmlElement? _odtFindChild(final XmlElement? root, final String localName) {
   if (root == null) return null;
+
   for (final child in root.children.whereType<XmlElement>()) {
     if (child.name.local == localName) return child;
   }
@@ -83,8 +77,9 @@ XmlElement? odtFindChild(final XmlElement? root, final String localName) {
 }
 
 /// Reads an attribute by namespace-local [localName].
-String? odtAttribute(final XmlElement? element, final String localName) {
+String? _odtAttribute(final XmlElement? element, final String localName) {
   if (element == null) return null;
+
   for (final attribute in element.attributes) {
     if (attribute.name.local == localName) return attribute.value;
   }

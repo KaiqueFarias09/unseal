@@ -23,7 +23,6 @@ Uint8List extractMobiText({
       ? header.textRecordCount + textOffset
       : recordCount;
   Uint8List Function(Uint8List) unpack;
-
   if (header.compressionType == 0x4448) {
     final huffOffset = huffOffsetOverride ?? header.huffOffset;
     final sections = <Uint8List>[];
@@ -32,6 +31,7 @@ Uint8List extractMobiText({
 
       sections.add(recordAt(i));
     }
+
     final huff = HuffReader(sections);
     unpack = huff.unpack;
   } else if (header.compressionType == 2) {
@@ -41,11 +41,13 @@ Uint8List extractMobiText({
   } else {
     throw MobiException('Unknown compression algorithm: ${header.compressionType}');
   }
+
   final builder = BytesBuilder(copy: false);
   for (var i = textOffset; i < end; i++) {
     final stripped = stripTrailingEntries(recordAt(i), header.extraFlags);
     builder.add(unpack(stripped));
   }
+
   var html = builder.takeBytes();
   if (html.isNotEmpty && html[html.length - 1] == 0x23) {
     html = Uint8List.sublistView(html, 0, html.length - 1);
@@ -54,7 +56,6 @@ Uint8List extractMobiText({
   // Strip control bytes that survive in some encodings, copying the
   // intact spans in bulk instead of byte by byte.
   final isCp1252 = header.codec == 'cp1252';
-
   final output = BytesBuilder(copy: false);
   var spanStart = 0;
   for (var i = 0; i < html.length; i++) {

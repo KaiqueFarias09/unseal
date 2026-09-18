@@ -29,9 +29,7 @@ EpubBook parseEpubBook(final Uint8List bytes) {
 /// entries when the container is absent or unusable. A caller that already
 /// selected a package can pass its archive-relative path explicitly.
 EpubBook parseEpubArchive(final Archive archive, {final String? rootFilePath}) {
-  final selectedRootFilePath = _selectRootFilePath(archive, rootFilePath);
-  final rootFile = _getRootFile(archive, selectedRootFilePath).content as List<int>;
-  final package = parsePackageBytes(rootFile);
+  final (path: selectedRootFilePath, package: package) = _readPackage(archive, rootFilePath);
   final navigation = getEpubNavigation(package, archive, selectedRootFilePath);
   final encryption = EpubEncryption.fromArchive(archive, package);
   final files = extractFiles(
@@ -67,12 +65,21 @@ List<ArchiveEntry> _archiveEntries(final Archive archive) {
 /// the rest of the archive is never inflated. [rootFilePath] has the same
 /// override and recovery behavior as [parseEpubArchive].
 BookMetadata readEpubMetadata(final Archive archive, {final String? rootFilePath}) {
-  final selectedRootFilePath = _selectRootFilePath(archive, rootFilePath);
-  final rootFile = _getRootFile(archive, selectedRootFilePath).content as List<int>;
-  final package = parsePackageBytes(rootFile);
+  final (path: selectedRootFilePath, package: package) = _readPackage(archive, rootFilePath);
   EpubEncryption.fromArchive(archive, package);
 
   return epubBookMetadata(package, getBookCover(package, archive, const [], selectedRootFilePath));
+}
+
+({String path, EpubPackage package}) _readPackage(
+  final Archive archive,
+  final String? requestedRootFilePath,
+) {
+  final path = _selectRootFilePath(archive, requestedRootFilePath);
+  final rootFile = findArchiveFile(archive, path);
+  if (rootFile == null) throw EpubException('No root file found at $path');
+
+  return (path: path, package: parsePackageBytes(rootFile.content as List<int>));
 }
 
 String _selectRootFilePath(final Archive archive, final String? rootFilePath) {
@@ -89,14 +96,6 @@ String _selectRootFilePath(final Archive archive, final String? rootFilePath) {
   throw EpubException('No usable EPUB package found');
 }
 
-ArchiveFile _getRootFile(final Archive archive, final String? rootFilePath) {
-  if (rootFilePath == null) throw EpubException('No root file found');
-
-  final rootFile = findArchiveFile(archive, rootFilePath);
-
-  return rootFile ?? (throw EpubException('No root file found'));
-}
-
 List<String>? _spinePaths(
   final EpubPackage package,
   final Files files,
@@ -106,7 +105,6 @@ List<String>? _spinePaths(
       .map((final file) => normalizeZipPath(file.path).toLowerCase())
       .toList();
   final resolved = <String>[];
-
   for (final idref in package.spine.items) {
     final item = package.manifest.items.firstWhereOrNull(
       (final candidate) => candidate.id == idref,

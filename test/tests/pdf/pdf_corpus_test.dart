@@ -55,7 +55,7 @@ void main() {
 
         for (var i = 0; i < checked; i++) {
           expect(
-            documentText(book.files.html[i].content),
+            DocumentTextScanner(book.files.html[i].content).scan(),
             book.pageTexts[i].text,
             reason: 'page $i of $name breaks the canonical invariant',
           );
@@ -77,6 +77,6 @@ void main() {
     final pdf = book as PdfBook;
     expect(pdf.pageCount, greaterThan(0));
     // The invariant survives the isolate round trip on the first page.
-    expect(documentText(pdf.files.html.first.content), pdf.pageTexts.first.text);
+    expect(DocumentTextScanner(pdf.files.html.first.content).scan(), pdf.pageTexts.first.text);
   });
 }

@@ -4,6 +4,8 @@ import 'package:archive/archive.dart';
 
 import '../exceptions/pdf_exception.dart';
 
+const List<int> _signature = <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
 /// A decoded 1-bit-per-pixel PDF image (CCITT facsimile or JBIG2)
 /// as packed rows: most significant bit first, samples in the PDF's
 /// default `/Decode [0 1]` convention (0 = black, 1 = white), every
@@ -25,6 +27,7 @@ final class PdfBitmap {
     if (width <= 0 || height <= 0) {
       throw PdfException('PDF image has invalid dimensions ${width}x$height.');
     }
+
     final needed = strideFor(width) * height;
     // Corrupt dictionaries can claim absurd geometries; real fax and
     // scan pages are megabytes, so anything larger degrades instead
@@ -42,7 +45,9 @@ final class PdfBitmap {
         packed: Uint8List.sublistView(packed, 0, needed),
       );
     }
+
     final padded = Uint8List(needed)..setRange(0, packed.length, packed);
+
     return PdfBitmap(width: width, height: height, packed: padded);
   }
 
@@ -71,6 +76,7 @@ final class PdfBitmap {
         out[outBase + x] = bit == 1 ? 255 : 0;
       }
     }
+
     return out;
   }
 
@@ -95,11 +101,10 @@ final class PdfBitmap {
     out.add(_chunk('IHDR', ihdr));
     out.add(_chunk('IDAT', Uint8List.fromList(ZLibEncoder().encode(raw.toBytes()))));
     out.add(_chunk('IEND', Uint8List(0)));
+
     return out.toBytes();
   }
 }
-
-const List<int> _signature = <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
 Uint8List _chunk(final String type, final Uint8List data) {
   final typeBytes = type.codeUnits;
@@ -112,6 +117,7 @@ Uint8List _chunk(final String type, final Uint8List data) {
   final trailer = Uint8List(4);
   _writeUint32(trailer, 0, _crc32(typeBytes, data));
   out.add(trailer);
+
   return out.toBytes();
 }
 
@@ -130,6 +136,7 @@ int _crc32(final List<int> typeBytes, final Uint8List data) {
     for (var k = 0; k < 8; k++) {
       c = (c & 1) == 1 ? 0xEDB88320 ^ (c >> 1) : c >> 1;
     }
+
     return c;
   });
   var crc = 0xFFFFFFFF;
@@ -139,5 +146,6 @@ int _crc32(final List<int> typeBytes, final Uint8List data) {
   for (final byte in data) {
     crc = _crcTable![(crc ^ byte) & 0xFF] ^ (crc >> 8);
   }
+
   return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF;
 }

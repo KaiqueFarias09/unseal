@@ -329,6 +329,7 @@ class PdfSecurityHandler {
     for (var i = 1; i <= 19; i++) {
       check = rc4(_xorKey(key, i), check);
     }
+
     final expected = Uint8List.sublistView(userValue, 0, 16);
     if (check.length >= 16 && _bytesEqual(Uint8List.sublistView(check, 0, 16), expected)) {
       return key;
@@ -420,6 +421,7 @@ class PdfSecurityHandler {
     for (final entry in cf.entries.entries) {
       final spec = resolve(entry.value);
       if (spec is! PdfDictionary) continue;
+
       final method = _nameValue(resolve(spec['CFM'])) ?? 'None';
       final bits = _intValue(resolve(spec['Length'])) ?? 40;
       table[entry.key] = (method, bits);
@@ -432,8 +434,9 @@ class PdfSecurityHandler {
 
   static String? _nameValue(final PdfObject? object) => object is PdfName ? object.value : null;
 
-  static Uint8List _bytesOf(final PdfObject? object) =>
-      object is PdfString ? object.bytes : Uint8List(0);
+  static Uint8List _bytesOf(final PdfObject? object) {
+    return object is PdfString ? object.bytes : Uint8List(0);
+  }
 
   static bool _bytesEqual(final Uint8List a, final Uint8List b) {
     if (a.length != b.length) return false;

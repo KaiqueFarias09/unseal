@@ -68,7 +68,7 @@ class PdfBook extends Book {
 
   /// One reading-order item per page: section `i` is page `i`.
   @override
-  List<ReadingOrderItem> get readingOrder => <ReadingOrderItem>[
-    for (final file in files.html) ReadingOrderItem(name: file.path),
-  ];
+  List<ReadingOrderItem> get readingOrder {
+    return <ReadingOrderItem>[for (final file in files.html) ReadingOrderItem(name: file.path)];
+  }
 }

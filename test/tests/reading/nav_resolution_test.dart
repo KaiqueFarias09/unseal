@@ -170,6 +170,18 @@ void main() {
       expect(target.anchorId, 'intro');
     });
 
+    test('percent-encoded fragment matches the decoded anchor id', () {
+      final book = SyntheticBook(
+        files: htmlFiles(['<html><body><p>before</p><h2 id="note 1">Note</h2></body></html>']),
+        navigation: navigationOf([navPoint('section0.html#note%201')]),
+      );
+
+      final target = book.navTargetOf(book.navigation.navPoints.single);
+      expect(target!.sectionIndex, 0);
+      expect(target.charOffset, 'before'.length);
+      expect(target.anchorId, 'note 1');
+    });
+
     test('bare fragment resolves inside section 0', () {
       final book = SyntheticBook(
         files: htmlFiles(['<html><body><p>abc</p><a name="old"></a><p>named</p></body></html>']),
@@ -182,6 +194,16 @@ void main() {
       expect(target.anchorId, 'old');
     });
 
+    test('empty named anchor stays at its boundary instead of borrowing later text', () {
+      final book = SyntheticBook(
+        files: htmlFiles(['<html><body><p>same</p><a name="old"></a>\n<p>same</p></body></html>']),
+        navigation: navigationOf([navPoint('#old')]),
+      );
+
+      final target = book.navTargetOf(book.navigation.navPoints.single);
+      expect(target!.charOffset, 'same'.length);
+    });
+
     test('FB2-style file and fragment resolve the anchor offset', () {
       final book = SyntheticBook(
         files: htmlFiles(['<html><body><p>lead</p><h2 id="section_2">Section</h2></body></html>']),
@@ -192,6 +214,57 @@ void main() {
       expect(target!.sectionIndex, 0);
       expect(target.charOffset, 'lead'.length);
       expect(target.anchorId, 'section_2');
+    });
+
+    test('trims content and treats an empty fragment as no anchor', () {
+      final book = SyntheticBook(
+        files: htmlFiles(['<html><body><p>abc</p></body></html>']),
+        navigation: navigationOf([navPoint('  section0.html#  ')]),
+      );
+
+      final target = book.navTargetOf(book.navigation.navPoints.single);
+      expect(target!.sectionIndex, 0);
+      expect(target.charOffset, isNull);
+      expect(target.anchorId, isNull);
+    });
+
+    test('keeps additional hashes inside the fragment', () {
+      final book = SyntheticBook(
+        files: htmlFiles(['<html><body><p>abc</p></body></html>']),
+        navigation: navigationOf([navPoint('section0.html#frag#extra')]),
+      );
+
+      final target = book.navTargetOf(book.navigation.navPoints.single);
+      expect(target!.sectionIndex, 0);
+      expect(target.charOffset, isNull);
+      expect(target.anchorId, 'frag#extra');
+    });
+
+    test('bare filepos content locates its marker section', () {
+      final book = SyntheticBook(
+        files: htmlFiles([
+          '<html><body><p>first</p></body></html>',
+          "<html><body><a id='filepos42'></a><p>second</p></body></html>",
+        ]),
+        navigation: navigationOf([navPoint('filepos42')]),
+      );
+
+      final target = book.navTargetOf(book.navigation.navPoints.single);
+      expect(target!.sectionIndex, 1);
+      expect(target.charOffset, isNull);
+      expect(target.anchorId, isNull);
+    });
+
+    test('empty content defaults to the first section', () {
+      final book = SyntheticBook(
+        files: htmlFiles(['<html><body><p>abc</p></body></html>']),
+        navigation: navigationOf([navPoint('')]),
+      );
+
+      final target = book.navTargetOf(book.navigation.navPoints.single);
+      expect(target!.sectionIndex, 0);
+      expect(target.charOffset, isNull);
+      expect(target.anchorId, isNull);
     });
 
     test('unknown path yields no target', () {

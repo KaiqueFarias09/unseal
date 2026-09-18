@@ -49,7 +49,6 @@ extension BookSearch on Book {
     final htmlByPath = <String, TextFile>{for (final file in files.html) file.path: file};
     final sections = readingOrder;
     var isTruncated = false;
-
     for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
       final section = sections[sectionIndex];
       if (!section.isHtml) continue;
@@ -61,7 +60,6 @@ extension BookSearch on Book {
       for (final match in compiled.findMatches(text)) {
         if (results.length >= maxMatches) {
           isTruncated = true;
-
           break;
         }
 
@@ -75,6 +73,7 @@ extension BookSearch on Book {
           ),
         );
       }
+
       if (isTruncated) break;
     }
 

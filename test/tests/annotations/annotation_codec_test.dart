@@ -1,41 +1,61 @@
 import 'dart:convert';
 
-import 'package:e_livre/src/features/annotations/annotation_codec.dart';
-import 'package:e_livre/src/features/annotations/bookmark_record.dart';
-import 'package:e_livre/src/features/annotations/highlight_record.dart';
+import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
 
 HighlightRecord highlight({
   final String color = 'yellow',
   final bool withNote = true,
   final bool withCfi = true,
-}) => HighlightRecord(
-  id: 'h1',
-  sectionIndex: 3,
-  start: 120,
-  end: 180,
-  text: 'highlighted words',
-  before: 'context before ',
-  after: ' context after',
-  color: color == 'yellow'
-      ? PaletteHighlightColor.yellow
-      : const CustomHighlightColor(lightHex: '#12d8ff', darkHex: '#0a5566'),
-  decoration: HighlightDecoration.underline,
-  note: withNote ? 'a note' : null,
-  createdAt: DateTime.utc(2024, 6, 29, 3, 21, 48).add(const Duration(microseconds: 895323)),
-  cfi: withCfi ? 'epubcfi(/6/4!/4/2,/1:0,/1:17)' : null,
-);
+}) {
+  return HighlightRecord(
+    id: 'h1',
+    sectionIndex: 3,
+    start: 120,
+    end: 180,
+    text: 'highlighted words',
+    before: 'context before ',
+    after: ' context after',
+    color: color == 'yellow'
+        ? PaletteHighlightColor.yellow
+        : CustomHighlightColor(lightHex: '#12d8ff', darkHex: '#0a5566'),
+    decoration: HighlightDecoration.underline,
+    note: withNote ? 'a note' : null,
+    createdAt: DateTime.utc(2024, 6, 29, 3, 21, 48).add(const Duration(microseconds: 895323)),
+    cfi: withCfi ? 'epubcfi(/6/4!/4/2,/1:0,/1:17)' : null,
+  );
+}
 
-BookmarkRecord bookmark({final bool withNote = true}) => BookmarkRecord(
-  id: 'b1',
-  title: 'Chapter two',
-  sectionIndex: 2,
-  charOffset: 340,
-  createdAt: DateTime.utc(2024, 7, 1, 10, 0, 0),
-  note: withNote ? 'reread here' : null,
-);
+BookmarkRecord bookmark({final bool withNote = true}) {
+  return BookmarkRecord(
+    id: 'b1',
+    title: 'Chapter two',
+    sectionIndex: 2,
+    charOffset: 340,
+    createdAt: DateTime.utc(2024, 7, 1, 10, 0, 0),
+    note: withNote ? 'reread here' : null,
+  );
+}
 
 void main() {
+  test('exposes its canonical text locator with relocation context', () {
+    final record = highlight();
+
+    expect(
+      record.locator,
+      const TextLocator(
+        sectionIndex: 3,
+        start: 120,
+        end: 180,
+        quote: TextQuote(
+          before: 'context before ',
+          text: 'highlighted words',
+          after: ' context after',
+        ),
+      ),
+    );
+  });
+
   group('encodeAnnotations', () {
     test('writes the versioned envelope with both collections', () {
       final encoded =
@@ -46,7 +66,7 @@ void main() {
       expect(encoded['bookmarks'], isEmpty);
     });
 
-    test('writes the viewer field vocabulary with sectionIndex', () {
+    test('writes the canonical field vocabulary with sectionIndex', () {
       final encoded =
           jsonDecode(
                 encodeAnnotations(AnnotationCollection(highlights: [highlight()], bookmarks: [])),
@@ -64,7 +84,7 @@ void main() {
       expect(json['cfi'], 'epubcfi(/6/4!/4/2,/1:0,/1:17)');
     });
 
-    test('writes an absent highlight note as null, omits cfi and bookmark note', () {
+    test('omits absent optional highlight and bookmark fields', () {
       final encoded =
           jsonDecode(
                 encodeAnnotations(
@@ -76,7 +96,7 @@ void main() {
               )
               as Map<String, dynamic>;
       final highlightJson = (encoded['highlights'] as List<dynamic>).single as Map<String, dynamic>;
-      expect(highlightJson['note'], isNull);
+      expect(highlightJson.containsKey('note'), isFalse);
       expect(highlightJson.containsKey('cfi'), isFalse);
       final bookmarkJson = (encoded['bookmarks'] as List<dynamic>).single as Map<String, dynamic>;
       expect(bookmarkJson.containsKey('note'), isFalse);
@@ -148,7 +168,7 @@ void main() {
               'text': 't',
               'before': '',
               'after': '',
-              'decoration': decoration.wireName,
+              'decoration': decoration.name,
               'color': {'light': '#ffcc00', 'dark': '#664400'},
               'createdAt': '2024-01-01T00:00:00Z',
             },
@@ -162,43 +182,10 @@ void main() {
         equals(HighlightDecoration.values.toSet()),
       );
       expect(
-        decoded.highlights.every(
-          (final h) =>
-              h.color == const CustomHighlightColor(lightHex: '#ffcc00', darkHex: '#664400'),
-        ),
+        decoded.highlights.every((final highlight) {
+          return highlight.color == CustomHighlightColor(lightHex: '#ffcc00', darkHex: '#664400');
+        }),
         isTrue,
-      );
-    });
-
-    test('accepts the viewer position string for bookmarks', () {
-      final json = jsonEncode(<String, dynamic>{
-        'formatVersion': 1,
-        'highlights': <Map<String, dynamic>>[],
-        'bookmarks': <Map<String, dynamic>>[
-          {
-            'id': 'b1',
-            'title': 'Marked',
-            'position': 'eLv1:2:340',
-            'createdAt': '2024-07-01T10:00:00Z',
-          },
-        ],
-      });
-      expect(
-        decodeAnnotations(json),
-        equals(
-          AnnotationCollection(
-            highlights: const [],
-            bookmarks: [
-              BookmarkRecord(
-                id: 'b1',
-                title: 'Marked',
-                sectionIndex: 2,
-                charOffset: 340,
-                createdAt: DateTime.utc(2024, 7, 1, 10),
-              ),
-            ],
-          ),
-        ),
       );
     });
 
@@ -257,7 +244,8 @@ void main() {
           <String, dynamic>{
             'id': 'b-bad-position',
             'title': 'lost too',
-            'position': 'eLv1:x:340',
+            'sectionIndex': 'x',
+            'charOffset': 340,
             'createdAt': '2024-01-01T00:00:00Z',
           },
           <String, dynamic>{
@@ -272,6 +260,95 @@ void main() {
       final decoded = decodeAnnotations(json)!;
       expect(decoded.highlights.map((final h) => h.id), ['h-good']);
       expect(decoded.bookmarks.map((final b) => b.id), ['b-good']);
+    });
+
+    test('rejects custom colors outside the canonical #rrggbb shape', () {
+      final json = jsonEncode(<String, dynamic>{
+        'formatVersion': 1,
+        'highlights': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'h-no-hash',
+            'sectionIndex': 0,
+            'start': 0,
+            'end': 1,
+            'text': 't',
+            'decoration': 'background',
+            'color': {'light': 'ffcc00', 'dark': '#664400'},
+            'createdAt': '2024-01-01T00:00:00Z',
+          },
+        ],
+        'bookmarks': <Map<String, dynamic>>[],
+      });
+
+      expect(decodeAnnotations(json)!.highlights, isEmpty);
+    });
+
+    test('prevents constructing custom colors that cannot round-trip', () {
+      expect(
+        () => CustomHighlightColor(lightHex: '12d8ff', darkHex: '#0a5566'),
+        throwsArgumentError,
+      );
+      expect(
+        () => CustomHighlightColor(lightHex: '#12d8ff', darkHex: '#0a556'),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects invalid positions at construction and decode boundaries', () {
+      expect(
+        () => HighlightRecord(
+          id: 'invalid',
+          sectionIndex: -1,
+          start: 20,
+          end: 10,
+          text: 'invalid',
+          before: '',
+          after: '',
+          color: PaletteHighlightColor.yellow,
+          createdAt: DateTime.utc(2024),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => BookmarkRecord(
+          id: 'invalid',
+          title: 'invalid',
+          sectionIndex: 0,
+          charOffset: -1,
+          createdAt: DateTime.utc(2024),
+        ),
+        throwsArgumentError,
+      );
+
+      final decoded = decodeAnnotations(
+        jsonEncode(<String, Object?>{
+          'formatVersion': 1,
+          'highlights': [
+            <String, Object?>{
+              'id': 'invalid',
+              'sectionIndex': -1,
+              'start': 20,
+              'end': 10,
+              'text': 'invalid',
+              'decoration': 'background',
+              'color': 'yellow',
+              'createdAt': '2024-01-01T00:00:00Z',
+            },
+          ],
+          'bookmarks': [
+            <String, Object?>{
+              'id': 'invalid',
+              'title': 'invalid',
+              'sectionIndex': 0,
+              'charOffset': -1,
+              'createdAt': '2024-01-01T00:00:00Z',
+            },
+          ],
+        }),
+      );
+
+      expect(decoded!.highlights, isEmpty);
+      expect(decoded.bookmarks, isEmpty);
     });
 
     test('returns null for a non-map or undecodable envelope', () {

@@ -12,8 +12,8 @@ void main() {
     final book = parseFb2Book(_read('test/resources/fb2/alice.fb2'));
 
     test('parses metadata', () {
-      expect(book.title, aliceTitle);
-      expect(book.creators, ['Lewis Carroll']);
+      expect(book.metadata.title, aliceTitle);
+      expect(book.metadata.authors, ['Lewis Carroll']);
       expect(book.metadata.languages, contains('en'));
     });
 
@@ -95,6 +95,41 @@ void main() {
       expect(index, contains('href="notes.html#n1"'));
       final notes = book.files.html.firstWhere((final file) => file.name == 'notes.html').content;
       expect(notes, contains('id="n1"'));
+    });
+  });
+
+  group('invalid input', () {
+    test('rejects calendar dates that Dart would otherwise normalize', () {
+      const document =
+          '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
+          '<description><title-info><book-title>Invalid date</book-title>'
+          '<date>2024-02-31</date></title-info></description>'
+          '<body><section><p>Body</p></section></body>'
+          '</FictionBook>';
+      final bytes = Uint8List.fromList(utf8.encode(document));
+
+      expect(parseFb2Book(bytes).metadata.publishedAt, isNull);
+      expect(readFb2Metadata(bytes).publishedAt, isNull);
+    });
+
+    test('prefers the machine-readable FB2 date value over display text', () {
+      const document =
+          '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">'
+          '<description><title-info><book-title>Attribute date</book-title>'
+          '<date value="2024-02-29">29 February 2024</date></title-info></description>'
+          '<body><section><p>Body</p></section></body>'
+          '</FictionBook>';
+      final bytes = Uint8List.fromList(utf8.encode(document));
+
+      expect(parseFb2Book(bytes).metadata.publishedAt, DateTime(2024, 2, 29));
+      expect(readFb2Metadata(bytes).publishedAt, DateTime(2024, 2, 29));
+    });
+
+    test('wraps malformed ZIP input in the FB2 exception contract', () {
+      final bytes = Uint8List.fromList(<int>[0x50, 0x4B, 0x03, 0x04]);
+
+      expect(() => parseFb2Book(bytes), throwsA(isA<Fb2Exception>()));
+      expect(() => readFb2Metadata(bytes), throwsA(isA<Fb2Exception>()));
     });
   });
 }

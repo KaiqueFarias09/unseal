@@ -34,9 +34,56 @@ void main() {
     await writer.close();
     await sink.close();
 
-    final book = await BookReader.openFromBytes(sink.takeBytes());
+    final bytes = sink.takeBytes();
+    final book = await BookReader.openFromBytes(bytes);
+    var executorCalled = false;
+    final dispatched = await BookDispatch.openFromBytes(
+      bytes,
+      execute: (final _, final _) async {
+        executorCalled = true;
+        throw StateError('CB7 must not use the synchronous executor');
+      },
+    );
+    final metadata = await BookDispatch.readMetadataFromBytes(
+      bytes,
+      execute: (final _, final _) async {
+        executorCalled = true;
+        throw StateError('CB7 metadata must not use the synchronous executor');
+      },
+    );
 
     expect(book.format, BookFormat.cb7);
+    expect(dispatched.format, BookFormat.cb7);
+    expect(metadata.format, BookFormat.cb7);
+    expect(executorCalled, isFalse);
+  });
+
+  test('BookReader keeps CBC on its asynchronous path', () async {
+    final nestedComic = _zipBytes({'page.png': _png});
+    final bytes = _zipBytes({
+      'comics.txt': utf8.encode('nested.cbz:Nested comic\n'),
+      'nested.cbz': nestedComic,
+    });
+    var executorCalled = false;
+
+    final book = await BookDispatch.openFromBytes(
+      bytes,
+      execute: (final _, final _) async {
+        executorCalled = true;
+        throw StateError('CBC must not use the synchronous executor');
+      },
+    );
+    final metadata = await BookDispatch.readMetadataFromBytes(
+      bytes,
+      execute: (final _, final _) async {
+        executorCalled = true;
+        throw StateError('CBC metadata must not use the synchronous executor');
+      },
+    );
+
+    expect(book.format, BookFormat.cbc);
+    expect(metadata.format, BookFormat.cbc);
+    expect(executorCalled, isFalse);
   });
 
   test('Reading dispatches synchronous work through the injected executor', () async {
@@ -71,10 +118,13 @@ void main() {
 }
 
 Uint8List _zip(final Map<String, String> entries) {
+  return _zipBytes(entries.map((final key, final value) => MapEntry(key, utf8.encode(value))));
+}
+
+Uint8List _zipBytes(final Map<String, List<int>> entries) {
   final archive = Archive();
   for (final entry in entries.entries) {
-    final bytes = utf8.encode(entry.value);
-    archive.addFile(ArchiveFile(entry.key, bytes.length, bytes));
+    archive.addFile(ArchiveFile(entry.key, entry.value.length, entry.value));
   }
 
   return Uint8List.fromList(ZipEncoder().encode(archive)!);

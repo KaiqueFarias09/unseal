@@ -12,7 +12,7 @@ void main() {
 
     test('parses metadata', () {
       expect(book.format, BookFormat.mobi);
-      expect(book.title, aliceTitle);
+      expect(book.metadata.title, aliceTitle);
       expect(book.metadata.authors, ['Lewis Carroll']);
       expect(book.metadata.languages, isNotEmpty);
       expect(book.metadata.languages.first, startsWith('en'));
@@ -75,7 +75,7 @@ void main() {
 
     test('parses metadata', () {
       expect(book.format, BookFormat.azw3);
-      expect(book.title, aliceTitle);
+      expect(book.metadata.title, aliceTitle);
       expect(book.metadata.authors, ['Lewis Carroll']);
     });
 
@@ -126,7 +126,7 @@ void main() {
 
     test('detects and parses the KF8 half', () {
       expect(book.format, BookFormat.azw3);
-      expect(book.title, aliceTitle);
+      expect(book.metadata.title, aliceTitle);
       expect(book.files.html.length, greaterThanOrEqualTo(10));
       expect(book.files.css, isNotEmpty);
     });

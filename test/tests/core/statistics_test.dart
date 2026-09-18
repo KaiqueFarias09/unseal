@@ -32,7 +32,7 @@ void main() {
     test('Latin text keeps the whitespace-split count', () {
       expect(countWords('hello, world!'), 2);
       expect(countWords('one\ntwo\rthree four'), 4);
-      // NBSP splits like Python's str.split (Calibre parity).
+      // NBSP belongs to the compatibility whitespace set, so it separates adjacent words.
       expect(countWords('a\u00A0b c'), 3);
     });
 
@@ -44,8 +44,7 @@ void main() {
     });
 
     test('mixed Latin and CJK sums both counts', () {
-      // The docstring example of Calibre's nonj_len: 7 CJK characters
-      // plus the 2 Latin words interleaved with them.
+      // Seven CJK characters plus the two Latin words interleaved with them.
       expect(countWords('日本語AアジアンB'), 9);
       expect(countWords('hello 世界 world'), 4);
     });
@@ -63,8 +62,8 @@ void main() {
     });
 
     test('space-less scripts stay under-counted (Calibre parity)', () {
-      // Thai sits below U+3000 and carries no spaces: the whole run is
-      // one "word" here and in Calibre alike.
+      // Thai sits below U+3000 and carries no spaces, so the entire run counts as one word under
+      // the whitespace-split rule.
       expect(countWords('ภาษาไทยไม่มีช่องว่างระหว่างคำ'), 1);
     });
 

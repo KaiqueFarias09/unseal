@@ -22,22 +22,21 @@ BookMetadata mobiBookMetadata(
   }
 
   // Authors: EXTH 100; Amazon stores `Last, First` — flip when clear.
-  // The raw `Last, First` form doubles as the sort key (this is how
-  // Calibre derives `author_sort` from MOBI files).
+  // The raw `Last, First` form doubles as the sort key.
   final authors = <String>[];
   final authorSortCandidates = <String>[];
   for (final raw in exth?.strings(ExthIds.author, codec) ?? const <String>[]) {
     final trimmed = raw.trim();
-    if (trimmed.isEmpty) {
-      continue;
-    }
+    if (trimmed.isEmpty) continue;
+
     final match = RegExp(r'^([^,]+?),\s+([^,]+)$').firstMatch(trimmed);
     if (match != null) {
       authors.add('${match.group(2)} ${match.group(1)}');
       authorSortCandidates.add(trimmed);
-    } else {
-      authors.add(trimmed);
+
+      continue;
     }
+    authors.add(trimmed);
   }
   final authorSort = authorSortCandidates.isEmpty ? null : authorSortCandidates.join(' & ');
 
@@ -65,9 +64,7 @@ BookMetadata mobiBookMetadata(
   for (final raw in exth?.strings(ExthIds.subject, codec) ?? const <String>[]) {
     for (final part in raw.split(';')) {
       final trimmed = part.trim();
-      if (trimmed.isNotEmpty && !subjects.contains(trimmed)) {
-        subjects.add(trimmed);
-      }
+      if (trimmed.isNotEmpty && !subjects.contains(trimmed)) subjects.add(trimmed);
     }
   }
 
@@ -111,6 +108,7 @@ BookMetadata mobiBookMetadata(
 
 BookCover? _coverFrom(final BinaryFile? coverFile) {
   if (coverFile == null || coverFile.isEmpty) return null;
+
   final type = sniffImageType(coverFile.content);
   if (type == null) return null;
 
@@ -121,23 +119,41 @@ BookCover? _coverFrom(final BinaryFile? coverFile) {
 
 DateTime? _parseMobiDate(final String? raw) {
   if (raw == null) return null;
+
   final trimmed = raw.trim();
   if (trimmed.isEmpty) return null;
+
+  final isoDate = RegExp(r'^(\d{4})-(\d{1,2})-(\d{1,2})(?=$|[T ])').firstMatch(trimmed);
+  if (isoDate != null && !_isCalendarDate(isoDate)) return null;
 
   final direct = DateTime.tryParse(trimmed);
   if (direct != null) return direct;
 
-  final match = RegExp(r'^(\d{4})(?:[-/.](\d{1,2}))?(?:[-/.](\d{1,2}))?').firstMatch(trimmed);
+  final match = RegExp(r'^(\d{4})(?:[-/.](\d{1,2}))?(?:[-/.](\d{1,2}))?$').firstMatch(trimmed);
   if (match == null) return null;
+  if (!_isCalendarDate(match)) return null;
 
-  final month = match.group(2) != null ? int.parse(match.group(2)!) : 1;
-  final day = match.group(3) != null ? int.parse(match.group(3)!) : 1;
-  if (month < 1 || month > 12 || day < 1 || day > 31) return DateTime(int.parse(match.group(1)!));
+  final year = int.parse(match.group(1)!);
+  final month = match.group(2) == null ? 1 : int.parse(match.group(2)!);
+  final day = match.group(3) == null ? 1 : int.parse(match.group(3)!);
+  final parsed = DateTime(year, month, day);
 
-  return DateTime(int.parse(match.group(1)!), month, day);
+  return parsed;
+}
+
+bool _isCalendarDate(final RegExpMatch match) {
+  final year = int.parse(match.group(1)!);
+  final month = match.group(2) == null ? 1 : int.parse(match.group(2)!);
+  final day = match.group(3) == null ? 1 : int.parse(match.group(3)!);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+
+  final parsed = DateTime(year, month, day);
+
+  return parsed.year == year && parsed.month == month && parsed.day == day;
 }
 
 /// Nulls out blank and `Unknown` strings coming from optional EXTH
-/// records (Calibre treats `Unknown` as an absent value).
-String? _nonEmpty(final String? value) =>
-    value == null || value.isEmpty || value.toLowerCase() == 'unknown' ? null : value;
+/// records; `Unknown` is treated as an absent value.
+String? _nonEmpty(final String? value) {
+  return value == null || value.isEmpty || value.toLowerCase() == 'unknown' ? null : value;
+}

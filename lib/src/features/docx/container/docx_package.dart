@@ -1,24 +1,18 @@
-import 'dart:typed_data';
-
-import 'package:archive/archive.dart';
-import 'package:xml/xml.dart';
-
-import '../../../foundation/text/xml_encoding.dart';
-import '../exceptions/exceptions.dart';
+part of '../parse_docx_book.dart';
 
 /// Decodes a DOCX ZIP payload while preserving the package error contract.
-Archive decodeDocxZip(final Uint8List bytes) {
+Archive _decodeDocxZip(final Uint8List bytes) {
   try {
     return ZipDecoder().decodeBytes(bytes);
-  } on Object catch (error) {
+  } on Exception catch (error) {
     throw InvalidDocxPackageException('DOCX package is not a valid ZIP archive: $error');
   }
 }
 
 /// The validated package parts needed to parse a DOCX document.
-final class DocxPackage {
+final class _DocxPackage {
   /// Creates a validated collection of DOCX package parts.
-  DocxPackage({
+  _DocxPackage({
     required this.archive,
     required this.document,
     required this.documentXml,
@@ -29,11 +23,16 @@ final class DocxPackage {
   });
 
   /// Validates and reads the required and optional DOCX package parts.
-  factory DocxPackage.fromArchive(final Archive archive) {
-    final document = findDocxEntry(archive, 'word/document.xml');
-    if (document == null) {
-      throw const MissingDocxPartException('word/document.xml');
-    }
+  factory _DocxPackage.fromBytes(final Uint8List bytes) {
+    if (bytes.isEmpty) throw const InvalidDocxPackageException('DOCX package is empty.');
+
+    return _DocxPackage.fromArchive(_decodeDocxZip(bytes));
+  }
+
+  /// Validates and reads the required and optional DOCX package parts.
+  factory _DocxPackage.fromArchive(final Archive archive) {
+    final document = _findDocxEntry(archive, 'word/document.xml');
+    if (document == null) throw const MissingDocxPartException('word/document.xml');
 
     final documentXml = _parseRequiredXml(document);
     final root = documentXml.rootElement;
@@ -43,11 +42,11 @@ final class DocxPackage {
         'root element must be w:document, found ${root.name.qualified}',
       );
     }
-    if (docxChild(root, 'body') == null) {
+    if (_docxChild(root, 'body') == null) {
       throw InvalidDocxXmlException(document.name, 'w:document has no w:body element');
     }
 
-    return DocxPackage(
+    return _DocxPackage(
       archive: archive,
       document: document,
       documentXml: documentXml,
@@ -82,19 +81,19 @@ final class DocxPackage {
 
 XmlDocument _parseRequiredXml(final ArchiveFile entry) {
   try {
-    return XmlDocument.parse(decodeXmlText(docxEntryBytes(entry)));
-  } on Object catch (error) {
+    return XmlDocument.parse(decodeXmlText(contentBytes(entry)));
+  } on Exception catch (error) {
     throw InvalidDocxXmlException(entry.name, error.toString());
   }
 }
 
 XmlDocument? _optionalXml(final Archive archive, final String path) {
-  final entry = findDocxEntry(archive, path);
+  final entry = _findDocxEntry(archive, path);
   if (entry == null) return null;
 
   try {
-    return XmlDocument.parse(decodeXmlText(docxEntryBytes(entry)));
-  } on Object {
+    return XmlDocument.parse(decodeXmlText(contentBytes(entry)));
+  } on Exception {
     // Styles, numbering, relationships and core properties are optional for
     // the useful subset of DOCX packages. A malformed optional part should
     // not hide the readable document body.
@@ -103,27 +102,19 @@ XmlDocument? _optionalXml(final Archive archive, final String path) {
 }
 
 /// Finds a package entry after applying DOCX path normalization.
-ArchiveFile? findDocxEntry(final Archive archive, final String path) {
-  final wanted = normalizeDocxPartPath(path).toLowerCase();
+ArchiveFile? _findDocxEntry(final Archive archive, final String path) {
+  final wanted = _normalizeDocxPartPath(path).toLowerCase();
   for (final entry in archive.files) {
-    if (entry.isFile && normalizeDocxPartPath(entry.name).toLowerCase() == wanted) return entry;
+    if (entry.isFile && _normalizeDocxPartPath(entry.name).toLowerCase() == wanted) return entry;
   }
 
   return null;
 }
 
-/// Reads an archive entry without exposing its mutable backing list.
-Uint8List docxEntryBytes(final ArchiveFile entry) {
-  final content = entry.content;
-
-  return content is Uint8List
-      ? Uint8List.sublistView(content)
-      : Uint8List.fromList(content as List<int>);
-}
-
 /// Reads an XML attribute by local name, independent of namespace prefix.
-String? docxAttribute(final XmlElement? element, final String localName) {
+String? _docxAttribute(final XmlElement? element, final String localName) {
   if (element == null) return null;
+
   for (final attribute in element.attributes) {
     if (attribute.name.local == localName) return attribute.value;
   }
@@ -132,8 +123,9 @@ String? docxAttribute(final XmlElement? element, final String localName) {
 }
 
 /// Reads a direct XML child by local name, independent of namespace prefix.
-XmlElement? docxChild(final XmlElement? parent, final String localName) {
+XmlElement? _docxChild(final XmlElement? parent, final String localName) {
   if (parent == null) return null;
+
   for (final child in parent.children.whereType<XmlElement>()) {
     if (child.name.local == localName) return child;
   }
@@ -142,18 +134,18 @@ XmlElement? docxChild(final XmlElement? parent, final String localName) {
 }
 
 /// Resolves a relationship target relative to the owning document part.
-String resolveDocxRelationshipTarget(final String documentPath, final String target) {
-  if (target.startsWith('/')) return normalizeDocxPartPath(target.substring(1));
+String _resolveDocxRelationshipTarget(final String documentPath, final String target) {
+  if (target.startsWith('/')) return _normalizeDocxPartPath(target.substring(1));
 
-  return normalizeDocxPartPath('${_dirname(documentPath)}/$target');
+  return _normalizeDocxPartPath('${_dirname(documentPath)}/$target');
 }
 
 /// Makes a package target relative to its source document part.
-String relativeDocxPartPath(final String sourcePart, final String targetPart) {
+String _relativeDocxPartPath(final String sourcePart, final String targetPart) {
   final sourceDirectory = _dirname(
     sourcePart,
   ).split('/').where((final item) => item.isNotEmpty).toList();
-  final target = normalizeDocxPartPath(
+  final target = _normalizeDocxPartPath(
     targetPart,
   ).split('/').where((final item) => item.isNotEmpty).toList();
   var common = 0;
@@ -162,6 +154,7 @@ String relativeDocxPartPath(final String sourcePart, final String targetPart) {
       sourceDirectory[common] == target[common]) {
     common++;
   }
+
   final result = <String>[
     ...List<String>.filled(sourceDirectory.length - common, '..'),
     ...target.skip(common),
@@ -171,7 +164,7 @@ String relativeDocxPartPath(final String sourcePart, final String targetPart) {
 }
 
 /// Normalizes an OPC package path without allowing traversal above its root.
-String normalizeDocxPartPath(final String value) {
+String _normalizeDocxPartPath(final String value) {
   final parts = <String>[];
   for (final segment in value.replaceAll('\\', '/').split('/')) {
     if (segment.isEmpty || segment == '.') continue;
@@ -179,6 +172,7 @@ String normalizeDocxPartPath(final String value) {
       if (parts.isNotEmpty) parts.removeLast();
       continue;
     }
+
     parts.add(segment);
   }
 
@@ -189,7 +183,7 @@ String _relationshipPath(final String documentPath) {
   final directory = _dirname(documentPath);
   final fileName = documentPath.split('/').last;
 
-  return normalizeDocxPartPath('$directory/_rels/$fileName.rels');
+  return _normalizeDocxPartPath('$directory/_rels/$fileName.rels');
 }
 
 String _dirname(final String value) {

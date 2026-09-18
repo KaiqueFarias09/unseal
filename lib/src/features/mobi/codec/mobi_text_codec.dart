@@ -1,6 +1,44 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
+/// cp1252 code unit for each byte value; the 0x80..0x9F range maps to
+/// its Windows punctuation, everything else is Latin-1 identity.
+final List<int> _cp1252CodeUnits = List<int>.generate(256, (final byte) {
+  const high = <int, String>{
+    0x80: '\u20AC',
+    0x82: '\u201A',
+    0x83: '\u0192',
+    0x84: '\u201E',
+    0x85: '\u2026',
+    0x86: '\u2020',
+    0x87: '\u2021',
+    0x88: '\u02C6',
+    0x89: '\u2030',
+    0x8A: '\u0160',
+    0x8B: '\u2039',
+    0x8C: '\u0152',
+    0x8E: '\u017D',
+    0x91: '\u2018',
+    0x92: '\u2019',
+    0x93: '\u201C',
+    0x94: '\u201D',
+    0x95: '\u2022',
+    0x96: '\u2013',
+    0x97: '\u2014',
+    0x98: '\u02DC',
+    0x99: '\u2122',
+    0x9A: '\u0161',
+    0x9B: '\u203A',
+    0x9C: '\u0153',
+    0x9E: '\u017E',
+    0x9F: '\u0178',
+  };
+  final mapped = high[byte];
+  if (mapped != null) return mapped.codeUnitAt(0);
+  // 0x81, 0x8D, 0x8F, 0x90 and 0x9D are undefined in cp1252.
+  return byte >= 0x80 && byte <= 0x9F ? 0x3F : byte;
+});
+
 /// Reads a forward-encoded variable width integer from [raw].
 ///
 /// MOBI var-width integers are big-endian with 7 bits per byte; the
@@ -47,60 +85,8 @@ String decodeBytes(final Uint8List bytes, final String codec) {
   return codec == 'utf-8' ? convert.utf8.decode(bytes, allowMalformed: true) : _cp1252(bytes);
 }
 
-/// cp1252 code unit for each byte value; the 0x80..0x9F range maps to
-/// its Windows punctuation, everything else is Latin-1 identity.
-final List<int> _cp1252CodeUnits = List<int>.generate(256, (final byte) {
-  const high = <int, String>{
-    0x80: '\u20AC',
-    0x82: '\u201A',
-    0x83: '\u0192',
-    0x84: '\u201E',
-    0x85: '\u2026',
-    0x86: '\u2020',
-    0x87: '\u2021',
-    0x88: '\u02C6',
-    0x89: '\u2030',
-    0x8A: '\u0160',
-    0x8B: '\u2039',
-    0x8C: '\u0152',
-    0x8E: '\u017D',
-    0x91: '\u2018',
-    0x92: '\u2019',
-    0x93: '\u201C',
-    0x94: '\u201D',
-    0x95: '\u2022',
-    0x96: '\u2013',
-    0x97: '\u2014',
-    0x98: '\u02DC',
-    0x99: '\u2122',
-    0x9A: '\u0161',
-    0x9B: '\u203A',
-    0x9C: '\u0153',
-    0x9E: '\u017E',
-    0x9F: '\u0178',
-  };
-  final mapped = high[byte];
-  if (mapped != null) return mapped.codeUnitAt(0);
-  // 0x81, 0x8D, 0x8F, 0x90 and 0x9D are undefined in cp1252.
-  return byte >= 0x80 && byte <= 0x9F ? 0x3F : byte;
-});
-
 String _cp1252(final Uint8List bytes) {
   final codeUnits = List<int>.generate(bytes.length, (final i) => _cp1252CodeUnits[bytes[i]]);
 
   return String.fromCharCodes(codeUnits);
 }
-
-/// Counts the number of set bits in [value].
-int countSetBits(int value) {
-  var count = 0;
-  while (value > 0) {
-    count += value & 1;
-    value >>= 1;
-  }
-
-  return count;
-}
-
-/// Converts a base-32 (Kindle digit set `0-9 A-V`) string to an integer.
-int parseBase32(final String raw) => int.parse(raw, radix: 32);

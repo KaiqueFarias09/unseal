@@ -1,7 +1,7 @@
 import 'epub_package.dart';
 
 /// EPUB 2 package document and its parsed components.
-class Epub2Package extends EpubPackage {
+final class Epub2Package extends EpubPackage {
   /// Creates an EPUB 2 package.
   Epub2Package({
     required super.version,
@@ -19,14 +19,8 @@ class Epub2Package extends EpubPackage {
   }
 }
 
-/// EPUB 2 manifest.
-class Epub2Manifest extends Manifest {
-  /// Creates an EPUB 2 manifest from its items.
-  Epub2Manifest({required super.items});
-}
-
 /// EPUB 2 metadata.
-class Epub2Metadata extends Metadata {
+final class Epub2Metadata extends Metadata {
   /// Creates EPUB 2 metadata from its package-document fields.
   Epub2Metadata({
     required super.rights,

@@ -1,11 +1,9 @@
-import 'package:xml/xml.dart';
-
-import '../../../foundation/entities/entities.dart';
+part of '../parse_fb2_book.dart';
 
 /// Result of converting the FB2 bodies to XHTML.
-class Fb2Bodies {
+final class _Fb2Bodies {
   /// Creates the converted XHTML, navigation and preserved CSS files.
-  const Fb2Bodies(this.files, this.navigation, {this.css = const <TextFile>[]});
+  const _Fb2Bodies(this.files, this.navigation, {this.css = const <TextFile>[]});
 
   /// Generated XHTML files: `index.html` (main body) plus one file
   /// per named body (`notes.html` for `body name="notes"`).
@@ -24,7 +22,7 @@ class Fb2Bodies {
 /// `notes`) becomes `<name>.html`. Internal `l:href="#id"` links that
 /// target ids living in another body are rewritten to that body's
 /// file.
-Fb2Bodies convertBodies(
+_Fb2Bodies _convertBodies(
   final List<XmlElement> bodies,
   final String title,
   final Map<String, String> binaryExtensions, {
@@ -36,7 +34,7 @@ Fb2Bodies convertBodies(
 }
 
 /// Preserves root-level FB2 stylesheets as named CSS resources.
-List<TextFile> extractFb2Stylesheets(final XmlElement root) {
+List<TextFile> _extractFb2Stylesheets(final XmlElement root) {
   final stylesheets = <TextFile>[];
   var index = 0;
   for (final element in root.children.whereType<XmlElement>()) {
@@ -57,37 +55,30 @@ class _BodyConverter {
   final List<TextFile> _stylesheets;
 
   final Map<String, Set<String>> _idsByFile = <String, Set<String>>{};
-  final Map<String, String> _fileByBodyName = <String, String>{};
-  final List<XmlElement> _bodies = <XmlElement>[];
   final List<NavPoint> _navPoints = <NavPoint>[];
-  final Map<int, List<NavPoint>> _pointsByDepth = <int, List<NavPoint>>{};
+  final List<NavPoint> _navigationStack = <NavPoint>[];
 
   int _playOrder = 0;
   int _sectionCounter = 0;
 
-  late final List<TextFile> _normalizedStylesheets = _stylesheets
-      .map(
-        (final stylesheet) => TextFile(
-          name: stylesheet.name,
-          type: stylesheet.type,
-          path: stylesheet.path,
-          content: _normalizeStylesheetSelectors(stylesheet.content),
-        ),
-      )
-      .toList();
+  late final List<TextFile> _normalizedStylesheets = _stylesheets.map((final stylesheet) {
+    return TextFile(
+      name: stylesheet.name,
+      type: stylesheet.type,
+      path: stylesheet.path,
+      content: _normalizeStylesheetSelectors(stylesheet.content),
+    );
+  }).toList();
 
-  Fb2Bodies convert(final List<XmlElement> bodies, final String title) {
-    _bodies.addAll(bodies);
-
+  _Fb2Bodies convert(final List<XmlElement> bodies, final String title) {
     // First pass: collect generated ids per file for link resolution.
-    final fileNames = <String>[];
+    final fileNames = _bodyFileNames(bodies);
     for (var i = 0; i < bodies.length; i++) {
-      final name = i == 0 ? 'index.html' : '${_bodyName(bodies[i])}.html';
-      _fileByBodyName[_bodyName(bodies[i])] = name;
-      fileNames.add(name);
-      _idsByFile[name] = <String>{};
-      _collectIds(bodies[i], name);
+      final fileName = fileNames[i];
+      _idsByFile[fileName] = <String>{};
+      _collectIds(bodies[i], fileName);
     }
+
     final files = <String, String>{};
     for (var i = 0; i < bodies.length; i++) {
       final fileName = fileNames[i];
@@ -95,18 +86,29 @@ class _BodyConverter {
       files[fileName] = html;
     }
 
-    return Fb2Bodies(
+    return _Fb2Bodies(
       files,
       Navigation(title: title, navPoints: _navPoints),
       css: _normalizedStylesheets,
     );
   }
 
-  String _bodyName(final XmlElement body) {
-    final name = body.getAttribute('name');
-    if (name == null || name.isEmpty || name == 'main') return 'notes';
+  List<String> _bodyFileNames(final List<XmlElement> bodies) {
+    final names = <String>['index.html'];
+    final used = <String>{'index.html'};
+    for (var i = 1; i < bodies.length; i++) {
+      final rawName = bodies[i].getAttribute('name');
+      final stem = _safeBodyFileStem(rawName);
+      var fileName = '$stem.html';
+      var suffix = 2;
+      while (!used.add(fileName)) {
+        fileName = '$stem-$suffix.html';
+        suffix++;
+      }
+      names.add(fileName);
+    }
 
-    return name;
+    return names;
   }
 
   void _collectIds(final XmlElement element, final String fileName) {
@@ -162,94 +164,164 @@ class _BodyConverter {
     final int headingLevel,
     final bool inToc,
   ) {
-    final name = element.name.local;
-    switch (name) {
+    switch (element.name.local) {
       case 'section':
-        _sectionCounter++;
-        final id = element.getAttribute('id') ?? 'fb2-section-$_sectionCounter';
-        out.write('<section id="${_escapeAttr(id)}">');
-        var childLevel = headingLevel + 1;
-        if (childLevel > 6) childLevel = 6;
-        _convertWithToc(element, out, fileName, childLevel, id, inToc);
-        out.write('</section>');
+        _convertSection(element, out, fileName, headingLevel, inToc);
       case 'title':
-        final level = headingLevel.clamp(1, 6);
-        var id = '';
-        final parent = element.parent;
-        if (parent is XmlElement && parent.name.local == 'section') {
-          id = parent.getAttribute('id') ?? '';
-        }
-        final anchor = id.isEmpty ? '' : ' id="title-$id"';
-        out.write('<h$level$anchor class="title">');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</h$level>');
+        _convertTitle(element, out, fileName, headingLevel);
       case 'subtitle':
-        out.write('<p class="subtitle"><b>');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</b></p>');
+        _convertSubtitle(element, out, fileName);
       case 'epigraph':
-        out.write('<blockquote class="epigraph">');
-        _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
-        out.write('</blockquote>');
+        _convertWrappedChildren(
+          element,
+          out,
+          fileName,
+          headingLevel,
+          inToc,
+          '<blockquote class="epigraph">',
+          '</blockquote>',
+        );
       case 'cite':
-        out.write('<blockquote>');
-        _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
-        out.write('</blockquote>');
+        _convertWrappedChildren(
+          element,
+          out,
+          fileName,
+          headingLevel,
+          inToc,
+          '<blockquote>',
+          '</blockquote>',
+        );
       case 'text-author':
-        out.write('<p class="text-author">');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</p>');
+        _convertInlineWrapped(element, out, fileName, '<p class="text-author">', '</p>');
       case 'poem':
-        out.write('<blockquote class="poem">');
-        _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
-        out.write('</blockquote>');
+        _convertWrappedChildren(
+          element,
+          out,
+          fileName,
+          headingLevel,
+          inToc,
+          '<blockquote class="poem">',
+          '</blockquote>',
+        );
       case 'stanza':
-        out.write('<p class="stanza">');
-        for (final child in element.children.whereType<XmlElement>()) {
-          if (child.name.local == 'v') {
-            _convertInlineChildren(child, out, fileName);
-            out.write('<br/>');
-            continue;
-          }
-
-          _convertElement(child, out, fileName, headingLevel, inToc);
-        }
-        out.write('</p>');
+        _convertStanza(element, out, fileName, headingLevel, inToc);
       case 'empty-line':
         out.write('<br/>');
       case 'p':
-        out.write('<p>');
-        _convertInlineChildren(element, out, fileName);
-        out.write('</p>');
+        _convertInlineWrapped(element, out, fileName, '<p>', '</p>');
       case 'image':
         _writeImage(element, out);
       case 'table':
-        out.write('<table>');
-        _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
-        out.write('</table>');
+        _convertWrappedChildren(element, out, fileName, headingLevel, inToc, '<table>', '</table>');
       case 'tr':
-        out.write('<tr>');
-        _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
-        out.write('</tr>');
+        _convertWrappedChildren(element, out, fileName, headingLevel, inToc, '<tr>', '</tr>');
       case 'td':
-        out.write('<td>');
-        _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
-        out.write('</td>');
+        _convertWrappedChildren(element, out, fileName, headingLevel, inToc, '<td>', '</td>');
       case 'th':
-        out.write('<th>');
-        _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
-        out.write('</th>');
+        _convertWrappedChildren(element, out, fileName, headingLevel, inToc, '<th>', '</th>');
       case 'style':
         _writeStyle(element, out, fileName);
       default:
-        // Unknown block-ish elements: keep their text content.
-        if (element.children.whereType<XmlElement>().isEmpty) {
-          out.write('<p>');
-          out.write(_escapeText(element.innerText));
-          out.write('</p>');
-        } else {
-          _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
-        }
+        _convertUnknown(element, out, fileName, headingLevel, inToc);
+    }
+  }
+
+  void _convertSection(
+    final XmlElement element,
+    final StringBuffer out,
+    final String fileName,
+    final int headingLevel,
+    final bool inToc,
+  ) {
+    final id = element.getAttribute('id') ?? _nextSectionId(fileName);
+    out.write('<section id="${_escapeAttr(id)}">');
+    final childLevel = (headingLevel + 1).clamp(1, 6);
+    _convertWithToc(element, out, fileName, childLevel, id, inToc);
+    out.write('</section>');
+  }
+
+  void _convertTitle(
+    final XmlElement element,
+    final StringBuffer out,
+    final String fileName,
+    final int headingLevel,
+  ) {
+    final level = headingLevel.clamp(1, 6);
+    var id = '';
+    final parent = element.parent;
+    if (parent is XmlElement && parent.name.local == 'section') {
+      id = parent.getAttribute('id') ?? '';
+    }
+    final anchor = id.isEmpty ? '' : ' id="title-$id"';
+    out.write('<h$level$anchor class="title">');
+    _convertInlineChildren(element, out, fileName);
+    out.write('</h$level>');
+  }
+
+  void _convertSubtitle(final XmlElement element, final StringBuffer out, final String fileName) {
+    _convertInlineWrapped(element, out, fileName, '<p class="subtitle"><b>', '</b></p>');
+  }
+
+  void _convertInlineWrapped(
+    final XmlElement element,
+    final StringBuffer out,
+    final String fileName,
+    final String opening,
+    final String closing,
+  ) {
+    out.write(opening);
+    _convertInlineChildren(element, out, fileName);
+    out.write(closing);
+  }
+
+  void _convertWrappedChildren(
+    final XmlElement element,
+    final StringBuffer out,
+    final String fileName,
+    final int headingLevel,
+    final bool inToc,
+    final String opening,
+    final String closing,
+  ) {
+    out.write(opening);
+    _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
+    out.write(closing);
+  }
+
+  void _convertStanza(
+    final XmlElement element,
+    final StringBuffer out,
+    final String fileName,
+    final int headingLevel,
+    final bool inToc,
+  ) {
+    out.write('<p class="stanza">');
+    for (final child in element.children.whereType<XmlElement>()) {
+      if (child.name.local == 'v') {
+        _convertInlineChildren(child, out, fileName);
+        out.write('<br/>');
+        continue;
+      }
+
+      _convertElement(child, out, fileName, headingLevel, inToc);
+    }
+    out.write('</p>');
+  }
+
+  void _convertUnknown(
+    final XmlElement element,
+    final StringBuffer out,
+    final String fileName,
+    final int headingLevel,
+    final bool inToc,
+  ) {
+    // Unknown block-ish elements: keep their text content.
+    if (element.children.whereType<XmlElement>().isEmpty) {
+      out.write('<p>');
+      out.write(_escapeText(element.innerText));
+      out.write('</p>');
+    } else {
+      _convertChildren(element, out, fileName, headingLevel, inToc: inToc);
     }
   }
 
@@ -314,15 +386,14 @@ class _BodyConverter {
     final String sectionId,
     final bool inToc,
   ) {
-    // Register the point before converting children so nested
-    // sections find their parent (pre-order traversal).
+    NavPoint? point;
     if (inToc) {
-      final titleElement = _firstDescendant(section, 'title');
+      final titleElement = section.findElements('title').firstOrNull;
       if (titleElement != null) {
         final label = titleElement.innerText.trim();
         if (label.isNotEmpty) {
           _playOrder++;
-          final point = NavPoint(
+          point = NavPoint(
             classAttribute: 'section',
             id: sectionId,
             playOrder: '$_playOrder',
@@ -330,31 +401,31 @@ class _BodyConverter {
             content: '$fileName#$sectionId',
             subNavPoints: <NavPoint>[],
           );
-          final depth = headingLevel - 3 < 0 ? 0 : headingLevel - 3;
 
-          if (depth == 0 || _pointsByDepth[depth - 1] == null) {
+          if (_navigationStack.isEmpty) {
             _navPoints.add(point);
           } else {
-            _pointsByDepth[depth - 1]!.last.subNavPoints.add(point);
+            _navigationStack.last.subNavPoints.add(point);
           }
-          _pointsByDepth.putIfAbsent(depth, () => <NavPoint>[]).add(point);
+          _navigationStack.add(point);
         }
       }
     }
-    final buffer = StringBuffer();
-    _convertChildren(section, buffer, fileName, headingLevel, inToc: inToc);
-    out.write(buffer);
+
+    _convertChildren(section, out, fileName, headingLevel, inToc: inToc);
+    if (point != null) _navigationStack.removeLast();
   }
 
-  XmlElement? _firstDescendant(final XmlElement root, final String localName) {
-    for (final child in root.children.whereType<XmlElement>()) {
-      if (child.name.local == localName) return child;
+  String _nextSectionId(final String fileName) {
+    final ids = _idsByFile[fileName]!;
+    String id;
+    do {
+      _sectionCounter++;
+      id = 'fb2-section-$_sectionCounter';
+    } while (ids.contains(id));
+    ids.add(id);
 
-      final nested = _firstDescendant(child, localName);
-      if (nested != null) return nested;
-    }
-
-    return null;
+    return id;
   }
 
   String _resolveInternalLink(final String fromFile, final String target) {
@@ -368,14 +439,13 @@ class _BodyConverter {
   }
 
   void _writeImage(final XmlElement element, final StringBuffer out) {
-    final href =
-        element.getAttribute('href', namespace: 'http://www.w3.org/1999/xlink') ??
-        element.getAttribute('l:href') ??
-        '';
+    final href = _xlinkHref(element) ?? '';
     if (!href.startsWith('#') || href.length < 2) return;
 
     final id = href.substring(1);
-    final name = _binaryExtensions[id] ?? id;
+    final name = _binaryExtensions[id];
+    if (name == null) return;
+
     out.write('<img src="${_escapeAttr(name)}" alt="${_escapeAttr(id)}"/>');
   }
 
@@ -393,11 +463,7 @@ class _BodyConverter {
   }
 
   void _writeLink(final XmlElement element, final StringBuffer out, final String fileName) {
-    final href =
-        element.getAttribute('href', namespace: 'http://www.w3.org/1999/xlink') ??
-        element.getAttribute('l:href') ??
-        element.getAttribute('href') ??
-        '';
+    final href = _xlinkHref(element) ?? '';
     if (href.startsWith('#') && href.length > 1) {
       final target = href.substring(1);
       final resolved = _resolveInternalLink(fileName, target);
@@ -405,7 +471,7 @@ class _BodyConverter {
       out.write('<a href="${_escapeAttr(resolved)}">');
       _convertInlineChildren(element, out, fileName);
       out.write('</a>');
-    } else if (href.isNotEmpty) {
+    } else if (_isSafeExternalHref(href)) {
       out.write('<a href="${_escapeAttr(href)}">');
       _convertInlineChildren(element, out, fileName);
       out.write('</a>');
@@ -418,8 +484,29 @@ class _BodyConverter {
   }
 }
 
-String _escapeText(final String raw) =>
-    raw.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+String _safeBodyFileStem(final String? rawName) {
+  final normalized = rawName?.trim().toLowerCase() ?? '';
+  final sanitized = normalized
+      .replaceAll(RegExp(r'[^a-z0-9._-]+'), '-')
+      .replaceAll(RegExp(r'^[._-]+|[._-]+$'), '');
+  if (sanitized.isEmpty || sanitized == 'main') return 'notes';
+
+  return sanitized;
+}
+
+bool _isSafeExternalHref(final String href) {
+  if (href.isEmpty) return false;
+
+  final uri = Uri.tryParse(href);
+  if (uri == null) return false;
+  if (!uri.hasScheme) return true;
+
+  return uri.scheme == 'http' || uri.scheme == 'https' || uri.scheme == 'mailto';
+}
+
+String _escapeText(final String raw) {
+  return raw.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
 
 String _escapeAttr(final String raw) => _escapeText(raw).replaceAll('"', '&quot;');
 

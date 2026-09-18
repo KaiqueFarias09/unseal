@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/html/html.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/html.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -58,11 +57,18 @@ void main() {
     test('metadata-only parsing does not require a container', () {
       final metadata = readHtmlMetadata(
         utf8.encode('<html lang="en"><head><title>Only metadata</title></head></html>'),
-        fileName: 'metadata.htm',
       );
 
       expect(metadata.format, BookFormat.html);
       expect(metadata.title, 'Only metadata');
+    });
+
+    test('does not normalize impossible publication dates into another day', () {
+      final metadata = readHtmlMetadata(
+        utf8.encode('<meta name="date" content="2024-02-31"><title>Invalid date</title>'),
+      );
+
+      expect(metadata.publishedAt, isNull);
     });
   });
 
@@ -149,6 +155,33 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('reads an ISBN from the standard OPF identifier form', () {
+      const opf = '''<package xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:opf="http://www.idpf.org/2007/opf">
+  <metadata>
+    <dc:identifier opf:scheme="ISBN">urn:isbn:978-1-4028-9462-6</dc:identifier>
+  </metadata>
+</package>''';
+      final archive = Archive()
+        ..addFile(ArchiveFile('index.html', 20, utf8.encode('<title>Book</title>')))
+        ..addFile(ArchiveFile('metadata.opf', opf.length, utf8.encode(opf)));
+
+      final metadata = readHtmlzMetadataFromArchive(archive);
+
+      expect(metadata.isbn, '9781402894626');
+      expect(metadata.identifiers, containsPair('ISBN', 'urn:isbn:978-1-4028-9462-6'));
+    });
+
+    test('ignores a malformed optional OPF without losing readable HTML', () {
+      final archive = Archive()
+        ..addFile(ArchiveFile('index.html', 20, utf8.encode('<title>Readable</title>')))
+        ..addFile(ArchiveFile('metadata.opf', 8, utf8.encode('<broken>')));
+
+      final book = parseHtmlzArchive(archive);
+
+      expect(book.metadata.title, 'Readable');
     });
   });
 }

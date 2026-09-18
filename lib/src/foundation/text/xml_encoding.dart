@@ -175,11 +175,9 @@ XmlEncoding? _bomEncoding(final Uint8List bytes) {
 String? _declaredEncodingName(final Uint8List bytes) {
   // Declaration patterns are limited to the first 50 KiB.
   const declarationWindowBytes = 50 * 1024;
-
   final head = String.fromCharCodes(
     Uint8List.sublistView(bytes, 0, math.min(bytes.length, declarationWindowBytes)),
   );
-
   for (final pattern in _encodingPatterns) {
     final match = pattern.firstMatch(head);
     if (match != null) return match.group(1);
@@ -208,10 +206,12 @@ String _normalizeEncodingName(final String name) {
 XmlEncoding _sniffUndeclared(final Uint8List bytes) {
   try {
     convert.utf8.decode(bytes);
+
     return XmlEncoding.utf8;
   } on FormatException {
     // Not valid UTF-8; keep sniffing.
   }
+
   final utf16 = _utf16ByNullParity(bytes);
   if (utf16 != null) return utf16;
 
@@ -230,6 +230,7 @@ XmlEncoding? _utf16ByNullParity(final Uint8List bytes) {
 
     i.isEven ? evenNuls++ : oddNuls++;
   }
+
   final nuls = evenNuls + oddNuls;
   if (nuls == 0 || nuls * 8 < end) return null;
 
@@ -253,11 +254,11 @@ XmlEncoding _detectLegacySingleByte(final Uint8List bytes) {
   const westernPriority = 11;
 
   final end = math.min(bytes.length, _detectionWindowBytes);
+
   var high = 0;
   var score1251 = 0;
   var score1252 = 0;
   var score1256 = 0;
-
   for (var i = 0; i < end; i++) {
     final byte = bytes[i];
     if (byte < 0x80) continue;
@@ -268,6 +269,7 @@ XmlEncoding _detectLegacySingleByte(final Uint8List bytes) {
     score1252 += _XmlEncodingTables.cp1252Weights[index];
     score1256 += _XmlEncodingTables.cp1256Weights[index];
   }
+
   if (high == 0) return XmlEncoding.utf8;
   if (high * westernHighShareDenominator < end) return XmlEncoding.cp1252;
 
@@ -312,11 +314,9 @@ String _decodeUtf16(final Uint8List bytes, {required final bool littleEndian}) {
       if (low >= 0xDC00 && low <= 0xDFFF) {
         out.writeCharCode(0x10000 + ((unit - 0xD800) << 10) + (low - 0xDC00));
         i += 2;
-
         continue;
       }
     }
-
     if (unit >= 0xD800 && unit <= 0xDFFF) {
       out.writeCharCode(_replacementRune);
 

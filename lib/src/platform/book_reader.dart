@@ -13,45 +13,53 @@ import 'web/book_path_reader.dart' if (dart.library.io) 'io/book_path_reader.dar
 // ignore: avoid_classes_with_only_static_members
 abstract final class BookReader {
   /// Parses the book from [bytes], opening encrypted PDFs with [password].
-  static Future<Book> openFromBytes(final Uint8List bytes, {final String password = ''}) =>
-      BookDispatch.openFromBytes(bytes, execute: parseBookInBackground, password: password);
+  static Future<Book> openFromBytes(final Uint8List bytes, {final String password = ''}) {
+    return BookDispatch.openFromBytes(bytes, execute: parseBookInBackground, password: password);
+  }
 
   /// Parses the book at [path], opening encrypted PDFs with [password].
-  static Future<Book> openFromPath(final String path, {final String password = ''}) =>
-      withBookPath(path, (final bytes, final _) => openFromBytes(bytes, password: password));
+  static Future<Book> openFromPath(final String path, {final String password = ''}) {
+    return withBookPath(path, (final bytes, final _) => openFromBytes(bytes, password: password));
+  }
 
   /// Synchronously parses [bytes] with the matching format adapter.
-  static Book parseBook(final Uint8List bytes, {final String password = ''}) =>
-      BookDispatch.parseBook(bytes, password: password);
+  static Book parseBook(final Uint8List bytes, {final String password = ''}) {
+    return BookDispatch.parseBook(bytes, password: password);
+  }
 
   /// Reads only metadata from [bytes], opening encrypted PDFs with [password].
   static Future<BookMetadata> readMetadataFromBytes(
     final Uint8List bytes, {
     final String password = '',
-  }) => BookDispatch.readMetadataFromBytes(
-    bytes,
-    execute: readMetadataInBackground,
-    password: password,
-  );
+  }) {
+    return BookDispatch.readMetadataFromBytes(
+      bytes,
+      execute: readMetadataInBackground,
+      password: password,
+    );
+  }
 
   /// Reads only metadata from the book at [path], including a neighboring OPF sidecar.
   static Future<BookMetadata> readMetadataFromPath(
     final String path, {
     final String password = '',
-  }) => withBookPath(path, (final bytes, final sourcePath) async {
-    final metadata = await readMetadataFromBytes(bytes, password: password);
-    final sidecar = await readBookSidecar(
-      sourcePath,
-      (final content) => epubBookMetadata(parsePackage(content)),
-    );
+  }) {
+    return withBookPath(path, (final bytes, final sourcePath) async {
+      final metadata = await readMetadataFromBytes(bytes, password: password);
+      final sidecar = await readBookSidecar(
+        sourcePath,
+        (final content) => epubBookMetadata(parsePackage(content)),
+      );
 
-    return applyFilenameFallback(
-      sidecar == null ? metadata : mergeBookMetadata(metadata, sidecar),
-      sourcePath,
-    );
-  });
+      return applyFilenameFallback(
+        sidecar == null ? metadata : mergeBookMetadata(metadata, sidecar),
+        sourcePath,
+      );
+    });
+  }
 
   /// Synchronously reads metadata from [bytes].
-  static BookMetadata readMetadataSync(final Uint8List bytes, {final String password = ''}) =>
-      BookDispatch.readMetadataSync(bytes, password: password);
+  static BookMetadata readMetadataSync(final Uint8List bytes, {final String password = ''}) {
+    return BookDispatch.readMetadataSync(bytes, password: password);
+  }
 }

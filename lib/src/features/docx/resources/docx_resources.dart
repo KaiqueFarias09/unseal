@@ -1,14 +1,9 @@
-import 'dart:typed_data';
-
-import 'package:archive/archive.dart';
-
-import '../../../foundation/entities/entities.dart';
-import '../container/docx_package.dart';
+part of '../parse_docx_book.dart';
 
 /// Binary resources and archive inventory extracted from a DOCX package.
-final class DocxResources {
+final class _DocxResources {
   /// Creates categorized resources and their source archive inventory.
-  const DocxResources({
+  const _DocxResources({
     required this.images,
     required this.fonts,
     required this.others,
@@ -29,12 +24,12 @@ final class DocxResources {
 }
 
 /// Extracts categorized binary resources while preserving archive order.
-DocxResources readDocxResources(final Archive archive, final Set<String> referencedImages) {
+_DocxResources _readDocxResources(final Archive archive, final Set<String> referencedImages) {
   final images = _readImages(archive, referencedImages);
   final fonts = _readFonts(archive);
   final others = _readOtherBinaryParts(archive, images, fonts);
 
-  return DocxResources(
+  return _DocxResources(
     images: images,
     fonts: fonts,
     others: others,
@@ -43,16 +38,19 @@ DocxResources readDocxResources(final Archive archive, final Set<String> referen
 }
 
 List<BinaryFile> _readImages(final Archive archive, final Set<String> referencedImages) {
+  final normalizedReferences = <String>{
+    for (final target in referencedImages) target.toLowerCase(),
+  };
   final result = <BinaryFile>[];
   for (final entry in archive.files) {
     if (!entry.isFile) continue;
-    final path = normalizeDocxPartPath(entry.name);
+
+    final path = _normalizeDocxPartPath(entry.name);
     final underMedia = path.toLowerCase().startsWith('word/media/');
-    final referenced = referencedImages.any(
-      (final target) => target.toLowerCase() == path.toLowerCase(),
-    );
-    if (!referenced && (!underMedia || !_isImagePath(path))) continue;
-    result.add(_binaryFile(path, docxEntryBytes(entry)));
+    final isReferenced = normalizedReferences.contains(path.toLowerCase());
+    if (!isReferenced && (!underMedia || !_isImagePath(path))) continue;
+
+    result.add(_binaryFile(path, contentBytes(entry)));
   }
 
   return result;
@@ -62,9 +60,11 @@ List<BinaryFile> _readFonts(final Archive archive) {
   final result = <BinaryFile>[];
   for (final entry in archive.files) {
     if (!entry.isFile) continue;
-    final path = normalizeDocxPartPath(entry.name);
+
+    final path = _normalizeDocxPartPath(entry.name);
     if (!path.toLowerCase().startsWith('word/fonts/') || !_isFontPath(path)) continue;
-    result.add(_binaryFile(path, docxEntryBytes(entry)));
+
+    result.add(_binaryFile(path, contentBytes(entry)));
   }
 
   return result;
@@ -82,19 +82,23 @@ List<BinaryFile> _readOtherBinaryParts(
   final result = <BinaryFile>[];
   for (final entry in archive.files) {
     if (!entry.isFile) continue;
-    final path = normalizeDocxPartPath(entry.name);
+
+    final path = _normalizeDocxPartPath(entry.name);
     final lower = path.toLowerCase();
     if (known.contains(lower) || lower.endsWith('.xml') || lower.endsWith('.rels')) continue;
-    result.add(_binaryFile(path, docxEntryBytes(entry)));
+
+    result.add(_binaryFile(path, contentBytes(entry)));
   }
 
   return result;
 }
 
-List<ArchiveEntry> _archiveEntries(final Archive archive) => <ArchiveEntry>[
-  for (final entry in archive.files)
-    if (entry.isFile) ArchiveEntry(path: normalizeDocxPartPath(entry.name), size: entry.size),
-];
+List<ArchiveEntry> _archiveEntries(final Archive archive) {
+  return <ArchiveEntry>[
+    for (final entry in archive.files)
+      if (entry.isFile) ArchiveEntry(path: _normalizeDocxPartPath(entry.name), size: entry.size),
+  ];
+}
 
 bool _isImagePath(final String path) {
   final lower = path.toLowerCase();

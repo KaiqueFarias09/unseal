@@ -93,6 +93,7 @@ final class Jbig2HuffmanTable {
           ..isOob = line.isOob;
         _nodes[node].children[bit] = _nodes.length;
         _nodes.add(leaf);
+
         return;
       }
       var child = _nodes[node].children[bit];
@@ -118,6 +119,7 @@ final class Jbig2HuffmanTable {
           return null;
         }
         final htOffset = reader.readBits(current.rangeLength);
+
         return current.rangeLow + (current.isLowerRange ? -htOffset : htOffset);
       }
       final next = current.children[reader.readBit()];
@@ -163,13 +165,10 @@ final class Jbig2HuffmanTable {
 // pdf.js jbig2.js Reader
 final class Jbig2BitReader {
   /// Creates a reader over [data] in `[start, end)`.
-  Jbig2BitReader(this.data, this.start, this.end) : position = start;
+  Jbig2BitReader(this.data, final int start, this.end) : position = start;
 
   /// The bytes being read.
   final Uint8List data;
-
-  /// The window start (kept for parity with the pdf.js field).
-  final int start;
 
   /// The exclusive window end; mutable because pdf.js narrows it
   /// around an MMR collective bitmap.
@@ -193,6 +192,7 @@ final class Jbig2BitReader {
     }
     final bit = (_currentByte >> _shift) & 1;
     _shift--;
+
     return bit;
   }
 
@@ -203,6 +203,7 @@ final class Jbig2BitReader {
     for (var i = numBits - 1; i >= 0; i--) {
       result |= readBit() << i;
     }
+
     return result;
   }
 
@@ -218,6 +219,7 @@ final class Jbig2BitReader {
     if (position >= end) {
       return -1;
     }
+
     return data[position++];
   }
 }
@@ -456,6 +458,7 @@ Jbig2HuffmanTable jbig2GetStandardTable(final int number) {
   }
   final table = Jbig2HuffmanTable(_standardTableLines[number], prefixCodesDone: true);
   _standardTablesCache[number] = table;
+
   return table;
 }
 

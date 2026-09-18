@@ -1,8 +1,8 @@
 /// JBIG2 (ITU-T T.88) image decoding for PDF's JBIG2Decode filter.
 ///
 /// Ported from pdf.js v3.11.174 `src/core/jbig2.js` (`Jbig2Image`,
-/// `SimpleSegmentVisitor`, `processSegment`, `readSegments`,
-/// `parseJbig2`), Apache-2.0; parity comments point at the mirrored
+/// `SimpleSegmentVisitor`, `processSegment` and `readSegments`),
+/// Apache-2.0; parity comments point at the mirrored
 /// functions. Companion files hold the shared plumbing:
 /// `pdf_jbig2_arithmetic.dart` (MQ), `pdf_jbig2_mmr.dart` (Group 4),
 /// `pdf_jbig2_segment.dart` (headers + Annex A integers),
@@ -36,9 +36,9 @@ import 'segment_decoder.dart';
 // ends by inverting every byte because JBIG2 encodes black as 1 while
 // the PDF image model wants 0 = black.
 Uint8List decodeJbig2(final Uint8List data, {final Uint8List? globals}) {
-  final chunks = <Jbig2Chunk>[
-    if (globals != null) Jbig2Chunk(globals, 0, globals.length),
-    Jbig2Chunk(data, 0, data.length),
+  final chunks = <_Jbig2Chunk>[
+    if (globals != null) _Jbig2Chunk(globals, 0, globals.length),
+    _Jbig2Chunk(data, 0, data.length),
   ];
   final buffer = _Jbig2Image().parseChunks(chunks);
   if (buffer == null) {
@@ -48,55 +48,15 @@ Uint8List decodeJbig2(final Uint8List data, {final Uint8List? globals}) {
   for (var i = 0; i < buffer.length; i++) {
     buffer[i] ^= 0xFF;
   }
-  return buffer;
-}
 
-/// Decodes a standalone JBIG2 file (with the 8-byte file header)
-/// into a packed page buffer, pdf.js `parseJbig2`. PDFs use the
-/// embedded format (`decodeJbig2`); this path exists for
-/// completeness, as in pdf.js's image-decoders build.
-// pdf.js jbig2.js parseJbig2
-Uint8List decodeJbig2File(final Uint8List data) {
-  final end = data.length;
-  var position = 0;
-
-  if (position + 8 > end ||
-      data[position] != 0x97 ||
-      data[position + 1] != 0x4a ||
-      data[position + 2] != 0x42 ||
-      data[position + 3] != 0x32 ||
-      data[position + 4] != 0x0d ||
-      data[position + 5] != 0x0a ||
-      data[position + 6] != 0x1a ||
-      data[position + 7] != 0x0a) {
-    throw const PdfException('JBIG2 error: parseJbig2 - invalid header.');
-  }
-
-  position += 8;
-  final flags = data[position++];
-  final randomAccess = flags & 1 == 0;
-  if (flags & 2 == 0) {
-    position += 4; // numberOfPages — the visitor ignores it, as pdf.js does.
-  }
-
-  final visitor = _Jbig2SegmentVisitor();
-  final segments = _readSegments(randomAccess, data, position, end);
-  for (final segment in segments) {
-    _processSegment(segment, visitor);
-  }
-
-  final buffer = visitor.buffer;
-  if (buffer == null) {
-    throw const PdfException('JBIG2 error: no page information segment.');
-  }
   return buffer;
 }
 
 /// One byte window to decode, pdf.js `{ data, start, end }`.
 // pdf.js jbig2.js parseJbig2Chunks chunk shape
-final class Jbig2Chunk {
+final class _Jbig2Chunk {
   /// Creates the chunk window.
-  const Jbig2Chunk(this.data, this.start, this.end);
+  const _Jbig2Chunk(this.data, this.start, this.end);
 
   /// The whole payload bytes.
   final Uint8List data;
@@ -116,13 +76,14 @@ final class _Jbig2Image {
   /// Decodes the chunk sequence into the packed page buffer
   /// (`parseChunks` in pdf.js).
   // pdf.js jbig2.js Jbig2Image.parseChunks
-  Uint8List? parseChunks(final List<Jbig2Chunk> chunks) {
+  Uint8List? parseChunks(final List<_Jbig2Chunk> chunks) {
     for (final chunk in chunks) {
       final segments = _readSegments(false, chunk.data, chunk.start, chunk.end);
       for (final segment in segments) {
         _processSegment(segment, _visitor);
       }
     }
+
     return _visitor.buffer;
   }
 }
@@ -172,6 +133,7 @@ List<_Jbig2Segment> _readSegments(
       segment.end = position;
     }
   }
+
   return segments;
 }
 
@@ -180,226 +142,279 @@ List<_Jbig2Segment> _readSegments(
 // pdf.js jbig2.js processSegment
 void _processSegment(final _Jbig2Segment segment, final _Jbig2SegmentVisitor visitor) {
   final header = segment.header;
-
-  final data = segment.data;
-  final end = segment.end;
-  var position = segment.start;
   switch (header.type) {
-    case 0: // SymbolDictionary
-      // 7.4.2 Symbol dictionary segment syntax
-      final dictionaryFlags = jbig2ReadUint16(data, position); // 7.4.2.1.1
-      final huffman = dictionaryFlags & 1 != 0;
-      final refinement = dictionaryFlags & 2 != 0;
-      final huffmanDhSelector = (dictionaryFlags >> 2) & 3;
-      final huffmanDwSelector = (dictionaryFlags >> 4) & 3;
-      final bitmapSizeSelector = (dictionaryFlags >> 6) & 1;
-      final aggregationInstancesSelector = (dictionaryFlags >> 7) & 1;
-      final template = (dictionaryFlags >> 10) & 3;
-      final refinementTemplate = (dictionaryFlags >> 12) & 1;
-      position += 2;
-      var at = const <Point>[];
-      if (!huffman) {
-        final atLength = template == 0 ? 4 : 1;
-        at = <Point>[
-          for (var i = 0; i < atLength; i++)
-            Point(jbig2ReadInt8(data, position + i * 2), jbig2ReadInt8(data, position + i * 2 + 1)),
-        ];
-        position += atLength * 2;
-      }
-      var refinementAt = const <Point>[];
-      if (refinement && refinementTemplate == 0) {
-        refinementAt = <Point>[
-          Point(jbig2ReadInt8(data, position), jbig2ReadInt8(data, position + 1)),
-          Point(jbig2ReadInt8(data, position + 2), jbig2ReadInt8(data, position + 3)),
-        ];
-        position += 4;
-      }
-      final numberOfExportedSymbols = jbig2ReadUint32(data, position);
-      position += 4;
-      final numberOfNewSymbols = jbig2ReadUint32(data, position);
-      position += 4;
-      visitor.onSymbolDictionary(
-        huffman: huffman,
-        refinement: refinement,
-        huffmanDhSelector: huffmanDhSelector,
-        huffmanDwSelector: huffmanDwSelector,
-        bitmapSizeSelector: bitmapSizeSelector,
-        aggregationInstancesSelector: aggregationInstancesSelector,
-        template: template,
-        at: at,
-        refinementTemplate: refinementTemplate,
-        refinementAt: refinementAt,
-        numberOfExportedSymbols: numberOfExportedSymbols,
-        numberOfNewSymbols: numberOfNewSymbols,
-        currentSegment: header.number,
-        referredSegments: header.referredTo,
-        data: data,
-        start: position,
-        end: end,
-      );
-    case 6: // ImmediateTextRegion
-    case 7: // ImmediateLosslessTextRegion
-      final info = readJbig2RegionSegmentInformation(data, position);
-      position += jbig2RegionSegmentInformationFieldLength;
-      final textRegionSegmentFlags = jbig2ReadUint16(data, position);
-      position += 2;
-      final huffman = textRegionSegmentFlags & 1 != 0;
-      final refinement = textRegionSegmentFlags & 2 != 0;
-      final logStripSize = (textRegionSegmentFlags >> 2) & 3;
-      final referenceCorner = (textRegionSegmentFlags >> 4) & 3;
-      final transposed = textRegionSegmentFlags & 64 != 0;
-      final combinationOperator = (textRegionSegmentFlags >> 7) & 3;
-      final defaultPixelValue = (textRegionSegmentFlags >> 9) & 1;
-      final dsOffset = (textRegionSegmentFlags << 17) >> 27;
-      final refinementTemplate = (textRegionSegmentFlags >> 15) & 1;
-      var huffmanFs = 0, huffmanDs = 0, huffmanDt = 0;
-      if (huffman) {
-        final textRegionHuffmanFlags = jbig2ReadUint16(data, position);
-        position += 2;
-        huffmanFs = textRegionHuffmanFlags & 3;
-        huffmanDs = (textRegionHuffmanFlags >> 2) & 3;
-        huffmanDt = (textRegionHuffmanFlags >> 4) & 3;
-      }
-      var refinementAt = const <Point>[];
-      if (refinement && refinementTemplate == 0) {
-        refinementAt = <Point>[
-          Point(jbig2ReadInt8(data, position), jbig2ReadInt8(data, position + 1)),
-          Point(jbig2ReadInt8(data, position + 2), jbig2ReadInt8(data, position + 3)),
-        ];
-        position += 4;
-      }
-      final numberOfSymbolInstances = jbig2ReadUint32(data, position);
-      position += 4;
-      visitor.onImmediateTextRegion(
-        info: info,
-        huffman: huffman,
-        refinement: refinement,
-        logStripSize: logStripSize,
-        referenceCorner: referenceCorner,
-        transposed: transposed,
-        combinationOperator: combinationOperator,
-        defaultPixelValue: defaultPixelValue,
-        dsOffset: dsOffset,
-        refinementTemplate: refinementTemplate,
-        refinementAt: refinementAt,
-        huffmanFs: huffmanFs,
-        huffmanDs: huffmanDs,
-        huffmanDt: huffmanDt,
-        numberOfSymbolInstances: numberOfSymbolInstances,
-        referredSegments: header.referredTo,
-        data: data,
-        start: position,
-        end: end,
-      );
-    case 16: // PatternDictionary
-      // 7.4.4. Pattern dictionary segment syntax
-      final patternDictionaryFlags = data[position++];
-      final mmr = patternDictionaryFlags & 1 != 0;
-      final template = (patternDictionaryFlags >> 1) & 3;
-      final patternWidth = data[position++];
-      final patternHeight = data[position++];
-      final maxPatternIndex = jbig2ReadUint32(data, position);
-      visitor.onPatternDictionary(
-        mmr: mmr,
-        template: template,
-        patternWidth: patternWidth,
-        patternHeight: patternHeight,
-        maxPatternIndex: maxPatternIndex,
-        currentSegment: header.number,
-        data: data,
-        start: position,
-        end: end,
-      );
-    case 22: // ImmediateHalftoneRegion
-    case 23: // ImmediateLosslessHalftoneRegion
-      // 7.4.5 Halftone region segment syntax
-      final info = readJbig2RegionSegmentInformation(data, position);
-      position += jbig2RegionSegmentInformationFieldLength;
-      final halftoneRegionFlags = data[position++];
-      final mmr = halftoneRegionFlags & 1 != 0;
-      final template = (halftoneRegionFlags >> 1) & 3;
-      final enableSkip = halftoneRegionFlags & 8 != 0;
-      final combinationOperator = (halftoneRegionFlags >> 4) & 7;
-      final defaultPixelValue = (halftoneRegionFlags >> 7) & 1;
-      final gridWidth = jbig2ReadUint32(data, position);
-      position += 4;
-      final gridHeight = jbig2ReadUint32(data, position);
-      position += 4;
-      final gridOffsetX = jbig2ReadUint32(data, position);
-      position += 4;
-      final gridOffsetY = jbig2ReadUint32(data, position);
-      position += 4;
-      final gridVectorX = jbig2ReadUint16(data, position);
-      position += 2;
-      final gridVectorY = jbig2ReadUint16(data, position);
-      position += 2;
-      visitor.onImmediateHalftoneRegion(
-        info: info,
-        mmr: mmr,
-        template: template,
-        enableSkip: enableSkip,
-        combinationOperator: combinationOperator,
-        defaultPixelValue: defaultPixelValue,
-        gridWidth: gridWidth,
-        gridHeight: gridHeight,
-        gridOffsetX: gridOffsetX,
-        gridOffsetY: gridOffsetY,
-        gridVectorX: gridVectorX,
-        gridVectorY: gridVectorY,
-        referredSegments: header.referredTo,
-        data: data,
-        start: position,
-        end: end,
-      );
-    case 38: // ImmediateGenericRegion
-    case 39: // ImmediateLosslessGenericRegion
-      final info = readJbig2RegionSegmentInformation(data, position);
-      position += jbig2RegionSegmentInformationFieldLength;
-      final genericRegionSegmentFlags = data[position++];
-      final mmr = genericRegionSegmentFlags & 1 != 0;
-      final template = (genericRegionSegmentFlags >> 1) & 3;
-      final prediction = genericRegionSegmentFlags & 8 != 0;
-      var at = const <Point>[];
-      if (!mmr) {
-        final atLength = template == 0 ? 4 : 1;
-        at = <Point>[
-          for (var i = 0; i < atLength; i++)
-            Point(jbig2ReadInt8(data, position + i * 2), jbig2ReadInt8(data, position + i * 2 + 1)),
-        ];
-        position += atLength * 2;
-      }
-      visitor.onImmediateGenericRegion(
-        info: info,
-        mmr: mmr,
-        template: template,
-        prediction: prediction,
-        at: at,
-        data: data,
-        start: position,
-        end: end,
-      );
-    case 48: // PageInformation
-      visitor.onPageInformation(
-        width: jbig2ReadUint32(data, position),
-        height: jbig2ReadUint32(data, position + 4),
-        defaultPixelValue: (data[position + 16] >> 2) & 1,
-        combinationOperator: (data[position + 16] >> 3) & 3,
-        combinationOperatorOverride: data[position + 16] & 64 != 0,
-      );
-    case 49: // EndOfPage
-    case 50: // EndOfStripe
-    case 51: // EndOfFile
-      break;
-    case 53: // Tables
-      visitor.onTables(header.number, data, position, end);
-    case 62: // 7.4.15 defines 2 extension types which
-      // are comments and can be ignored.
-      break;
+    case 0:
+      _processSymbolDictionary(segment, visitor);
+
+      return;
+    case 6:
+    case 7:
+      _processTextRegion(segment, visitor);
+
+      return;
+    case 16:
+      _processPatternDictionary(segment, visitor);
+
+      return;
+    case 22:
+    case 23:
+      _processHalftoneRegion(segment, visitor);
+
+      return;
+    case 38:
+    case 39:
+      _processGenericRegion(segment, visitor);
+
+      return;
+    case 48:
+      _processPageInformation(segment, visitor);
+
+      return;
+    case 49:
+    case 50:
+    case 51:
+    case 62:
+      return;
+    case 53:
+      visitor.onTables(header.number, segment.data, segment.start, segment.end);
+
+      return;
     default:
       throw PdfException(
         'JBIG2 error: segment type ${header.typeName}(${header.type}) is not implemented.',
       );
   }
+}
+
+void _processSymbolDictionary(final _Jbig2Segment segment, final _Jbig2SegmentVisitor visitor) {
+  final header = segment.header;
+  final data = segment.data;
+  final end = segment.end;
+  var position = segment.start;
+
+  // 7.4.2 Symbol dictionary segment syntax
+  final dictionaryFlags = jbig2ReadUint16(data, position); // 7.4.2.1.1
+  final huffman = dictionaryFlags & 1 != 0;
+  final refinement = dictionaryFlags & 2 != 0;
+  final huffmanDhSelector = (dictionaryFlags >> 2) & 3;
+  final huffmanDwSelector = (dictionaryFlags >> 4) & 3;
+  final bitmapSizeSelector = (dictionaryFlags >> 6) & 1;
+  final aggregationInstancesSelector = (dictionaryFlags >> 7) & 1;
+  final template = (dictionaryFlags >> 10) & 3;
+  final refinementTemplate = (dictionaryFlags >> 12) & 1;
+  position += 2;
+  var at = const <Point>[];
+  if (!huffman) {
+    final atLength = template == 0 ? 4 : 1;
+    at = <Point>[
+      for (var i = 0; i < atLength; i++)
+        Point(jbig2ReadInt8(data, position + i * 2), jbig2ReadInt8(data, position + i * 2 + 1)),
+    ];
+    position += atLength * 2;
+  }
+  var refinementAt = const <Point>[];
+  if (refinement && refinementTemplate == 0) {
+    refinementAt = <Point>[
+      Point(jbig2ReadInt8(data, position), jbig2ReadInt8(data, position + 1)),
+      Point(jbig2ReadInt8(data, position + 2), jbig2ReadInt8(data, position + 3)),
+    ];
+    position += 4;
+  }
+  final numberOfExportedSymbols = jbig2ReadUint32(data, position);
+  position += 4;
+  final numberOfNewSymbols = jbig2ReadUint32(data, position);
+  position += 4;
+  visitor.onSymbolDictionary(
+    huffman: huffman,
+    refinement: refinement,
+    huffmanDhSelector: huffmanDhSelector,
+    huffmanDwSelector: huffmanDwSelector,
+    bitmapSizeSelector: bitmapSizeSelector,
+    aggregationInstancesSelector: aggregationInstancesSelector,
+    template: template,
+    at: at,
+    refinementTemplate: refinementTemplate,
+    refinementAt: refinementAt,
+    numberOfExportedSymbols: numberOfExportedSymbols,
+    numberOfNewSymbols: numberOfNewSymbols,
+    currentSegment: header.number,
+    referredSegments: header.referredTo,
+    data: data,
+    start: position,
+    end: end,
+  );
+}
+
+void _processTextRegion(final _Jbig2Segment segment, final _Jbig2SegmentVisitor visitor) {
+  final header = segment.header;
+  final data = segment.data;
+  final end = segment.end;
+  var position = segment.start;
+
+  final info = readJbig2RegionSegmentInformation(data, position);
+  position += jbig2RegionSegmentInformationFieldLength;
+  final textRegionSegmentFlags = jbig2ReadUint16(data, position);
+  position += 2;
+  final huffman = textRegionSegmentFlags & 1 != 0;
+  final refinement = textRegionSegmentFlags & 2 != 0;
+  final logStripSize = (textRegionSegmentFlags >> 2) & 3;
+  final referenceCorner = (textRegionSegmentFlags >> 4) & 3;
+  final transposed = textRegionSegmentFlags & 64 != 0;
+  final combinationOperator = (textRegionSegmentFlags >> 7) & 3;
+  final defaultPixelValue = (textRegionSegmentFlags >> 9) & 1;
+  final dsOffset = (textRegionSegmentFlags << 17) >> 27;
+  final refinementTemplate = (textRegionSegmentFlags >> 15) & 1;
+  var huffmanFs = 0, huffmanDs = 0, huffmanDt = 0;
+  if (huffman) {
+    final textRegionHuffmanFlags = jbig2ReadUint16(data, position);
+    position += 2;
+    huffmanFs = textRegionHuffmanFlags & 3;
+    huffmanDs = (textRegionHuffmanFlags >> 2) & 3;
+    huffmanDt = (textRegionHuffmanFlags >> 4) & 3;
+  }
+  var refinementAt = const <Point>[];
+  if (refinement && refinementTemplate == 0) {
+    refinementAt = <Point>[
+      Point(jbig2ReadInt8(data, position), jbig2ReadInt8(data, position + 1)),
+      Point(jbig2ReadInt8(data, position + 2), jbig2ReadInt8(data, position + 3)),
+    ];
+    position += 4;
+  }
+  final numberOfSymbolInstances = jbig2ReadUint32(data, position);
+  position += 4;
+  visitor.onImmediateTextRegion(
+    info: info,
+    huffman: huffman,
+    refinement: refinement,
+    logStripSize: logStripSize,
+    referenceCorner: referenceCorner,
+    transposed: transposed,
+    combinationOperator: combinationOperator,
+    defaultPixelValue: defaultPixelValue,
+    dsOffset: dsOffset,
+    refinementTemplate: refinementTemplate,
+    refinementAt: refinementAt,
+    huffmanFs: huffmanFs,
+    huffmanDs: huffmanDs,
+    huffmanDt: huffmanDt,
+    numberOfSymbolInstances: numberOfSymbolInstances,
+    referredSegments: header.referredTo,
+    data: data,
+    start: position,
+    end: end,
+  );
+}
+
+void _processPatternDictionary(final _Jbig2Segment segment, final _Jbig2SegmentVisitor visitor) {
+  final header = segment.header;
+  final data = segment.data;
+  var position = segment.start;
+
+  // 7.4.4 Pattern dictionary segment syntax
+  final patternDictionaryFlags = data[position++];
+  final mmr = patternDictionaryFlags & 1 != 0;
+  final template = (patternDictionaryFlags >> 1) & 3;
+  final patternWidth = data[position++];
+  final patternHeight = data[position++];
+  final maxPatternIndex = jbig2ReadUint32(data, position);
+  visitor.onPatternDictionary(
+    mmr: mmr,
+    template: template,
+    patternWidth: patternWidth,
+    patternHeight: patternHeight,
+    maxPatternIndex: maxPatternIndex,
+    currentSegment: header.number,
+    data: data,
+    start: position,
+    end: segment.end,
+  );
+}
+
+void _processHalftoneRegion(final _Jbig2Segment segment, final _Jbig2SegmentVisitor visitor) {
+  final header = segment.header;
+  final data = segment.data;
+  final end = segment.end;
+  var position = segment.start;
+  final info = readJbig2RegionSegmentInformation(data, position);
+  position += jbig2RegionSegmentInformationFieldLength;
+  final halftoneRegionFlags = data[position++];
+  final mmr = halftoneRegionFlags & 1 != 0;
+  final template = (halftoneRegionFlags >> 1) & 3;
+  final enableSkip = halftoneRegionFlags & 8 != 0;
+  final combinationOperator = (halftoneRegionFlags >> 4) & 7;
+  final defaultPixelValue = (halftoneRegionFlags >> 7) & 1;
+  final gridWidth = jbig2ReadUint32(data, position);
+  position += 4;
+  final gridHeight = jbig2ReadUint32(data, position);
+  position += 4;
+  final gridOffsetX = jbig2ReadUint32(data, position);
+  position += 4;
+  final gridOffsetY = jbig2ReadUint32(data, position);
+  position += 4;
+  final gridVectorX = jbig2ReadUint16(data, position);
+  position += 2;
+  final gridVectorY = jbig2ReadUint16(data, position);
+  position += 2;
+  visitor.onImmediateHalftoneRegion(
+    info: info,
+    mmr: mmr,
+    template: template,
+    enableSkip: enableSkip,
+    combinationOperator: combinationOperator,
+    defaultPixelValue: defaultPixelValue,
+    gridWidth: gridWidth,
+    gridHeight: gridHeight,
+    gridOffsetX: gridOffsetX,
+    gridOffsetY: gridOffsetY,
+    gridVectorX: gridVectorX,
+    gridVectorY: gridVectorY,
+    referredSegments: header.referredTo,
+    data: data,
+    start: position,
+    end: end,
+  );
+}
+
+void _processGenericRegion(final _Jbig2Segment segment, final _Jbig2SegmentVisitor visitor) {
+  final data = segment.data;
+  var position = segment.start;
+  final info = readJbig2RegionSegmentInformation(data, position);
+  position += jbig2RegionSegmentInformationFieldLength;
+  final genericRegionSegmentFlags = data[position++];
+  final mmr = genericRegionSegmentFlags & 1 != 0;
+  final template = (genericRegionSegmentFlags >> 1) & 3;
+  final prediction = genericRegionSegmentFlags & 8 != 0;
+  var at = const <Point>[];
+  if (!mmr) {
+    final atLength = template == 0 ? 4 : 1;
+    at = <Point>[
+      for (var i = 0; i < atLength; i++)
+        Point(jbig2ReadInt8(data, position + i * 2), jbig2ReadInt8(data, position + i * 2 + 1)),
+    ];
+    position += atLength * 2;
+  }
+  visitor.onImmediateGenericRegion(
+    info: info,
+    mmr: mmr,
+    template: template,
+    prediction: prediction,
+    at: at,
+    data: data,
+    start: position,
+    end: segment.end,
+  );
+}
+
+void _processPageInformation(final _Jbig2Segment segment, final _Jbig2SegmentVisitor visitor) {
+  final data = segment.data;
+  final position = segment.start;
+  visitor.onPageInformation(
+    width: jbig2ReadUint32(data, position),
+    height: jbig2ReadUint32(data, position + 4),
+    defaultPixelValue: (data[position + 16] >> 2) & 1,
+    combinationOperator: (data[position + 16] >> 3) & 3,
+    combinationOperatorOverride: data[position + 16] & 64 != 0,
+  );
 }
 
 /// The segment sink, pdf.js `SimpleSegmentVisitor`: accumulates the
@@ -449,6 +464,7 @@ final class _Jbig2SegmentVisitor {
         rowSize * height > 256 * 1024 * 1024) {
       throw PdfException('JBIG2 error: page ${width}x$height exceeds the allocation budget.');
     }
+
     final buffer = Uint8List(rowSize * height);
     // The contents of ArrayBuffers are initialized to 0.
     // Fill the buffer with 0xFF only if info.defaultPixelValue is set
@@ -463,6 +479,7 @@ final class _Jbig2SegmentVisitor {
   // pdf.js jbig2.js SimpleSegmentVisitor.drawBitmap
   void _drawBitmap(final Jbig2RegionSegmentInformation regionInfo, final List<Uint8List> bitmap) {
     for (var ri = 0; ri < bitmap.length; ri++) {}
+
     final width = regionInfo.width;
     final height = regionInfo.height;
     final rowSize = (_pageWidth! + 7) >> 3;
@@ -526,6 +543,7 @@ final class _Jbig2SegmentVisitor {
         inputSymbols.addAll(referredSymbols);
       }
     }
+
     return inputSymbols;
   }
 
@@ -571,8 +589,6 @@ final class _Jbig2SegmentVisitor {
 
     final decodingContext = Jbig2DecodingContext(data, start, end);
     _symbols[currentSegment] = jbig2DecodeSymbolDictionary(
-      huffman,
-      refinement,
       inputSymbols,
       numberOfNewSymbols,
       numberOfExportedSymbols,
@@ -583,6 +599,8 @@ final class _Jbig2SegmentVisitor {
       refinementAt,
       decodingContext,
       huffmanInput,
+      isHuffmanEnabled: huffman,
+      isRefinementEnabled: refinement,
     );
   }
 
@@ -632,8 +650,6 @@ final class _Jbig2SegmentVisitor {
 
     final decodingContext = Jbig2DecodingContext(data, start, end);
     final bitmap = jbig2DecodeTextRegion(
-      huffman,
-      refinement,
       info.width,
       info.height,
       defaultPixelValue,
@@ -651,6 +667,8 @@ final class _Jbig2SegmentVisitor {
       decodingContext,
       logStripSize,
       huffmanInput,
+      isHuffmanEnabled: huffman,
+      isRefinementEnabled: refinement,
     );
     _drawBitmap(info, bitmap);
   }
@@ -671,12 +689,12 @@ final class _Jbig2SegmentVisitor {
   }) {
     final decodingContext = Jbig2DecodingContext(data, start, end);
     _patterns[currentSegment] = jbig2DecodePatternDictionary(
-      mmr,
       patternWidth,
       patternHeight,
       maxPatternIndex,
       template,
       decodingContext,
+      isMmr: mmr,
     );
   }
 
@@ -707,15 +725,14 @@ final class _Jbig2SegmentVisitor {
     if (patterns == null) {
       throw const PdfException('JBIG2 error: halftone region without a pattern dictionary.');
     }
+
     final decodingContext = Jbig2DecodingContext(data, start, end);
     final bitmap = jbig2DecodeHalftoneRegion(
-      mmr,
       patterns,
       template,
       info.width,
       info.height,
       defaultPixelValue,
-      enableSkip,
       combinationOperator,
       gridWidth,
       gridHeight,
@@ -724,6 +741,8 @@ final class _Jbig2SegmentVisitor {
       gridVectorX,
       gridVectorY,
       decodingContext,
+      isMmr: mmr,
+      isSkipEnabled: enableSkip,
     );
     _drawBitmap(info, bitmap);
   }
@@ -743,13 +762,13 @@ final class _Jbig2SegmentVisitor {
   }) {
     final decodingContext = Jbig2DecodingContext(data, start, end);
     final bitmap = jbig2DecodeBitmap(
-      mmr,
       info.width,
       info.height,
       template,
-      prediction,
       at,
       decodingContext,
+      isMmr: mmr,
+      isPredictionEnabled: prediction,
     );
     _drawBitmap(info, bitmap);
   }

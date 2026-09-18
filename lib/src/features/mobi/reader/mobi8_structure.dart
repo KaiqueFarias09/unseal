@@ -1,12 +1,26 @@
 import 'dart:typed_data';
 
 import '../../../foundation/entities/entities.dart';
-import '../codec/mobi_binary.dart';
+import '../codec/mobi_base32.dart';
+import '../codec/mobi_byte_search.dart';
+import '../codec/mobi_text_codec.dart';
 import '../exceptions/exceptions.dart';
 import '../header/mobi_header.dart';
 import '../header/pdb_header.dart';
 import '../index/indx_reader.dart';
 import '../index/ncx_reader.dart';
+
+final RegExp _kindlePosFidPattern = RegExp(
+  '''['"]kindle:pos:fid:([0-9A-V]+):off:([0-9A-V]+)[^"']*['"]''',
+  caseSensitive: false,
+);
+final RegExp _amznPageBreakPattern = RegExp(
+  r'''(<[^>]*?)\sdata-AmznPageBreak\s*=\s*['"]([^'"]*)['"]([^>]*>)''',
+  caseSensitive: false,
+);
+final RegExp _idAttrPattern = RegExp(r'''\sid\s*=\s*['"]([^'"]+)['"]''');
+final RegExp _nameAttrPattern = RegExp(r'''\sname\s*=\s*['"]([^'"]+)['"]''');
+final RegExp _aidAttrPattern = RegExp(r'''\said\s*=\s*['"]([^'"]+)['"]''');
 
 /// KF8 index interpretation and rebuilt skeleton/fragment structure.
 final class Mobi8Structure {
@@ -96,6 +110,7 @@ final class Mobi8Structure {
     return asText.replaceAllMapped(_kindlePosFidPattern, (final match) {
       final resolved = _resolveByPosFid(parseBase32(match.group(1)!), parseBase32(match.group(2)!));
       if (resolved == null) return '"#"';
+
       final (filename, idtag) = resolved;
 
       return '"$filename${idtag.isEmpty ? '' : '#$idtag'}"';
@@ -105,20 +120,19 @@ final class Mobi8Structure {
   /// Removes kindlegen aid/cid attributes while retaining linked aids as ids.
   String removeKindleAids(final String part) {
     var result = _stripAidAttributes(part, _linkedAids);
-    if (_containsAsciiIgnoreCase(result, 'data-amznpagebreak')) {
-      result = result.replaceAllMapped(
-        _amznPageBreakPattern,
-        (final match) =>
-            '${match.group(1)} style="page-break-after:${match.group(2)}"${match.group(3)}',
-      );
+    if (containsAsciiIgnoreCase(result, 'data-amznpagebreak')) {
+      result = result.replaceAllMapped(_amznPageBreakPattern, (final match) {
+        return '${match.group(1)} style="page-break-after:${match.group(2)}"${match.group(3)}';
+      });
     }
 
     return result;
   }
 
   /// Stable output name for a KF8 skeleton file number.
-  String partName(final int fileNumber) =>
-      fileNumber == 0 ? 'index.html' : 'part${fileNumber.toString().padLeft(4, '0')}.html';
+  String partName(final int fileNumber) {
+    return fileNumber == 0 ? 'index.html' : 'part${fileNumber.toString().padLeft(4, '0')}.html';
+  }
 
   void _buildParts() {
     final flowSlices = _flowTable.isEmpty ? <(int, int)>[(0, rawText.length)] : _flowTable;
@@ -135,7 +149,6 @@ final class Mobi8Structure {
       var basePtr = part.end;
       var skeleton = Uint8List.sublistView(text, part.start, basePtr);
       final divCount = _divCounts[part.fileNumber] ?? 0;
-
       for (var i = 0; i < divCount && divPointer < _elements.length; i++) {
         final element = _elements[divPointer];
         var insertPos = element.insertPos - part.start;
@@ -162,6 +175,7 @@ final class Mobi8Structure {
           ..add(skeleton.sublist(0, insert))
           ..add(div)
           ..add(skeleton.sublist(insert));
+
         skeleton = merged.takeBytes();
         basePtr = divEnd;
         divPointer++;
@@ -185,30 +199,36 @@ final class Mobi8Structure {
       final part = _parts[partIndex];
       if (pos < part.start || pos >= part.end) continue;
       if (partIndex >= _partBytes.length) return '';
+
       final block = _partBytes[partIndex];
       var npos = pos - part.start;
-      final gt = _indexOfByte(block, 0x3E, npos);
-      final lt = _indexOfByte(block, 0x3C, npos);
+      final gt = indexOfByte(block, 0x3E, npos);
+      final lt = indexOfByte(block, 0x3C, npos);
       if (lt == npos || (gt != -1 && (lt == -1 || gt < lt))) npos = gt + 1;
       if (npos > block.length) npos = block.length;
 
       var end = npos;
       while (end > 0) {
-        final pgt = _lastIndexOfByte(block, 0x3E, 0, end);
+        final pgt = lastIndexOfByte(block, 0x3E, 0, end);
         if (pgt == -1) break;
-        final plt = _lastIndexOfByte(block, 0x3C, 0, pgt);
+
+        final plt = lastIndexOfByte(block, 0x3C, 0, pgt);
         if (plt == -1) break;
 
         final tag = String.fromCharCodes(block.sublist(plt, pgt + 1));
         final id = _idAttrPattern.firstMatch(tag);
         if (id != null) return id.group(1)!;
+
         final name = _nameAttrPattern.firstMatch(tag);
         if (name != null) return name.group(1)!;
+
         final aid = _aidAttrPattern.firstMatch(tag);
         if (aid != null) {
           _linkedAids.add(aid.group(1)!);
+
           return aid.group(1)!;
         }
+
         end = plt;
       }
 
@@ -220,18 +240,24 @@ final class Mobi8Structure {
 
   Uint8List _kf8Record(final int index) => pdb.record(textOffset - 1 + index);
 
-  (IndxTable, Cncx) _readIndex(final int index) =>
-      readIndex(_kf8Record, _kf8RecordCount, index, header.codec);
+  (IndxTable, Cncx) _readIndex(final int index) {
+    return readIndex(_kf8Record, _kf8RecordCount, index, header.codec);
+  }
 
   void _readIndices() {
     if (header.fdstIndex != nullIndex) {
       final record = _kf8Record(header.fdstIndex);
-      if (!_hasMagic(record, 'FDST')) {
+      if (!hasAsciiAt(record, 'FDST') || record.length < 12) {
         throw const MobiException('KF8 does not have a valid FDST record');
       }
+
       final view = ByteData.sublistView(record);
       final sectionStart = view.getUint32(4);
       final sectionCount = view.getUint32(8);
+      if (sectionStart > record.length || sectionCount > (record.length - sectionStart) ~/ 8) {
+        throw const MobiException('KF8 has a truncated FDST table');
+      }
+
       for (var i = 0; i < sectionCount; i++) {
         _flowTable.add((
           view.getUint32(sectionStart + i * 8),
@@ -239,7 +265,6 @@ final class Mobi8Structure {
         ));
       }
     }
-
     if (header.skelIndex != nullIndex) {
       final (table, _) = _readIndex(header.skelIndex);
       var fileNumber = 0;
@@ -248,12 +273,12 @@ final class Mobi8Structure {
         final tag6 = tagMap[6] ?? const <int>[];
         final start = tag6.isNotEmpty ? tag6[0] : 0;
         final skeletonLength = tag6.length > 1 ? tag6[1] : 0;
+
         _divCounts[fileNumber] = tagMap[1]?.first ?? 0;
         _parts.add(Mobi8Part(fileNumber, partName(fileNumber), start, start + skeletonLength));
         fileNumber++;
       }
     }
-
     if (header.divIndex != nullIndex) {
       final (table, cncx) = _readIndex(header.divIndex);
       for (final ident in table.keys) {
@@ -273,16 +298,16 @@ final class Mobi8Structure {
   }
 
   bool _firstGtBeforeLt(final Uint8List block) {
-    final gt = _indexOfByte(block, 0x3E, 0);
-    final lt = _indexOfByte(block, 0x3C, 0);
+    final gt = indexOfByte(block, 0x3E, 0);
+    final lt = indexOfByte(block, 0x3C, 0);
     if (gt == -1 && lt == -1) return false;
 
-    return gt < lt;
+    return gt != -1 && (lt == -1 || gt < lt);
   }
 
   bool _lastGtBeforeLt(final Uint8List block) {
-    final gt = _lastIndexOfByte(block, 0x3E, 0, block.length);
-    final lt = _lastIndexOfByte(block, 0x3C, 0, block.length);
+    final gt = lastIndexOfByte(block, 0x3E, 0, block.length);
+    final lt = lastIndexOfByte(block, 0x3C, 0, block.length);
     if (gt == -1 && lt == -1) return false;
 
     return gt < lt;
@@ -290,14 +315,18 @@ final class Mobi8Structure {
 
   int? _locateTagByAid(final Uint8List block, final String aid) {
     if (aid.isEmpty) return null;
+
     var i = 0;
     while (true) {
-      final lt = _indexOfByte(block, 0x3C, i);
+      final lt = indexOfByte(block, 0x3C, i);
       if (lt == -1) break;
-      final gt = _indexOfByte(block, 0x3E, lt + 1);
+
+      final gt = indexOfByte(block, 0x3E, lt + 1);
       if (gt == -1) break;
+
       final tag = String.fromCharCodes(block.sublist(lt, gt + 1));
       if (RegExp('\\said\\s*=\\s*["\']${RegExp.escape(aid)}["\']').hasMatch(tag)) return lt;
+
       i = gt + 1;
     }
 
@@ -306,6 +335,7 @@ final class Mobi8Structure {
 
   (String, String)? _resolveByPosFid(final int fid, final int offset) {
     if (fid < 0 || fid >= _elements.length) return null;
+
     final pos = _elements[fid].insertPos + offset;
     final filename = _fileInfoAt(pos);
     if (filename == null) return null;
@@ -342,51 +372,35 @@ final class _Mobi8Element {
   final int length;
 }
 
-final RegExp _kindlePosFidPattern = RegExp(
-  '''['"]kindle:pos:fid:([0-9A-V]+):off:([0-9A-V]+)[^"']*['"]''',
-  caseSensitive: false,
-);
-final RegExp _amznPageBreakPattern = RegExp(
-  r'''(<[^>]*?)\sdata-AmznPageBreak\s*=\s*['"]([^'"]*)['"]([^>]*>)''',
-  caseSensitive: false,
-);
-final RegExp _idAttrPattern = RegExp(r'''\sid\s*=\s*['"]([^'"]+)['"]''');
-final RegExp _nameAttrPattern = RegExp(r'''\sname\s*=\s*['"]([^'"]+)['"]''');
-final RegExp _aidAttrPattern = RegExp(r'''\said\s*=\s*['"]([^'"]+)['"]''');
-
-bool _hasMagic(final Uint8List data, final String magic) {
-  if (data.length < magic.length) return false;
-  for (var i = 0; i < magic.length; i++) {
-    if (data[i] != magic.codeUnitAt(i)) return false;
-  }
-
-  return true;
-}
-
 String _stripAidAttributes(final String part, final Set<String> linkedAids) {
+  const lt = 0x3C;
+  const gtByte = 0x3E;
   final units = part.codeUnits;
   final length = units.length;
   final buffer = StringBuffer();
   var isChanged = false;
   var i = 0;
   while (i < length) {
-    if (units[i] != _lt) {
+    if (units[i] != lt) {
       var end = i + 1;
-      while (end < length && units[end] != _lt) {
+      while (end < length && units[end] != lt) {
         end++;
       }
       buffer.write(part.substring(i, end));
       i = end;
       continue;
     }
+
     var gt = i + 1;
-    while (gt < length && units[gt] != _gt) {
+    while (gt < length && units[gt] != gtByte) {
       gt++;
     }
+
     if (gt == length) {
       buffer.write(part.substring(i));
       break;
     }
+
     final attr = _findAidAttribute(part, units, i + 1, gt);
     if (attr == null) {
       buffer.write(part.substring(i, gt + 1));
@@ -410,90 +424,60 @@ String _stripAidAttributes(final String part, final Set<String> linkedAids) {
   final int from,
   final int to,
 ) {
+  const aidFirstLetter = 0x61;
+  const cidFirstLetter = 0x63;
+  const idSecondLetter = 0x69;
+  const idThirdLetter = 0x64;
+  const equals = 0x3D;
+  const doubleQuote = 0x22;
+  const singleQuote = 0x27;
   for (var i = from; i + 3 < to; i++) {
     if (!_isMarkupWhitespace(units[i])) continue;
-    final c1 = _asciiLowerCase(units[i + 1]);
-    if (c1 != _a && c1 != _c) continue;
-    if (_asciiLowerCase(units[i + 2]) != _i || _asciiLowerCase(units[i + 3]) != _d) continue;
+
+    final firstLetter = asciiLowerCase(units[i + 1]);
+    if (firstLetter != aidFirstLetter && firstLetter != cidFirstLetter) continue;
+    if (asciiLowerCase(units[i + 2]) != idSecondLetter ||
+        asciiLowerCase(units[i + 3]) != idThirdLetter) {
+      continue;
+    }
+
     var k = i + 4;
     while (k < to && _isMarkupWhitespace(units[k])) {
       k++;
     }
-    if (k >= to || units[k] != _equals) continue;
+
+    if (k >= to || units[k] != equals) continue;
+
     k++;
     while (k < to && _isMarkupWhitespace(units[k])) {
       k++;
     }
-    if (k >= to || (units[k] != _doubleQuote && units[k] != _singleQuote)) continue;
+
+    if (k >= to || (units[k] != doubleQuote && units[k] != singleQuote)) continue;
+
+    final quote = units[k];
     final valueStart = k + 1;
     var valueEnd = valueStart;
-    while (valueEnd < units.length &&
-        units[valueEnd] != _doubleQuote &&
-        units[valueEnd] != _singleQuote) {
+    while (valueEnd < to && units[valueEnd] != quote) {
       valueEnd++;
     }
-    if (valueEnd < units.length) return (i, valueStart, valueEnd);
+
+    if (valueEnd < to) return (i, valueStart, valueEnd);
   }
 
   return null;
 }
 
-bool _containsAsciiIgnoreCase(final String text, final String lowercaseNeedle) {
-  final units = text.codeUnits;
-  final needle = lowercaseNeedle.codeUnits;
-  final lastStart = units.length - needle.length;
-  for (var i = 0; i <= lastStart; i++) {
-    var isMatched = true;
-    for (var j = 0; j < needle.length; j++) {
-      if (_asciiLowerCase(units[i + j]) != needle[j]) {
-        isMatched = false;
-        break;
-      }
-    }
-    if (isMatched) return true;
-  }
-
-  return false;
+bool _isMarkupWhitespace(final int codeUnit) {
+  return codeUnit == 0x20 ||
+      (codeUnit >= 0x09 && codeUnit <= 0x0D) ||
+      codeUnit == 0xA0 ||
+      codeUnit == 0x1680 ||
+      (codeUnit >= 0x2000 && codeUnit <= 0x200A) ||
+      codeUnit == 0x2028 ||
+      codeUnit == 0x2029 ||
+      codeUnit == 0x202F ||
+      codeUnit == 0x205F ||
+      codeUnit == 0x3000 ||
+      codeUnit == 0xFEFF;
 }
-
-int _asciiLowerCase(final int codeUnit) =>
-    codeUnit >= 0x41 && codeUnit <= 0x5A ? codeUnit + 0x20 : codeUnit;
-
-bool _isMarkupWhitespace(final int codeUnit) =>
-    codeUnit == 0x20 ||
-    (codeUnit >= 0x09 && codeUnit <= 0x0D) ||
-    codeUnit == 0xA0 ||
-    codeUnit == 0x1680 ||
-    (codeUnit >= 0x2000 && codeUnit <= 0x200A) ||
-    codeUnit == 0x2028 ||
-    codeUnit == 0x2029 ||
-    codeUnit == 0x202F ||
-    codeUnit == 0x205F ||
-    codeUnit == 0x3000 ||
-    codeUnit == 0xFEFF;
-
-int _indexOfByte(final Uint8List data, final int byte, final int from) {
-  for (var i = from < 0 ? 0 : from; i < data.length; i++) {
-    if (data[i] == byte) return i;
-  }
-
-  return -1;
-}
-
-int _lastIndexOfByte(final Uint8List data, final int byte, final int from, final int to) {
-  for (var i = to - 1; i >= from; i--) {
-    if (data[i] == byte) return i;
-  }
-
-  return -1;
-}
-
-const int _lt = 0x3C;
-const int _gt = 0x3E;
-const int _a = 0x61;
-const int _c = 0x63;
-const int _i = 0x69;
-const int _d = 0x64;
-const int _equals = 0x3D;
-const int _doubleQuote = 0x22;
-const int _singleQuote = 0x27;

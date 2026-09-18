@@ -25,10 +25,9 @@ Files extractFiles(
   final cssItems = items.where(_isCssItem);
   final htmlItems = items.where(_isHtmlItem);
   final fontItems = items.where(_isFontItem);
-  final otherItems = items.where(
-    (final item) =>
-        !_isImageItem(item) && !_isCssItem(item) && !_isHtmlItem(item) && !_isFontItem(item),
-  );
+  final otherItems = items.where((final item) {
+    return !_isImageItem(item) && !_isCssItem(item) && !_isHtmlItem(item) && !_isFontItem(item);
+  });
 
   return Files(
     images: _binaryFiles(files, imageItems, rootFilePath),
@@ -95,6 +94,7 @@ Iterable<ArchiveFile> _resolveEntries(
 
     filesByPath.putIfAbsent(normalizeZipPath(file.name).toLowerCase(), () => file);
   }
+
   final resolved = <ArchiveFile>[];
   for (final item in items) {
     final match = filesByPath[resolveItemPath(rootFilePath, item.path).toLowerCase()];

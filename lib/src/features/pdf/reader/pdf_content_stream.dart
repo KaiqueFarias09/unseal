@@ -89,6 +89,7 @@ class PdfTextExtractor {
 
       return resolved is PdfDictionary ? resolved : null;
     }
+
     final pageDictionary = _pageDictionaryOf(page);
     final resolved = document.resolve(pageDictionary?['Resources']);
 
@@ -99,6 +100,7 @@ class PdfTextExtractor {
     if (entry is PdfIndirectRef) {
       final cached = _fontsByNumber[entry.objectNumber];
       if (cached != null) return cached;
+
       final dictionary = document.resolve(entry);
       final font = dictionary is PdfDictionary ? PdfFont.of(document, dictionary) : _fallbackFont();
       _fontsByNumber[entry.objectNumber] = font;
@@ -108,6 +110,7 @@ class PdfTextExtractor {
     if (entry is PdfDictionary) {
       final cached = _directFonts[entry];
       if (cached != null) return cached;
+
       final font = PdfFont.of(document, entry);
       _directFonts[entry] = font;
 
@@ -128,119 +131,7 @@ class PdfTextExtractor {
     final List<PdfImageBox> images,
     final void Function(int objectNumber, Uint8List bytes, String extension)? onImage,
   ) {
-    final lexer = _ContentLexer(content);
-    final operands = <Object?>[];
-
-    final gstates = <_GraphicsState>[];
-    var gstate = _GraphicsState();
-    var textMatrix = _Mat.identity;
-    var lineMatrix = _Mat.identity;
-    var inText = false;
-    var budget = 4000000;
-
-    while (true) {
-      final token = lexer.next();
-      if (token == null || budget-- <= 0) break;
-
-      if (token is _Operator) {
-        switch (token.name) {
-          case 'q':
-            gstates.add(gstate);
-            gstate = gstate.copy();
-          case 'Q':
-            if (gstates.isNotEmpty) gstate = gstates.removeLast();
-          case 'cm':
-            final m = _matrixOperands(operands);
-            if (m != null) gstate.ctm = _Mat.multiply(m, gstate.ctm);
-          case 'BT':
-            inText = true;
-            textMatrix = _Mat.identity;
-            lineMatrix = _Mat.identity;
-          case 'ET':
-            inText = false;
-          case 'Tf':
-            if (operands.length >= 2 && operands[0] is String && operands[1] is num) {
-              gstate.font = _fontOf(_fontEntry(resources, operands[0] as String));
-              gstate.fontSize = (operands[1] as num).toDouble();
-            }
-          case 'Tc':
-            gstate.charSpacing = _num(operands);
-          case 'Tw':
-            gstate.wordSpacing = _num(operands);
-          case 'Tz':
-            gstate.horizontalScale = _num(operands, fallback: 100) / 100;
-          case 'TL':
-            gstate.leading = _num(operands);
-          case 'Ts':
-            gstate.rise = _num(operands);
-          case 'Td':
-            final tx = _num(operands);
-            final ty = _num(operands, index: 1);
-            lineMatrix = _Mat.multiply(_Mat.translation(tx, ty), lineMatrix);
-            textMatrix = lineMatrix;
-          case 'TD':
-            final tx = _num(operands);
-            final ty = _num(operands, index: 1);
-            gstate.leading = -ty;
-            lineMatrix = _Mat.multiply(_Mat.translation(tx, ty), lineMatrix);
-            textMatrix = lineMatrix;
-          case 'Tm':
-            final m = _matrixOperands(operands);
-            if (m != null) {
-              lineMatrix = m;
-              textMatrix = m;
-            }
-          case 'T*':
-            lineMatrix = _Mat.multiply(_Mat.translation(0, -gstate.leading), lineMatrix);
-            textMatrix = lineMatrix;
-          case 'Tj':
-            final bytes = _stringOperand(operands);
-            if (inText && bytes != null) {
-              _showText(bytes, textMatrix, gstate, runs);
-            }
-          case "'":
-            lineMatrix = _Mat.multiply(_Mat.translation(0, -gstate.leading), lineMatrix);
-            textMatrix = lineMatrix;
-            final bytes = _stringOperand(operands);
-            if (inText && bytes != null) {
-              _showText(bytes, textMatrix, gstate, runs);
-            }
-          case '"':
-            if (operands.length >= 3) {
-              gstate.wordSpacing = (operands[0] as num?)?.toDouble() ?? gstate.wordSpacing;
-              gstate.charSpacing = (operands[1] as num?)?.toDouble() ?? gstate.charSpacing;
-            }
-            lineMatrix = _Mat.multiply(_Mat.translation(0, -gstate.leading), lineMatrix);
-            textMatrix = lineMatrix;
-            final bytes = _stringOperand(operands);
-            if (inText && bytes != null) {
-              _showText(bytes, textMatrix, gstate, runs);
-            }
-          case 'TJ':
-            final array = operands.length == 1 && operands[0] is List<Object?>
-                ? operands[0] as List<Object?>
-                : null;
-            if (inText && array != null) {
-              for (final element in array) {
-                if (element is Uint8List) {
-                  textMatrix = _showText(element, textMatrix, gstate, runs);
-                } else if (element is num) {
-                  final shift = -element / 1000 * gstate.fontSize * gstate.horizontalScale;
-                  textMatrix = _Mat.multiply(_Mat.translation(shift, 0), textMatrix);
-                }
-              }
-            }
-          case 'Do':
-            if (operands.length == 1 && operands[0] is String) {
-              _drawXObject(operands[0] as String, resources, gstate, images, onImage);
-            }
-        }
-        operands.clear();
-      } else {
-        operands.add((token as _Operand).value);
-        if (operands.length > 64) operands.removeAt(0);
-      }
-    }
+    _ContentInterpreter(this, content, resources, runs, images, onImage).run();
   }
 
   PdfObject? _fontEntry(final PdfDictionary? resources, final String name) {
@@ -323,6 +214,7 @@ class PdfTextExtractor {
   ) {
     final xobjects = document.resolve(resources?['XObject']);
     if (xobjects is! PdfDictionary) return;
+
     final entry = xobjects[name];
     final stream = document.resolve(entry);
     if (stream is! PdfStream) return;
@@ -383,8 +275,10 @@ class PdfTextExtractor {
       for (final item in filter.items) {
         if (item is PdfName) last = item.value;
       }
+
       return last;
     }
+
     return null;
   }
 
@@ -393,6 +287,7 @@ class PdfTextExtractor {
       stream.dictionary[long] ?? stream.dictionary[short] ?? const PdfNull(),
     );
     if (value is PdfNumber) return value.intValue;
+
     return 0;
   }
 
@@ -409,93 +304,135 @@ class PdfTextExtractor {
     final pageWidth = boxX1 - boxX0;
     final pageHeight = boxY1 - boxY0;
 
-    // Clip to the visible box (a little slack), drop noise.
-    final visible = runs
-        .where(
-          (final run) =>
-              run.text.trim().isNotEmpty &&
-              run.x >= boxX0 - 8 &&
-              run.x <= boxX1 + 8 &&
-              run.baselineY >= boxY0 - 8 &&
-              run.baselineY <= boxY1 + 8,
-        )
-        .toList();
+    final visible = _visibleRuns(runs, boxX0, boxX1, boxY0, boxY1);
+    final clusters = _lineClusters(visible);
+    final lines = _textLines(clusters, boxX0, boxY1);
+    final placedImages = _placeImages(images, boxX0, boxY1);
 
-    // Group runs into lines by baseline proximity.
+    return PdfPageText(
+      lines: _rotateAll(lines, page.rotate, pageWidth, pageHeight),
+      images: placedImages,
+    );
+  }
+
+  /// Drops text runs outside the page's visible crop box and removes noise.
+  List<_Run> _visibleRuns(
+    final List<_Run> runs,
+    final double boxX0,
+    final double boxX1,
+    final double boxY0,
+    final double boxY1,
+  ) {
+    return runs.where((final run) {
+      return run.text.trim().isNotEmpty &&
+          run.x >= boxX0 - 8 &&
+          run.x <= boxX1 + 8 &&
+          run.baselineY >= boxY0 - 8 &&
+          run.baselineY <= boxY1 + 8;
+    }).toList();
+  }
+
+  /// Groups runs into lines by comparing each run with the current line's
+  /// anchor baseline. The source order is normalised before grouping.
+  List<List<_Run>> _lineClusters(final List<_Run> visible) {
     visible.sort((final a, final b) => b.baselineY.compareTo(a.baselineY));
     final clusters = <List<_Run>>[];
     for (final run in visible) {
-      if (clusters.isNotEmpty) {
-        final cluster = clusters.last;
-        final anchor = cluster.first;
-        final tolerance =
-            0.45 * (run.fontSize < anchor.fontSize ? run.fontSize : anchor.fontSize) + 0.6;
-        if ((run.baselineY - anchor.baselineY).abs() <= tolerance) {
-          cluster.add(run);
-          continue;
-        }
-      }
+      if (_appendToLastCluster(clusters, run)) continue;
       clusters.add(<_Run>[run]);
     }
 
+    return clusters;
+  }
+
+  bool _appendToLastCluster(final List<List<_Run>> clusters, final _Run run) {
+    if (clusters.isEmpty) return false;
+    final cluster = clusters.last;
+    final anchor = cluster.first;
+    final smallerFontSize = run.fontSize < anchor.fontSize ? run.fontSize : anchor.fontSize;
+    final tolerance = 0.45 * smallerFontSize + 0.6;
+    if ((run.baselineY - anchor.baselineY).abs() > tolerance) return false;
+
+    cluster.add(run);
+
+    return true;
+  }
+
+  /// Converts run clusters into canonical text lines and restores reading
+  /// order from top to bottom, then left to right.
+  List<PdfTextLine> _textLines(
+    final List<List<_Run>> clusters,
+    final double boxX0,
+    final double boxY1,
+  ) {
     final lines = <PdfTextLine>[];
     for (final cluster in clusters) {
-      cluster.sort((final a, final b) => a.x.compareTo(b.x));
-      final buffer = StringBuffer();
-      var previousRight = cluster.first.x;
-      var left = cluster.first.x;
-      var right = cluster.first.x + cluster.first.width;
-      var height = 0.0;
-      var fontSize = 0.0;
-      var baseline = cluster.first.baselineY;
-      var rotated = false;
-      var first = true;
-      var previousFontSize = cluster.first.fontSize;
-      for (final run in cluster) {
-        final smaller = run.fontSize < previousFontSize ? run.fontSize : previousFontSize;
-        final gapThreshold = 0.28 * smaller + 0.9;
-        if (!first) {
-          final gap = run.x - previousRight;
-          if (gap > gapThreshold) buffer.write(' ');
-        }
-        buffer.write(run.text);
-        previousRight = run.x + run.width;
-        previousFontSize = run.fontSize;
-        if (run.x < left) left = run.x;
-        if (run.x + run.width > right) right = run.x + run.width;
-        if (run.fontSize > fontSize) {
-          fontSize = run.fontSize;
-          baseline = run.baselineY;
-        }
-        if (run.fontSize > height) height = run.fontSize;
-        rotated = rotated || run.rotated;
-        first = false;
-      }
-      final text = buffer.toString().trim();
-      if (text.isEmpty) continue;
+      final line = _textLine(cluster, boxX0, boxY1);
+      if (line != null) lines.add(line);
+    }
+    lines.sort(_compareReadingOrder);
 
-      lines.add(
-        PdfTextLine(
-          text: text,
-          x: left - boxX0,
-          // Baseline sits ~0.8 em under the visual top of the line.
-          y: boxY1 - (baseline + height * 0.8),
-          width: right - left,
-          height: height,
-          fontSize: fontSize,
-          rotated: rotated,
-        ),
-      );
+    return lines;
+  }
+
+  PdfTextLine? _textLine(final List<_Run> cluster, final double boxX0, final double boxY1) {
+    cluster.sort((final a, final b) => a.x.compareTo(b.x));
+    final firstRun = cluster.first;
+    final buffer = StringBuffer();
+    var previousRight = firstRun.x;
+    var left = firstRun.x;
+    var right = firstRun.x + firstRun.width;
+    var height = 0.0;
+    var fontSize = 0.0;
+    var baseline = firstRun.baselineY;
+    var rotated = false;
+    var first = true;
+    var previousFontSize = firstRun.fontSize;
+    for (final run in cluster) {
+      final smaller = run.fontSize < previousFontSize ? run.fontSize : previousFontSize;
+      final gapThreshold = 0.28 * smaller + 0.9;
+      if (!first && run.x - previousRight > gapThreshold) buffer.write(' ');
+      buffer.write(run.text);
+      previousRight = run.x + run.width;
+      previousFontSize = run.fontSize;
+      if (run.x < left) left = run.x;
+      if (run.x + run.width > right) right = run.x + run.width;
+      if (run.fontSize > fontSize) {
+        fontSize = run.fontSize;
+        baseline = run.baselineY;
+      }
+      if (run.fontSize > height) height = run.fontSize;
+      rotated = rotated || run.rotated;
+      first = false;
     }
 
-    // Reading order: top to bottom, then left to right.
-    lines.sort((final a, final b) {
-      final dy = a.y - b.y;
+    final text = buffer.toString().trim();
+    if (text.isEmpty) return null;
 
-      return dy.abs() < 0.5 ? a.x.compareTo(b.x) : dy.compareTo(0);
-    });
+    return PdfTextLine(
+      text: text,
+      x: left - boxX0,
+      // Baseline sits ~0.8 em under the visual top of the line.
+      y: boxY1 - (baseline + height * 0.8),
+      width: right - left,
+      height: height,
+      fontSize: fontSize,
+      rotated: rotated,
+    );
+  }
 
-    final placedImages = <PdfImageBox>[
+  int _compareReadingOrder(final PdfTextLine a, final PdfTextLine b) {
+    final dy = a.y - b.y;
+
+    return dy.abs() < 0.5 ? a.x.compareTo(b.x) : dy.compareTo(0);
+  }
+
+  List<PdfImageBox> _placeImages(
+    final List<PdfImageBox> images,
+    final double boxX0,
+    final double boxY1,
+  ) {
+    return <PdfImageBox>[
       for (final image in images)
         PdfImageBox(
           name: image.name,
@@ -506,11 +443,6 @@ class PdfTextExtractor {
           height: image.height,
         ),
     ];
-
-    return PdfPageText(
-      lines: _rotateAll(lines, page.rotate, pageWidth, pageHeight),
-      images: placedImages,
-    );
   }
 
   List<PdfTextLine> _rotateAll(
@@ -585,6 +517,177 @@ class PdfTextExtractor {
   }
 }
 
+/// Interprets one decoded content stream while keeping the mutable PDF
+/// graphics/text state together. The extractor remains responsible for font
+/// lookup and output, while this class owns operator sequencing.
+final class _ContentInterpreter {
+  _ContentInterpreter(
+    this._extractor,
+    final Uint8List content,
+    this._resources,
+    this._runs,
+    this._images,
+    this._onImage,
+  ) : _lexer = _ContentLexer(content);
+
+  final PdfTextExtractor _extractor;
+  final PdfDictionary? _resources;
+  final List<_Run> _runs;
+  final List<PdfImageBox> _images;
+  final void Function(int objectNumber, Uint8List bytes, String extension)? _onImage;
+  final _ContentLexer _lexer;
+  final List<Object?> _operands = <Object?>[];
+  final List<_GraphicsState> _gstates = <_GraphicsState>[];
+  _GraphicsState _gstate = _GraphicsState();
+  _Mat _textMatrix = _Mat.identity;
+  _Mat _lineMatrix = _Mat.identity;
+  bool _inText = false;
+  var _budget = 4000000;
+
+  void run() {
+    while (true) {
+      final token = _lexer.next();
+      if (token == null || _budget-- <= 0) {
+        break;
+      }
+      if (token is _Operator) {
+        _handleOperator(token.name);
+        _operands.clear();
+      } else {
+        _operands.add((token as _Operand).value);
+        if (_operands.length > 64) {
+          _operands.removeAt(0);
+        }
+      }
+    }
+  }
+
+  void _handleOperator(final String name) {
+    switch (name) {
+      case 'q':
+        _gstates.add(_gstate);
+        _gstate = _gstate.copy();
+      case 'Q':
+        if (_gstates.isNotEmpty) {
+          _gstate = _gstates.removeLast();
+        }
+      case 'cm':
+        final matrix = _extractor._matrixOperands(_operands);
+        if (matrix != null) {
+          _gstate.ctm = _Mat.multiply(matrix, _gstate.ctm);
+        }
+      case 'BT':
+        _inText = true;
+        _textMatrix = _Mat.identity;
+        _lineMatrix = _Mat.identity;
+      case 'ET':
+        _inText = false;
+      case 'Tf':
+        _setFont();
+      case 'Tc':
+        _gstate.charSpacing = _extractor._num(_operands);
+      case 'Tw':
+        _gstate.wordSpacing = _extractor._num(_operands);
+      case 'Tz':
+        _gstate.horizontalScale = _extractor._num(_operands, fallback: 100) / 100;
+      case 'TL':
+        _gstate.leading = _extractor._num(_operands);
+      case 'Ts':
+        _gstate.rise = _extractor._num(_operands);
+      case 'Td':
+        _setTextPosition();
+      case 'TD':
+        _setTextPosition(setLeading: true);
+      case 'Tm':
+        _setTextMatrix();
+      case 'T*':
+        _moveToNextLine();
+      case 'Tj':
+        _showString();
+      case "'":
+        _moveToNextLine();
+        _showString();
+      case '"':
+        _setSpacingAndShowString();
+      case 'TJ':
+        _showArray();
+      case 'Do':
+        _drawObject();
+    }
+  }
+
+  void _setFont() {
+    if (_operands.length < 2 || _operands[0] is! String || _operands[1] is! num) {
+      return;
+    }
+    _gstate.font = _extractor._fontOf(_extractor._fontEntry(_resources, _operands[0] as String));
+    _gstate.fontSize = (_operands[1] as num).toDouble();
+  }
+
+  void _setTextPosition({final bool setLeading = false}) {
+    final tx = _extractor._num(_operands);
+    final ty = _extractor._num(_operands, index: 1);
+    if (setLeading) {
+      _gstate.leading = -ty;
+    }
+    _lineMatrix = _Mat.multiply(_Mat.translation(tx, ty), _lineMatrix);
+    _textMatrix = _lineMatrix;
+  }
+
+  void _moveToNextLine() {
+    _lineMatrix = _Mat.multiply(_Mat.translation(0, -_gstate.leading), _lineMatrix);
+    _textMatrix = _lineMatrix;
+  }
+
+  void _setTextMatrix() {
+    final matrix = _extractor._matrixOperands(_operands);
+    if (matrix == null) {
+      return;
+    }
+    _lineMatrix = matrix;
+    _textMatrix = matrix;
+  }
+
+  void _showString() {
+    final bytes = _extractor._stringOperand(_operands);
+    if (_inText && bytes != null) {
+      _textMatrix = _extractor._showText(bytes, _textMatrix, _gstate, _runs);
+    }
+  }
+
+  void _setSpacingAndShowString() {
+    if (_operands.length >= 3) {
+      _gstate.wordSpacing = (_operands[0] as num?)?.toDouble() ?? _gstate.wordSpacing;
+      _gstate.charSpacing = (_operands[1] as num?)?.toDouble() ?? _gstate.charSpacing;
+    }
+    _moveToNextLine();
+    _showString();
+  }
+
+  void _showArray() {
+    final array = _operands.length == 1 && _operands[0] is List<Object?>
+        ? _operands[0] as List<Object?>
+        : null;
+    if (!_inText || array == null) {
+      return;
+    }
+    for (final element in array) {
+      if (element is Uint8List) {
+        _textMatrix = _extractor._showText(element, _textMatrix, _gstate, _runs);
+      } else if (element is num) {
+        final shift = -element / 1000 * _gstate.fontSize * _gstate.horizontalScale;
+        _textMatrix = _Mat.multiply(_Mat.translation(shift, 0), _textMatrix);
+      }
+    }
+  }
+
+  void _drawObject() {
+    if (_operands.length == 1 && _operands[0] is String) {
+      _extractor._drawXObject(_operands[0] as String, _resources, _gstate, _images, _onImage);
+    }
+  }
+}
+
 final class _Run {
   const _Run({
     required this.text,
@@ -638,14 +741,16 @@ final class _Mat {
   factory _Mat.translation(final double tx, final double ty) => _Mat(1, 0, 0, 1, tx, ty);
 
   /// Applies [m] first, then [n].
-  static _Mat multiply(final _Mat m, final _Mat n) => _Mat(
-    n.a * m.a + n.b * m.c,
-    n.a * m.b + n.b * m.d,
-    n.c * m.a + n.d * m.c,
-    n.c * m.b + n.d * m.d,
-    n.e * m.a + n.f * m.c + m.e,
-    n.e * m.b + n.f * m.d + m.f,
-  );
+  static _Mat multiply(final _Mat m, final _Mat n) {
+    return _Mat(
+      n.a * m.a + n.b * m.c,
+      n.a * m.b + n.b * m.d,
+      n.c * m.a + n.d * m.c,
+      n.c * m.b + n.d * m.d,
+      n.e * m.a + n.f * m.c + m.e,
+      n.e * m.b + n.f * m.d + m.f,
+    );
+  }
 
   final double a;
   final double b;
@@ -689,6 +794,7 @@ final class _ContentLexer {
         if (_atEnd()) break;
         if (bytes[_pos] == 0x5D) {
           _pos++;
+
           break;
         }
         final token = next();
@@ -736,6 +842,7 @@ final class _ContentLexer {
       if (!numeric) break;
       _pos++;
     }
+
     var literal = String.fromCharCodes(bytes, start, _pos);
     if (literal.endsWith('.')) literal = '${literal}0';
 
@@ -757,6 +864,7 @@ final class _ContentLexer {
     while (!_atEnd() && _isRegular(bytes[_pos])) {
       _pos++;
     }
+
     final keyword = String.fromCharCodes(bytes, start, _pos);
     if (keyword == 'BI') _skipInlineImage();
 
@@ -819,6 +927,7 @@ final class _ContentLexer {
               _pos++;
             }
         }
+
         continue;
       }
       if (byte == 0x28) depth++;
@@ -826,6 +935,7 @@ final class _ContentLexer {
         depth--;
         if (depth == 0) {
           _pos++;
+
           break;
         }
       }
@@ -843,6 +953,7 @@ final class _ContentLexer {
     while (!_atEnd()) {
       final byte = bytes[_pos++];
       if (byte == 0x3E) break;
+
       var value = -1;
       if (byte >= 0x30 && byte <= 0x39) {
         value = byte - 0x30;
@@ -851,6 +962,7 @@ final class _ContentLexer {
       } else if (byte >= 0x61 && byte <= 0x66) {
         value = byte - 0x61 + 10;
       }
+
       if (value < 0) continue;
       if (pending < 0) {
         pending = value;
@@ -929,20 +1041,21 @@ final class _Operator extends _Token {
   final String name;
 }
 
-bool _isRegular(final int byte) =>
-    byte != 0 &&
-    byte != 0x09 &&
-    byte != 0x0A &&
-    byte != 0x0C &&
-    byte != 0x0D &&
-    byte != 0x20 &&
-    byte != 0x28 &&
-    byte != 0x29 &&
-    byte != 0x3C &&
-    byte != 0x3E &&
-    byte != 0x5B &&
-    byte != 0x5D &&
-    byte != 0x7B &&
-    byte != 0x7D &&
-    byte != 0x2F &&
-    byte != 0x25;
+bool _isRegular(final int byte) {
+  return byte != 0 &&
+      byte != 0x09 &&
+      byte != 0x0A &&
+      byte != 0x0C &&
+      byte != 0x0D &&
+      byte != 0x20 &&
+      byte != 0x28 &&
+      byte != 0x29 &&
+      byte != 0x3C &&
+      byte != 0x3E &&
+      byte != 0x5B &&
+      byte != 0x5D &&
+      byte != 0x7B &&
+      byte != 0x7D &&
+      byte != 0x2F &&
+      byte != 0x25;
+}

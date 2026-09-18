@@ -1,9 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/docx/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/docx/parse_docx_book.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/docx.dart';
 import 'package:e_livre/src/foundation/images/image_type_sniffer.dart';
 import 'package:test/test.dart';
 
@@ -27,6 +25,8 @@ void main() {
       expect(content, contains('<strong>bold</strong>'));
       expect(content, contains('<em>italic</em>'));
       expect(content, contains('<u>underlined</u>'));
+      expect(content, contains('not underlined'));
+      expect(content, isNot(contains('<u>not underlined</u>')));
       expect(content, contains('before<br/>after'));
       expect(content, contains('<ol><li data-list-level="0">first item</li>'));
       expect(content, contains('<table class="docx-table"><tbody>'));
@@ -75,6 +75,20 @@ void main() {
       expect(metadata.publishedAt, DateTime.utc(2024, 2, 3, 4, 5, 6));
     });
 
+    test('does not normalize an invalid core-properties date', () {
+      final metadata = readDocxMetadata(
+        _docxBytes({
+          'word/document.xml': _minimalDocumentXml,
+          'docProps/core.xml': _corePropertiesXml.replaceFirst(
+            '2024-02-03T04:05:06Z',
+            '2024-02-31T04:05:06Z',
+          ),
+        }),
+      );
+
+      expect(metadata.publishedAt, isNull);
+    });
+
     test('throws a typed error for a non-ZIP package', () {
       expect(
         () => parseDocxBook(Uint8List.fromList('not a docx'.codeUnits)),
@@ -115,6 +129,7 @@ final String _documentXml = '''
       <w:r><w:rPr><w:b/></w:rPr><w:t>bold</w:t></w:r>
       <w:r><w:rPr><w:i/></w:rPr><w:t>italic</w:t></w:r>
       <w:r><w:rPr><w:u w:val="single"/></w:rPr><w:t>underlined</w:t></w:r>
+      <w:r><w:rPr><w:u w:val="none"/></w:rPr><w:t>not underlined</w:t></w:r>
     </w:p>
     <w:p><w:r><w:t>before</w:t><w:br/><w:t>after</w:t></w:r></w:p>
     <w:p>

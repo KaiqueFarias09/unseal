@@ -8,6 +8,7 @@ int countWords(final String text) {
 
   final units = text.codeUnits;
   final length = units.length;
+
   var nonAsianWords = 0;
   var asianChars = 0;
   var isInWord = false;
@@ -20,6 +21,7 @@ int countWords(final String text) {
     } else {
       i++;
     }
+
     if (rune > ideographicSpace) {
       asianChars++;
       isInWord = false;

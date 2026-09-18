@@ -23,14 +23,13 @@ Future<T> withBookPath<T>(
   return operation(bytes, path.normalize(value));
 }
 
-/// Reads the first valid Calibre OPF sidecar next to [sourcePath].
+/// Reads the first valid OPF sidecar next to [sourcePath].
 Future<T?> readBookSidecar<T>(
   final String sourcePath,
   final T Function(String content) parse,
 ) async {
   final directory = path.dirname(sourcePath);
   final basename = path.basenameWithoutExtension(sourcePath);
-
   for (final candidate in ['$basename.opf', 'metadata.opf']) {
     final file = File(path.join(directory, candidate));
     if (!file.existsSync()) continue;

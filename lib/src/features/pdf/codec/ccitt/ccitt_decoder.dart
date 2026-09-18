@@ -7,7 +7,6 @@ import 'ccitt_tables.dart';
 /// Safety net 1: absurd `/Columns`/`/Rows` combinations are rejected
 /// up front instead of allocating.
 const int _maxColumns = 1 << 16;
-const int _maxRows = 1 << 20;
 
 /// Safety net 2: the drain loop caps the returned payload size.
 const int _maxOutputBytes = 64 << 20;
@@ -20,7 +19,7 @@ const int _maxOutputBytes = 64 << 20;
 /// Parameters come from the stream's `/DecodeParms`: `/K` selects
 /// the coding (0 = Group 3 1D, < 0 = Group 4, > 0 = Group 3 2D)
 /// alongside `/Columns`, `/Rows`, `/BlackIs1`, `/EncodedByteAlign`,
-/// `/EndOfLine`, `/EndOfBlock` and `/DamagedRowsBeforeError`. Like
+/// `/EndOfLine` and `/EndOfBlock`. Like
 /// pdf.js, the `/BlackIs1` flag and a `/Decode [1 0]` array flip the
 /// sample polarity inside the decoder, so callers always receive
 /// rows in the default `/Decode [0 1]` convention (0 = black).
@@ -44,6 +43,9 @@ Uint8List decodeCcittFax(
   final PdfObject? parm,
   final PdfObject? Function(PdfObject object) resolve,
 ) {
+  /// Safety net 1: reject absurd `/Rows` values before allocating.
+  const maxRows = 1 << 20;
+
   var k = 0;
   var columns = 1728;
   var rows = 0;
@@ -51,7 +53,6 @@ Uint8List decodeCcittFax(
   var encodedByteAlign = false;
   var endOfBlock = true;
   var blackIs1 = false;
-  var damagedRowsBeforeError = 0;
   var decodeInverts = false;
 
   if (parm is PdfDictionary) {
@@ -63,10 +64,6 @@ Uint8List decodeCcittFax(
     final endOfBlockValue = resolve(parm['EndOfBlock'] ?? const PdfNull());
     if (endOfBlockValue is PdfBool) endOfBlock = endOfBlockValue.value;
     blackIs1 = _boolValue(resolve(parm['BlackIs1'] ?? const PdfNull()));
-    damagedRowsBeforeError = _intValue(
-      resolve(parm['DamagedRowsBeforeError'] ?? const PdfNull()),
-      fallback: 0,
-    );
     final decode = resolve(parm['Decode'] ?? const PdfNull());
     if (decode is PdfArray && decode.items.length >= 2) {
       final low = resolve(decode.items[0]);
@@ -78,7 +75,7 @@ Uint8List decodeCcittFax(
     }
   }
   if (columns <= 0) columns = 1728;
-  if (columns > _maxColumns || rows > _maxRows) {
+  if (columns > _maxColumns || rows > maxRows) {
     throw PdfException('CCITTFaxDecode geometry out of range: ${columns}x$rows.');
   }
 
@@ -91,7 +88,6 @@ Uint8List decodeCcittFax(
     rows: rows,
     eoblock: endOfBlock,
     black: blackIs1 || decodeInverts,
-    damagedRowsBeforeError: damagedRowsBeforeError,
   );
 
   // pdf.js ccitt.js CCITTFaxStream <readBlock>: drain one byte per
@@ -105,6 +101,7 @@ Uint8List decodeCcittFax(
       throw const PdfException('CCITTFaxDecode output exceeded the size cap.');
     }
   }
+
   return chunks.toBytes();
 }
 
@@ -113,6 +110,7 @@ Uint8List decodeCcittFax(
 int _intValue(final PdfObject? object, {required final int fallback}) {
   final value = object;
   if (value is PdfNumber) return value.value.toInt();
+
   return fallback;
 }
 
@@ -137,7 +135,6 @@ final class _CcittFaxDecoder {
     required this.rows,
     required this.eoblock,
     required this.black,
-    required this.damagedRowsBeforeError,
   }) : codingLine = Uint32List(columns + 1),
        refLine = Uint32List(columns + 2) {
     // pdf.js ccitt.js <constructor>: skip a leading all-zero run and
@@ -185,12 +182,6 @@ final class _CcittFaxDecoder {
   /// default sample polarity (0 = black) per byte.
   final bool black;
 
-  /// `/DamagedRowsBeforeError`: pdf.js's decoder accepts this
-  /// parameter but its recovery loop is driven by the EOL search
-  /// itself; carried for signature parity (a malformed stream still
-  /// ends in a [PdfException] from the caller's drain loop).
-  final int damagedRowsBeforeError;
-
   final Uint32List codingLine;
   final Uint32List refLine;
 
@@ -212,270 +203,276 @@ final class _CcittFaxDecoder {
   /// One output byte per call, packed MSB-first with pdf.js's
   /// white-as-1 convention flipped by [black] (`readNextChar`).
   int readNextChar() {
-    if (eof) {
-      return ccittEof;
+    if (eof) return ccittEof;
+    if (outputBits == 0 && !_startNextRow()) return ccittEof;
+
+    return _readOutputByte();
+  }
+
+  bool _startNextRow() {
+    if (rowsDone) eof = true;
+    if (eof) return false;
+    err = false;
+    if (nextLine2D) {
+      _decodeTwoDimensionalRow();
+    } else {
+      _decodeOneDimensionalRow();
     }
+
+    final gotEol = _consumeRowTerminator();
+    _selectNextLineMode();
+    if (eoblock && gotEol && byteAlign) {
+      _consumeEndOfBlock();
+    } else if (err && eoline && !_recoverFromBadRow()) {
+      return false;
+    }
+
+    outputBits = codingLine[0] > 0 ? codingLine[(codingPos = 0)] : codingLine[(codingPos = 1)];
+    row++;
+    _recordRowProgress();
+
+    return true;
+  }
+
+  void _decodeTwoDimensionalRow() {
     final refLine = this.refLine;
     final codingLine = this.codingLine;
     final columns = this.columns;
+    var i = 0;
+    while (codingLine[i] < columns) {
+      refLine[i] = codingLine[i];
+      i++;
+    }
+    refLine[i++] = columns;
+    refLine[i] = columns;
+    codingLine[0] = 0;
+    codingPos = 0;
+    var refPos = 0;
+    var blackPixels = 0;
+    var remainingCodes = 8 * columns + 512;
+    while (codingLine[codingPos] < columns) {
+      if (--remainingCodes < 0) {
+        throw const PdfException('CCITTFaxDecode 2D row failed to terminate.');
+      }
+      final code = _getTwoDimCode();
+      final result = _applyTwoDimensionalCode(code, refPos, blackPixels);
+      refPos = result.$1;
+      blackPixels = result.$2;
+    }
+  }
 
-    int refPos, blackPixels, bits, i;
-
-    if (outputBits == 0) {
-      if (rowsDone) {
+  (int, int) _applyTwoDimensionalCode(final int code, int refPos, int blackPixels) {
+    switch (code) {
+      case twoDimPass:
+        _addPixels(refLine[refPos + 1], blackPixels);
+        if (refLine[refPos + 1] < columns) refPos += 2;
+      case twoDimHoriz:
+        final runs = _readHorizontalRuns(blackPixels);
+        _addPixels(codingLine[codingPos] + runs.$1, blackPixels);
+        if (codingLine[codingPos] < columns) {
+          _addPixels(codingLine[codingPos] + runs.$2, blackPixels ^ 1);
+        }
+        while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
+          refPos += 2;
+        }
+      case twoDimVertR3:
+        _addPixels(refLine[refPos] + 3, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) {
+          refPos = _advanceReference(refLine, codingPos, refPos);
+        }
+      case twoDimVertR2:
+        _addPixels(refLine[refPos] + 2, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) {
+          refPos = _advanceReference(refLine, codingPos, refPos);
+        }
+      case twoDimVertR1:
+        _addPixels(refLine[refPos] + 1, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) {
+          refPos = _advanceReference(refLine, codingPos, refPos);
+        }
+      case twoDimVert0:
+        _addPixels(refLine[refPos], blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) {
+          refPos = _advanceReference(refLine, codingPos, refPos);
+        }
+      case twoDimVertL3:
+        _addPixelsNeg(refLine[refPos] - 3, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) refPos = _advanceNegativeReference(refLine, refPos);
+      case twoDimVertL2:
+        _addPixelsNeg(refLine[refPos] - 2, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) refPos = _advanceNegativeReference(refLine, refPos);
+      case twoDimVertL1:
+        _addPixelsNeg(refLine[refPos] - 1, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) refPos = _advanceNegativeReference(refLine, refPos);
+      case ccittEof:
+        _addPixels(columns, 0);
         eof = true;
-      }
-      if (eof) {
-        return ccittEof;
-      }
-      err = false;
+      default:
+        _addPixels(columns, 0);
+        err = true;
+    }
 
-      int code1, code2, code3;
-      if (nextLine2D) {
-        for (i = 0; codingLine[i] < columns; ++i) {
-          refLine[i] = codingLine[i];
-        }
-        refLine[i++] = columns;
-        refLine[i] = columns;
-        codingLine[0] = 0;
-        codingPos = 0;
-        refPos = 0;
-        blackPixels = 0;
+    return (refPos, blackPixels);
+  }
 
-        // Safety net: a valid 2D row consumes at least one changing
-        // element per code, so this bound is far above any real row.
-        var remainingCodes = 8 * columns + 512;
-        while (codingLine[codingPos] < columns) {
-          if (--remainingCodes < 0) {
-            throw const PdfException('CCITTFaxDecode 2D row failed to terminate.');
-          }
-          code1 = _getTwoDimCode();
-          switch (code1) {
-            case twoDimPass:
-              _addPixels(refLine[refPos + 1], blackPixels);
-              if (refLine[refPos + 1] < columns) {
-                refPos += 2;
-              }
-            case twoDimHoriz:
-              code1 = code2 = 0;
-              if (blackPixels != 0) {
-                do {
-                  code1 += code3 = _getBlackCode();
-                } while (code3 >= 64);
-                do {
-                  code2 += code3 = _getWhiteCode();
-                } while (code3 >= 64);
-              } else {
-                do {
-                  code1 += code3 = _getWhiteCode();
-                } while (code3 >= 64);
-                do {
-                  code2 += code3 = _getBlackCode();
-                } while (code3 >= 64);
-              }
-              _addPixels(codingLine[codingPos] + code1, blackPixels);
-              if (codingLine[codingPos] < columns) {
-                _addPixels(codingLine[codingPos] + code2, blackPixels ^ 1);
-              }
-              while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
-                refPos += 2;
-              }
-            case twoDimVertR3:
-              _addPixels(refLine[refPos] + 3, blackPixels);
-              blackPixels ^= 1;
-              if (codingLine[codingPos] < columns) {
-                ++refPos;
-                while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
-                  refPos += 2;
-                }
-              }
-            case twoDimVertR2:
-              _addPixels(refLine[refPos] + 2, blackPixels);
-              blackPixels ^= 1;
-              if (codingLine[codingPos] < columns) {
-                ++refPos;
-                while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
-                  refPos += 2;
-                }
-              }
-            case twoDimVertR1:
-              _addPixels(refLine[refPos] + 1, blackPixels);
-              blackPixels ^= 1;
-              if (codingLine[codingPos] < columns) {
-                ++refPos;
-                while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
-                  refPos += 2;
-                }
-              }
-            case twoDimVert0:
-              _addPixels(refLine[refPos], blackPixels);
-              blackPixels ^= 1;
-              if (codingLine[codingPos] < columns) {
-                ++refPos;
-                while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
-                  refPos += 2;
-                }
-              }
-            case twoDimVertL3:
-              _addPixelsNeg(refLine[refPos] - 3, blackPixels);
-              blackPixels ^= 1;
-              if (codingLine[codingPos] < columns) {
-                if (refPos > 0) {
-                  --refPos;
-                } else {
-                  ++refPos;
-                }
-                while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
-                  refPos += 2;
-                }
-              }
-            case twoDimVertL2:
-              _addPixelsNeg(refLine[refPos] - 2, blackPixels);
-              blackPixels ^= 1;
-              if (codingLine[codingPos] < columns) {
-                if (refPos > 0) {
-                  --refPos;
-                } else {
-                  ++refPos;
-                }
-                while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
-                  refPos += 2;
-                }
-              }
-            case twoDimVertL1:
-              _addPixelsNeg(refLine[refPos] - 1, blackPixels);
-              blackPixels ^= 1;
-              if (codingLine[codingPos] < columns) {
-                if (refPos > 0) {
-                  --refPos;
-                } else {
-                  ++refPos;
-                }
-                while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
-                  refPos += 2;
-                }
-              }
-            case ccittEof:
-              _addPixels(columns, 0);
-              eof = true;
-            default:
-              // pdf.js logs `info("bad 2d code")` and degrades; the
-              // malformed-row accounting stays the same.
-              _addPixels(columns, 0);
-              err = true;
-          }
-        }
+  (int, int) _readHorizontalRuns(final int blackPixels) {
+    var first = 0;
+    var second = 0;
+    var run = 0;
+    if (blackPixels != 0) {
+      do {
+        first += run = _getBlackCode();
+      } while (run >= 64);
+      do {
+        second += run = _getWhiteCode();
+      } while (run >= 64);
+    } else {
+      do {
+        first += run = _getWhiteCode();
+      } while (run >= 64);
+      do {
+        second += run = _getBlackCode();
+      } while (run >= 64);
+    }
+
+    return (first, second);
+  }
+
+  int _advanceReference(final Uint32List line, final int position, int refPos) {
+    refPos++;
+    while (line[refPos] <= codingLine[position] && line[refPos] < columns) {
+      refPos += 2;
+    }
+
+    return refPos;
+  }
+
+  int _advanceNegativeReference(final Uint32List line, int refPos) {
+    refPos = refPos > 0 ? refPos - 1 : refPos + 1;
+    while (line[refPos] <= codingLine[codingPos] && line[refPos] < columns) {
+      refPos += 2;
+    }
+
+    return refPos;
+  }
+
+  void _decodeOneDimensionalRow() {
+    codingLine[0] = 0;
+    codingPos = 0;
+    var blackPixels = 0;
+    while (codingLine[codingPos] < columns) {
+      var run = 0;
+      var code = 0;
+      if (blackPixels != 0) {
+        do {
+          run += code = _getBlackCode();
+        } while (code >= 64);
       } else {
-        codingLine[0] = 0;
-        codingPos = 0;
-        blackPixels = 0;
-        // Every 1D code returns a run of at least one pixel (the EOF
-        // fallback included), so `codingLine` reaches `columns` and
-        // the row terminates.
-        while (codingLine[codingPos] < columns) {
-          code1 = 0;
-          if (blackPixels != 0) {
-            do {
-              code1 += code3 = _getBlackCode();
-            } while (code3 >= 64);
-          } else {
-            do {
-              code1 += code3 = _getWhiteCode();
-            } while (code3 >= 64);
-          }
-          _addPixels(codingLine[codingPos] + code1, blackPixels);
-          blackPixels ^= 1;
-        }
+        do {
+          run += code = _getWhiteCode();
+        } while (code >= 64);
       }
+      _addPixels(codingLine[codingPos] + run, blackPixels);
+      blackPixels ^= 1;
+    }
+  }
 
-      var gotEol = false;
+  bool _consumeRowTerminator() {
+    if (byteAlign) inputBits &= ~7;
+    if (!eoblock && row == rows - 1) {
+      rowsDone = true;
 
-      if (byteAlign) {
-        inputBits &= ~7;
-      }
+      return false;
+    }
 
-      if (!eoblock && row == rows - 1) {
-        rowsDone = true;
-      } else {
-        code1 = _lookBits(12);
-        if (eoline) {
-          while (code1 != ccittEof && code1 != 1) {
-            _eatBits(1);
-            code1 = _lookBits(12);
-          }
-        } else {
-          while (code1 == 0) {
-            _eatBits(1);
-            code1 = _lookBits(12);
-          }
-        }
-        if (code1 == 1) {
-          _eatBits(12);
-          gotEol = true;
-        } else if (code1 == ccittEof) {
-          eof = true;
-        }
-      }
-
-      if (!eof && encoding > 0 && !rowsDone) {
-        nextLine2D = _lookBits(1) == 0;
+    var code = _lookBits(12);
+    if (eoline) {
+      while (code != ccittEof && code != 1) {
         _eatBits(1);
+        code = _lookBits(12);
       }
+    } else {
+      while (code == 0) {
+        _eatBits(1);
+        code = _lookBits(12);
+      }
+    }
+    if (code == 1) {
+      _eatBits(12);
 
-      if (eoblock && gotEol && byteAlign) {
-        code1 = _lookBits(12);
-        if (code1 == 1) {
-          _eatBits(12);
-          if (encoding > 0) {
-            _lookBits(1);
-            _eatBits(1);
-          }
-          if (encoding >= 0) {
-            for (i = 0; i < 4; ++i) {
-              code1 = _lookBits(12);
-              // pdf.js logs `bad rtc code` on a mismatch; the run
-              // continues exactly the same way.
-              _eatBits(12);
-              if (encoding > 0) {
-                _lookBits(1);
-                _eatBits(1);
-              }
-            }
-          }
-          eof = true;
-        }
-      } else if (err && eoline) {
-        while (true) {
-          code1 = _lookBits(13);
-          if (code1 == ccittEof) {
-            eof = true;
-            return ccittEof;
-          }
-          if (code1 >> 1 == 1) {
-            break;
-          }
+      return true;
+    }
+    if (code == ccittEof) eof = true;
+
+    return false;
+  }
+
+  void _selectNextLineMode() {
+    if (eof || encoding <= 0 || rowsDone) return;
+    nextLine2D = _lookBits(1) == 0;
+    _eatBits(1);
+  }
+
+  void _consumeEndOfBlock() {
+    final code = _lookBits(12);
+    if (code != 1) return;
+    _eatBits(12);
+    if (encoding > 0) {
+      _lookBits(1);
+      _eatBits(1);
+    }
+    if (encoding >= 0) {
+      for (var i = 0; i < 4; ++i) {
+        _lookBits(12);
+        _eatBits(12);
+        if (encoding > 0) {
+          _lookBits(1);
           _eatBits(1);
         }
+      }
+    }
+    eof = true;
+  }
+
+  bool _recoverFromBadRow() {
+    while (true) {
+      final code = _lookBits(13);
+      if (code == ccittEof) {
+        eof = true;
+
+        return false;
+      }
+      if (code >> 1 == 1) {
         _eatBits(12);
         if (encoding > 0) {
           _eatBits(1);
-          nextLine2D = (code1 & 1) == 0;
+          nextLine2D = (code & 1) == 0;
         }
-      }
 
-      outputBits = codingLine[0] > 0 ? codingLine[(codingPos = 0)] : codingLine[(codingPos = 1)];
-      row++;
-
-      // Safety net: pdf.js relies on its stream to end; here a row
-      // that consumed no input bits would repeat forever on hostile
-      // payloads, so force EOF at the first non-progress row.
-      final bitsRemaining = (source.length - _sourcePos) * 8 + inputBits;
-      if (bitsRemaining == _bitsRemainingAtRowStart) {
-        eof = true;
+        return true;
       }
-      _bitsRemainingAtRowStart = bitsRemaining;
+      _eatBits(1);
     }
+  }
 
+  void _recordRowProgress() {
+    // Safety net: pdf.js relies on its stream to end; here a row
+    // that consumed no input bits would repeat forever on hostile
+    // payloads, so force EOF at the first non-progress row.
+    final bitsRemaining = (source.length - _sourcePos) * 8 + inputBits;
+    if (bitsRemaining == _bitsRemainingAtRowStart) eof = true;
+    _bitsRemainingAtRowStart = bitsRemaining;
+  }
+
+  int _readOutputByte() {
+    final columns = this.columns;
     int c;
     if (outputBits >= 8) {
       c = (codingPos & 1) != 0 ? 0 : 0xff;
@@ -485,36 +482,39 @@ final class _CcittFaxDecoder {
         outputBits = codingLine[codingPos] - codingLine[codingPos - 1];
       }
     } else {
-      bits = 8;
-      c = 0;
-      do {
-        if (outputBits > bits) {
-          c <<= bits;
-          if ((codingPos & 1) == 0) {
-            c |= 0xff >> (8 - bits);
-          }
-          outputBits -= bits;
-          bits = 0;
-        } else {
-          c <<= outputBits;
-          if ((codingPos & 1) == 0) {
-            c |= outputBits == 8 ? 0xff : 0xff >> (8 - outputBits);
-          }
-          bits -= outputBits;
-          outputBits = 0;
-          if (codingLine[codingPos] < columns) {
-            codingPos++;
-            outputBits = codingLine[codingPos] - codingLine[codingPos - 1];
-          } else if (bits > 0) {
-            c <<= bits;
-            bits = 0;
-          }
+      c = _readPartialOutputByte();
+    }
+    if (black) c ^= 0xff;
+
+    return c;
+  }
+
+  int _readPartialOutputByte() {
+    var bits = 8;
+    var c = 0;
+    do {
+      if (outputBits > bits) {
+        c <<= bits;
+        if ((codingPos & 1) == 0) c |= 0xff >> (8 - bits);
+        outputBits -= bits;
+        bits = 0;
+      } else {
+        c <<= outputBits;
+        if ((codingPos & 1) == 0) {
+          c |= outputBits == 8 ? 0xff : 0xff >> (8 - outputBits);
         }
-      } while (bits != 0);
-    }
-    if (black) {
-      c ^= 0xff;
-    }
+        bits -= outputBits;
+        outputBits = 0;
+        if (codingLine[codingPos] < columns) {
+          codingPos++;
+          outputBits = codingLine[codingPos] - codingLine[codingPos - 1];
+        } else if (bits > 0) {
+          c <<= bits;
+          bits = 0;
+        }
+      }
+    } while (bits != 0);
+
     return c;
   }
 
@@ -523,7 +523,6 @@ final class _CcittFaxDecoder {
     final codingLine = this.codingLine;
     var codingPos = this.codingPos;
     var a1 = a1Raw;
-
     if (a1 > codingLine[codingPos]) {
       if (a1 > columns) {
         err = true;
@@ -543,7 +542,6 @@ final class _CcittFaxDecoder {
     final codingLine = this.codingLine;
     var codingPos = this.codingPos;
     var a1 = a1Raw;
-
     if (a1 > codingLine[codingPos]) {
       if (a1 > columns) {
         err = true;
@@ -596,6 +594,7 @@ final class _CcittFaxDecoder {
         }
       }
     }
+
     return (false, _tableMiss);
   }
 
@@ -617,6 +616,7 @@ final class _CcittFaxDecoder {
         return value;
       }
     }
+
     return ccittEof;
   }
 
@@ -630,7 +630,6 @@ final class _CcittFaxDecoder {
       }
 
       final entry = code >> 5 == 0 ? whiteTable1[code] : whiteTable2[code >> 3];
-
       if (entry[0] > 0) {
         _eatBits(entry[0]);
         return entry[1];
@@ -647,6 +646,7 @@ final class _CcittFaxDecoder {
       }
     }
     _eatBits(1);
+
     return 1;
   }
 
@@ -658,6 +658,7 @@ final class _CcittFaxDecoder {
       if (code == ccittEof) {
         return 1;
       }
+
       List<int> entry;
       if (code >> 7 == 0) {
         entry = blackTable1[code];
@@ -688,6 +689,7 @@ final class _CcittFaxDecoder {
       }
     }
     _eatBits(1);
+
     return 1;
   }
 
@@ -704,11 +706,13 @@ final class _CcittFaxDecoder {
         if (inputBits <= 0) {
           return ccittEof;
         }
+
         return (inputBuf << (n - inputBits)) & (0xffff >> (16 - n));
       }
       inputBuf = (inputBuf << 8) | source[_sourcePos++];
       inputBits += 8;
     }
+
     return (inputBuf >> (inputBits - n)) & (0xffff >> (16 - n));
   }
 

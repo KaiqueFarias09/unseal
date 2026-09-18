@@ -19,12 +19,8 @@ String decodeEpubText(final List<int> bytes) {
 
   // XML permits UTF-16 without a BOM. The first four bytes still reveal the
   // byte order because the declaration starts with `< ?`.
-  if (_startsWith(data, const [0x3c, 0x00, 0x3f, 0x00])) {
-    return _decodeUtf16(data, 0, true);
-  }
-  if (_startsWith(data, const [0x00, 0x3c, 0x00, 0x3f])) {
-    return _decodeUtf16(data, 0, false);
-  }
+  if (_startsWith(data, const [0x3c, 0x00, 0x3f, 0x00])) return _decodeUtf16(data, 0, true);
+  if (_startsWith(data, const [0x00, 0x3c, 0x00, 0x3f])) return _decodeUtf16(data, 0, false);
 
   final offset = _startsWith(data, const [0xef, 0xbb, 0xbf]) ? 3 : 0;
 

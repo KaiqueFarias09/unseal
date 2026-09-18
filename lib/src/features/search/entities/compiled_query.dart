@@ -15,9 +15,7 @@ final class CompiledQuery {
   Iterable<({int start, int end})> findMatches(final String text) sync* {
     for (final candidate in _pattern.allMatches(text)) {
       final requiredWords = _requiredWords;
-      if (requiredWords != null && !_hasAllWordsInWindow(candidate, requiredWords)) {
-        continue;
-      }
+      if (requiredWords != null && !_hasAllWordsInWindow(candidate, requiredWords)) continue;
 
       // Group 1 captures the token span for Unicode whole-word scans. Only a zero-width lookahead
       // follows it, so the token start is recovered from the two match lengths.
@@ -62,5 +60,6 @@ bool _isInsideWord(final String text, final int index) {
     // A low surrogate may be the back half of an astral character; test the complete pair.
     from -= 1;
   }
+
   return _wordChar.hasMatch(text.substring(from, index));
 }

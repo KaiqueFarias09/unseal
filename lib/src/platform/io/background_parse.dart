@@ -4,8 +4,9 @@ import 'dart:typed_data';
 import '../../foundation/entities/entities.dart';
 
 /// Runs book parsing away from the caller on isolate-supporting runtimes.
-Future<Book> parseBookInBackground(final Book Function() parse, final Uint8List bytes) =>
-    _run(parse);
+Future<Book> parseBookInBackground(final Book Function() parse, final Uint8List bytes) {
+  return _run(parse);
+}
 
 /// Runs metadata extraction away from the caller on isolate-supporting runtimes.
 Future<BookMetadata> readMetadataInBackground(

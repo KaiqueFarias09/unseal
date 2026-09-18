@@ -1,13 +1,11 @@
-import 'package:xml/xml.dart';
-
-import '../container/odt_package.dart';
+part of '../parse_odt_book.dart';
 
 /// Text and list styles needed by the XHTML renderer.
-final class OdtStyleCatalog {
-  const OdtStyleCatalog._(this._styles, this._listKinds);
+final class _OdtStyleCatalog {
+  const _OdtStyleCatalog._(this._styles, this._listKinds);
 
   /// Builds a catalog from automatic and named styles in [package].
-  factory OdtStyleCatalog.fromPackage(final OdtPackage package) {
+  factory _OdtStyleCatalog.fromPackage(final _OdtPackage package) {
     final values = <String, _OdtStyle>{};
     final listKinds = <String, String>{};
     final roots = <XmlElement>[
@@ -18,29 +16,28 @@ final class OdtStyleCatalog {
       for (final element in root.descendants.whereType<XmlElement>()) {
         final local = element.name.local;
         if (local == 'style') {
-          final name = odtAttribute(element, 'name');
+          final name = _odtAttribute(element, 'name');
           if (name == null || name.isEmpty) continue;
-          final properties = odtFindDescendant(element, 'text-properties');
+          final properties = _odtFindDescendant(element, 'text-properties');
           values[name] = _OdtStyle(
-            name: odtAttribute(odtFindChild(element, 'name'), 'name') ?? name,
-            bold: _isBold(odtAttribute(properties, 'font-weight')),
-            italic: _isItalic(odtAttribute(properties, 'font-style')),
-            underline: odtAttribute(properties, 'text-underline-style') != null,
+            name: _odtAttribute(element, 'display-name') ?? name,
+            bold: _isBold(_odtAttribute(properties, 'font-weight')),
+            italic: _isItalic(_odtAttribute(properties, 'font-style')),
+            underline: _isUnderline(_odtAttribute(properties, 'text-underline-style')),
           );
         } else if (local == 'list-style') {
-          final name = odtAttribute(element, 'name');
+          final name = _odtAttribute(element, 'name');
           if (name == null || name.isEmpty) continue;
-          final isNumbered = element.descendants.whereType<XmlElement>().any(
-            (final child) =>
-                child.name.local == 'level-style-number' ||
-                child.name.local == 'list-level-style-number',
-          );
+          final isNumbered = element.descendants.whereType<XmlElement>().any((final child) {
+            return child.name.local == 'level-style-number' ||
+                child.name.local == 'list-level-style-number';
+          });
           listKinds[name] = isNumbered ? 'ol' : 'ul';
         }
       }
     }
 
-    return OdtStyleCatalog._(values, listKinds);
+    return _OdtStyleCatalog._(values, listKinds);
   }
 
   final Map<String, _OdtStyle> _styles;
@@ -56,10 +53,12 @@ final class OdtStyleCatalog {
   String wrap(final String? name, final String content) {
     final style = name == null ? null : _styles[name];
     if (style == null || content.isEmpty) return content;
+
     var wrapped = content;
     if (style.bold) wrapped = '<strong>$wrapped</strong>';
     if (style.italic) wrapped = '<em>$wrapped</em>';
     if (style.underline) wrapped = '<u>$wrapped</u>';
+
     return wrapped;
   }
 }
@@ -81,3 +80,5 @@ final class _OdtStyle {
 bool _isBold(final String? value) => value != null && value.toLowerCase() == 'bold';
 
 bool _isItalic(final String? value) => value != null && value.toLowerCase() == 'italic';
+
+bool _isUnderline(final String? value) => value != null && value.toLowerCase() != 'none';

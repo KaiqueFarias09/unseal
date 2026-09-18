@@ -54,11 +54,12 @@ DecodedFont decodeFontRecord(final Uint8List data) {
     } on Object {
       return DecodedFont(data: data, extension: 'dat');
     }
+
     if (fontData.length != usize) return DecodedFont(data: data, extension: 'dat');
   }
+
   final signature = fontData.length >= 4 ? fontData.sublist(0, 4) : fontData;
   String extension;
-
   if (_equals(signature, const [0x00, 0x01, 0x00, 0x00]) ||
       _equalsAscii(signature, 'true') ||
       _equalsAscii(signature, 'ttcf')) {

@@ -1,7 +1,7 @@
 import '../../../foundation/exceptions/elivre_exception.dart';
 
 /// Error thrown while reading or parsing an EPUB document.
-class EpubException extends ELivreException {
+final class EpubException extends ELivreException {
   /// Creates an [EpubException] with the given [message].
   EpubException(super.message);
 

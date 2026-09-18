@@ -112,4 +112,6 @@ Uint8List aes128CbcEncryptNoPad(
   final Uint8List key,
   final Uint8List iv,
   final Uint8List plaintext,
-) => aesCbcEncryptNoPad(key, iv, plaintext);
+) {
+  return aesCbcEncryptNoPad(key, iv, plaintext);
+}

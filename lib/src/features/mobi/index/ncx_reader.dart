@@ -108,8 +108,8 @@ List<NcxEntry> readNcx(
 
 /// Builds a [Navigation] from enriched NCX [entries].
 ///
-/// Mirrors Calibre's `build_toc`: entries are grouped by hierarchy
-/// level and attached to the node identified by their parent num.
+/// Groups entries by hierarchy level and attaches each one to the node
+/// identified by its parent number.
 Navigation buildNavigation(final List<NcxEntry> entries) {
   final levels = entries.map((final e) => e.hlvl).toSet().toList()..sort();
   final roots = <NavPoint>[];

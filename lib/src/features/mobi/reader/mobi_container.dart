@@ -25,9 +25,7 @@ class MobiContainer {
 
         pos += 8;
         final payloadSize = size - 8;
-        if (payloadSize < 0) {
-          break;
-        }
+        if (payloadSize < 0) break;
         if (idx == 539) {
           imageContainer = _isMimeImage(data, pos, payloadSize);
           break;
@@ -61,7 +59,7 @@ class MobiContainer {
 
   static bool _isMimeImage(final Uint8List data, final int start, final int length) {
     const mime = 'application/image';
-    if (length != mime.length) return false;
+    if (length != mime.length || start < 0 || start + length > data.length) return false;
 
     for (var i = 0; i < mime.length; i++) {
       if (data[start + i] != mime.codeUnitAt(i)) return false;

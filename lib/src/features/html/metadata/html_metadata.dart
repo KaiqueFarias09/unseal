@@ -1,19 +1,12 @@
-import 'package:html/parser.dart' as html_parser;
-import 'package:xml/xml.dart';
-
-import '../../../foundation/entities/entities.dart';
-import '../../../foundation/images/image_dimensions.dart';
-import '../../../foundation/images/image_type_sniffer.dart';
-import '../../../foundation/text/xml_encoding.dart';
+part of '../parse_html_book.dart';
 
 /// Metadata values collected before the source format is applied.
 ///
-/// Keeping this as a small intermediate value lets HTML metadata and a
-/// top-level HTMLZ `metadata.opf` be merged without pretending that OPF is a
-/// separate book format.
-final class HtmlMetadataValues {
+/// Keeping this as a small intermediate value lets HTML metadata and a top-level HTMLZ
+/// `metadata.opf` be merged without pretending that OPF is a separate book format.
+final class _HtmlMetadata {
   /// Creates a metadata value set.
-  const HtmlMetadataValues({
+  const _HtmlMetadata({
     this.title,
     this.titleSort,
     this.authorSort,
@@ -82,10 +75,8 @@ final class HtmlMetadataValues {
 }
 
 /// Reads metadata from an HTML/HTM/XHTML source.
-HtmlMetadataValues metadataValuesFromHtml(final String source) {
-  final document = html_parser.parse(source);
+_HtmlMetadata _metadataFromHtml(final dom.Document document) {
   final meta = <String, String>{};
-
   for (final element in document.querySelectorAll('meta')) {
     final content = element.attributes['content']?.trim();
     if (content == null || content.isEmpty) continue;
@@ -97,6 +88,7 @@ HtmlMetadataValues metadataValuesFromHtml(final String source) {
             ?.trim()
             .toLowerCase();
     if (key == null || key.isEmpty) continue;
+
     meta.putIfAbsent(key, () => content);
   }
 
@@ -133,7 +125,7 @@ HtmlMetadataValues metadataValuesFromHtml(final String source) {
     _metaValue(meta, const ['isbn', 'dc.identifier.isbn', 'dcterms.identifier.isbn']),
   );
 
-  return HtmlMetadataValues(
+  return _HtmlMetadata(
     title: title,
     titleSort: _firstNonEmpty(<String?>[
       _metaValue(meta, const ['title_sort', 'calibre:title_sort', 'dc.title.sort']),
@@ -170,29 +162,46 @@ HtmlMetadataValues metadataValuesFromHtml(final String source) {
 
 /// Reads the common OPF metadata used inside HTMLZ archives.
 ///
-/// OPF is intentionally only a metadata/manifest input here. The returned
-/// values never change the source format from HTMLZ.
-HtmlMetadataValues metadataValuesFromOpf(final List<int> bytes) {
+/// OPF is intentionally only a metadata/manifest input here. The returned values never change the
+/// source format from HTMLZ.
+_HtmlMetadata _metadataFromOpf(final List<int> bytes) {
   final document = XmlDocument.parse(decodeXmlText(bytes));
   final metadataElement = document.descendants.whereType<XmlElement>().firstWhere(
     (final element) => element.name.local.toLowerCase() == 'metadata',
     orElse: () => document.rootElement,
   );
+  final values = _readOpfMetadata(metadataElement);
+  final coverHref = _opfCoverHref(document, values.coverId);
 
-  String? value(final String localName) {
-    for (final element in metadataElement.children.whereType<XmlElement>()) {
-      if (element.name.local.toLowerCase() == localName.toLowerCase()) {
-        final text = element.innerText.trim();
-        if (text.isNotEmpty) return text;
-      }
-    }
-    return null;
-  }
+  final cover = coverHref ?? _opfGuideCoverHref(document);
 
+  return _HtmlMetadata(
+    title: _opfValue(metadataElement, 'title'),
+    titleSort: values.titleSort,
+    authorSort: values.authorSort,
+    bookProducer: values.bookProducer,
+    authors: values.creators.isEmpty ? null : values.creators,
+    languages: values.languages.isEmpty ? null : values.languages,
+    publisher: _opfValue(metadataElement, 'publisher'),
+    description: _opfValue(metadataElement, 'description'),
+    isbn: values.isbn ?? _normalizeIsbn(_opfValue(metadataElement, 'isbn')),
+    subjects: values.subjects.isEmpty ? null : values.subjects,
+    publishedAt: _parseDate(_opfValue(metadataElement, 'date')),
+    rights: _opfValue(metadataElement, 'rights'),
+    series: values.series,
+    seriesIndex: values.seriesIndex,
+    identifiers: values.identifiers,
+    coverHref: cover,
+  );
+}
+
+final class _OpfMetadataValues {
   final creators = <String>[];
   final subjects = <String>[];
   final languages = <String>[];
   final identifiers = <String, String>{};
+  final identifierValues = <String>[];
+  String? isbn;
   String? titleSort;
   String? authorSort;
   String? bookProducer;
@@ -200,36 +209,46 @@ HtmlMetadataValues metadataValuesFromOpf(final List<int> bytes) {
   double? seriesIndex;
   String? coverId;
 
-  for (final element in metadataElement.children.whereType<XmlElement>()) {
+  void add(final XmlElement element) {
     final localName = element.name.local.toLowerCase();
     final text = element.innerText.trim();
     if (localName == 'creator' && text.isNotEmpty) {
       creators.add(text);
       authorSort ??= _attributeByLocalName(element, 'file-as');
-      continue;
+
+      return;
     }
     if (localName == 'subject' && text.isNotEmpty) {
       subjects.add(text);
-      continue;
+
+      return;
     }
     if (localName == 'language' && text.isNotEmpty) {
       languages.add(text);
-      continue;
+
+      return;
     }
     if (localName == 'identifier' && text.isNotEmpty) {
-      final scheme = _firstNonEmpty(<String?>[
-        _attributeByLocalName(element, 'scheme'),
-        _attributeByLocalName(element, 'id'),
-      ]);
-      identifiers[scheme ?? 'identifier-${identifiers.length}'] = text;
-      continue;
-    }
-    if (localName != 'meta') continue;
+      _addIdentifier(element, text);
 
+      return;
+    }
+    if (localName == 'meta') _addMeta(element, text);
+  }
+
+  void _addIdentifier(final XmlElement element, final String text) {
+    final scheme = _attributeByLocalName(element, 'scheme');
+    final id = _attributeByLocalName(element, 'id');
+    identifierValues.add(text);
+    identifiers[_firstNonEmpty(<String?>[scheme, id]) ?? 'identifier-${identifiers.length}'] = text;
+    if (_isIsbnIdentifier(text, scheme)) isbn ??= _normalizeIsbn(text);
+  }
+
+  void _addMeta(final XmlElement element, final String text) {
     final name = _attributeByLocalName(element, 'name')?.toLowerCase();
     final property = _attributeByLocalName(element, 'property')?.toLowerCase();
     final content = _firstNonEmpty(<String?>[_attributeByLocalName(element, 'content'), text]);
-    if (content == null) continue;
+    if (content == null) return;
 
     switch (name ?? property) {
       case 'cover':
@@ -255,76 +274,77 @@ HtmlMetadataValues metadataValuesFromOpf(final List<int> bytes) {
         bookProducer = content;
     }
   }
+}
 
-  String? coverHref;
-  final manifest = document.descendants.whereType<XmlElement>().where(
-    (final element) => element.name.local.toLowerCase() == 'manifest',
-  );
-  final items = manifest.expand(
-    (final element) => element.children.whereType<XmlElement>().where(
-      (final child) => child.name.local.toLowerCase() == 'item',
-    ),
-  );
-  final itemList = items.toList(growable: false);
-  XmlElement? coverItem;
-  if (coverId != null) {
-    for (final item in itemList) {
-      if (_attributeByLocalName(item, 'id') == coverId) {
-        coverItem = item;
-        break;
-      }
-    }
+_OpfMetadataValues _readOpfMetadata(final XmlElement metadataElement) {
+  final values = _OpfMetadataValues();
+  for (final element in metadataElement.children.whereType<XmlElement>()) {
+    values.add(element);
   }
-  coverItem ??= itemList.cast<XmlElement?>().firstWhere(
-    (final item) => (_attributeByLocalName(item!, 'properties') ?? '')
+
+  return values;
+}
+
+String? _opfValue(final XmlElement metadataElement, final String localName) {
+  for (final element in metadataElement.children.whereType<XmlElement>()) {
+    if (element.name.local.toLowerCase() != localName.toLowerCase()) continue;
+    final text = element.innerText.trim();
+    if (text.isNotEmpty) return text;
+  }
+
+  return null;
+}
+
+String? _opfCoverHref(final XmlDocument document, final String? coverId) {
+  final itemList = document.descendants
+      .whereType<XmlElement>()
+      .where((final element) => element.name.local.toLowerCase() == 'manifest')
+      .expand((final element) {
+        return element.children.whereType<XmlElement>().where(
+          (final child) => child.name.local.toLowerCase() == 'item',
+        );
+      })
+      .toList(growable: false);
+  final coverItem = _opfCoverItem(itemList, coverId);
+
+  return coverItem == null ? null : _attributeByLocalName(coverItem, 'href');
+}
+
+XmlElement? _opfCoverItem(final List<XmlElement> items, final String? coverId) {
+  for (final item in items) {
+    if (coverId != null && _attributeByLocalName(item, 'id') == coverId) return item;
+  }
+  for (final item in items) {
+    final properties = (_attributeByLocalName(item, 'properties') ?? '')
         .split(RegExp(r'\s+'))
-        .any((final property) => property.toLowerCase() == 'cover-image'),
-    orElse: () => null,
-  );
-  coverItem ??= itemList.cast<XmlElement?>().firstWhere(
-    (final item) =>
-        (_attributeByLocalName(item!, 'id') ?? '').toLowerCase().contains('cover') &&
-        (_attributeByLocalName(item, 'media-type') ?? '').toLowerCase().startsWith('image/'),
-    orElse: () => null,
-  );
-  if (coverItem != null) coverHref = _attributeByLocalName(coverItem, 'href');
-
-  final guide = document.descendants.whereType<XmlElement>().where(
-    (final element) => element.name.local.toLowerCase() == 'reference',
-  );
-  for (final reference in guide) {
-    if (coverHref != null) break;
-    if ((_attributeByLocalName(reference, 'type') ?? '').toLowerCase() == 'cover') {
-      coverHref = _attributeByLocalName(reference, 'href');
-    }
+        .any((final property) => property.toLowerCase() == 'cover-image');
+    if (properties) return item;
+  }
+  for (final item in items) {
+    final isCover = (_attributeByLocalName(item, 'id') ?? '').toLowerCase().contains('cover');
+    final isImage = (_attributeByLocalName(item, 'media-type') ?? '').toLowerCase().startsWith(
+      'image/',
+    );
+    if (isCover && isImage) return item;
   }
 
-  return HtmlMetadataValues(
-    title: value('title'),
-    titleSort: titleSort,
-    authorSort: authorSort,
-    bookProducer: bookProducer,
-    authors: creators.isEmpty ? null : creators,
-    languages: languages.isEmpty ? null : languages,
-    publisher: value('publisher'),
-    description: value('description'),
-    isbn: _normalizeIsbn(value('isbn')),
-    subjects: subjects.isEmpty ? null : subjects,
-    publishedAt: _parseDate(value('date')),
-    rights: value('rights'),
-    series: series,
-    seriesIndex: seriesIndex,
-    identifiers: identifiers,
-    coverHref: coverHref,
-  );
+  return null;
+}
+
+String? _opfGuideCoverHref(final XmlDocument document) {
+  for (final reference in document.descendants.whereType<XmlElement>()) {
+    if (reference.name.local.toLowerCase() != 'reference') continue;
+    if ((_attributeByLocalName(reference, 'type') ?? '').toLowerCase() != 'cover') continue;
+
+    return _attributeByLocalName(reference, 'href');
+  }
+
+  return null;
 }
 
 /// Merges the values from [overlay] over [base], retaining HTML fallbacks.
-HtmlMetadataValues mergeMetadataValues(
-  final HtmlMetadataValues base,
-  final HtmlMetadataValues overlay,
-) {
-  return HtmlMetadataValues(
+_HtmlMetadata _mergeHtmlMetadata(final _HtmlMetadata base, final _HtmlMetadata overlay) {
+  return _HtmlMetadata(
     title: overlay.title ?? base.title,
     titleSort: overlay.titleSort ?? base.titleSort,
     authorSort: overlay.authorSort ?? base.authorSort,
@@ -345,8 +365,8 @@ HtmlMetadataValues mergeMetadataValues(
 }
 
 /// Converts the intermediate values into the library's public metadata.
-BookMetadata buildHtmlMetadata(
-  final HtmlMetadataValues values,
+BookMetadata _buildHtmlMetadata(
+  final _HtmlMetadata values,
   final BookFormat format, {
   final BinaryFile? cover,
 }) {
@@ -376,6 +396,7 @@ String? _metaValue(final Map<String, String> values, final List<String> keys) {
     final value = values[key];
     if (value != null && value.isNotEmpty) return value;
   }
+
   return null;
 }
 
@@ -384,6 +405,7 @@ String? _firstNonEmpty(final Iterable<String?> values) {
     final trimmed = value?.trim();
     if (trimmed != null && trimmed.isNotEmpty) return trimmed;
   }
+
   return null;
 }
 
@@ -405,37 +427,56 @@ List<String> _splitValues(final String value) {
 
 List<String>? _valuesOrNull(final String? value) {
   if (value == null) return null;
+
   final values = _splitValues(value);
+
   return values.isEmpty ? null : values;
 }
 
 String? _normalizeIsbn(final String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;
-  final compact = trimmed.replaceAll(RegExp(r'[-\s]'), '').toUpperCase();
+
+  final identifier = trimmed.toLowerCase().startsWith('urn:isbn:')
+      ? trimmed.substring('urn:isbn:'.length)
+      : trimmed;
+  final compact = identifier.replaceAll(RegExp(r'[-\s]'), '').toUpperCase();
   final isbn10 = compact.length == 10 && RegExp(r'^\d{9}[\dX]$').hasMatch(compact);
   final isbn13 = compact.length == 13 && RegExp(r'^97[89]\d{10}$').hasMatch(compact);
+
   return isbn10 || isbn13 ? compact : trimmed;
+}
+
+bool _isIsbnIdentifier(final String value, final String? scheme) {
+  final normalizedScheme = scheme?.trim().toLowerCase();
+  if (normalizedScheme == 'isbn' || normalizedScheme == 'urn:isbn') return true;
+
+  return value.trim().toLowerCase().startsWith('urn:isbn:');
 }
 
 DateTime? _parseDate(final String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;
-  final direct = DateTime.tryParse(trimmed);
-  if (direct != null) return direct;
-  final match = RegExp(r'^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?').firstMatch(trimmed);
+
+  final match = RegExp(r'^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?').firstMatch(trimmed);
   if (match == null) return null;
-  return DateTime(
-    int.parse(match.group(1)!),
-    int.tryParse(match.group(2) ?? '') ?? 1,
-    int.tryParse(match.group(3) ?? '') ?? 1,
-  );
+
+  final year = int.parse(match.group(1)!);
+  final month = int.tryParse(match.group(2) ?? '') ?? 1;
+  final day = int.tryParse(match.group(3) ?? '') ?? 1;
+  final calendarDate = DateTime.utc(year, month, day);
+  if (calendarDate.year != year || calendarDate.month != month || calendarDate.day != day) {
+    return null;
+  }
+
+  return DateTime.tryParse(trimmed) ?? DateTime(year, month, day);
 }
 
 String? _attributeByLocalName(final XmlElement element, final String name) {
   for (final attribute in element.attributes) {
     if (attribute.name.local.toLowerCase() == name.toLowerCase()) return attribute.value.trim();
   }
+
   return null;
 }
 
@@ -443,8 +484,11 @@ String? _nonEmptyOrNull(final String? value) => _firstNonEmpty(<String?>[value])
 
 BookCover? _bookCover(final BinaryFile? cover) {
   if (cover == null || cover.isEmpty) return null;
+
   final type = sniffImageType(cover.content);
   if (type == null) return null;
+
   final size = imageSize(cover.content);
+
   return BookCover(bytes: cover.content, type: type, width: size?.width, height: size?.height);
 }

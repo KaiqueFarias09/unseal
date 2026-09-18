@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/comic/archive/rar_reader.dart';
 import 'package:test/test.dart';
 
 // Byte-packing builders read best as sequential field writes.
@@ -12,80 +11,85 @@ void main() {
   group('RAR 4 optional header fields', () {
     test('skips the 64-bit size fields (flag 0x0100)', () {
       final archive = buildRar4(['high.jpg'], flags: 0x8000 | 0x0100, withHighSizes: true);
-      final entries = readRarEntries(archive);
-      expect(entries.single.name, 'high.jpg');
-      expect(entries.single.data, tinyJpegPage);
+      final book = parseComicBook(archive);
+
+      expect(book.pages.single.name, 'high.jpg');
+      expect(book.pages.single.content, tinyJpegPage);
     });
 
     test('skips the encryption salt (flag 0x0400)', () {
       final archive = buildRar4(['salt.jpg'], flags: 0x8000 | 0x0400, withSalt: true);
-      final entries = readRarEntries(archive);
-      expect(entries.single.name, 'salt.jpg');
-      expect(entries.single.isStored, isTrue);
+      final book = parseComicBook(archive);
+
+      expect(book.pages.single.name, 'salt.jpg');
+      expect(book.pages.single.content, tinyJpegPage);
     });
 
     test('decodes the real RAR 4 method-29 CBR pages', () {
       final bytes = File(
         'test/resources/books/comic/american-beauty-trading-cards-1909.cbr',
       ).readAsBytesSync();
-      final pages = readRarEntries(bytes).where((final entry) => !entry.isDirectory).toList();
+      final pages = parseComicBook(bytes).pages;
 
       expect(pages, hasLength(24));
-      expect(pages.every((final page) => sniffImageType(page.data) == ImageType.jpeg), isTrue);
+      expect(pages.every((final page) => sniffImageType(page.content) == ImageType.jpeg), isTrue);
     });
 
     test('stops when a file name runs past the buffer', () {
       final archive = buildRar4(['gone.jpg'], nameSizeOvershoot: 2);
-      expect(readRarEntries(archive), isEmpty);
+      expect(() => parseComicBook(archive), throwsA(isA<ComicException>()));
     });
   });
 
   group('RAR 5', () {
     test('reads stored entries behind a main header', () {
       final archive = buildRar5(['002.jpg', '001.jpg']);
-      final entries = readRarEntries(archive);
-      expect(entries.map((final entry) => entry.name).toList(), ['002.jpg', '001.jpg']);
-      expect(entries.every((final entry) => entry.isStored), isTrue);
-      expect(entries.first.data, tinyJpegPage);
+      final book = parseComicBook(archive);
+
+      expect(book.pages.map((final page) => page.name).toList(), ['001.jpg', '002.jpg']);
+      expect(book.pages.first.content, tinyJpegPage);
     });
 
     test('reads stored entries with an extra metadata area', () {
-      final entries = readRarEntries(buildRar5(['001.jpg', '002.jpg'], withExtraArea: true));
+      final book = parseComicBook(buildRar5(['001.jpg', '002.jpg'], withExtraArea: true));
 
-      expect(entries, hasLength(2));
-      expect(entries.map((final entry) => entry.name).toList(), ['001.jpg', '002.jpg']);
-      expect(entries.every((final entry) => entry.isStored), isTrue);
-      expect(entries.first.data, tinyJpegPage);
-      expect(entries.last.data, tinyJpegPage);
+      expect(book.pages, hasLength(2));
+      expect(book.pages.map((final page) => page.name).toList(), ['001.jpg', '002.jpg']);
+      expect(book.pages.first.content, tinyJpegPage);
+      expect(book.pages.last.content, tinyJpegPage);
     });
 
     test('reports compressed entries as not stored', () {
-      final entries = readRarEntries(buildRar5(['001.jpg'], method: 3));
-      expect(entries.single.isStored, isFalse);
-      expect(entries.single.data, isEmpty);
+      expect(
+        () => parseComicBook(buildRar5(['001.jpg'], method: 3)),
+        throwsA(isA<ComicException>()),
+      );
     });
 
     test('parses headers carrying mtime and data crc', () {
-      final entries = readRarEntries(buildRar5(['001.jpg'], fileFlags: 0x0006));
-      expect(entries.single.name, '001.jpg');
-      expect(entries.single.data, tinyJpegPage);
+      final book = parseComicBook(buildRar5(['001.jpg'], fileFlags: 0x0006));
+
+      expect(book.pages.single.name, '001.jpg');
+      expect(book.pages.single.content, tinyJpegPage);
     });
 
     test('marks directory entries', () {
-      final entries = readRarEntries(buildRar5(['chapter1/'], fileFlags: 0x0001));
-      expect(entries.single.isDirectory, isTrue);
-      expect(entries.single.data, isEmpty);
+      expect(
+        () => parseComicBook(buildRar5(['chapter1/'], fileFlags: 0x0001)),
+        throwsA(isA<ComicException>()),
+      );
     });
 
     test('stops at the end-of-archive block', () {
-      final entries = readRarEntries(buildRar5(['001.jpg'], trailingGarbage: true));
-      expect(entries, hasLength(1));
+      final book = parseComicBook(buildRar5(['001.jpg'], trailingGarbage: true));
+
+      expect(book.pages, hasLength(1));
     });
 
     test('rejects non-RAR and truncated buffers', () {
-      expect(() => readRarEntries(Uint8List(4)), throwsA(isA<ComicException>()));
+      expect(() => parseComicBook(Uint8List(4)), throwsA(isA<ComicException>()));
       expect(
-        () => readRarEntries(Uint8List.fromList('NOTARAR!'.codeUnits)),
+        () => parseComicBook(Uint8List.fromList('NOTARAR!'.codeUnits)),
         throwsA(isA<ComicException>()),
       );
     });

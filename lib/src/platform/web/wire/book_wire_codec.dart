@@ -158,66 +158,101 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
 
   final pdf = json['pdf'] as Map<String, Object?>?;
   if (pdf != null) {
-    return PdfBook(
-      bytes: blobs[pdf['bytes'] as int] as Uint8List,
-      metadata: decodeMetadataWireValue(json['metadata'] as Map<String, Object?>, blobs),
-      pages: <PdfPage>[
-        for (final entry in pdf['pages'] as List<Object?>)
-          PdfPage(
-            objectNumber: (entry as Map<String, Object?>)['objectNumber'] as int,
-            mediaBox: _doubleList(entry['mediaBox']),
-            cropBox: entry['cropBox'] == null ? null : _doubleList(entry['cropBox']),
-            rotate: (entry['rotate'] as int?) ?? 0,
-          ),
-      ],
-      pageTexts: <PdfPageText>[
-        for (final pageText in pdf['pageTexts'] as List<Object?>? ?? const <Object?>[])
-          PdfPageText(
-            lines: <PdfTextLine>[
-              for (final line in (pageText as Map<String, Object?>)['lines'] as List<Object?>)
-                PdfTextLine(
-                  text: (line as Map<String, Object?>)['t'] as String,
-                  x: (line['x'] as num).toDouble(),
-                  y: (line['y'] as num).toDouble(),
-                  width: (line['w'] as num).toDouble(),
-                  height: (line['h'] as num).toDouble(),
-                  fontSize: (line['s'] as num).toDouble(),
-                  rotated: line['r'] as bool? ?? false,
-                ),
-            ],
-          ),
-      ],
-      navigation: navigation,
-      pageFiles: files.html,
+    return _decodePdfBook(json, blobs, format, navigation, files, pdf);
+  }
+
+  return _decodeStoredBook(json, format, navigation, files, cover, archiveEntries, blobs);
+}
+
+PdfBook _decodePdfBook(
+  final Map<String, Object?> json,
+  final List<Object> blobs,
+  final BookFormat format,
+  final Navigation navigation,
+  final Files files,
+  final Map<String, Object?> pdf,
+) {
+  return PdfBook(
+    bytes: blobs[pdf['bytes'] as int] as Uint8List,
+    metadata: decodeMetadataWireValue(json['metadata'] as Map<String, Object?>, blobs),
+    pages: _decodePdfPages(pdf['pages'] as List<Object?>),
+    pageTexts: _decodePdfPageTexts(pdf['pageTexts'] as List<Object?>? ?? const <Object?>[]),
+    navigation: navigation,
+    pageFiles: files.html,
+    format: format,
+  );
+}
+
+List<PdfPage> _decodePdfPages(final List<Object?> entries) {
+  return <PdfPage>[
+    for (final entry in entries)
+      PdfPage(
+        objectNumber: (entry as Map<String, Object?>)['objectNumber'] as int,
+        mediaBox: _doubleList(entry['mediaBox']),
+        cropBox: entry['cropBox'] == null ? null : _doubleList(entry['cropBox']),
+        rotate: (entry['rotate'] as int?) ?? 0,
+      ),
+  ];
+}
+
+List<PdfPageText> _decodePdfPageTexts(final List<Object?> pageEntries) {
+  return <PdfPageText>[
+    for (final pageText in pageEntries)
+      PdfPageText(
+        lines: _decodePdfTextLines((pageText as Map<String, Object?>)['lines'] as List<Object?>),
+      ),
+  ];
+}
+
+List<PdfTextLine> _decodePdfTextLines(final List<Object?> entries) {
+  return <PdfTextLine>[
+    for (final line in entries) _decodePdfTextLine(line as Map<String, Object?>),
+  ];
+}
+
+PdfTextLine _decodePdfTextLine(final Map<String, Object?> line) {
+  return PdfTextLine(
+    text: line['t'] as String,
+    x: (line['x'] as num).toDouble(),
+    y: (line['y'] as num).toDouble(),
+    width: (line['w'] as num).toDouble(),
+    height: (line['h'] as num).toDouble(),
+    fontSize: (line['s'] as num).toDouble(),
+    rotated: line['r'] as bool? ?? false,
+  );
+}
+
+Book _decodeStoredBook(
+  final Map<String, Object?> json,
+  final BookFormat format,
+  final Navigation navigation,
+  final Files files,
+  final BinaryFile cover,
+  final List<ArchiveEntry> archiveEntries,
+  final List<Object> blobs,
+) {
+  final storedMetadata = json['metadata'] as Map<String, Object?>?;
+  if (storedMetadata == null) {
+    throw ArgumentError('Book wire payload holds no format-specific section');
+  }
+  final metadata = decodeMetadataWireValue(storedMetadata, blobs);
+  final document = json['document'] as Map<String, Object?>?;
+  if (document != null) {
+    return DocumentBook(
       format: format,
+      files: files,
+      cover: cover.isEmpty ? null : cover,
+      metadata: metadata,
+      navigation: navigation,
+      archiveEntries: archiveEntries,
+      order: (document['order'] as List<Object?>?)?.cast<String>(),
     );
   }
-
-  final storedMetadata = json['metadata'] as Map<String, Object?>?;
-  if (storedMetadata != null) {
-    final metadata = decodeMetadataWireValue(storedMetadata, blobs);
-    final document = json['document'] as Map<String, Object?>?;
-    if (document != null) {
-      final order = (document['order'] as List<Object?>?)?.cast<String>();
-
-      return DocumentBook(
-        format: format,
-        files: files,
-        cover: cover.isEmpty ? null : cover,
-        metadata: metadata,
-        navigation: navigation,
-        archiveEntries: archiveEntries,
-        order: order,
-      );
-    }
-    if (format == BookFormat.fb2) {
-      return Fb2Book(navigation: navigation, files: files, cover: cover, metadata: metadata);
-    }
-
-    return ComicBook(cover: cover, metadata: metadata, pages: files.images, format: format);
+  if (format == BookFormat.fb2) {
+    return Fb2Book(navigation: navigation, files: files, cover: cover, metadata: metadata);
   }
 
-  throw ArgumentError('Book wire payload holds no format-specific section');
+  return ComicBook(cover: cover, metadata: metadata, pages: files.images, format: format);
 }
 
 /// Every parsed book exposes its cover as a [BinaryFile]; the

@@ -30,7 +30,6 @@ Navigation getEpubNavigation(
         .where((final item) => _mediaType(item.mediaType) == 'application/x-dtbncx+xml')
         .map((final item) => item.id),
   ];
-
   final triedIds = <String>{};
   for (final tocId in candidateIds) {
     if (!triedIds.add(tocId)) continue;
@@ -80,6 +79,7 @@ Navigation? _navigationFromNcx(final XmlDocument document) {
       '';
   final navMap = document.findAllElements('navMap').firstOrNull;
   if (navMap == null) return null;
+
   final rootPoints = navMap.findElements('navPoint').map(_navPointFromNcx).toList();
 
   return Navigation(title: title, navPoints: rootPoints);
@@ -125,6 +125,7 @@ Navigation? _navigationFromNavDoc(final XmlDocument document) {
 
     navElement ??= candidate;
   }
+
   if (navElement == null) return null;
 
   final list = navElement.findElements('ol').firstOrNull;

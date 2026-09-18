@@ -1,23 +1,21 @@
-import 'dart:typed_data';
-
-import '../../../foundation/text/xml_encoding.dart';
+part of '../parse_txt_book.dart';
 
 /// The result of turning one TXT-family entry into reader HTML.
-final class TxtRenderedDocument {
+final class _TxtRenderedDocument {
   /// Creates a rendered document.
-  const TxtRenderedDocument({required this.html, required this.headings});
+  const _TxtRenderedDocument({required this.html, required this.headings});
 
   /// XHTML-ish HTML suitable for the library's text-file model.
   final String html;
 
   /// Headings found while rendering Markdown/Textile input.
-  final List<TxtHeading> headings;
+  final List<_TxtHeading> headings;
 }
 
 /// A heading discovered in a TXT-family document.
-final class TxtHeading {
+final class _TxtHeading {
   /// Creates a heading description.
-  const TxtHeading({required this.level, required this.label, required this.id});
+  const _TxtHeading({required this.level, required this.label, required this.id});
 
   /// The source heading level, from 1 through 6.
   final int level;
@@ -32,23 +30,23 @@ final class TxtHeading {
 /// Decodes a TXT-family payload using the library's BOM/declaration-aware
 /// decoder. The decoder supports UTF-8, UTF-16 and the legacy single-byte
 /// families already used by EPUB/FB2, and always replaces malformed input.
-String decodeTxtBytes(final List<int> bytes) => decodeXmlText(bytes);
+String _decodeTxtBytes(final List<int> bytes) => decodeXmlText(bytes);
 
 /// Normalizes line endings and the control/whitespace noise commonly found
-/// in text exports. The behavior follows Calibre's TXT processor at the
-/// format boundary: CRLF and CR become LF, trailing line whitespace goes
-/// away, and excessive empty lines are bounded without deleting paragraph
-/// boundaries.
-String normalizeTxtText(final String input) {
+/// in text exports. At the format boundary, CRLF and CR become LF, trailing
+/// line whitespace goes away, and excessive empty lines are bounded without
+/// deleting paragraph boundaries.
+String _normalizeTxtText(final String input) {
   final buffer = StringBuffer();
   for (final codeUnit in input.codeUnits) {
-    // Calibre removes ASCII controls that cannot be represented safely in
-    // XML/HTML while retaining tab, LF and CR as layout characters.
+    // Remove ASCII controls that cannot be represented safely in XML/HTML;
+    // retain tab, LF and CR because they carry layout information.
     if (codeUnit < 0x09 ||
         (codeUnit >= 0x0B && codeUnit <= 0x0C) ||
         (codeUnit >= 0x0E && codeUnit <= 0x1F)) {
       continue;
     }
+
     buffer.writeCharCode(codeUnit);
   }
 
@@ -59,7 +57,6 @@ String normalizeTxtText(final String input) {
       .split('\n')
       .map((final line) => line.replaceFirst(RegExp(r'[ \t]+$'), ''))
       .toList();
-
   while (lines.length > 1 && lines.first.trim().isEmpty) {
     lines.removeAt(0);
   }
@@ -82,12 +79,11 @@ String normalizeTxtText(final String input) {
   return bounded.join('\n');
 }
 
-/// Renders plain TXT, Markdown-like TXT, or Textile-like TXT into the
-/// document model consumed by the common document-book model. Markdown/Textile support is
-/// intentionally small and safe: it covers the constructs Calibre uses to
-/// preserve headings and local image references in TXTZ without pretending
-/// to be a complete Markdown implementation.
-TxtRenderedDocument renderTxtDocument(
+/// Renders plain TXT, Markdown-like TXT, or Textile-like TXT into the common document model.
+/// Markdown/Textile support is intentionally small and safe. It covers the constructs needed to
+/// preserve headings and local image references in TXTZ without pretending to be a complete
+/// Markdown implementation.
+_TxtRenderedDocument _renderTxtDocument(
   final String input, {
   final String title = '',
   final String formatting = 'plain',
@@ -99,12 +95,12 @@ TxtRenderedDocument renderTxtDocument(
   return _renderPlain(input, title);
 }
 
-TxtRenderedDocument _renderPlain(final String input, final String title) {
-  final normalized = normalizeTxtText(input);
+_TxtRenderedDocument _renderPlain(final String input, final String title) {
+  final normalized = _normalizeTxtText(input);
   final lines = normalized.isEmpty ? const <String>[] : normalized.split('\n');
   final body = _renderPlainBlocks(lines);
 
-  return TxtRenderedDocument(html: _htmlDocument(title, body), headings: const <TxtHeading>[]);
+  return _TxtRenderedDocument(html: _htmlDocument(title, body), headings: const <_TxtHeading>[]);
 }
 
 String _renderPlainBlocks(final List<String> lines) {
@@ -127,6 +123,7 @@ String _renderPlainBlocks(final List<String> lines) {
       // This mirrors convert_basic's useful visual marker for a deliberate
       // extra blank paragraph while still avoiding unbounded empty output.
       if (emptyRun == 2) blocks.add('<p>&nbsp;</p>');
+
       continue;
     }
     emptyRun = 0;
@@ -146,10 +143,10 @@ String _plainLine(final String line) {
   return leading + _escapeHtml(condensed);
 }
 
-TxtRenderedDocument _renderMarkdown(final String input, final String title) {
-  final normalized = normalizeTxtText(input);
+_TxtRenderedDocument _renderMarkdown(final String input, final String title) {
+  final normalized = _normalizeTxtText(input);
   final lines = normalized.isEmpty ? const <String>[] : normalized.split('\n');
-  final headings = <TxtHeading>[];
+  final headings = <_TxtHeading>[];
   final blocks = <String>[];
   final paragraph = <String>[];
 
@@ -162,6 +159,7 @@ TxtRenderedDocument _renderMarkdown(final String input, final String title) {
   for (final line in lines) {
     if (line.trim().isEmpty) {
       flushParagraph();
+
       continue;
     }
 
@@ -171,8 +169,9 @@ TxtRenderedDocument _renderMarkdown(final String input, final String title) {
       final level = heading.group(1)!.length;
       final label = heading.group(2)!.trim();
       final id = _headingId(label, headings.length);
-      headings.add(TxtHeading(level: level, label: _stripMarkdown(label), id: id));
+      headings.add(_TxtHeading(level: level, label: _stripMarkdown(label), id: id));
       blocks.add('<h$level id="$id">${_markdownInline(label)}</h$level>');
+
       continue;
     }
 
@@ -180,13 +179,13 @@ TxtRenderedDocument _renderMarkdown(final String input, final String title) {
   }
   flushParagraph();
 
-  return TxtRenderedDocument(html: _htmlDocument(title, blocks.join('\n')), headings: headings);
+  return _TxtRenderedDocument(html: _htmlDocument(title, blocks.join('\n')), headings: headings);
 }
 
-TxtRenderedDocument _renderTextile(final String input, final String title) {
-  final normalized = normalizeTxtText(input);
+_TxtRenderedDocument _renderTextile(final String input, final String title) {
+  final normalized = _normalizeTxtText(input);
   final lines = normalized.isEmpty ? const <String>[] : normalized.split('\n');
-  final headings = <TxtHeading>[];
+  final headings = <_TxtHeading>[];
   final blocks = <String>[];
   final paragraph = <String>[];
 
@@ -199,6 +198,7 @@ TxtRenderedDocument _renderTextile(final String input, final String title) {
   for (final line in lines) {
     if (line.trim().isEmpty) {
       flushParagraph();
+
       continue;
     }
 
@@ -208,8 +208,9 @@ TxtRenderedDocument _renderTextile(final String input, final String title) {
       final level = int.parse(heading.group(1)!);
       final label = heading.group(2)!.trim();
       final id = _headingId(label, headings.length);
-      headings.add(TxtHeading(level: level, label: _stripTextile(label), id: id));
+      headings.add(_TxtHeading(level: level, label: _stripTextile(label), id: id));
       blocks.add('<h$level id="$id">${_textileInline(label)}</h$level>');
+
       continue;
     }
 
@@ -218,27 +219,30 @@ TxtRenderedDocument _renderTextile(final String input, final String title) {
   }
   flushParagraph();
 
-  return TxtRenderedDocument(html: _htmlDocument(title, blocks.join('\n')), headings: headings);
+  return _TxtRenderedDocument(html: _htmlDocument(title, blocks.join('\n')), headings: headings);
 }
 
 String _markdownInline(final String input) {
   final placeholders = <String, String>{};
   var value = input;
   var placeholderIndex = 0;
-
   value = value.replaceAllMapped(RegExp(r'!\[([^\]]*)\]\(([^)]+)\)'), (final match) {
     final source = match.group(2)!.trim();
     if (!_isLocalReference(source)) return match.group(0)!;
+
     final token = '__ELIVRE_IMAGE_${placeholderIndex++}__';
     placeholders[token] =
         '<img src="${_escapeHtml(source)}" alt="${_escapeHtml(match.group(1)!)}">';
+
     return token;
   });
   value = value.replaceAllMapped(RegExp(r'\[([^\]]+)\]\(([^)]+)\)'), (final match) {
     final href = match.group(2)!.trim();
     if (!_isSafeLink(href)) return match.group(0)!;
+
     final token = '__ELIVRE_LINK_${placeholderIndex++}__';
     placeholders[token] = '<a href="${_escapeHtml(href)}">${_escapeHtml(match.group(1)!)}</a>';
+
     return token;
   });
 
@@ -263,9 +267,11 @@ String _textileInline(final String input) {
   value = value.replaceAllMapped(RegExp(r'!([^\s(!]+)(?:\(([^)]*)\))?!'), (final match) {
     final source = match.group(1)!;
     if (!_isLocalReference(source)) return match.group(0)!;
+
     final token = '__ELIVRE_IMAGE_${placeholderIndex++}__';
     placeholders[token] =
         '<img src="${_escapeHtml(source)}" alt="${_escapeHtml(match.group(2) ?? '')}">';
+
     return token;
   });
 
@@ -292,13 +298,16 @@ String _headingId(final String label, final int index) {
   final slug = _stripMarkup(
     label,
   ).toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
+
   return slug.isEmpty ? 'heading-${index + 1}' : '$slug-${index + 1}';
 }
 
-String _stripMarkdown(final String value) => value
-    .replaceAll(RegExp(r'!\[([^\]]*)\]\(([^)]+)\)'), r'$1')
-    .replaceAll(RegExp(r'\[([^\]]+)\]\(([^)]+)\)'), r'$1')
-    .replaceAll(RegExp(r'[*_`]'), '');
+String _stripMarkdown(final String value) {
+  return value
+      .replaceAll(RegExp(r'!\[([^\]]*)\]\(([^)]+)\)'), r'$1')
+      .replaceAll(RegExp(r'\[([^\]]+)\]\(([^)]+)\)'), r'$1')
+      .replaceAll(RegExp(r'[*_`]'), '');
+}
 
 String _stripTextile(final String value) => value.replaceAll(RegExp(r'[!*_]'), '');
 
@@ -308,29 +317,28 @@ bool _isLocalReference(final String value) {
   final trimmed = value.trim();
   if (trimmed.isEmpty || trimmed.startsWith('/') || trimmed.startsWith('\\')) return false;
   if (trimmed.contains(':') || trimmed.contains('\u0000')) return false;
+
   return !trimmed.split('/').contains('..');
 }
 
 bool _isSafeLink(final String value) {
   final lower = value.toLowerCase().trim();
+
   return !(lower.startsWith('javascript:') || lower.startsWith('data:'));
 }
 
-String _escapeHtml(final String value) => value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
+String _escapeHtml(final String value) {
+  return const convert.HtmlEscape().convert(value);
+}
 
-/// Extracts the lightweight title/author convention understood by Calibre's
-/// TXT metadata reader: title, two blank lines, author. A filename stem is a
-/// useful fallback when the caller has one, but is intentionally optional so
-/// byte-only parsing stays deterministic.
-(String? title, List<String> authors) txtHeaderMetadata(
+/// Extracts the lightweight TXT metadata convention: title, two blank lines,
+/// then author. A filename stem is a useful fallback when the caller has one,
+/// but is intentionally optional so byte-only parsing stays deterministic.
+({String? title, List<String> authors}) _txtHeaderMetadata(
   final String input, {
   final String? sourceName,
 }) {
-  final lines = normalizeTxtText(input).split('\n');
+  final lines = _normalizeTxtText(input).split('\n');
   String? title;
   List<String> authors = const <String>[];
   if (lines.length >= 4 &&
@@ -353,12 +361,13 @@ String _escapeHtml(final String value) => value
     if (stem.trim().isNotEmpty) title = stem.trim();
   }
 
-  return (title, authors);
+  return (title: title, authors: authors);
 }
 
 /// Returns the bounded prefix needed for metadata-only TXT reads.
-Uint8List metadataTxtPrefix(final Uint8List bytes, [final int limit = 64 * 1024]) {
+Uint8List _metadataTxtPrefix(final Uint8List bytes, [final int limit = 64 * 1024]) {
   if (bytes.length <= limit) return bytes;
+
   var length = limit;
   if (bytes.length >= 2 &&
       ((bytes[0] == 0xFF && bytes[1] == 0xFE) || (bytes[0] == 0xFE && bytes[1] == 0xFF))) {
@@ -369,5 +378,6 @@ Uint8List metadataTxtPrefix(final Uint8List bytes, [final int limit = 64 * 1024]
           (bytes[0] == 0 && bytes[1] == 0 && bytes[2] == 0xFE && bytes[3] == 0xFF))) {
     length -= length % 4;
   }
+
   return Uint8List.sublistView(bytes, 0, length);
 }

@@ -12,102 +12,7 @@ import 'dart:typed_data';
 /// code space fall back to 2 bytes.
 class PdfCMap {
   /// Parses a CMap [program] (the decoded stream text).
-  factory PdfCMap.parse(final String program) {
-    var codeBytes = 2;
-    final map = <int, String>{};
-    final cids = <int, int>{};
-    final tokens = _tokenize(program);
-    for (var i = 0; i < tokens.length; i++) {
-      final token = tokens[i];
-      if (token is! _Keyword) continue;
-      switch (token.text) {
-        case 'begincodespacerange':
-          final count = _intBefore(tokens, i);
-          var cursor = i + 1;
-          var seen = 0;
-          while (cursor + 1 < tokens.length && seen < (count ?? 1)) {
-            final low = tokens[cursor];
-            final high = tokens[cursor + 1];
-            if (low is _Hex && high is _Hex) {
-              codeBytes = low.bytes.length;
-              seen++;
-              cursor += 2;
-            } else {
-              break;
-            }
-          }
-        case 'begincidrange':
-          final count = _intBefore(tokens, i) ?? 0;
-          var cursor = i + 1;
-          var seen = 0;
-          while (cursor + 2 < tokens.length && seen < count) {
-            final low = tokens[cursor];
-            final high = tokens[cursor + 1];
-            final base = tokens[cursor + 2];
-            if (low is _Hex && high is _Hex && base is _Int) {
-              final start = _codeOf(low.bytes);
-              final end = _codeOf(high.bytes);
-              if (end >= start && end - start <= 65535) {
-                for (var code = start; code <= end; code++) {
-                  cids[code] = base.value + code - start;
-                }
-              }
-              seen++;
-              cursor += 3;
-            } else {
-              break;
-            }
-          }
-        case 'beginbfchar':
-          final count = _intBefore(tokens, i) ?? 0;
-          var cursor = i + 1;
-          var seen = 0;
-          while (cursor + 1 < tokens.length && seen < count) {
-            final source = tokens[cursor];
-            final destination = tokens[cursor + 1];
-            if (source is _Hex && destination is _Hex) {
-              _addRange(map, _codeOf(source.bytes), _codeOf(source.bytes), [destination.bytes]);
-              seen++;
-              cursor += 2;
-            } else if (source is _Hex) {
-              cursor += 1;
-            } else {
-              break;
-            }
-          }
-        case 'beginbfrange':
-          var cursor = i + 1;
-          final count = _intBefore(tokens, i) ?? 0;
-          var seen = 0;
-          while (cursor + 2 < tokens.length && seen < count) {
-            final low = tokens[cursor];
-            final high = tokens[cursor + 1];
-            final destination = tokens[cursor + 2];
-            if (low is _Hex && high is _Hex && destination is _Hex) {
-              _addRange(map, _codeOf(low.bytes), _codeOf(high.bytes), [destination.bytes]);
-              seen++;
-              cursor += 3;
-            } else if (low is _Hex && high is _Hex && destination is _ArrayStart) {
-              // Array destination form: one hex value per code.
-              final values = <Uint8List>[];
-              var scan = cursor + 2;
-              while (scan < tokens.length && tokens[scan] is! _ArrayEnd) {
-                final entry = tokens[scan];
-                if (entry is _Hex) values.add(entry.bytes);
-                scan++;
-              }
-              _addRange(map, _codeOf(low.bytes), _codeOf(high.bytes), values);
-              seen++;
-              cursor = scan + 1;
-            } else {
-              break;
-            }
-          }
-      }
-    }
-
-    return PdfCMap._(codeBytes, map, cids);
-  }
+  factory PdfCMap.parse(final String program) => _CMapParser(program).parse();
 
   const PdfCMap._(this.codeBytes, this.map, this.cidMap);
 
@@ -126,6 +31,7 @@ class PdfCMap {
   /// null when the buffer ends mid-code.
   int? codeAt(final Uint8List bytes, final int offset) {
     if (offset + codeBytes > bytes.length) return null;
+
     var value = 0;
     for (var i = 0; i < codeBytes; i++) {
       value = value * 256 + bytes[offset + i];
@@ -133,9 +39,133 @@ class PdfCMap {
 
     return value;
   }
+}
 
-  /// The Unicode string for [code], or null when unmapped.
-  String? unicodeOf(final int code) => map[code];
+/// Stateful parser for the four CMap mapping blocks. Keeping each block in
+/// its own method makes the PDF grammar visible without mixing all cursor
+/// conventions into the public value object.
+final class _CMapParser {
+  _CMapParser(final String program) : _tokens = _tokenize(program);
+
+  final List<_Token> _tokens;
+  final Map<int, String> _map = <int, String>{};
+  final Map<int, int> _cids = <int, int>{};
+  int _codeBytes = 2;
+
+  PdfCMap parse() {
+    for (var index = 0; index < _tokens.length; index++) {
+      final token = _tokens[index];
+      if (token is! _Keyword) {
+        continue;
+      }
+      switch (token.text) {
+        case 'begincodespacerange':
+          _parseCodeSpaceRange(index);
+        case 'begincidrange':
+          _parseCidRange(index);
+        case 'beginbfchar':
+          _parseBfChar(index);
+        case 'beginbfrange':
+          _parseBfRange(index);
+      }
+    }
+
+    return PdfCMap._(_codeBytes, _map, _cids);
+  }
+
+  void _parseCodeSpaceRange(final int operatorIndex) {
+    final count = _intBefore(_tokens, operatorIndex);
+    var cursor = operatorIndex + 1;
+    var seen = 0;
+    while (cursor + 1 < _tokens.length && seen < (count ?? 1)) {
+      final low = _tokens[cursor];
+      final high = _tokens[cursor + 1];
+      if (low is! _Hex || high is! _Hex) {
+        break;
+      }
+      _codeBytes = low.bytes.length;
+      seen++;
+      cursor += 2;
+    }
+  }
+
+  void _parseCidRange(final int operatorIndex) {
+    final count = _intBefore(_tokens, operatorIndex) ?? 0;
+    var cursor = operatorIndex + 1;
+    var seen = 0;
+    while (cursor + 2 < _tokens.length && seen < count) {
+      final low = _tokens[cursor];
+      final high = _tokens[cursor + 1];
+      final base = _tokens[cursor + 2];
+      if (low is! _Hex || high is! _Hex || base is! _Int) {
+        break;
+      }
+      final start = _codeOf(low.bytes);
+      final end = _codeOf(high.bytes);
+      if (end >= start && end - start <= 65535) {
+        for (var code = start; code <= end; code++) {
+          _cids[code] = base.value + code - start;
+        }
+      }
+      seen++;
+      cursor += 3;
+    }
+  }
+
+  void _parseBfChar(final int operatorIndex) {
+    final count = _intBefore(_tokens, operatorIndex) ?? 0;
+    var cursor = operatorIndex + 1;
+    var seen = 0;
+    while (cursor + 1 < _tokens.length && seen < count) {
+      final source = _tokens[cursor];
+      final destination = _tokens[cursor + 1];
+      if (source is! _Hex) {
+        break;
+      }
+      if (destination is _Hex) {
+        _addRange(_map, _codeOf(source.bytes), _codeOf(source.bytes), [destination.bytes]);
+        seen++;
+        cursor += 2;
+        continue;
+      }
+      cursor++;
+    }
+  }
+
+  void _parseBfRange(final int operatorIndex) {
+    final count = _intBefore(_tokens, operatorIndex) ?? 0;
+    var cursor = operatorIndex + 1;
+    var seen = 0;
+    while (cursor + 2 < _tokens.length && seen < count) {
+      final low = _tokens[cursor];
+      final high = _tokens[cursor + 1];
+      final destination = _tokens[cursor + 2];
+      if (low is! _Hex || high is! _Hex) {
+        break;
+      }
+      if (destination is _Hex) {
+        _addRange(_map, _codeOf(low.bytes), _codeOf(high.bytes), [destination.bytes]);
+        seen++;
+        cursor += 3;
+        continue;
+      }
+      if (destination is! _ArrayStart) {
+        break;
+      }
+      final values = <Uint8List>[];
+      var scan = cursor + 2;
+      while (scan < _tokens.length && _tokens[scan] is! _ArrayEnd) {
+        final entry = _tokens[scan];
+        if (entry is _Hex) {
+          values.add(entry.bytes);
+        }
+        scan++;
+      }
+      _addRange(_map, _codeOf(low.bytes), _codeOf(high.bytes), values);
+      seen++;
+      cursor = scan + 1;
+    }
+  }
 }
 
 int? _intBefore(final List<_Token> tokens, final int operatorIndex) {
@@ -162,10 +192,12 @@ void _addRange(
   final List<Uint8List> values,
 ) {
   if (high < low || high - low > 65535) return;
+
   for (var code = low; code <= high; code++) {
     final index = code - low;
     final bytes = values.length == 1 ? values[0] : (index < values.length ? values[index] : null);
     if (bytes == null) continue;
+
     map[code] = _utf16Of(bytes);
   }
 }
@@ -174,6 +206,7 @@ void _addRange(
 /// padded (lenient, matching Poppler's tolerance).
 String _utf16Of(final Uint8List bytes) {
   if (bytes.length == 1) return String.fromCharCode(bytes[0]);
+
   final codes = <int>[];
   for (var i = 0; i + 1 < bytes.length; i += 2) {
     codes.add(bytes[i] * 256 + bytes[i + 1]);
@@ -197,6 +230,7 @@ List<_Token> _tokenize(final String program) {
     }
     if (char == 0x20 || char == 0x09 || char == 0x0A || char == 0x0D) {
       i++;
+
       continue;
     }
     if (char == 0x3C) {
@@ -206,6 +240,7 @@ List<_Token> _tokenize(final String program) {
         i += 2;
         continue;
       }
+
       var end = program.indexOf('>', i);
       if (end < 0) end = bytes.length;
       tokens.add(_Hex(_decodeHex(program.substring(i + 1, end))));
@@ -220,11 +255,13 @@ List<_Token> _tokenize(final String program) {
     if (char == 0x5B) {
       tokens.add(const _ArrayStart());
       i++;
+
       continue;
     }
     if (char == 0x5D) {
       tokens.add(const _ArrayEnd());
       i++;
+
       continue;
     }
     if (char == 0x2F) {
@@ -236,14 +273,18 @@ List<_Token> _tokenize(final String program) {
       i = end;
       continue;
     }
+
     var end = i;
     while (end < bytes.length && _isRegular(bytes[end])) {
       end++;
     }
+
     if (end == i) {
       i++;
+
       continue;
     }
+
     final text = program.substring(i, end);
     final value = int.tryParse(text);
     if (value != null) {
@@ -257,19 +298,20 @@ List<_Token> _tokenize(final String program) {
   return tokens;
 }
 
-bool _isRegular(final int char) =>
-    char != 0x20 &&
-    char != 0x09 &&
-    char != 0x0A &&
-    char != 0x0D &&
-    char != 0x3C &&
-    char != 0x3E &&
-    char != 0x5B &&
-    char != 0x5D &&
-    char != 0x2F &&
-    char != 0x28 &&
-    char != 0x29 &&
-    char != 0x25;
+bool _isRegular(final int char) {
+  return char != 0x20 &&
+      char != 0x09 &&
+      char != 0x0A &&
+      char != 0x0D &&
+      char != 0x3C &&
+      char != 0x3E &&
+      char != 0x5B &&
+      char != 0x5D &&
+      char != 0x2F &&
+      char != 0x28 &&
+      char != 0x29 &&
+      char != 0x25;
+}
 
 Uint8List _decodeHex(final String hex) {
   final digits = <int>[];

@@ -25,11 +25,17 @@ class PdbHeader implements PdbRecordAccess {
     this.ident = ident;
     final view = ByteData.sublistView(bytes);
     recordCount = view.getUint16(76);
+
     if (recordCount == 0 || 78 + recordCount * 8 > bytes.length) {
       throw const InvalidBookException('Invalid PDB record table.');
     }
 
+    final recordTableEnd = 78 + recordCount * 8;
     offsets = List<int>.generate(recordCount, (final i) => view.getUint32(78 + i * 8));
+
+    if (offsets.any((final offset) => offset < recordTableEnd || offset > bytes.length)) {
+      throw const InvalidBookException('Invalid PDB record offset.');
+    }
   }
 
   /// The type identifier at offset 60 (`BOOKMOBI` or `TEXTREAD`).

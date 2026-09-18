@@ -9,8 +9,8 @@ class Azw4Exception extends ELivreException {
   String toString() => 'Azw4Exception: $message';
 }
 
-/// Thrown when a PalmDB/MOBI wrapper is malformed or violates the
-/// structural limits needed for safe record extraction.
+/// Thrown when a PalmDB/MOBI wrapper is malformed or violates the structural limits needed for safe
+/// record extraction.
 class Azw4InvalidContainerException extends Azw4Exception {
   /// Creates an [Azw4InvalidContainerException] with [message].
   const Azw4InvalidContainerException(super.message);

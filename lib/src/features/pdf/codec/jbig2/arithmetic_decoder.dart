@@ -105,6 +105,7 @@ final class Jbig2ArithmeticDecoder {
     if (++_decisions > _decisionBudget) {
       throw const PdfException('JBIG2 error: arithmetic decode budget exhausted.');
     }
+
     var cxIndex = contexts[pos] >> 1;
     var cxMps = contexts[pos] & 1;
     final qe = _qeValues[cxIndex];
@@ -157,6 +158,7 @@ final class Jbig2ArithmeticDecoder {
     _a = a;
 
     contexts[pos] = (cxIndex << 1) | cxMps;
+
     return d;
   }
 }

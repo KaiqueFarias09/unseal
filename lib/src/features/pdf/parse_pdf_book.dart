@@ -23,6 +23,33 @@ PdfBook parsePdfBook(final Uint8List bytes, {final String password = ''}) {
   final pages = PdfPageTree.parse(document);
   if (pages.isEmpty) throw const PdfException('PDF document has no pages.');
 
+  final metadata = PdfMetadataReader.read(document);
+  final navigation = PdfOutlineReader.read(document, pages);
+  final extracted = _extractPageContent(document, pages);
+  final (pageFiles, canonicalPageTexts) = PdfReflow.apply(extracted.pageTexts, pages);
+
+  return PdfBook(
+    bytes: bytes,
+    metadata: metadata,
+    pages: pages,
+    pageTexts: canonicalPageTexts,
+    extractedImages: extracted.images,
+    pageFiles: pageFiles,
+    navigation: navigation,
+  );
+}
+
+/// Reads only the metadata of a PDF document from [bytes], opening
+/// encrypted documents with [password].
+BookMetadata readPdfMetadata(final Uint8List bytes, {final String password = ''}) {
+  return PdfMetadataReader.read(PdfDocument.parse(bytes, password: password));
+}
+
+({List<PdfPageText> pageTexts, List<BinaryFile> images}) _extractPageContent(
+  final PdfDocument document,
+  final List<PdfPage> pages,
+) {
+  const maxExtractedImages = 128;
   final extractor = PdfTextExtractor(document);
   final pageTexts = <PdfPageText>[];
   final images = <BinaryFile>[];
@@ -32,38 +59,16 @@ PdfBook parsePdfBook(final Uint8List bytes, {final String password = ''}) {
       extractor.extract(
         page,
         onImage: (final objectNumber, final imageBytes, final extension) {
-          if (seenImages.contains(objectNumber) || seenImages.length >= 128) return;
-          seenImages.add(objectNumber);
+          if (images.length >= maxExtractedImages || !seenImages.add(objectNumber)) return;
+
+          final name = 'pdf-image-$objectNumber.$extension';
           images.add(
-            BinaryFile(
-              content: imageBytes,
-              name: 'pdf-image-$objectNumber.$extension',
-              type: extension,
-              path: 'images/pdf-image-$objectNumber.$extension',
-            ),
+            BinaryFile(content: imageBytes, name: name, type: extension, path: 'images/$name'),
           );
         },
       ),
     );
   }
 
-  final metadata = PdfMetadataReader.read(document);
-  final (pageFiles, canonicalPageTexts) = PdfReflow.apply(pageTexts, pages);
-  final book = PdfBook(
-    bytes: bytes,
-    metadata: metadata,
-    pages: pages,
-    pageTexts: canonicalPageTexts,
-    extractedImages: images,
-    pageFiles: pageFiles,
-    navigation: PdfOutlineReader.read(document, pages),
-  );
-
-  return book;
-}
-
-/// Reads only the metadata of a PDF document from [bytes], opening
-/// encrypted documents with [password].
-BookMetadata readPdfMetadata(final Uint8List bytes, {final String password = ''}) {
-  return PdfMetadataReader.read(PdfDocument.parse(bytes, password: password));
+  return (pageTexts: pageTexts, images: images);
 }

@@ -35,7 +35,7 @@ void main() {
 
       expect(getEpubRootFilePath(archive), 'OEBPS/content.opf');
       final book = parseEpubArchive(archive);
-      expect(book.title, 'Regression');
+      expect(book.metadata.title, 'Regression');
       expect(book.files.html.single.content, contains('Rootfile chapter'));
     });
 
@@ -58,7 +58,7 @@ void main() {
         (final file) => file.content.contains('UTF-16 chapter'),
       );
 
-      expect(book.title, 'Regression');
+      expect(book.metadata.title, 'Regression');
       expect(chapter.content, contains('UTF-16 chapter'));
       expect(book.navigation.navPoints.single.label, 'UTF-16 chapter');
     });
@@ -77,6 +77,39 @@ void main() {
 
       expect(book.files.html.single.content, contains('No TOC chapter'));
       expect(book.navigation.navPoints, isEmpty);
+    });
+
+    test('rejects normalized and malformed publication dates', () {
+      final normalized = _parse(
+        opf: _opf(publicationDate: '2024-02-31'),
+        entries: {'OEBPS/chapter.xhtml': _chapter('Invalid date')},
+      );
+      final trailingGarbage = _parse(
+        opf: _opf(publicationDate: '2024-02-garbage'),
+        entries: {'OEBPS/chapter.xhtml': _chapter('Malformed date')},
+      );
+      final invalidMonth = _parse(
+        opf: _opf(publicationDate: '2024-13'),
+        entries: {'OEBPS/chapter.xhtml': _chapter('Invalid month')},
+      );
+
+      expect(normalized.metadata.publishedAt, isNull);
+      expect(trailingGarbage.metadata.publishedAt, isNull);
+      expect(invalidMonth.metadata.publishedAt, isNull);
+    });
+
+    test('accepts partial and complete ISO publication dates', () {
+      final partial = _parse(
+        opf: _opf(publicationDate: '2024-02'),
+        entries: {'OEBPS/chapter.xhtml': _chapter('Partial date')},
+      );
+      final complete = _parse(
+        opf: _opf(publicationDate: '2024-02-29T12:30:00Z'),
+        entries: {'OEBPS/chapter.xhtml': _chapter('Complete date')},
+      );
+
+      expect(partial.metadata.publishedAt, DateTime(2024, 2));
+      expect(complete.metadata.publishedAt, DateTime.utc(2024, 2, 29, 12, 30));
     });
 
     test('falls back from a stale NCX to the EPUB 3 navigation document', () {
@@ -219,6 +252,7 @@ String _container(final String rootfiles) {
 
 String _opf({
   final String version = '2.0',
+  final String? publicationDate,
   final String chapterMediaType = 'application/xhtml+xml',
   final bool includeToc = true,
   final String? spineToc,
@@ -246,7 +280,9 @@ String _opf({
       'unique-identifier="uid">'
       '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
       '<dc:title>Regression</dc:title><dc:language>en</dc:language>'
-      '<dc:identifier id="uid">$_uuid</dc:identifier></metadata>'
+      '<dc:identifier id="uid">$_uuid</dc:identifier>'
+      '${publicationDate == null ? '' : '<dc:date>$publicationDate</dc:date>'}'
+      '</metadata>'
       '<manifest>$manifest</manifest><spine$spineAttribute><itemref idref="chapter"/>'
       '</spine></package>';
 }

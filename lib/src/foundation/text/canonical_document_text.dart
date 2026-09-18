@@ -16,9 +16,7 @@ const _greaterThan = 0x3E;
 const _bang = 0x21;
 
 const _commentOpen = <int>[0x21, 0x2D, 0x2D]; // !--
-const _cdataOpen = <int>[
-  0x21, 0x5B, 0x43, 0x44, 0x41, 0x54, 0x41, 0x5B, // ![CDATA[
-];
+const _cdataOpen = <int>[0x21, 0x5B, 0x43, 0x44, 0x41, 0x54, 0x41, 0x5B]; // ![CDATA[
 
 /// Named entities supported by the canonical text scanner.
 const _namedEntities = <String, String>{
@@ -115,7 +113,6 @@ final class DocumentTextScanner {
         final next = _consumeLessThan(i, end);
         if (next != i) {
           i = next;
-
           continue;
         }
 
@@ -159,7 +156,6 @@ final class DocumentTextScanner {
 
     if (_startsWith(_units, start + 1, _cdataOpen)) {
       final close = _cdataEnd(_units, start, end);
-
       if (close != -1) {
         _writeUnit(_dollar);
         _writeUnit(_digitOne);
@@ -167,6 +163,7 @@ final class DocumentTextScanner {
         return close;
       }
     }
+
     final isDeclaration = start + 1 < end && _units[start + 1] == _bang;
     if (isDeclaration && !_isStreamExhausted) {
       final gt = _findGtEnding(_units, start + 2, end, isDeclarationSkipping: false);
@@ -175,6 +172,7 @@ final class DocumentTextScanner {
       _isStreamExhausted = true;
       _isTagExhausted = true;
     }
+
     final next = start + 1 < end ? _units[start + 1] : -1;
     final opensTag = _isAlpha(next) || next == _slash || next == _question;
     if (!_isTagExhausted && opensTag) {
@@ -192,7 +190,6 @@ final class DocumentTextScanner {
     while (runEnd < end) {
       final next = _units[runEnd];
       if (next == _lessThan || next == _ampersand) break;
-
       runEnd++;
     }
     _out.write(_html.substring(start, runEnd));
@@ -208,6 +205,7 @@ final class DocumentTextScanner {
         unit == _semicolon && ((!isNumeric && length > 0) || (isNumeric && length > 1));
     if (closesEntity) {
       _completePending();
+
       return;
     }
 
@@ -220,6 +218,7 @@ final class DocumentTextScanner {
     };
     if (canAppend) {
       _pending.add(unit);
+
       return;
     }
 
@@ -233,7 +232,6 @@ final class DocumentTextScanner {
 
   void _completePending() {
     final decoded = decodeEntity(String.fromCharCodes(_pending));
-
     if (decoded == null) {
       _flushPending();
       _out.writeCharCode(_semicolon);
@@ -265,7 +263,6 @@ final class DocumentTextScanner {
 (int, int) _bodyRange(final List<int> units) {
   const bodyOpen = <int>[0x3C, 0x62, 0x6F, 0x64, 0x79];
   const bodyClose = <int>[0x3C, 0x2F, 0x62, 0x6F, 0x64, 0x79, 0x3E];
-
   final length = units.length;
   var from = 0;
   while (true) {
@@ -280,14 +277,12 @@ final class DocumentTextScanner {
 
     if (gt == length) {
       from = afterName;
-
       continue;
     }
 
     final close = _lastIndexOfIgnoreCase(units, gt + 1, length, bodyClose);
     if (close == -1) {
       from = afterName;
-
       continue;
     }
 
@@ -319,10 +314,10 @@ int _scriptBlockEnd(final List<int> units, final int start, final int end) {
   for (var i = afterName; i < end; i++) {
     if (units[i] == _greaterThan) {
       openEnd = i;
-
       break;
     }
   }
+
   if (openEnd == -1) return -1;
 
   final closePattern = isScript ? scriptClose : styleClose;
@@ -337,14 +332,12 @@ int _scriptBlockEnd(final List<int> units, final int start, final int end) {
 /// inside them — do not count (the classic `<script><!-- … --></script>` idiom).
 int _commentEnd(final List<int> units, final int start, final int end) {
   const commentClose = <int>[0x2D, 0x2D, 0x3E];
-
   var i = start + _commentOpen.length;
   while (i < end) {
     if (units[i] == _lessThan) {
       final block = _scriptBlockEnd(units, i, end);
       if (block != -1) {
         i = block;
-
         continue;
       }
     }
@@ -361,14 +354,12 @@ int _commentEnd(final List<int> units, final int start, final int end) {
 /// inside either does not count.
 int _cdataEnd(final List<int> units, final int start, final int end) {
   const cdataClose = <int>[0x5D, 0x5D, 0x3E];
-
   var i = start + _cdataOpen.length;
   while (i < end) {
     if (units[i] == _lessThan) {
       final block = _scriptBlockEnd(units, i, end);
       if (block != -1) {
         i = block;
-
         continue;
       }
 
@@ -376,7 +367,6 @@ int _cdataEnd(final List<int> units, final int start, final int end) {
         final close = _commentEnd(units, i, end);
         if (close != -1) {
           i = close;
-
           continue;
         }
       }
@@ -415,7 +405,6 @@ int _findGtEnding(
     final block = _scriptBlockEnd(units, i, end);
     if (block != -1) {
       i = block;
-
       continue;
     }
 
@@ -423,7 +412,6 @@ int _findGtEnding(
       final close = _commentEnd(units, i, end);
       if (close != -1) {
         i = close;
-
         continue;
       }
     }
@@ -432,7 +420,6 @@ int _findGtEnding(
       final close = _cdataEnd(units, i, end);
       if (close != -1) {
         i = close;
-
         continue;
       }
     }
@@ -442,7 +429,6 @@ int _findGtEnding(
       if (gt == -1) return -1;
 
       i = gt + 1;
-
       continue;
     }
 
@@ -539,10 +525,10 @@ int _indexOfIgnoreCase(
     for (var j = 0; j < lowercasePattern.length; j++) {
       if (_toLowerCase(units[i + j]) != lowercasePattern[j]) {
         isMatched = false;
-
         break;
       }
     }
+
     if (isMatched) return i;
   }
 
@@ -561,10 +547,10 @@ int _lastIndexOfIgnoreCase(
     for (var j = 0; j < lowercasePattern.length; j++) {
       if (_toLowerCase(units[i + j]) != lowercasePattern[j]) {
         isMatched = false;
-
         break;
       }
     }
+
     if (isMatched) return i;
   }
 

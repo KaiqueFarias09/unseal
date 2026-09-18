@@ -163,6 +163,7 @@ String computeTitleSortKey(final String title, {final String? language}) {
 
 RegExp _articlePatternFor(final String? language) {
   final key = _canonicalLanguage(language) ?? 'eng';
+
   return _articlePatterns.putIfAbsent(key, () {
     final articles = _titleSortArticles[key] ?? _titleSortArticles['eng']!;
     if (articles.isEmpty) return RegExp(r'^$');

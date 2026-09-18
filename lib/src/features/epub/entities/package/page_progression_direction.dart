@@ -2,10 +2,9 @@
 /// application should order the pages of a facing-page spread and
 /// which direction the "next page" gesture moves toward.
 ///
-/// Mirrors the EPUB spine `page-progression-direction` attribute and
-/// Calibre's model of it: the attribute only carries `ltr` or `rtl`
-/// meaningful values, and anything else (`default`, an absent
-/// attribute, or a malformed value) carries no signal.
+/// Mirrors the EPUB spine `page-progression-direction` attribute: only
+/// `ltr` and `rtl` carry meaningful values, while `default`, an absent
+/// attribute, or a malformed value carries no signal.
 enum PageProgressionDirection {
   /// Pages flow left to right (Latin, Cyrillic, Greek scripts).
   ltr,
@@ -20,20 +19,23 @@ enum PageProgressionDirection {
 
   /// Parses the raw OPF spine attribute [value]. Only the exact spec
   /// values `ltr` and `rtl` are meaningful; `default`, null, and any
-  /// other value degrade to [unspecified], mirroring Calibre which
-  /// only stores `ltr`/`rtl` from the OPF.
-  static PageProgressionDirection fromSpineValue(final String? value) => switch (value) {
-    'ltr' => ltr,
-    'rtl' => rtl,
-    _ => unspecified,
-  };
+  /// other value degrade to [unspecified].
+  static PageProgressionDirection fromSpineValue(final String? value) {
+    return switch (value) {
+      'ltr' => ltr,
+      'rtl' => rtl,
+      _ => unspecified,
+    };
+  }
 
   /// Rebuilds a direction from its [name] as produced by `.name` on
   /// the wire. Unknown or missing names degrade to [unspecified].
-  static PageProgressionDirection fromName(final String? name) => switch (name) {
-    'ltr' => ltr,
-    'rtl' => rtl,
-    'unspecified' => unspecified,
-    _ => unspecified,
-  };
+  static PageProgressionDirection fromName(final String? name) {
+    return switch (name) {
+      'ltr' => ltr,
+      'rtl' => rtl,
+      'unspecified' => unspecified,
+      _ => unspecified,
+    };
+  }
 }

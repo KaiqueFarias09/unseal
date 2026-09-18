@@ -39,10 +39,10 @@ Uint8List decodePdfStream(
       : parmsObject is PdfArray
       ? parmsObject.items
       : <PdfObject?>[const PdfNull()];
-
   for (var index = 0; index < names.length; index++) {
     final name = names[index];
     if (name is! PdfName) continue;
+
     final parm = parms.length > index ? parms[index] : const PdfNull();
 
     switch (name.value) {
@@ -140,6 +140,7 @@ Uint8List _lzwDecode(
       nextEntry = 258;
       width = 9;
       previous = null;
+
       continue;
     }
 
@@ -325,10 +326,12 @@ Uint8List _ascii85Decode(final Uint8List data) {
     for (var k = count; k < 5; k++) {
       group[k] = 84;
     }
+
     var value = 0;
     for (final digit in group) {
       value = value * 85 + digit;
     }
+
     final full = [(value >> 24) & 0xFF, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF];
     out.add(full.sublist(0, count - 1));
   }

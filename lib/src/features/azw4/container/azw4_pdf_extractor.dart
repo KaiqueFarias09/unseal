@@ -6,6 +6,8 @@ import '../../mobi/header/mobi_header.dart';
 import '../../mobi/header/pdb_header.dart';
 import '../exceptions/azw4_exception.dart';
 
+const _maxAzw4Bytes = 512 * 1024 * 1024;
+
 /// The PDF payload recovered from an AZW4 wrapper.
 final class Azw4PdfPayload {
   /// Creates an extracted PDF payload with optional MOBI/PDB title metadata.
@@ -20,12 +22,14 @@ final class Azw4PdfPayload {
 
 /// Extracts the embedded PDF from an AZW4/PalmDB wrapper.
 ///
-/// AZW4 files are MOBI-shaped PalmDB containers whose readable payload is a
-/// PDF. The record path is preferred because it removes PalmDB record padding
-/// and preserves the offsets used by the embedded PDF. A bounded signature
-/// fallback mirrors Calibre's practical recovery path for damaged/nonstandard
-/// wrappers without scanning unbounded input or accepting an incomplete PDF.
+/// AZW4 files are MOBI-shaped PalmDB containers whose readable payload is a PDF. The record path is
+/// preferred because it removes PalmDB record padding and preserves the offsets used by the
+/// embedded PDF. A bounded signature fallback provides recovery for damaged or nonstandard wrappers
+/// without scanning unbounded input or accepting an incomplete PDF.
 Azw4PdfPayload extractAzw4PdfPayload(final Uint8List bytes) {
+  const maxFallbackScanBytes = 32 * 1024 * 1024;
+  const maxFallbackPdfBytes = 512 * 1024 * 1024;
+
   if (bytes.length > _maxAzw4Bytes) {
     throw const Azw4InvalidContainerException('AZW4 container exceeds the safe size limit.');
   }
@@ -33,14 +37,12 @@ Azw4PdfPayload extractAzw4PdfPayload(final Uint8List bytes) {
   final pdb = _readPdb(bytes);
   if (pdb != null) {
     final recordPdf = _extractFromRecords(pdb.header);
-    if (recordPdf != null) {
-      return Azw4PdfPayload(recordPdf, title: pdb.title);
-    }
+    if (recordPdf != null) return Azw4PdfPayload(recordPdf, title: pdb.title);
 
     final fallbackPdf = _findCompletePdf(
       bytes,
-      scanLimit: _maxFallbackScanBytes,
-      payloadLimit: _maxFallbackPdfBytes,
+      scanLimit: maxFallbackScanBytes,
+      payloadLimit: maxFallbackPdfBytes,
     );
     if (fallbackPdf != null) return Azw4PdfPayload(fallbackPdf, title: pdb.title);
 
@@ -49,8 +51,8 @@ Azw4PdfPayload extractAzw4PdfPayload(final Uint8List bytes) {
 
   final fallbackPdf = _findCompletePdf(
     bytes,
-    scanLimit: _maxFallbackScanBytes,
-    payloadLimit: _maxFallbackPdfBytes,
+    scanLimit: maxFallbackScanBytes,
+    payloadLimit: maxFallbackPdfBytes,
   );
   if (fallbackPdf != null) return Azw4PdfPayload(fallbackPdf);
 
@@ -67,14 +69,9 @@ final class _PdbDetails {
   final String? title;
 }
 
-const int _maxAzw4Bytes = 512 * 1024 * 1024;
-const int _maxFallbackScanBytes = 32 * 1024 * 1024;
-const int _maxFallbackPdfBytes = 512 * 1024 * 1024;
-const List<int> _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
-const List<int> _pdfEof = <int>[0x25, 0x25, 0x45, 0x4F, 0x46];
-
 _PdbDetails? _readPdb(final Uint8List bytes) {
   if (bytes.length < 68) return null;
+
   final ident = _ascii(bytes, 60, 8);
   if (ident != 'BOOKMOBI' && ident != 'TEXTREAD') return null;
 
@@ -98,6 +95,7 @@ _PdbDetails? _readPdb(final Uint8List bytes) {
       } on DrmProtectedException catch (error) {
         throw Azw4DrmProtectedException(error.message);
       }
+
       title = _nonEmpty(mobi.title) ?? _nonEmpty(header.name);
     } else {
       title = _nonEmpty(header.name);
@@ -120,6 +118,7 @@ void _validateRecordTable(final PdbHeader header, final Uint8List bytes) {
     if (offset < minimumRecordOffset || offset >= bytes.length) {
       throw const InvalidBookException('Invalid AZW4 PalmDB record offset.');
     }
+
     final length = header.recordLength(index);
     if (length <= 0 || offset + length > bytes.length) {
       throw const InvalidBookException('Invalid AZW4 PalmDB record length.');
@@ -136,7 +135,6 @@ Uint8List? _extractFromRecords(final PdbHeader header) {
   } on RangeError catch (_) {
     throw const Azw4InvalidContainerException('AZW4 PalmDB record data is outside the container.');
   }
-
   final recordBytes = records.takeBytes();
 
   return _findCompletePdf(recordBytes, scanLimit: recordBytes.length, payloadLimit: _maxAzw4Bytes);
@@ -147,9 +145,11 @@ Uint8List? _findCompletePdf(
   required final int scanLimit,
   required final int payloadLimit,
 }) {
+  const pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
   final boundedScanLimit = scanLimit < bytes.length ? scanLimit : bytes.length;
-  for (var offset = 0; offset + _pdfMagic.length <= boundedScanLimit; offset++) {
-    if (!_matches(bytes, offset, _pdfMagic)) continue;
+  for (var offset = 0; offset + pdfMagic.length <= boundedScanLimit; offset++) {
+    if (!_matches(bytes, offset, pdfMagic)) continue;
+
     final end = _findLastEof(bytes, offset, payloadLimit);
     if (end == null) continue;
 
@@ -160,13 +160,14 @@ Uint8List? _findCompletePdf(
 }
 
 int? _findLastEof(final Uint8List bytes, final int start, final int payloadLimit) {
+  const pdfEof = <int>[0x25, 0x25, 0x45, 0x4F, 0x46];
   final boundedEnd = <int>[
     bytes.length,
     start + payloadLimit,
   ].reduce((final a, final b) => a < b ? a : b);
   int? lastEnd;
-  for (var offset = start; offset + _pdfEof.length <= boundedEnd; offset++) {
-    if (_matches(bytes, offset, _pdfEof)) lastEnd = offset + _pdfEof.length;
+  for (var offset = start; offset + pdfEof.length <= boundedEnd; offset++) {
+    if (_matches(bytes, offset, pdfEof)) lastEnd = offset + pdfEof.length;
   }
 
   return lastEnd;
@@ -174,6 +175,7 @@ int? _findLastEof(final Uint8List bytes, final int start, final int payloadLimit
 
 bool _matches(final Uint8List bytes, final int offset, final List<int> pattern) {
   if (offset < 0 || offset + pattern.length > bytes.length) return false;
+
   for (var index = 0; index < pattern.length; index++) {
     if (bytes[offset + index] != pattern[index]) return false;
   }

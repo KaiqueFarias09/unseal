@@ -15,7 +15,6 @@ final class _PlainTextWriter {
       final codeUnit = text.codeUnitAt(i);
       if (_isWhitespace(codeUnit)) {
         _isPendingSpace = true;
-
         continue;
       }
 

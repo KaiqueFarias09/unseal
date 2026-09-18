@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/foundation/text/xml_encoding.dart';
 import 'package:test/test.dart';
 
 const String pushkinTitle = 'Капитанская дочка';
@@ -21,8 +20,8 @@ void main() {
         _cp1251(_fb2(encoding: 'windows-1251', title: pushkinTitle, body: pushkinBody)),
       );
 
-      expect(book.title, pushkinTitle);
-      expect(book.creators, [pushkinAuthor]);
+      expect(book.metadata.title, pushkinTitle);
+      expect(book.metadata.authors, [pushkinAuthor]);
       expect(book.files.html.first.content, contains('Береги честь смолоду.'));
       expect(book.files.html.first.content, isNot(contains('\uFFFD')));
     });
@@ -43,7 +42,7 @@ void main() {
         ),
       );
 
-      expect(book.title, strangerTitle);
+      expect(book.metadata.title, strangerTitle);
       expect(book.files.html.first.content, contains('Déjà été'));
     });
 
@@ -52,7 +51,7 @@ void main() {
         _cp1256(_fb2(encoding: 'windows-1256', title: arabicTitle, body: arabicBody, author: '')),
       );
 
-      expect(book.title, arabicTitle);
+      expect(book.metadata.title, arabicTitle);
       expect(book.files.html.first.content, contains('عن تاريخ الأدب'));
     });
 
@@ -61,8 +60,8 @@ void main() {
         _utf8(_fb2(encoding: 'utf-8', title: pushkinTitle, body: pushkinBody)),
       );
 
-      expect(book.title, pushkinTitle);
-      expect(book.creators, [pushkinAuthor]);
+      expect(book.metadata.title, pushkinTitle);
+      expect(book.metadata.authors, [pushkinAuthor]);
     });
 
     test('declared UTF-16 with a BOM decodes the full document', () {
@@ -72,7 +71,7 @@ void main() {
       final book = parseFb2Book(withBom);
       final metadata = readFb2Metadata(withBom);
 
-      expect(book.title, pushkinTitle);
+      expect(book.metadata.title, pushkinTitle);
       expect(book.files.html.first.content, contains('Береги честь смолоду.'));
       expect(metadata.title, pushkinTitle);
     });
@@ -105,7 +104,7 @@ void main() {
           '<description><title-info><book-title>Plain</book-title></title-info></description>'
           '<body><section><p>Plain text.</p></section></body></FictionBook>';
 
-      expect(parseFb2Book(_utf8(asciiDoc)).title, 'Plain');
+      expect(parseFb2Book(_utf8(asciiDoc)).metadata.title, 'Plain');
     });
   });
 
@@ -115,7 +114,7 @@ void main() {
       expect(sniffXmlEncoding(bytes), XmlEncoding.cp1251);
 
       final book = parseFb2Book(bytes);
-      expect(book.title, pushkinTitle);
+      expect(book.metadata.title, pushkinTitle);
       expect(book.files.html.first.content, contains('Ёлка, ёж, щука'));
     });
 
@@ -123,7 +122,7 @@ void main() {
       final bytes = _utf8(_fb2(encoding: null, title: pushkinTitle, body: pushkinBody));
       expect(sniffXmlEncoding(bytes), XmlEncoding.utf8);
 
-      expect(parseFb2Book(bytes).title, pushkinTitle);
+      expect(parseFb2Book(bytes).metadata.title, pushkinTitle);
     });
 
     test('accented Latin is detected as windows-1252', () {
@@ -132,14 +131,14 @@ void main() {
       );
       expect(sniffXmlEncoding(bytes), XmlEncoding.cp1252);
 
-      expect(parseFb2Book(bytes).title, strangerTitle);
+      expect(parseFb2Book(bytes).metadata.title, strangerTitle);
     });
 
     test('Arabic is detected as windows-1256', () {
       final bytes = _cp1256(_fb2(encoding: null, title: arabicTitle, body: arabicBody, author: ''));
       expect(sniffXmlEncoding(bytes), XmlEncoding.cp1256);
 
-      expect(parseFb2Book(bytes).title, arabicTitle);
+      expect(parseFb2Book(bytes).metadata.title, arabicTitle);
     });
 
     test('English with typographic quotes stays windows-1252', () {
@@ -159,7 +158,7 @@ void main() {
       final bytes = _cp1251(_fb2(encoding: 'koi8-r', title: pushkinTitle, body: pushkinBody));
       expect(sniffXmlEncoding(bytes), XmlEncoding.cp1251);
 
-      expect(parseFb2Book(bytes).title, pushkinTitle);
+      expect(parseFb2Book(bytes).metadata.title, pushkinTitle);
     });
 
     test('undecodable bytes become U+FFFD instead of throwing', () {
@@ -176,7 +175,7 @@ void main() {
         ..add(_cp1251(tail));
 
       final book = parseFb2Book(bytes.toBytes());
-      expect(book.title, pushkinTitle); // metadata is unaffected
+      expect(book.metadata.title, pushkinTitle); // metadata is unaffected
       expect(book.files.html.first.content, contains('\uFFFD'));
     });
   });
@@ -186,7 +185,7 @@ void main() {
       final bytes = _utf8(_fb2(encoding: null, title: pushkinTitle, body: pushkinBody));
       final withBom = Uint8List.fromList(<int>[0xEF, 0xBB, 0xBF, ...bytes]);
 
-      expect(parseFb2Book(withBom).title, pushkinTitle);
+      expect(parseFb2Book(withBom).metadata.title, pushkinTitle);
     });
 
     test('utf-16le BOM wins over the byte layout', () {
@@ -194,7 +193,7 @@ void main() {
       final withBom = Uint8List.fromList(<int>[0xFF, 0xFE, ...bytes]);
 
       final book = parseFb2Book(withBom);
-      expect(book.title, pushkinTitle);
+      expect(book.metadata.title, pushkinTitle);
       expect(book.files.html.first.content, contains('Береги честь смолоду.'));
     });
   });
@@ -206,8 +205,8 @@ void main() {
       final zip = Uint8List.fromList(ZipEncoder().encode(archive) ?? <int>[]);
 
       final book = parseFb2Book(zip);
-      expect(book.title, pushkinTitle);
-      expect(book.creators, [pushkinAuthor]);
+      expect(book.metadata.title, pushkinTitle);
+      expect(book.metadata.authors, [pushkinAuthor]);
 
       final metadata = readFb2Metadata(zip);
       expect(metadata.title, pushkinTitle);

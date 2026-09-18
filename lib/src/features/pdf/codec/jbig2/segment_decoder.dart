@@ -183,6 +183,7 @@ int jbig2ReadUint16(final Uint8List data, final int offset) {
   if (offset + 1 >= data.length) {
     throw const PdfException('JBIG2 error: truncated segment data.');
   }
+
   return (data[offset] << 8) | data[offset + 1];
 }
 
@@ -191,6 +192,7 @@ int jbig2ReadUint32(final Uint8List data, final int offset) {
   if (offset + 3 >= data.length) {
     throw const PdfException('JBIG2 error: truncated segment data.');
   }
+
   return ((data[offset] << 24) |
           (data[offset + 1] << 16) |
           (data[offset + 2] << 8) |
@@ -203,6 +205,7 @@ int jbig2ReadInt8(final Uint8List data, final int offset) {
   if (offset >= data.length) {
     throw const PdfException('JBIG2 error: truncated segment data.');
   }
+
   return data[offset].toSigned(8);
 }
 
@@ -217,11 +220,9 @@ int jbig2Log2(final int x) {
     value >>= 1;
     bits++;
   }
+
   return (1 << bits) >= x ? bits : bits + 1;
 }
-
-const int _maxInt32 = 0x7FFFFFFF;
-const int _minInt32 = -0x80000000;
 
 /// Annex A.2 — arithmetic integer decoding procedure
 /// (`decodeInteger` in pdf.js); returns null on the out-of-band
@@ -234,36 +235,25 @@ int? decodeJbig2Integer(
   final String procedure,
   final Jbig2ArithmeticDecoder decoder,
 ) {
-  final table = contexts;
-  final prevHolder = <int>[1];
+  const maxInt32 = 0x7FFFFFFF;
+  const minInt32 = -0x80000000;
 
-  int readBits(final int length) {
-    var v = 0;
-    for (var i = 0; i < length; i++) {
-      final bit = decoder.readBit(table, prevHolder[0]);
-      prevHolder[0] = prevHolder[0] < 256
-          ? ((prevHolder[0] << 1) | bit)
-          : (((prevHolder[0] << 1) | bit) & 511) | 256;
-      v = (v << 1) | bit;
-    }
-    return v;
-  }
-
-  final sign = readBits(1);
+  final reader = _Jbig2IntegerBitReader(contexts, decoder);
+  final sign = reader.readBits(1);
   // A.2 value ranges: 2, 4+4, 6+20, 8+84, 12+340, 32+4436 bits.
   int value;
-  if (readBits(1) == 0) {
-    value = readBits(2);
-  } else if (readBits(1) == 0) {
-    value = readBits(4) + 4;
-  } else if (readBits(1) == 0) {
-    value = readBits(6) + 20;
-  } else if (readBits(1) == 0) {
-    value = readBits(8) + 84;
-  } else if (readBits(1) == 0) {
-    value = readBits(12) + 340;
+  if (reader.readBits(1) == 0) {
+    value = reader.readBits(2);
+  } else if (reader.readBits(1) == 0) {
+    value = reader.readBits(4) + 4;
+  } else if (reader.readBits(1) == 0) {
+    value = reader.readBits(6) + 20;
+  } else if (reader.readBits(1) == 0) {
+    value = reader.readBits(8) + 84;
+  } else if (reader.readBits(1) == 0) {
+    value = reader.readBits(12) + 340;
   } else {
-    value = readBits(32) + 4436;
+    value = reader.readBits(32) + 4436;
   }
   // pdf.js leaves `signedValue` undefined when sign is set and the
   // magnitude is zero; that undefined flows out as the out-of-band
@@ -275,11 +265,35 @@ int? decodeJbig2Integer(
     signedValue = -value;
   }
   // Ensure that the integer value doesn't underflow or overflow.
-  if (signedValue != null && signedValue >= _minInt32 && signedValue <= _maxInt32) {
+  if (signedValue != null && signedValue >= minInt32 && signedValue <= maxInt32) {
     return signedValue;
   }
 
   return null;
+}
+
+/// Maintains the arithmetic context state while reading one Annex A.2
+/// integer. Keeping the state in a small object avoids a capturing local
+/// function and makes the bit-reading operation independently testable.
+final class _Jbig2IntegerBitReader {
+  _Jbig2IntegerBitReader(this._contexts, this._decoder);
+
+  final Uint8List _contexts;
+  final Jbig2ArithmeticDecoder _decoder;
+  int _previous = 1;
+
+  int readBits(final int length) {
+    var value = 0;
+    for (var i = 0; i < length; i++) {
+      final bit = _decoder.readBit(_contexts, _previous);
+      _previous = _previous < 256
+          ? ((_previous << 1) | bit)
+          : (((_previous << 1) | bit) & 511) | 256;
+      value = (value << 1) | bit;
+    }
+
+    return value;
+  }
 }
 
 /// A.3 — the IAID decoding procedure (`decodeIAID` in pdf.js). The
@@ -351,6 +365,27 @@ class Jbig2SegmentHeader {
   final List<int> retainBits;
 }
 
+/// The retain/referred-to fields that precede a segment's page association.
+final class _Jbig2HeaderReferences {
+  const _Jbig2HeaderReferences({
+    required this.count,
+    required this.retainBits,
+    required this.position,
+  });
+
+  final int count;
+  final List<int> retainBits;
+  final int position;
+}
+
+/// The decoded segment numbers and the first byte after the list.
+final class _Jbig2ReferenceList {
+  const _Jbig2ReferenceList({required this.values, required this.position});
+
+  final List<int> values;
+  final int position;
+}
+
 /// Parses one segment header at [start] (`readSegmentHeader`).
 // pdf.js jbig2.js readSegmentHeader
 Jbig2SegmentHeader readJbig2SegmentHeader(final Uint8List data, final int start) {
@@ -367,46 +402,14 @@ Jbig2SegmentHeader readJbig2SegmentHeader(final Uint8List data, final int start)
   final deferredNonRetain = flags & 0x80 != 0;
 
   final pageAssociationFieldSize = flags & 0x40 != 0;
-  final referredFlags = data[start + 5];
-  var referredToCount = (referredFlags >> 5) & 7;
-  final retainBits = <int>[referredFlags & 31];
-  var position = start + 6;
-  if (referredFlags == 7) {
-    referredToCount = jbig2ReadUint32(data, position - 1) & 0x1FFFFFFF;
-    position += 3;
-    var bytes = (referredToCount + 7) >> 3;
-    retainBits[0] = data[position];
-    position++;
-    while (--bytes > 0) {
-      retainBits.add(data[position]);
-      position++;
-    }
-  } else if (referredFlags == 5 || referredFlags == 6) {
-    throw const PdfException('JBIG2 error: invalid referred-to flags');
-  }
-
-  var referredToSegmentNumberSize = 4;
-  if (number <= 256) {
-    referredToSegmentNumberSize = 1;
-  } else if (number <= 65536) {
-    referredToSegmentNumberSize = 2;
-  }
-  final referredTo = <int>[];
-  for (var i = 0; i < referredToCount; i++) {
-    if (position + referredToSegmentNumberSize > data.length) {
-      throw const PdfException('JBIG2 error: truncated referred-to list.');
-    }
-    var numberValue = 0;
-    if (referredToSegmentNumberSize == 1) {
-      numberValue = data[position];
-    } else if (referredToSegmentNumberSize == 2) {
-      numberValue = jbig2ReadUint16(data, position);
-    } else {
-      numberValue = jbig2ReadUint32(data, position);
-    }
-    referredTo.add(numberValue);
-    position += referredToSegmentNumberSize;
-  }
+  final headerReferences = _readJbig2HeaderReferences(data, start);
+  final references = _readJbig2ReferenceList(
+    data,
+    headerReferences.position,
+    headerReferences.count,
+    number,
+  );
+  var position = references.position;
   int pageAssociation;
   if (!pageAssociationFieldSize) {
     pageAssociation = data[position];
@@ -418,43 +421,7 @@ Jbig2SegmentHeader readJbig2SegmentHeader(final Uint8List data, final int start)
   var length = jbig2ReadUint32(data, position);
   position += 4;
 
-  if (length == 0xFFFFFFFF) {
-    // 7.2.7 Segment data length, unknown segment length.
-    if (segmentType == 38) {
-      // ImmediateGenericRegion
-      final genericRegionInfo = readJbig2RegionSegmentInformation(data, position);
-      final genericRegionSegmentFlags = data[position + jbig2RegionSegmentInformationFieldLength];
-      final genericRegionMmr = genericRegionSegmentFlags & 1 != 0;
-      // searching for the segment end
-      const searchPatternLength = 6;
-      final searchPattern = Uint8List(searchPatternLength);
-      if (!genericRegionMmr) {
-        searchPattern[0] = 0xFF;
-        searchPattern[1] = 0xAC;
-      }
-      searchPattern[2] = (genericRegionInfo.height >> 24) & 0xFF;
-      searchPattern[3] = (genericRegionInfo.height >> 16) & 0xFF;
-      searchPattern[4] = (genericRegionInfo.height >> 8) & 0xFF;
-      searchPattern[5] = genericRegionInfo.height & 0xFF;
-      var found = false;
-      for (var i = position; i < data.length; i++) {
-        var j = 0;
-        while (j < searchPatternLength && i + j < data.length && searchPattern[j] == data[i + j]) {
-          j++;
-        }
-        if (j == searchPatternLength) {
-          length = i + searchPatternLength;
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        throw const PdfException('JBIG2 error: segment end was not found');
-      }
-    } else {
-      throw const PdfException('JBIG2 error: invalid unknown segment length');
-    }
-  }
+  length = _resolveJbig2SegmentLength(data, position, segmentType, length);
 
   return Jbig2SegmentHeader(
     number: number,
@@ -464,9 +431,99 @@ Jbig2SegmentHeader readJbig2SegmentHeader(final Uint8List data, final int start)
     pageAssociation: pageAssociation,
     length: length,
     headerEnd: position,
-    referredTo: referredTo,
-    retainBits: retainBits,
+    referredTo: references.values,
+    retainBits: headerReferences.retainBits,
   );
+}
+
+_Jbig2HeaderReferences _readJbig2HeaderReferences(final Uint8List data, final int start) {
+  final referredFlags = data[start + 5];
+  var count = (referredFlags >> 5) & 7;
+  final retainBits = <int>[referredFlags & 31];
+  var position = start + 6;
+  if (referredFlags == 7) {
+    count = jbig2ReadUint32(data, position - 1) & 0x1FFFFFFF;
+    position += 3;
+    var bytes = (count + 7) >> 3;
+    retainBits[0] = data[position];
+    position++;
+    while (--bytes > 0) {
+      retainBits.add(data[position]);
+      position++;
+    }
+  } else if (referredFlags == 5 || referredFlags == 6) {
+    throw const PdfException('JBIG2 error: invalid referred-to flags');
+  }
+
+  return _Jbig2HeaderReferences(count: count, retainBits: retainBits, position: position);
+}
+
+_Jbig2ReferenceList _readJbig2ReferenceList(
+  final Uint8List data,
+  final int start,
+  final int count,
+  final int segmentNumber,
+) {
+  final numberSize = segmentNumber <= 256
+      ? 1
+      : segmentNumber <= 65536
+      ? 2
+      : 4;
+  final values = <int>[];
+  var position = start;
+  for (var i = 0; i < count; i++) {
+    if (position + numberSize > data.length) {
+      throw const PdfException('JBIG2 error: truncated referred-to list.');
+    }
+    final value = switch (numberSize) {
+      1 => data[position],
+      2 => jbig2ReadUint16(data, position),
+      _ => jbig2ReadUint32(data, position),
+    };
+    values.add(value);
+    position += numberSize;
+  }
+
+  return _Jbig2ReferenceList(values: values, position: position);
+}
+
+int _resolveJbig2SegmentLength(
+  final Uint8List data,
+  final int position,
+  final int segmentType,
+  final int length,
+) {
+  if (length != 0xFFFFFFFF) return length;
+  if (segmentType != 38) {
+    throw const PdfException('JBIG2 error: invalid unknown segment length');
+  }
+
+  final info = readJbig2RegionSegmentInformation(data, position);
+  final flags = data[position + jbig2RegionSegmentInformationFieldLength];
+  final searchPattern = _jbig2UnknownLengthPattern(info.height, flags & 1 != 0);
+  for (var i = position; i < data.length; i++) {
+    var j = 0;
+    while (j < searchPattern.length && i + j < data.length && searchPattern[j] == data[i + j]) {
+      j++;
+    }
+    if (j == searchPattern.length) return i + searchPattern.length;
+  }
+
+  throw const PdfException('JBIG2 error: segment end was not found');
+}
+
+Uint8List _jbig2UnknownLengthPattern(final int height, final bool mmr) {
+  final pattern = Uint8List(6);
+  if (!mmr) {
+    pattern[0] = 0xFF;
+    pattern[1] = 0xAC;
+  }
+  pattern[2] = (height >> 24) & 0xFF;
+  pattern[3] = (height >> 16) & 0xFF;
+  pattern[4] = (height >> 8) & 0xFF;
+  pattern[5] = height & 0xFF;
+
+  return pattern;
 }
 
 /// 7.4.1 Region segment information field

@@ -61,7 +61,7 @@ void main() {
       final page = book.pageTexts.single;
 
       expect(page.text, 'LZW works');
-      expect(documentText(book.files.html.single.content), page.text);
+      expect(DocumentTextScanner(book.files.html.single.content).scan(), page.text);
     });
 
     test('rejects codes outside the dictionary with a PdfException', () {
@@ -105,7 +105,10 @@ void main() {
     });
 
     test('keeps the canonical invariant on the rotated page', () {
-      expect(documentText(book.files.html.single.content), book.pageTexts.single.text);
+      expect(
+        DocumentTextScanner(book.files.html.single.content).scan(),
+        book.pageTexts.single.text,
+      );
     });
   });
 

@@ -1,36 +1,36 @@
-import 'package:xml/xml.dart';
-
-import 'docx_package.dart';
+part of '../parse_docx_book.dart';
 
 /// A relationship from the main WordprocessingML document part.
-final class DocxRelationship {
+final class _DocxRelationship {
   /// Creates a resolved DOCX relationship.
-  const DocxRelationship({required this.target, required this.external});
+  const _DocxRelationship({required this.target, required this.isExternal});
 
   /// The external URI or normalized internal package path.
   final String target;
 
   /// Whether [target] points outside the package.
-  final bool external;
+  final bool isExternal;
 }
 
 /// Reads relationships and resolves internal targets to package paths.
-Map<String, DocxRelationship> readDocxRelationships(
+Map<String, _DocxRelationship> _readDocxRelationships(
   final XmlDocument? document,
   final String documentPath,
 ) {
-  if (document == null) return const <String, DocxRelationship>{};
+  if (document == null) return const <String, _DocxRelationship>{};
 
-  final result = <String, DocxRelationship>{};
+  final result = <String, _DocxRelationship>{};
   for (final element in document.rootElement.children.whereType<XmlElement>()) {
     if (element.name.local != 'Relationship') continue;
-    final id = docxAttribute(element, 'Id');
-    final target = docxAttribute(element, 'Target');
+
+    final id = _docxAttribute(element, 'Id');
+    final target = _docxAttribute(element, 'Target');
     if (id == null || target == null || id.isEmpty || target.isEmpty) continue;
-    final external = (docxAttribute(element, 'TargetMode') ?? '').toLowerCase() == 'external';
-    result[id] = DocxRelationship(
-      target: external ? target : resolveDocxRelationshipTarget(documentPath, target),
-      external: external,
+
+    final isExternal = (_docxAttribute(element, 'TargetMode') ?? '').toLowerCase() == 'external';
+    result[id] = _DocxRelationship(
+      target: isExternal ? target : _resolveDocxRelationshipTarget(documentPath, target),
+      isExternal: isExternal,
     );
   }
 

@@ -1,187 +1,267 @@
+import 'dart:convert' as convert;
 import 'dart:typed_data';
 
-import 'entities/calibre_book.dart';
-import 'sqlite_database.dart';
+part 'sqlite_database.dart';
 
-export 'entities/calibre_book.dart';
+/// One book record joined from the `metadata.db` schema consumed by this importer.
+final class CalibreBook {
+  CalibreBook._({
+    required this.id,
+    required this.title,
+    required this.titleSort,
+    required this.timestamp,
+    required this.authorSort,
+    required this.path,
+    required this.authors,
+    required this.series,
+    required this.seriesIndex,
+    required this.tags,
+    required this.identifiers,
+    required this.formats,
+  });
 
-/// A read-only view over a Calibre `metadata.db` file.
+  /// The book id (primary key of `books`).
+  final int id;
+
+  /// The book title (`books.title`).
+  final String? title;
+
+  /// The stored title sort key (`books.sort`), when present.
+  final String? titleSort;
+
+  /// The import timestamp (`books.timestamp`).
+  final DateTime? timestamp;
+
+  /// The stored author sort key (`books.author_sort`), when present.
+  final String? authorSort;
+
+  /// The library-relative folder holding the book files.
+  final String? path;
+
+  /// Author names from `authors` through `books_authors_link`.
+  final List<String> authors;
+
+  /// Series name from `series` through `books_series_link`.
+  final String? series;
+
+  /// Position inside the series (`books.series_index`).
+  final double? seriesIndex;
+
+  /// Tags from `tags` through `books_tags_link`.
+  final List<String> tags;
+
+  /// All `identifiers` rows keyed by scheme (`isbn`, `goodreads`...).
+  final Map<String, String> identifiers;
+
+  /// The formats stored for this book (`EPUB`, `MOBI`, ...).
+  final List<String> formats;
+
+  @override
+  String toString() => 'CalibreBook(#$id, $title, authors: $authors)';
+}
+
+typedef _DatabaseRow = (int, List<Object?>);
+
+/// A read-only view over the `metadata.db` schema consumed by this importer.
 final class CalibreDatabase {
   CalibreDatabase._(this.books);
 
-  /// Parses a `metadata.db` file and joins the tables needed for
-  /// library import: books, authors, series, tags, identifiers and
-  /// data formats.
+  /// Parses a `metadata.db` file and joins the tables needed for library import: books, authors,
+  /// series, tags, identifiers and data formats.
   factory CalibreDatabase.parse(final Uint8List bytes) {
-    final db = SqliteDatabaseReader(bytes);
+    final schema = _CalibreSchema.read(bytes);
 
-    // Column layouts vary between calibre versions (isbn/lccn were
-    // dropped from books in newer releases), so positions come from
-    // each table's CREATE statement instead of hardcoded offsets.
-    final master = db.readTable(1);
-    final roots = <String, int>{};
-    final columns = <String, List<String>>{};
-    for (final row in master) {
-      final values = row.$2;
-      if (values.length >= 4 && values[0] == 'table') {
-        final name = values[1] as String;
-        roots[name] = values[3] as int;
-        columns[name] = _parseColumnNames(values[4] as String? ?? '');
-      }
-    }
-
-    int? columnIndexOf(final String tableName, final String column) {
-      final names = columns[tableName];
-      if (names == null) return null;
-      final index = names.indexOf(column);
-      return index == -1 ? null : index;
-    }
-
-    Object? valueOf(
-      final List<Object?> values,
-      final String tableName,
-      final String column, {
-      final int fallback = -1,
-    }) {
-      final index = columnIndexOf(tableName, column) ?? fallback;
-      if (index < 0 || index >= values.length) return null;
-      return values[index];
-    }
-
-    List<MapEntry<int, List<Object?>>> all(final String tableName) =>
-        db.readTable(roots[tableName]!).map((final row) => MapEntry(row.$1, row.$2)).toList();
-
-    // `id INTEGER PRIMARY KEY` columns are rowid aliases: SQLite
-    // stores them as NULL in the record, so the rowid IS the id.
-    final booksTable = all('books');
-    final authorsTable = all('authors');
-    final seriesTable = all('series');
-    final tagsTable = all('tags');
-    final bookAuthorLinks = all('books_authors_link');
-    final bookSeriesLinks = all('books_series_link');
-    final bookTagLinks = all('books_tags_link');
-    final identifiersTable = all('identifiers');
-    final dataFormats = all('data');
-
-    String nameOf(final List<MapEntry<int, List<Object?>>> table, final int id) {
-      for (final row in table) {
-        if (row.key == id) return _asText(row.value[1]) ?? '';
-      }
-      return '';
-    }
-
-    final authorsByBook = <int, List<String>>{};
-    for (final row in bookAuthorLinks) {
-      final book = row.value[1] as int?;
-      final author = row.value[2] as int?;
-      if (book == null || author == null) continue;
-      (authorsByBook[book] ??= <String>[]).add(nameOf(authorsTable, author));
-    }
-
-    final seriesByBook = <int, String>{};
-    for (final row in bookSeriesLinks) {
-      final book = row.value[1] as int?;
-      final series = row.value[2] as int?;
-      if (book == null || series == null) continue;
-      seriesByBook[book] = nameOf(seriesTable, series);
-    }
-
-    final tagsByBook = <int, List<String>>{};
-    for (final row in bookTagLinks) {
-      final book = row.value[1] as int?;
-      final tag = row.value[2] as int?;
-      if (book == null || tag == null) continue;
-      (tagsByBook[book] ??= <String>[]).add(nameOf(tagsTable, tag));
-    }
-
-    final identifiersByBook = <int, Map<String, String>>{};
-    for (final row in identifiersTable) {
-      final book = row.value[1] as int?;
-      final type = _asText(row.value[2]);
-      final value = _asText(row.value[3]);
-      if (book == null || type == null || value == null) continue;
-      (identifiersByBook[book] ??= <String, String>{})[type] = value;
-    }
-
-    final formatsByBook = <int, List<String>>{};
-    for (final row in dataFormats) {
-      final book = row.value[1] as int?;
-      final format = _asText(row.value[2]);
-      if (book == null || format == null) continue;
-      (formatsByBook[book] ??= <String>[]).add(format);
-    }
-
+    // `id INTEGER PRIMARY KEY` columns are rowid aliases: SQLite stores them as NULL in the record,
+    // so the rowid IS the id.
+    final authorsById = _namesById(schema.readTable('authors'));
+    final seriesById = _namesById(schema.readTable('series'));
+    final tagsById = _namesById(schema.readTable('tags'));
+    final authorsByBook = _linkedNamesByBook(schema.readTable('books_authors_link'), authorsById);
+    final seriesByBook = _linkedNamesByBook(schema.readTable('books_series_link'), seriesById);
+    final tagsByBook = _linkedNamesByBook(schema.readTable('books_tags_link'), tagsById);
+    final identifiersByBook = _identifiersByBook(schema.readTable('identifiers'));
+    final formatsByBook = _textValuesByBook(schema.readTable('data'));
     final books = <CalibreBook>[];
-    for (final row in booksTable) {
-      final id = row.key;
-      final values = row.value;
-      final index = valueOf(values, 'books', 'series_index');
+    for (final (id, values) in schema.readTable('books')) {
+      final index = schema.valueOf(values, 'books', 'series_index');
+      final identifiers = <String, String>{...?identifiersByBook[id]};
+      final isbn = _asText(schema.valueOf(values, 'books', 'isbn'));
+      if (isbn != null && isbn.isNotEmpty && !identifiers.containsKey('isbn')) {
+        identifiers['isbn'] = isbn;
+      }
+
       books.add(
-        CalibreBook(
+        CalibreBook._(
           id: id,
-          title: _asText(valueOf(values, 'books', 'title')),
-          titleSort: _asText(valueOf(values, 'books', 'sort')),
-          timestamp: _parseTimestamp(valueOf(values, 'books', 'timestamp')),
-          authorSort: _asText(valueOf(values, 'books', 'author_sort')),
-          isbn: _asText(valueOf(values, 'books', 'isbn')),
-          path: _asText(valueOf(values, 'books', 'path')),
-          authors: authorsByBook[id] ?? const <String>[],
-          series: seriesByBook[id],
+          title: _asText(schema.valueOf(values, 'books', 'title')),
+          titleSort: _asText(schema.valueOf(values, 'books', 'sort')),
+          timestamp: _parseTimestamp(schema.valueOf(values, 'books', 'timestamp')),
+          authorSort: _asText(schema.valueOf(values, 'books', 'author_sort')),
+          path: _asText(schema.valueOf(values, 'books', 'path')),
+          authors: List<String>.unmodifiable(authorsByBook[id] ?? const <String>[]),
+          series: seriesByBook[id]?.last,
           seriesIndex: index is num ? index.toDouble() : null,
-          tags: tagsByBook[id] ?? const <String>[],
-          identifiers: identifiersByBook[id] ?? const <String, String>{},
-          formats: formatsByBook[id] ?? const <String>[],
+          tags: List<String>.unmodifiable(tagsByBook[id] ?? const <String>[]),
+          identifiers: Map<String, String>.unmodifiable(identifiers),
+          formats: List<String>.unmodifiable(formatsByBook[id] ?? const <String>[]),
         ),
       );
     }
 
-    return CalibreDatabase._(books);
-  }
-
-  /// Extracts the column names of a `CREATE TABLE` statement.
-  static List<String> _parseColumnNames(final String sql) {
-    final open = sql.indexOf('(');
-    if (open == -1) return const <String>[];
-    final names = <String>[];
-    final constraintStarters = <String>{'primary', 'unique', 'check', 'foreign', 'constraint'};
-    var depth = 0;
-    final current = StringBuffer();
-    final parts = <String>[];
-    for (var i = open + 1; i < sql.length; i++) {
-      final char = sql[i];
-      if (char == '(') depth++;
-      if (char == ')') {
-        if (depth == 0) break;
-        depth--;
-      }
-      if (char == ',' && depth == 0) {
-        parts.add(current.toString());
-        current.clear();
-        continue;
-      }
-      current.write(char);
-    }
-    parts.add(current.toString());
-
-    for (final part in parts) {
-      final trimmed = part.trim();
-      if (trimmed.isEmpty) continue;
-      final token = RegExp(r'^["`\[]?([A-Za-z_][A-Za-z0-9_]*)').firstMatch(trimmed)?.group(1);
-      if (token == null) continue;
-      if (constraintStarters.contains(token.toLowerCase())) continue;
-      names.add(token.toLowerCase());
-    }
-    return names;
-  }
-
-  static String? _asText(final Object? value) => value == null ? null : '$value';
-
-  static DateTime? _parseTimestamp(final Object? raw) {
-    if (raw is! String || raw.isEmpty) return null;
-    // Calibre stores `YYYY-MM-DD HH:MM:SS.ffffff+00:00`.
-    return DateTime.tryParse(raw.replaceFirst(' ', 'T'));
+    return CalibreDatabase._(List<CalibreBook>.unmodifiable(books));
   }
 
   /// All books recorded in the library.
   final List<CalibreBook> books;
+}
+
+final class _CalibreSchema {
+  const _CalibreSchema(this._database, this._rootPages, this._columnsByTable);
+
+  factory _CalibreSchema.read(final Uint8List bytes) {
+    final database = _SqliteDatabaseReader(bytes);
+    final rootPages = <String, int>{};
+    final columnsByTable = <String, List<String>>{};
+
+    // Column layouts vary between database versions, so positions come from each table's CREATE
+    // statement instead of hardcoded offsets.
+    for (final (_, values) in database.readTable(1)) {
+      if (values.length < 5 || values[0] != 'table') continue;
+
+      final name = values[1];
+      final rootPage = values[3];
+      if (name is! String || rootPage is! int) continue;
+
+      rootPages[name] = rootPage;
+      columnsByTable[name] = _parseColumnNames(_asText(values[4]) ?? '');
+    }
+
+    return _CalibreSchema(database, rootPages, columnsByTable);
+  }
+
+  final _SqliteDatabaseReader _database;
+  final Map<String, int> _rootPages;
+  final Map<String, List<String>> _columnsByTable;
+
+  List<_DatabaseRow> readTable(final String tableName) {
+    final rootPage = _rootPages[tableName];
+    if (rootPage == null) throw FormatException('Missing required metadata table `$tableName`.');
+
+    return _database.readTable(rootPage);
+  }
+
+  Object? valueOf(final List<Object?> values, final String tableName, final String column) {
+    final columns = _columnsByTable[tableName];
+    final index = columns?.indexOf(column) ?? -1;
+    if (index < 0 || index >= values.length) return null;
+
+    return values[index];
+  }
+
+  static List<String> _parseColumnNames(final String sql) {
+    final open = sql.indexOf('(');
+    if (open == -1) return const <String>[];
+
+    final parts = <String>[];
+    final current = StringBuffer();
+    var depth = 0;
+    for (var index = open + 1; index < sql.length; index++) {
+      final character = sql[index];
+      if (character == '(') depth++;
+      if (character == ')') {
+        if (depth == 0) break;
+        depth--;
+      }
+      if (character == ',' && depth == 0) {
+        parts.add(current.toString());
+        current.clear();
+        continue;
+      }
+
+      current.write(character);
+    }
+    parts.add(current.toString());
+
+    const constraintStarters = <String>{'primary', 'unique', 'check', 'foreign', 'constraint'};
+    final names = <String>[];
+    final identifierPattern = RegExp(r'^["`\[]?([A-Za-z_][A-Za-z0-9_]*)');
+    for (final part in parts) {
+      final token = identifierPattern.firstMatch(part.trim())?.group(1)?.toLowerCase();
+      if (token == null || constraintStarters.contains(token)) continue;
+
+      names.add(token);
+    }
+
+    return names;
+  }
+}
+
+Map<int, String> _namesById(final List<_DatabaseRow> rows) {
+  final names = <int, String>{};
+  for (final (id, values) in rows) {
+    names[id] = _asText(_valueAt(values, 1)) ?? '';
+  }
+
+  return names;
+}
+
+Map<int, List<String>> _linkedNamesByBook(
+  final List<_DatabaseRow> rows,
+  final Map<int, String> namesById,
+) {
+  final namesByBook = <int, List<String>>{};
+  for (final (_, values) in rows) {
+    final bookId = _valueAt(values, 1);
+    final nameId = _valueAt(values, 2);
+    if (bookId is! int || nameId is! int) continue;
+
+    final name = namesById[nameId];
+    if (name == null) continue;
+
+    (namesByBook[bookId] ??= <String>[]).add(name);
+  }
+
+  return namesByBook;
+}
+
+Map<int, Map<String, String>> _identifiersByBook(final List<_DatabaseRow> rows) {
+  final identifiersByBook = <int, Map<String, String>>{};
+  for (final (_, values) in rows) {
+    final bookId = _valueAt(values, 1);
+    final scheme = _asText(_valueAt(values, 2));
+    final value = _asText(_valueAt(values, 3));
+    if (bookId is! int || scheme == null || value == null) continue;
+
+    (identifiersByBook[bookId] ??= <String, String>{})[scheme] = value;
+  }
+
+  return identifiersByBook;
+}
+
+Map<int, List<String>> _textValuesByBook(final List<_DatabaseRow> rows) {
+  final valuesByBook = <int, List<String>>{};
+  for (final (_, values) in rows) {
+    final bookId = _valueAt(values, 1);
+    final value = _asText(_valueAt(values, 2));
+    if (bookId is! int || value == null) continue;
+
+    (valuesByBook[bookId] ??= <String>[]).add(value);
+  }
+
+  return valuesByBook;
+}
+
+Object? _valueAt(final List<Object?> values, final int index) {
+  return index < values.length ? values[index] : null;
+}
+
+String? _asText(final Object? value) {
+  return value == null ? null : '$value';
+}
+
+DateTime? _parseTimestamp(final Object? raw) {
+  if (raw is! String || raw.isEmpty) return null;
+
+  // Library timestamps use `YYYY-MM-DD HH:MM:SS.ffffff+00:00`.
+  return DateTime.tryParse(raw.replaceFirst(' ', 'T'));
 }

@@ -42,6 +42,7 @@ ImageSize? imageSize(final Uint8List bytes) {
   // GIF: logical screen descriptor
   if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
     final view = ByteData.sublistView(bytes);
+
     return ImageSize(view.getUint16(6, Endian.little), view.getUint16(8, Endian.little));
   }
 
@@ -107,7 +108,6 @@ ImageSize? _jpegSize(final Uint8List bytes) {
 
     if (marker == 0xD8 || marker == 0x01 || (marker >= 0xD0 && marker <= 0xD7)) {
       i += 2;
-
       continue;
     }
     if (i + 4 > bytes.length) return null;
@@ -135,6 +135,7 @@ ImageSize? _webpSize(final Uint8List bytes) {
       if (bytes.length < 30 || bytes[23] != 0x9D || bytes[24] != 0x01 || bytes[25] != 0x2A) {
         return null;
       }
+
       final view = ByteData.sublistView(bytes);
 
       return ImageSize(
@@ -144,6 +145,7 @@ ImageSize? _webpSize(final Uint8List bytes) {
     case 'VP8L':
       // Lossless: signature byte then packed 14-bit width/height.
       if (bytes[20] != 0x2F) return null;
+
       final b0 = bytes[21];
       final b1 = bytes[22];
       final b2 = bytes[23];

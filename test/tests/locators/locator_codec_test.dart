@@ -73,45 +73,4 @@ void main() {
       );
     });
   });
-
-  group('eLv1 interop', () {
-    test('parses a valid point locator', () {
-      expect(
-        textLocatorFromELv1('eLv1:3:128'),
-        const TextLocator(sectionIndex: 3, start: 128, end: 128),
-      );
-      expect(textLocatorFromELv1('eLv1:0:0'), const TextLocator(sectionIndex: 0, start: 0, end: 0));
-    });
-
-    test('emits the canonical eLv1 form', () {
-      expect(eLv1Of(const TextLocator(sectionIndex: 12, start: 34, end: 56)), 'eLv1:12:34');
-    });
-
-    test('round-trips through parse and emit', () {
-      expect(eLv1Of(textLocatorFromELv1('eLv1:0:0')!), 'eLv1:0:0');
-      expect(eLv1Of(textLocatorFromELv1('eLv1:7:912')!), 'eLv1:7:912');
-    });
-
-    test('rejects malformed strings', () {
-      expect(textLocatorFromELv1(''), isNull);
-      expect(textLocatorFromELv1('eLv1'), isNull);
-      expect(textLocatorFromELv1('eLv1:3'), isNull);
-      expect(textLocatorFromELv1('eLv1:3:12:9'), isNull);
-      expect(textLocatorFromELv1('eLv2:3:12'), isNull);
-      expect(textLocatorFromELv1('elv1:3:12'), isNull);
-      expect(textLocatorFromELv1('eLv1:a:12'), isNull);
-      expect(textLocatorFromELv1('eLv1:3:b'), isNull);
-    });
-
-    test('rejects negative file indexes', () {
-      expect(textLocatorFromELv1('eLv1:-1:0'), isNull);
-    });
-
-    test('clamps negative offsets to zero like the viewer', () {
-      expect(
-        textLocatorFromELv1('eLv1:3:-12'),
-        const TextLocator(sectionIndex: 3, start: 0, end: 0),
-      );
-    });
-  });
 }

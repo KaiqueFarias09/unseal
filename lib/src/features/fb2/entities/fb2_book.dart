@@ -1,7 +1,7 @@
 import '../../../foundation/entities/entities.dart';
 
 /// A parsed FictionBook 2.0 book.
-class Fb2Book extends Book {
+final class Fb2Book extends Book {
   /// Creates an [Fb2Book] from already parsed parts.
   Fb2Book({
     required this.navigation,
@@ -24,16 +24,4 @@ class Fb2Book extends Book {
   /// The format-agnostic metadata of this book.
   @override
   final BookMetadata metadata;
-
-  /// The book authors.
-  List<String> get creators => metadata.authors;
-
-  /// The book language code.
-  String get language => metadata.languages.isEmpty ? '' : metadata.languages.first;
-
-  /// The book publisher.
-  String? get publisher => metadata.publisher;
-
-  /// The book title.
-  String get title => metadata.title ?? '';
 }

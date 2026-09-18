@@ -1,7 +1,7 @@
 import '../../../foundation/entities/entities.dart';
 import '../../../foundation/images/image_dimensions.dart';
 import '../../../foundation/images/image_type_sniffer.dart';
-import '../../../foundation/metadata/book_metadata_operations.dart';
+import '../../../foundation/metadata/series_index.dart';
 import '../entities/entities.dart';
 
 /// Maps an EPUB [package] into the common [BookMetadata].
@@ -10,13 +10,6 @@ import '../entities/entities.dart';
 /// the metadata carries the cover image bytes.
 BookMetadata epubBookMetadata(final EpubPackage package, [final BinaryFile? coverFile]) {
   final metadata = package.metadata;
-  final identifiers = <String, String>{};
-  for (final identifier in metadata.identifiers) {
-    final key = identifier == metadata.uniqueIdentifierValue
-        ? 'unique-identifier'
-        : 'identifier-${identifiers.length}';
-    identifiers[key] = identifier;
-  }
 
   return BookMetadata(
     format: BookFormat.epub,
@@ -27,14 +20,14 @@ BookMetadata epubBookMetadata(final EpubPackage package, [final BinaryFile? cove
     description: metadata.description,
     isbn: _findIsbn(metadata.identifiers),
     subjects: [if (metadata.subject?.isNotEmpty == true) metadata.subject!],
-    publishedAt: parseEpubDate(metadata.date),
+    publishedAt: _parseEpubDate(metadata.date),
     rights: metadata.rights?.firstOrNull,
     series: _seriesOf(package),
     seriesIndex: parseSeriesIndex(metadata.seriesIndex),
     titleSort: metadata.titleSort,
     authorSort: metadata.authorSort,
     bookProducer: metadata.bookProducer,
-    identifiers: identifiers,
+    identifiers: _identifiersOf(metadata),
     cover: _coverFrom(coverFile),
   );
 }
@@ -50,22 +43,23 @@ BookCover? _coverFrom(final BinaryFile? coverFile) {
   return BookCover(bytes: coverFile.content, type: type, width: size?.width, height: size?.height);
 }
 
-/// Parses an EPUB `dc:date` string, tolerating loose forms.
-DateTime? parseEpubDate(final String raw) {
-  if (raw.isEmpty) return null;
-
+DateTime? _parseEpubDate(final String raw) {
   final trimmed = raw.trim();
-  final direct = DateTime.tryParse(trimmed);
-  if (direct != null) return direct;
+  if (trimmed.isEmpty) return null;
 
-  final match = RegExp(r'^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?').firstMatch(trimmed);
-  if (match == null) return null;
+  final partial = RegExp(r'^(\d{4})(?:-(\d{2}))?$').firstMatch(trimmed);
+  if (partial != null) {
+    final year = int.parse(partial.group(1)!);
+    final month = partial.group(2) == null ? 1 : int.parse(partial.group(2)!);
+    if (month < 1 || month > 12) return null;
 
-  return DateTime(
-    int.parse(match.group(1)!),
-    match.group(2) != null ? int.parse(match.group(2)!) : 1,
-    match.group(3) != null ? int.parse(match.group(3)!) : 1,
-  );
+    return DateTime(year, month);
+  }
+
+  final datePrefix = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(trimmed);
+  if (datePrefix != null && !_isValidDate(datePrefix)) return null;
+
+  return DateTime.tryParse(trimmed);
 }
 
 String? _findIsbn(final List<String> identifiers) {
@@ -77,6 +71,27 @@ String? _findIsbn(final List<String> identifiers) {
   }
 
   return null;
+}
+
+Map<String, String> _identifiersOf(final Metadata metadata) {
+  final identifiers = <String, String>{};
+  for (final identifier in metadata.identifiers) {
+    final key = identifier == metadata.uniqueIdentifierValue
+        ? 'unique-identifier'
+        : 'identifier-${identifiers.length}';
+    identifiers[key] = identifier;
+  }
+
+  return identifiers;
+}
+
+bool _isValidDate(final RegExpMatch match) {
+  final year = int.parse(match.group(1)!);
+  final month = int.parse(match.group(2)!);
+  final day = int.parse(match.group(3)!);
+  final date = DateTime.utc(year, month, day);
+
+  return date.year == year && date.month == month && date.day == day;
 }
 
 String? _seriesOf(final EpubPackage package) {

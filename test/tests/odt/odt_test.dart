@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/odt/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/odt/parse_odt_book.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:e_livre/odt.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -14,7 +12,7 @@ void main() {
     expect(book, isA<DocumentBook>());
     expect(book.format, BookFormat.odt);
     expect(book.metadata.title, 'ODT title');
-    expect(book.metadata.authors, ['Ada Lovelace']);
+    expect(book.metadata.authors, ['Ada Lovelace', 'Grace Hopper']);
     expect(book.metadata.languages, ['en-US']);
     expect(book.metadata.subjects, ['ebooks', 'parsing']);
     expect(book.metadata.bookProducer, 'LibreOffice');
@@ -23,13 +21,20 @@ void main() {
     expect(book.metadata.cover, isNotNull);
 
     final content = book.files.html.single.content;
-    expect(content, contains('<h1>Chapter one</h1>'));
+    expect(content, contains('<h1 id="heading-1">Chapter one</h1>'));
+    expect(content, contains('<h2 id="heading-2">Nested section</h2>'));
     expect(content, contains('<strong>bold</strong>'));
+    expect(content, contains('plain underline'));
+    expect(content, isNot(contains('<u>plain underline</u>')));
     expect(content, contains('before<br/>after'));
     expect(content, contains('<ol><li><p>first item</p></li></ol>'));
     expect(content, contains('<table><tbody><tr><td><p>left</p></td>'));
     expect(content, contains('src="Pictures/cover.png"'));
     expect(book.navigation.navPoints.single.label, 'Chapter one');
+    expect(book.navigation.navPoints.single.content, '#heading-1');
+    expect(book.navigation.navPoints.single.subNavPoints.single.label, 'Nested section');
+    expect(book.navigation.navPoints.single.subNavPoints.single.content, '#heading-2');
+    expect(content, contains('id="${book.navigation.navPoints.single.id}"'));
     expect(book.readingOrder.single.name, 'content.xhtml');
   });
 
@@ -38,7 +43,7 @@ void main() {
 
     expect(metadata.format, BookFormat.odt);
     expect(metadata.title, 'ODT title');
-    expect(metadata.authors, ['Ada Lovelace']);
+    expect(metadata.authors, ['Ada Lovelace', 'Grace Hopper']);
     expect(metadata.publisher, 'Open Publisher');
   });
 
@@ -53,13 +58,30 @@ void main() {
       ),
     );
   });
+
+  test('reports malformed required XML through the ODT error contract', () {
+    expect(
+      () => parseOdtBook(_odtBytes(contentXml: '<office:document-content>')),
+      throwsA(
+        isA<InvalidOdtXmlException>().having((final error) => error.part, 'part', 'content.xml'),
+      ),
+    );
+  });
+
+  test('keeps a readable document when optional metadata is malformed', () {
+    final book = parseOdtBook(_odtBytes(metaXml: '<office:document-meta>'));
+
+    expect(book.metadata.format, BookFormat.odt);
+    expect(book.metadata.title, isNull);
+    expect(book.files.html.single.content, contains('Chapter one'));
+  });
 }
 
-Uint8List _odtBytes() {
+Uint8List _odtBytes({final String contentXml = _contentXml, final String metaXml = _metaXml}) {
   final archive = Archive()
     ..addFile(ArchiveFile('mimetype', 39, utf8.encode('application/vnd.oasis.opendocument.text')))
-    ..addFile(ArchiveFile('content.xml', _contentXml.length, utf8.encode(_contentXml)))
-    ..addFile(ArchiveFile('meta.xml', _metaXml.length, utf8.encode(_metaXml)))
+    ..addFile(ArchiveFile('content.xml', contentXml.length, utf8.encode(contentXml)))
+    ..addFile(ArchiveFile('meta.xml', metaXml.length, utf8.encode(metaXml)))
     ..addFile(ArchiveFile('styles.xml', _stylesXml.length, utf8.encode(_stylesXml)))
     ..addFile(ArchiveFile('Pictures/cover.png', _png.length, _png));
 
@@ -79,13 +101,20 @@ const _contentXml = '''<?xml version="1.0" encoding="UTF-8"?>
     <style:style style:name="Tbold" style:family="text">
       <style:text-properties fo:font-weight="bold"/>
     </style:style>
+    <style:style style:name="Tplain" style:family="text">
+      <style:text-properties style:text-underline-style="none"/>
+    </style:style>
+    <style:style style:name="Heading_20_2" style:display-name="Heading 2"
+        style:family="paragraph"/>
     <text:list-style style:name="Lnumber">
       <text:list-level-style-number text:level="1" style:num-format="1"/>
     </text:list-style>
   </office:automatic-styles>
   <office:body><office:text>
     <text:h text:outline-level="1">Chapter one</text:h>
+    <text:h text:style-name="Heading_20_2">Nested section</text:h>
     <text:p>before<text:line-break/>after <text:span text:style-name="Tbold">bold</text:span>
+      <text:span text:style-name="Tplain">plain underline</text:span>
       <draw:frame draw:name="Cover"><draw:image xlink:href="Pictures/cover.png"/></draw:frame>
     </text:p>
     <text:list text:style-name="Lnumber"><text:list-item><text:p>first item</text:p></text:list-item></text:list>
@@ -107,7 +136,7 @@ const _metaXml = '''<?xml version="1.0" encoding="UTF-8"?>
     xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0">
   <office:meta>
     <dc:title>ODT title</dc:title>
-    <meta:initial-creator>Ada Lovelace</meta:initial-creator>
+    <meta:initial-creator>Ada Lovelace AND Grace Hopper</meta:initial-creator>
     <dc:language>en-US</dc:language>
     <dc:subject>ebooks</dc:subject>
     <meta:keyword>parsing</meta:keyword>

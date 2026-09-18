@@ -78,8 +78,9 @@ final class WorkerClient {
   }
 
   /// Reads metadata inside the worker; `null` means inline fallback.
-  Future<BookMetadata?> metadataInWorker(final Uint8List bytes) async =>
-      await _request(workerOpMetadata, bytes: bytes) as BookMetadata?;
+  Future<BookMetadata?> metadataInWorker(final Uint8List bytes) async {
+    return await _request(workerOpMetadata, bytes: bytes) as BookMetadata?;
+  }
 
   /// Searches the resident book inside the worker; `null` means no
   /// resident book or no worker — callers run `book.search` inline as
@@ -156,9 +157,7 @@ final class WorkerClient {
     final message = JSObject();
     message.setProperty(wireKeyId.toJS, id.toJS);
     message.setProperty(wireKeyOp.toJS, op.toJS);
-    if (bytes != null) {
-      message.setProperty(wireKeyBytes.toJS, bytes.toJS);
-    }
+    if (bytes != null) message.setProperty(wireKeyBytes.toJS, bytes.toJS);
     if (payload != null) {
       message.setProperty(wireKeyPayload.toJS, encodeJson(payload).toJS);
     }
@@ -171,6 +170,7 @@ final class WorkerClient {
   /// workers are unavailable and parsing must stay on the main thread.
   web.Worker? _acquire() {
     if (!isConfigured) return null;
+
     final existing = _worker;
     if (existing != null) return existing;
 

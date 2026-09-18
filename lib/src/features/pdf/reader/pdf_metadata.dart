@@ -8,13 +8,10 @@ import '../header/pdf_object.dart';
 
 /// Reads PDF metadata into the format-agnostic [BookMetadata].
 ///
-/// Behaviorally mirrors Calibre's `src/calibre/ebooks/metadata/pdf.py`
-/// (GPLv3; re-expressed, not translated): the Info dictionary is the
-/// primary source — `/Title`, `/Author`, `/Creator` as producer,
-/// `/Subject` + `/Keywords` as tags with the ISBN lifted out of the
-/// keywords, `/CreationDate` as the publication date — and the XMP
-/// packet (`/Root /Metadata`) fills the fields the Info dictionary
-/// left empty.
+/// The Info dictionary supplies `/Title`, `/Author`, `/Creator` as producer, `/Subject` and
+/// `/Keywords` as tags with the ISBN lifted out of the keywords, and `/CreationDate` as the
+/// publication date. The XMP packet (`/Root /Metadata`) can override the title and authors and
+/// adds identifiers.
 class PdfMetadataReader {
   const PdfMetadataReader._();
 
@@ -22,7 +19,6 @@ class PdfMetadataReader {
   static BookMetadata read(final PdfDocument document) {
     final info = document.resolve(document.trailer['Info']);
     final dictionary = info is PdfDictionary ? info : null;
-
     final title = _textOf(dictionary?['Title']);
     final authorText = _textOf(dictionary?['Author']);
     final producer = _textOf(dictionary?['Creator']);
@@ -36,7 +32,6 @@ class PdfMetadataReader {
       if (subject != null && subject.isNotEmpty) subject,
       ..._splitKeywords(_stripIsbn(keywords, isbnMatch)),
     ].where((final tag) => tag.isNotEmpty).toList();
-
     final metadata = BookMetadata(
       format: BookFormat.pdf,
       title: title,
@@ -56,6 +51,7 @@ class PdfMetadataReader {
   /// outside a handful of rare high slots).
   static String? _textOf(final PdfObject? entry) {
     if (entry is! PdfString) return null;
+
     final bytes = entry.bytes;
     if (bytes.isEmpty) return null;
     if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) {
@@ -67,9 +63,8 @@ class PdfMetadataReader {
     return String.fromCharCodes(bytes);
   }
 
-  /// Splits an author line on `&` the way Calibre's
-  /// `string_to_authors` does; a line without one stays whole (the
-  /// comma form is ambiguous against `Last, First` lists).
+  /// Splits an author line on `&`; a line without one stays whole
+  /// because commas are ambiguous in `Last, First` lists.
   static List<String> _splitAuthors(final String? text) {
     if (text == null || text.isEmpty) return const <String>[];
 
@@ -90,10 +85,10 @@ class PdfMetadataReader {
         .toList();
   }
 
-  /// The Calibre `check_isbn` behavior: find an ISBN token, validate
-  /// its 10- or 13-digit checksum, and drop it from the tags.
+  /// Finds an ISBN token and validates its 10- or 13-digit checksum.
   static RegExpMatch? _isbnMatch(final String? keywords) {
     if (keywords == null) return null;
+
     final matcher = RegExp(
       r'(?:isbn)[:\s]*([0-9Xx][0-9Xx\s\-]{7,15}[0-9Xx])',
       caseSensitive: false,
@@ -115,6 +110,7 @@ class PdfMetadataReader {
 
   static String? _stripIsbn(final String? keywords, final RegExpMatch? match) {
     if (keywords == null || match == null) return keywords;
+
     final stripped = keywords.replaceRange(match.start, match.end, '');
 
     return stripped.replaceAll(RegExp(r',\s*,'), ',').replaceAll(RegExp(r'[,\s]+$'), '');
@@ -127,6 +123,7 @@ class PdfMetadataReader {
         final char = candidate.codeUnitAt(i);
         final value = char == 0x58 || char == 0x78 ? 10 : char - 0x30;
         if (value < 0 || value > 10) return false;
+
         sum += value * (10 - i);
       }
 
@@ -137,6 +134,7 @@ class PdfMetadataReader {
       for (var i = 0; i < 13; i++) {
         final value = candidate.codeUnitAt(i) - 0x30;
         if (value < 0 || value > 9) return false;
+
         sum += value * (i.isEven ? 1 : 3);
       }
 
@@ -151,6 +149,7 @@ class PdfMetadataReader {
   static DateTime? _dateOf(final PdfObject? entry) {
     final text = _textOf(entry);
     if (text == null) return null;
+
     final match = RegExp(
       r"^(?:D:)?(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?"
       r"(?:([+\-Zz])(\d{2})?'?(\d{2})?'?)?",
@@ -180,12 +179,12 @@ class PdfMetadataReader {
     return DateTime.tryParse(iso);
   }
 
-  static String _pad(final int value, [final int width = 2]) =>
-      value.toString().padLeft(width, '0');
+  static String _pad(final int value, [final int width = 2]) {
+    return value.toString().padLeft(width, '0');
+  }
 
-  /// XMP consolidation, after Calibre's `consolidate_metadata`: the
-  /// Dublin Core packet only fills fields the Info dictionary left
-  /// empty — Info wins because it is what editing tools keep current.
+  /// XMP metadata can override the Info title and authors when present and adds identifiers; other
+  /// Info fields remain unchanged.
   static BookMetadata _consolidateWithXmp(final PdfDocument document, final BookMetadata info) {
     final stream = document.resolve(document.catalog?['Metadata']);
     if (stream is! PdfStream) return info;
@@ -201,7 +200,6 @@ class PdfMetadataReader {
     } on Exception {
       return info;
     }
-
     final title = _xmpValue(xml, 'title') ?? info.title;
     final authors = _xmpValues(xml, 'creator');
     final identifiers = _xmpValues(xml, 'identifier');
@@ -221,6 +219,7 @@ class PdfMetadataReader {
   static String? _xmpValue(final XmlDocument xml, final String localName) {
     for (final element in xml.descendantElements) {
       if (element.name.local != localName) continue;
+
       final value = _elementText(element);
       if (value != null && value.isNotEmpty) return value;
     }
@@ -232,6 +231,7 @@ class PdfMetadataReader {
     final values = <String>[];
     for (final element in xml.descendantElements) {
       if (element.name.local != localName) continue;
+
       final value = _elementText(element);
       if (value != null && value.isNotEmpty) values.add(value);
     }
@@ -247,6 +247,7 @@ class PdfMetadataReader {
         return text.isEmpty ? null : text;
       }
     }
+
     final own = element.innerText.trim();
 
     return own.isEmpty ? null : own;

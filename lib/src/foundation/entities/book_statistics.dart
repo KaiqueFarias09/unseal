@@ -9,7 +9,6 @@ final class BookStatistics {
   factory BookStatistics.fromTexts(final Iterable<String> texts) {
     var wordsCount = 0;
     var characters = 0;
-
     for (final text in texts) {
       wordsCount += countWords(text);
       characters += text.length;

@@ -26,6 +26,18 @@ void main() {
       ),
     );
   });
+
+  test('removes quoted aid attributes without truncating apostrophes', () {
+    final record0 = buildMobiRecord0();
+    final structure = Mobi8Structure.read(
+      pdb: _Records([record0]),
+      header: MobiHeader.parse(record0, 'BOOKMOBI'),
+      textOffset: 1,
+      rawText: Uint8List(0),
+    );
+
+    expect(structure.removeKindleAids('<p aid="reader\'s-anchor">Text</p>'), '<p>Text</p>');
+  });
 }
 
 final class _Records implements PdbRecordAccess {

@@ -2,6 +2,7 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:collection/collection.dart';
 import 'package:pointycastle/export.dart';
 import 'package:xml/xml.dart';
 
@@ -153,15 +154,5 @@ final class _FontObfuscation {
     }
 
     return decoded;
-  }
-}
-
-extension on Iterable<XmlElement> {
-  XmlElement? firstWhereOrNull(final bool Function(XmlElement element) test) {
-    for (final element in this) {
-      if (test(element)) return element;
-    }
-
-    return null;
   }
 }

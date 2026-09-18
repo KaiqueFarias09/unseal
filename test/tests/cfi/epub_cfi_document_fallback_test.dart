@@ -2,10 +2,8 @@ import 'package:e_livre/src/features/cfi/epub_cfi_document.dart';
 import 'package:e_livre/src/foundation/text/canonical_document_text.dart';
 import 'package:test/test.dart';
 
-/// Tag-soup sections that the strict XML parser rejects must fall
-/// back to an HTML5 parse (Calibre parity: content documents go
-/// through `html5_parser`, never strict XML), and the fallback tree
-/// must produce exactly the [documentText] offset space.
+/// Tag-soup sections rejected by the strict XML parser fall back to an HTML5 parse using
+/// `html5_parser`; the fallback tree must produce exactly the [DocumentTextScanner.scan] offset space.
 void main() {
   // Every fixture below must parse and share the documentText space.
   group('EpubCfiDocument HTML5 fallback', () {
@@ -34,7 +32,7 @@ void main() {
     for (final entry in soups.entries) {
       test('${entry.key}: parses and matches documentText', () {
         final document = EpubCfiDocument.parse(entry.value);
-        expect(document.text, documentText(entry.value));
+        expect(document.text, DocumentTextScanner(entry.value).scan());
       });
     }
 

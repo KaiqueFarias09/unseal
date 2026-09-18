@@ -37,7 +37,7 @@ void main() {
   });
 
   test('the canonical invariant holds against a real document', () {
-    expect(documentText(book.files.html.single.content), book.pageTexts.single.text);
+    expect(DocumentTextScanner(book.files.html.single.content).scan(), book.pageTexts.single.text);
   });
 
   test('search reaches the reflowed text', () {

@@ -1,20 +1,7 @@
-import 'dart:typed_data';
-
-import 'package:collection/collection.dart';
-import 'package:xml/xml.dart';
-
-import '../../../foundation/entities/entities.dart';
-import '../../../foundation/metadata/book_metadata_operations.dart';
-import '../../../foundation/text/xml_encoding.dart';
-import '../container/fb2_document.dart';
-import '../resources/fb2_resources.dart';
-
-/// Reads only the metadata of an FB2 book from [bytes].
-BookMetadata readFb2Metadata(final Uint8List bytes) =>
-    readFb2SourceMetadata(Fb2Source.fromBytes(bytes));
+part of '../parse_fb2_book.dart';
 
 /// Reads metadata from a selected plain FB2 XML [source].
-BookMetadata readFb2SourceMetadata(final Fb2Source source) {
+BookMetadata _readFb2SourceMetadata(final _Fb2Source source) {
   // Fast path: all metadata lives in the leading <description>
   // element and the cover in a single <binary>; parse only those
   // slices instead of building the DOM for the whole document (and
@@ -30,11 +17,11 @@ BookMetadata readFb2SourceMetadata(final Fb2Source source) {
 
   final document = source.parseXml();
 
-  return mapFb2Metadata(document.rootElement, Fb2Resources.fromRoot(document.rootElement));
+  return _mapFb2Metadata(document.rootElement, _Fb2Resources.fromRoot(document.rootElement));
 }
 
 /// Maps FB2 description and publication fields to the common metadata model.
-BookMetadata mapFb2Metadata(final XmlElement root, final Fb2Resources resources) {
+BookMetadata _mapFb2Metadata(final XmlElement root, final _Fb2Resources resources) {
   XmlElement? first(final String parent, final String child) {
     for (final parentElement in root.findAllElements(parent)) {
       for (final childElement in parentElement.findElements(child)) {
@@ -95,11 +82,14 @@ BookMetadata mapFb2Metadata(final XmlElement root, final Fb2Resources resources)
     if (name != null && name.isNotEmpty) {
       series ??= name;
       seriesIndex ??= parseSeriesIndex(sequence.getAttribute('number'));
+
       break;
     }
   }
 
-  var publishedAt = _parseFb2Date(first('title-info', 'date')?.innerText.trim());
+  final date = first('title-info', 'date');
+  var publishedAt = _parseFb2Date(date?.getAttribute('value'));
+  publishedAt ??= _parseFb2Date(date?.innerText.trim());
   publishedAt ??= _parseYear(first('publish-info', 'year')?.innerText.trim());
 
   final identifiers = <String, String>{};
@@ -126,19 +116,20 @@ BookMetadata mapFb2Metadata(final XmlElement root, final Fb2Resources resources)
 /// document does not match the expected shape (caller falls back to
 /// the full parse).
 BookMetadata? _readSlicedMetadata(final Uint8List bytes, final XmlEncoding encoding) {
-  final description = _sliceElement(bytes, 0, _descriptionOpen, _descriptionClose);
+  final description = _sliceElement(bytes, 0, '<description', '</description>');
   if (description == null) return null;
+
   try {
     final wrapper = XmlDocument.parse('<m>${decodeXmlTextAs(description.$1, encoding)}</m>');
     final root = wrapper.rootElement;
-    final coverId = fb2CoverId(root);
+    final coverId = _fb2CoverId(root);
     final binaries = <String, BinaryFile>{};
     if (coverId != null) {
       final binary = _sliceCoverBinary(bytes, coverId, encoding);
       if (binary != null) binaries[coverId] = binary;
     }
 
-    return mapFb2Metadata(root, Fb2Resources.fromBinaries(root, binaries));
+    return _mapFb2Metadata(root, _Fb2Resources.fromBinaries(root, binaries));
   } on Exception {
     // Malformed slice (CDATA tricks, broken markup, ...): the full
     // parse handles the document the honest way.
@@ -151,8 +142,8 @@ BookMetadata? _readSlicedMetadata(final Uint8List bytes, final XmlEncoding encod
 (Uint8List, int)? _sliceElement(
   final Uint8List bytes,
   final int from,
-  final List<int> open,
-  final List<int> close,
+  final String open,
+  final String close,
 ) {
   final start = _indexOfAscii(bytes, from, open);
   if (start == -1) return null;
@@ -171,21 +162,22 @@ BinaryFile? _sliceCoverBinary(
 ) {
   var from = 0;
   while (true) {
-    final open = _indexOfAscii(bytes, from, _binaryOpen);
+    final open = _indexOfAscii(bytes, from, '<binary');
     if (open == -1) return null;
 
-    final tagEnd = _indexOfByte(bytes, open, _greaterThan);
+    final tagEnd = _indexOfByte(bytes, open, 0x3E);
     if (tagEnd == -1) return null;
 
     final tag = decodeXmlTextAs(Uint8List.sublistView(bytes, open, tagEnd + 1), encoding);
     if (_attributeValue(tag, 'id') == coverId) {
-      final close = _indexOfAscii(bytes, tagEnd, _binaryClose);
+      final close = _indexOfAscii(bytes, tagEnd, '</binary>');
       if (close == -1) return null;
 
       final text = decodeXmlTextAs(Uint8List.sublistView(bytes, tagEnd + 1, close), encoding);
 
-      return decodeFb2Binary(coverId, _attributeValue(tag, 'content-type') ?? 'image/jpeg', text);
+      return _decodeFb2Binary(coverId, _attributeValue(tag, 'content-type') ?? 'image/jpeg', text);
     }
+
     from = tagEnd;
   }
 }
@@ -203,12 +195,14 @@ String? _attributeValue(final String tag, final String name) {
           (tag[i] == ' ' || tag[i] == '\t' || tag[i] == '\n' || tag[i] == '\r')) {
         i++;
       }
+
       if (i < tag.length && tag[i] == '=') {
         i++;
         while (i < tag.length &&
             (tag[i] == ' ' || tag[i] == '\t' || tag[i] == '\n' || tag[i] == '\r')) {
           i++;
         }
+
         if (i < tag.length && (tag[i] == '"' || tag[i] == "'")) {
           final quote = tag[i];
           final end = tag.indexOf(quote, i + 1);
@@ -241,72 +235,41 @@ String _authorName(final XmlElement author) {
 
 DateTime? _parseFb2Date(final String? raw) {
   if (raw == null || raw.isEmpty) return null;
-  final trimmed = raw.trim();
-  final direct = DateTime.tryParse(trimmed);
-  if (direct != null) return direct;
 
+  final trimmed = raw.trim();
   final match = RegExp(r'^(\d{4})(?:[-/.](\d{1,2}))?(?:[-/.](\d{1,2}))?').firstMatch(trimmed);
   if (match == null) return null;
 
-  return DateTime(
-    int.parse(match.group(1)!),
-    match.group(2) != null ? int.parse(match.group(2)!) : 1,
-    match.group(3) != null ? int.parse(match.group(3)!) : 1,
-  );
+  final year = int.parse(match.group(1)!);
+  final month = match.group(2) == null ? 1 : int.parse(match.group(2)!);
+  final day = match.group(3) == null ? 1 : int.parse(match.group(3)!);
+  final date = DateTime(year, month, day);
+  if (date.year != year || date.month != month || date.day != day) return null;
+
+  return DateTime.tryParse(trimmed) ?? date;
 }
 
 DateTime? _parseYear(final String? raw) {
   if (raw == null) return null;
+
   final match = RegExp(r'^(\d{4})').firstMatch(raw.trim());
 
   return match == null ? null : DateTime(int.parse(match.group(1)!));
 }
 
-const List<int> _descriptionOpen = <int>[
-  0x3C,
-  0x64,
-  0x65,
-  0x73,
-  0x63,
-  0x72,
-  0x69,
-  0x70,
-  0x74,
-  0x69,
-  0x6F,
-  0x6E,
-];
-const List<int> _descriptionClose = <int>[
-  0x3C,
-  0x2F,
-  0x64,
-  0x65,
-  0x73,
-  0x63,
-  0x72,
-  0x69,
-  0x70,
-  0x74,
-  0x69,
-  0x6F,
-  0x6E,
-  0x3E,
-];
-const List<int> _binaryOpen = <int>[0x3C, 0x62, 0x69, 0x6E, 0x61, 0x72, 0x79];
-const List<int> _binaryClose = <int>[0x3C, 0x2F, 0x62, 0x69, 0x6E, 0x61, 0x72, 0x79, 0x3E];
-const int _greaterThan = 0x3E;
-
-int _indexOfAscii(final Uint8List bytes, final int from, final List<int> pattern) {
-  final first = pattern[0];
+int _indexOfAscii(final Uint8List bytes, final int from, final String pattern) {
+  final first = pattern.codeUnitAt(0);
   for (var i = from; i + pattern.length <= bytes.length; i++) {
     if (bytes[i] != first) continue;
+
     var isMatched = true;
     for (var j = 1; j < pattern.length; j++) {
-      if (bytes[i + j] != pattern[j]) {
+      if (bytes[i + j] != pattern.codeUnitAt(j)) {
         isMatched = false;
         break;
       }
     }
+
     if (isMatched) return i;
   }
 

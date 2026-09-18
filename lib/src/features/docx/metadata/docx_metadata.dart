@@ -1,9 +1,7 @@
-import 'package:xml/xml.dart';
-
-import '../../../foundation/entities/entities.dart';
+part of '../parse_docx_book.dart';
 
 /// Maps DOCX core properties to format-agnostic book metadata.
-BookMetadata readDocxCoreMetadata(final XmlDocument? document) {
+BookMetadata _readDocxCoreMetadata(final XmlDocument? document) {
   if (document == null) return const BookMetadata(format: BookFormat.docx);
 
   final root = document.rootElement;
@@ -24,12 +22,30 @@ BookMetadata readDocxCoreMetadata(final XmlDocument? document) {
     subjects: _splitValues(subject),
     description: description,
     languages: language == null ? const <String>[] : <String>[language],
-    publishedAt: DateTime.tryParse(created ?? '') ?? DateTime.tryParse(modified ?? ''),
+    publishedAt: _parseDocxDate(created) ?? _parseDocxDate(modified),
     identifiers: identifier == null
         ? const <String, String>{}
         : <String, String>{'identifier': identifier},
     rights: rights,
   );
+}
+
+DateTime? _parseDocxDate(final String? value) {
+  final source = value?.trim();
+  if (source == null || source.isEmpty) return null;
+
+  final components = RegExp(r'^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?').firstMatch(source);
+  if (components == null) return null;
+
+  final year = int.parse(components.group(1)!);
+  final month = int.tryParse(components.group(2) ?? '') ?? 1;
+  final day = int.tryParse(components.group(3) ?? '') ?? 1;
+  final calendarDate = DateTime.utc(year, month, day);
+  if (calendarDate.year != year || calendarDate.month != month || calendarDate.day != day) {
+    return null;
+  }
+
+  return DateTime.tryParse(source);
 }
 
 List<String> _splitAuthors(final String? value) {
@@ -55,6 +71,7 @@ List<String> _splitValues(final String? value) {
 String? _firstText(final XmlElement root, final String localName) {
   for (final element in root.descendants.whereType<XmlElement>()) {
     if (element.name.local != localName) continue;
+
     final value = element.innerText.trim();
     if (value.isNotEmpty) return value;
   }

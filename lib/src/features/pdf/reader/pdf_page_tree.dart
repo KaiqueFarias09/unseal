@@ -38,6 +38,7 @@ class PdfPageTree {
     final int depth,
   ) {
     if (depth > 64 || pages.length > 100000) return;
+
     final objectNumber = nodeRef is PdfIndirectRef ? nodeRef.objectNumber : 0;
     if (objectNumber != 0 && !visited.add(objectNumber)) return;
 
@@ -46,7 +47,6 @@ class PdfPageTree {
     final cropBox = _boxOf(document, node['CropBox']) ?? inherited.cropBox;
     final resources = node.containsKey('Resources') ? node['Resources'] : inherited.resources;
     final rotate = _rotateOf(document.resolve(node['Rotate'])) ?? inherited.rotate;
-
     if (type is PdfName && type.value == 'Page') {
       pages.add(
         PdfPage(
@@ -72,18 +72,18 @@ class PdfPageTree {
     );
     for (final kid in kids.items) {
       final kidDict = document.resolve(kid);
-      if (kidDict is PdfDictionary) {
-        _walk(document, kid, kidDict, next, pages, visited, depth + 1);
-      }
+      if (kidDict is PdfDictionary) _walk(document, kid, kidDict, next, pages, visited, depth + 1);
     }
   }
 
   static List<double>? _boxOf(final PdfDocument document, final PdfObject? entry) {
     final box = document.resolve(entry);
     if (box is! PdfArray || box.items.length != 4) return null;
+
     final values = <double>[];
     for (final item in box.items) {
       if (item is! PdfNumber) return null;
+
       values.add(item.value);
     }
 

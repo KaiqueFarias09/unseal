@@ -1,16 +1,9 @@
-import 'package:archive/archive.dart';
-
-import '../../../foundation/archive/archive_access.dart';
-import '../../../foundation/entities/entities.dart';
-import '../../../foundation/files/book_file_factory.dart';
-import '../../../foundation/images/cover_helpers.dart';
-import '../../../foundation/images/image_type_sniffer.dart';
-import '../container/odt_package.dart';
+part of '../parse_odt_book.dart';
 
 /// Binary resources and inventory extracted from an ODT package.
-final class OdtResources {
+final class _OdtResources {
   /// Creates a complete ODT resource bundle.
-  const OdtResources({
+  const _OdtResources({
     required this.images,
     required this.fonts,
     required this.others,
@@ -19,15 +12,12 @@ final class OdtResources {
   });
 
   /// Extracts categorized binary resources from [package].
-  factory OdtResources.fromPackage(
-    final OdtPackage package, {
-    required final Set<String> referencedImages,
-  }) {
-    final images = _readImages(package.archive, referencedImages);
+  factory _OdtResources.fromPackage(final _OdtPackage package) {
+    final images = _readImages(package.archive);
     final fonts = _readFonts(package.archive);
     final others = _readOtherBinaryParts(package.archive, images, fonts);
 
-    return OdtResources(
+    return _OdtResources(
       images: images,
       fonts: fonts,
       others: others,
@@ -52,10 +42,11 @@ final class OdtResources {
   final BinaryFile? cover;
 }
 
-List<BinaryFile> _readImages(final Archive archive, final Set<String> referencedImages) {
+List<BinaryFile> _readImages(final Archive archive) {
   final result = <BinaryFile>[];
   for (final entry in archive.files) {
     if (!entry.isFile) continue;
+
     final path = normalizeZipPath(entry.name);
     final lower = path.toLowerCase();
     final content = contentBytes(entry);
@@ -63,11 +54,7 @@ List<BinaryFile> _readImages(final Archive archive, final Set<String> referenced
         lower.startsWith('pictures/') &&
         (sniffImageType(content) != null || _imageExtensions.contains(_extension(path)));
     if (!isImage) continue;
-    if (referencedImages.isNotEmpty &&
-        !_containsPath(referencedImages, path) &&
-        !lower.startsWith('pictures/')) {
-      continue;
-    }
+
     result.add(binaryFile(path, content));
   }
 
@@ -78,8 +65,10 @@ List<BinaryFile> _readFonts(final Archive archive) {
   final result = <BinaryFile>[];
   for (final entry in archive.files) {
     if (!entry.isFile) continue;
+
     final path = normalizeZipPath(entry.name);
     if (!path.toLowerCase().startsWith('fonts/')) continue;
+
     result.add(binaryFile(path, contentBytes(entry)));
   }
 
@@ -98,27 +87,29 @@ List<BinaryFile> _readOtherBinaryParts(
   final result = <BinaryFile>[];
   for (final entry in archive.files) {
     if (!entry.isFile) continue;
+
     final path = normalizeZipPath(entry.name);
     final lower = path.toLowerCase();
     if (known.contains(lower) || lower.endsWith('.xml') || lower == 'mimetype') continue;
+
     result.add(binaryFile(path, contentBytes(entry)));
   }
 
   return result;
 }
 
-List<ArchiveEntry> _archiveEntries(final Archive archive) => <ArchiveEntry>[
-  for (final entry in archive.files)
-    if (entry.isFile) ArchiveEntry(path: normalizeZipPath(entry.name), size: entry.size),
-];
-
-bool _containsPath(final Set<String> paths, final String path) =>
-    paths.any((final candidate) => normalizeZipPath(candidate).toLowerCase() == path.toLowerCase());
+List<ArchiveEntry> _archiveEntries(final Archive archive) {
+  return <ArchiveEntry>[
+    for (final entry in archive.files)
+      if (entry.isFile) ArchiveEntry(path: normalizeZipPath(entry.name), size: entry.size),
+  ];
+}
 
 String _extension(final String path) {
   final name = path.split('/').last;
   final dot = name.lastIndexOf('.');
   if (dot <= 0 || dot == name.length - 1) return '';
+
   return name.substring(dot + 1).toLowerCase();
 }
 

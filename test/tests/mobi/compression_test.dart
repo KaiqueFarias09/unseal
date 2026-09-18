@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:e_livre/e_livre.dart' show InvalidBookException;
 import 'package:e_livre/src/features/mobi/compression/huff_cdic.dart';
 import 'package:e_livre/src/features/mobi/compression/palmdoc.dart';
+import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
 import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
 import 'package:test/test.dart';
@@ -45,6 +47,13 @@ void main() {
     });
   });
 
+  test('PdbHeader reports record offsets outside the payload', () {
+    final bytes = buildPdb('Invalid offset', [Uint8List(1)]);
+    ByteData.sublistView(bytes).setUint32(78, 1);
+
+    expect(() => PdbHeader.parse(bytes), throwsA(isA<InvalidBookException>()));
+  });
+
   group('HuffReader', () {
     test('round-trips data through an 8-bit identity dictionary', () {
       final sections = <Uint8List>[buildHuffHeader(), buildCdic()];
@@ -53,6 +62,18 @@ void main() {
       final payload = Uint8List.fromList('Alice was beginning to get very tired'.codeUnits);
       final unpacked = reader.unpack(payload);
       expect(String.fromCharCodes(unpacked), 'Alice was beginning to get very tired');
+    });
+
+    test('reports a missing HUFF section as a MOBI error', () {
+      expect(() => HuffReader(const []), throwsA(isA<MobiException>()));
+    });
+
+    test('reports truncated HUFF tables as a MOBI error', () {
+      final truncated = Uint8List(16)
+        ..setRange(0, 4, 'HUFF'.codeUnits)
+        ..[7] = 0x18;
+
+      expect(() => HuffReader([truncated]), throwsA(isA<MobiException>()));
     });
   });
 }

@@ -1,6 +1,6 @@
 /// One narrated fragment of an EPUB 3 media overlay: the audio clip
 /// plus the content-document element it narrates.
-class OverlaySegment {
+final class OverlaySegment {
   /// Creates a segment.
   const OverlaySegment({
     required this.sequence,
@@ -37,7 +37,7 @@ class OverlaySegment {
 
 /// A parsed SMIL overlay document: the flattened, ordered segments of
 /// one content document's narration.
-class MediaOverlayDocument {
+final class MediaOverlayDocument {
   /// Creates a document.
   const MediaOverlayDocument({required this.smilPath, required this.segments});
 
@@ -50,8 +50,9 @@ class MediaOverlayDocument {
   /// Total declared duration (`media:duration` lives in the OPF, so
   /// this sums parsed clips where `clipEnd` is present) — informational
   /// only; players derive timing from the audio itself.
-  Duration get declaredDuration => segments.fold(
-    Duration.zero,
-    (final total, final s) => total + ((s.clipEnd ?? s.clipBegin) - s.clipBegin),
-  );
+  Duration get declaredDuration {
+    return segments.fold(Duration.zero, (final total, final segment) {
+      return total + ((segment.clipEnd ?? segment.clipBegin) - segment.clipBegin);
+    });
+  }
 }

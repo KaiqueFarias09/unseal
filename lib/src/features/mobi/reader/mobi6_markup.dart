@@ -2,7 +2,33 @@ import 'dart:typed_data';
 
 import '../../../foundation/entities/entities.dart';
 import '../../../foundation/images/image_type_sniffer.dart';
+import '../codec/mobi_byte_search.dart';
 import 'mobi_font.dart';
+
+// Compiled once: these run over every chapter and every TOC entry of
+// every MOBI 6 book.
+final RegExp _recIndexPattern = RegExp(
+  r"""(<img[^>]*?)\s(?:lowrecindex|recindex|hirecindex)\s*=\s*["']?(\d+)["']?""",
+  caseSensitive: false,
+);
+
+final RegExp _fileposAttrPattern = RegExp(
+  r"""\sfilepos\s*=\s*["']?(\d+)["']?""",
+  caseSensitive: false,
+);
+
+final RegExp _pageBreakPattern = RegExp(r'<\s*/?\s*mbp:pagebreak[^>]*>', caseSensitive: false);
+
+final RegExp _malformedClosingPattern = RegExp('</([a-zA-Z]+)<');
+
+final RegExp _tocAnchorPattern = RegExp(
+  r"""<a[^>]+href\s*=\s*["']#filepos(\d+)["'][^>]*>(.*?)</a>""",
+  dotAll: true,
+);
+
+final RegExp _separatorTagsPattern = RegExp('<(br|/p|p|/div|div)[^>]*>', caseSensitive: false);
+
+final RegExp _anyTagPattern = RegExp('<[^>]*>');
 
 /// Resources extracted from a MOBI 6 book.
 class Mobi6Resources {
@@ -44,19 +70,18 @@ Uint8List addFileposAnchors(final Uint8List html) {
     }
     if (digits > 0) positions.add(value);
   }
+
   final out = BytesBuilder(copy: false);
   var pos = 0;
-
   for (final oend in positions.toList()..sort()) {
     if (oend == 0 || oend >= html.length) continue;
 
     var end = oend;
-    final lt = _indexOfByte(html, 0x3C, end);
-    final gt = _indexOfByte(html, 0x3E, end);
+    final lt = indexOfByte(html, 0x3C, end);
+    final gt = indexOfByte(html, 0x3E, end);
     var anchor = '<a id="filepos$oend"></a>';
-
     if (gt > -1 && (gt < lt || lt == end || lt == -1)) {
-      final p = _lastIndexOfByte(html, 0x3C, 0, end + 1);
+      final p = lastIndexOfByte(html, 0x3C, 0, end + 1);
       final isEndTag = p > -1 && p + 1 < html.length && html[p + 1] == 0x2F;
       final selfClosed = p > -1 && gt > p && html[gt - 1] == 0x2F; // '.../>'
       if (pos < end && p > -1 && !isEndTag && !selfClosed) {
@@ -76,31 +101,6 @@ Uint8List addFileposAnchors(final Uint8List html) {
 
   return out.takeBytes();
 }
-
-// Compiled once: these run over every chapter and every TOC entry of
-// every MOBI 6 book.
-final RegExp _recIndexPattern = RegExp(
-  r"""(<img[^>]*?)\s(?:lowrecindex|recindex|hirecindex)\s*=\s*["']?(\d+)["']?""",
-  caseSensitive: false,
-);
-
-final RegExp _fileposAttrPattern = RegExp(
-  r"""\sfilepos\s*=\s*["']?(\d+)["']?""",
-  caseSensitive: false,
-);
-
-final RegExp _pageBreakPattern = RegExp(r'<\s*/?\s*mbp:pagebreak[^>]*>', caseSensitive: false);
-
-final RegExp _malformedClosingPattern = RegExp('</([a-zA-Z]+)<');
-
-final RegExp _tocAnchorPattern = RegExp(
-  r"""<a[^>]+href\s*=\s*["']#filepos(\d+)["'][^>]*>(.*?)</a>""",
-  dotAll: true,
-);
-
-final RegExp _separatorTagsPattern = RegExp('<(br|/p|p|/div|div)[^>]*>', caseSensitive: false);
-
-final RegExp _anyTagPattern = RegExp('<[^>]*>');
 
 /// Applies MOBI 6 markup conversions to decoded HTML:
 /// image `recindex` attributes to `src`, `filepos` attributes to
@@ -152,7 +152,6 @@ Mobi6Resources extractMobi6Resources({
   final fonts = <BinaryFile>[];
   final imageNames = <int, String>{};
   var start = firstImageIndex;
-
   if (start > recordCount || start < 0) {
     start = 0; // Some PRC files carry broken headers.
   }
@@ -163,7 +162,8 @@ Mobi6Resources extractMobi6Resources({
     processedRecords.add(i);
     final data = recordAt(i);
     imageIndex += 1;
-    if (_hasMagicBytes(data, 'FONT')) {
+
+    if (hasAsciiAt(data, 'FONT')) {
       final font = decodeFontRecord(data);
       fonts.add(
         BinaryFile(
@@ -175,6 +175,7 @@ Mobi6Resources extractMobi6Resources({
       );
       continue;
     }
+
     if (_isKnownNonImageRecord(data)) continue;
 
     final type = sniffImageType(data);
@@ -202,7 +203,6 @@ Navigation deriveMobi6Navigation(final String html, final String title) {
   var bestStart = 0;
   var bestLength = 1;
   var runStart = 0;
-
   for (var i = 1; i <= matches.length; i++) {
     final continues =
         i < matches.length && _onlySeparators(html, matches[i - 1].end, matches[i].start);
@@ -215,6 +215,7 @@ Navigation deriveMobi6Navigation(final String html, final String title) {
     }
     runStart = i;
   }
+
   final points = <NavPoint>[];
   for (var i = bestStart; i < bestStart + bestLength; i++) {
     final match = matches[i];
@@ -248,40 +249,30 @@ String _stripTags(final String raw) => raw.replaceAll(_anyTagPattern, '');
 
 String _padded(final int value) => value.toString().padLeft(5, '0');
 
-const List<String> _nonImageMagics = <String>[
-  'FLIS',
-  'FCIS',
-  'SRCS',
-  'BOUN',
-  'FDST',
-  'DATP',
-  'AUDI',
-  'VIDE',
-  'RESC',
-  'CMET',
-  'PAGE',
-];
-
 bool _isKnownNonImageRecord(final Uint8List data) {
+  const nonImageMagics = <String>[
+    'FLIS',
+    'FCIS',
+    'SRCS',
+    'BOUN',
+    'FDST',
+    'DATP',
+    'AUDI',
+    'VIDE',
+    'RESC',
+    'CMET',
+    'PAGE',
+  ];
+
   if (data.length < 4) return false;
   // The Mobipocket 'unknown' marker: e9 8e 0d 0a.
   if (data[0] == 0xE9 && data[1] == 0x8E && data[2] == 0x0D && data[3] == 0x0A) return true;
 
-  for (final magic in _nonImageMagics) {
-    if (_hasMagicBytes(data, magic)) return true;
+  for (final magic in nonImageMagics) {
+    if (hasAsciiAt(data, magic)) return true;
   }
 
   return false;
-}
-
-bool _hasMagicBytes(final Uint8List data, final String magic) {
-  if (data.length < magic.length) return false;
-
-  for (var i = 0; i < magic.length; i++) {
-    if (data[i] != magic.codeUnitAt(i)) return false;
-  }
-
-  return true;
 }
 
 List<int> _asciiPattern(final String text) => text.codeUnits.map((final c) => c).toList();
@@ -301,33 +292,18 @@ int _indexOfPattern(
     for (var j = 0; j < pattern.length; j++) {
       var a = data[i + j];
       var b = pattern[j];
-
       if (caseInsensitive) {
         if (a >= 0x41 && a <= 0x5A) a += 0x20;
         if (b >= 0x41 && b <= 0x5A) b += 0x20;
       }
+
       if (a != b) {
         isMatched = false;
         break;
       }
     }
+
     if (isMatched) return i;
-  }
-
-  return -1;
-}
-
-int _indexOfByte(final Uint8List data, final int byte, final int from) {
-  for (var i = from; i < data.length; i++) {
-    if (data[i] == byte) return i;
-  }
-
-  return -1;
-}
-
-int _lastIndexOfByte(final Uint8List data, final int byte, final int from, final int to) {
-  for (var i = to - 1; i >= from; i--) {
-    if (data[i] == byte) return i;
   }
 
   return -1;

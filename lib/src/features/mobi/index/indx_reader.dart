@@ -1,7 +1,9 @@
 import 'dart:collection';
 import 'dart:typed_data';
 
-import '../codec/mobi_binary.dart';
+import '../codec/mobi_bit_operations.dart';
+import '../codec/mobi_byte_search.dart';
+import '../codec/mobi_text_codec.dart';
 import '../exceptions/exceptions.dart';
 
 /// A TAGX tag definition.
@@ -109,6 +111,7 @@ typedef IndxTable = LinkedHashMap<String, Map<int, List<int>>>;
   final String codec,
 ) {
   if (index < 0 || index >= recordCount) throw MobiException('INDX index $index out of range.');
+
   final data = recordAt(index);
   final header = _parseIndxHeader(data);
   final table = IndxTable();
@@ -122,14 +125,13 @@ typedef IndxTable = LinkedHashMap<String, Map<int, List<int>>>;
   }
 
   var tagSectionStart = header.tagxOffset;
-  if (tagSectionStart + 4 > data.length || !_hasMagic(data, tagSectionStart, 'TAGX')) {
+  if (!hasAsciiAt(data, 'TAGX', tagSectionStart)) {
     final found = _findMagic(data, 'TAGX', 184);
     if (found > -1) {
       tagSectionStart = found;
     }
   }
   final (controlByteCount, tags) = _parseTagxSection(Uint8List.sublistView(data, tagSectionStart));
-
   for (var i = index + 1; i <= index + header.count && i < recordCount; i++) {
     _parseIndexRecord(table, recordAt(i), controlByteCount, tags, codec);
   }
@@ -138,7 +140,7 @@ typedef IndxTable = LinkedHashMap<String, Map<int, List<int>>>;
 }
 
 IndxHeaderInfo _parseIndxHeader(final Uint8List data) {
-  if (!_hasMagic(data, 0, 'INDX')) throw const MobiException('Not a valid INDX record.');
+  if (!hasAsciiAt(data, 'INDX')) throw const MobiException('Not a valid INDX record.');
   final view = ByteData.sublistView(data);
   // 45 u32 words follow the magic: len..ncncx (13), 27 unknowns,
   // ocnt, oentries, ordt1, ordt2, tagx.
@@ -159,7 +161,8 @@ IndxHeaderInfo _parseIndxHeader(final Uint8List data) {
 }
 
 (int, List<IndxTag>) _parseTagxSection(final Uint8List data) {
-  if (!_hasMagic(data, 0, 'TAGX')) throw const MobiException('Not a valid TAGX section.');
+  if (!hasAsciiAt(data, 'TAGX')) throw const MobiException('Not a valid TAGX section.');
+
   final view = ByteData.sublistView(data);
   final firstEntryOffset = view.getUint32(4);
   final controlByteCount = view.getUint32(8);
@@ -180,15 +183,17 @@ void _parseIndexRecord(
 ) {
   final header = _parseIndxHeader(data);
   final idxtPos = header.start;
-  if (idxtPos + 4 > data.length || !_hasMagic(data, idxtPos, 'IDXT')) {
-    return; // Calibre warns and continues.
+  if (!hasAsciiAt(data, 'IDXT', idxtPos)) {
+    return; // This record has no IDXT block, so its entries are skipped.
   }
+
   final view = ByteData.sublistView(data);
   final entryCount = header.count;
   final positions = <int>[];
   for (var j = 0; j < entryCount; j++) {
     final at = idxtPos + 4 + 2 * j;
     if (at + 2 > data.length) break;
+
     positions.add(view.getUint16(at));
   }
   positions.add(idxtPos);
@@ -196,9 +201,8 @@ void _parseIndexRecord(
   for (var j = 0; j < entryCount && j + 1 < positions.length; j++) {
     final start = positions[j];
     final end = positions[j + 1];
-    if (start >= end || end > data.length) {
-      continue;
-    }
+    if (start >= end || end > data.length) continue;
+
     final rec = Uint8List.sublistView(data, start, end);
     var (ident, consumed) = decodeIndexString(rec, codec);
     if (ident.contains(String.fromCharCode(0))) {
@@ -210,9 +214,8 @@ void _parseIndexRecord(
         consumed = utf16.$2;
       }
     }
-    if (consumed >= rec.length) {
-      continue;
-    }
+    if (consumed >= rec.length) continue;
+
     final tagMap = _getTagMap(controlByteCount, tags, Uint8List.sublistView(rec, consumed));
     table[ident] = tagMap;
   }
@@ -220,6 +223,7 @@ void _parseIndexRecord(
 
 (String, int)? _decodeUtf16Prefixed(final Uint8List rec) {
   if (rec.isEmpty) return null;
+
   final length = rec[0];
   final available = length < rec.length - 1 ? length : rec.length - 1;
   final chunk = rec.sublist(1, 1 + available);
@@ -246,15 +250,12 @@ Map<int, List<int>> _getTagMap(
       if (controlBytes.isNotEmpty) {
         controlBytes = controlBytes.sublist(1);
       }
+
       continue;
     }
-    if (controlBytes.isEmpty) {
-      continue;
-    }
+    if (controlBytes.isEmpty) continue;
     var value = controlBytes[0] & x.bitmask;
-    if (value == 0) {
-      continue;
-    }
+    if (value == 0) continue;
     int? valueCount;
     int? valueBytes;
     if (value == x.bitmask) {
@@ -301,18 +302,9 @@ Map<int, List<int>> _getTagMap(
   return result;
 }
 
-bool _hasMagic(final Uint8List data, final int offset, final String magic) {
-  if (offset + magic.length > data.length) return false;
-  for (var i = 0; i < magic.length; i++) {
-    if (data[offset + i] != magic.codeUnitAt(i)) return false;
-  }
-
-  return true;
-}
-
 int _findMagic(final Uint8List data, final String magic, final int from) {
   for (var i = from; i + magic.length <= data.length; i++) {
-    if (_hasMagic(data, i, magic)) return i;
+    if (hasAsciiAt(data, magic, i)) return i;
   }
 
   return -1;

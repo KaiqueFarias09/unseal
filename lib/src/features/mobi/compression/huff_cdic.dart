@@ -25,6 +25,8 @@ class _DictionaryEntry {
 class HuffReader {
   /// Creates a [HuffReader] from the huff section records.
   HuffReader(final List<Uint8List> sections) {
+    if (sections.isEmpty) throw const MobiException('Missing HUFF section');
+
     _loadHuff(sections.first);
     for (var i = 1; i < sections.length; i++) {
       _loadCdic(sections[i]);
@@ -43,10 +45,10 @@ class HuffReader {
     var bitsLeft = data.length * 8;
     final padded = Uint8List(data.length + 8)..setRange(0, data.length, data);
     final view = ByteData.sublistView(padded);
+
     var pos = 0;
     var x = view.getUint64(pos);
     var n = 32;
-
     while (true) {
       if (n <= 0) {
         pos += 4;
@@ -72,6 +74,10 @@ class HuffReader {
       }
 
       final r = (maxcode - code) >> (32 - codelen);
+      if (r < 0 || r >= _dictionary.length) {
+        throw const MobiException('HUFF code references a missing dictionary entry');
+      }
+
       final dictionaryEntry = _dictionary[r];
       var slice = dictionaryEntry.data;
       if (!dictionaryEntry.cached) {
@@ -102,15 +108,25 @@ class HuffReader {
         cdic[7] != 0x10) {
       throw const MobiException('Invalid CDIC header');
     }
+
     final view = ByteData.sublistView(cdic);
     final phrases = view.getUint32(8);
     final bits = view.getUint32(12);
+    if (bits > 31) throw const MobiException('Invalid CDIC dictionary width');
+
     final available = (1 << bits) < phrases - _dictionary.length
         ? (1 << bits)
         : phrases - _dictionary.length;
-
     for (var i = 0; i < available; i++) {
+      if (16 + i * 2 + 2 > cdic.length) {
+        throw const MobiException('Truncated CDIC offset table');
+      }
+
       final off = view.getUint16(16 + i * 2);
+      if (16 + off + 2 > cdic.length) {
+        throw const MobiException('Invalid CDIC dictionary offset');
+      }
+
       final blen = view.getUint16(16 + off);
       final length = blen & 0x7FFF;
       final cached = (blen & 0x8000) != 0;
@@ -137,9 +153,13 @@ class HuffReader {
         huff[7] != 0x18) {
       throw const MobiException('Invalid HUFF header');
     }
+
     final view = ByteData.sublistView(huff);
     final off1 = view.getUint32(8);
     final off2 = view.getUint32(12);
+    if (off1 > huff.length - 256 * 4 || off2 > huff.length - 32 * 8) {
+      throw const MobiException('Truncated HUFF code tables');
+    }
 
     final dict1 = <_Dict1Entry>[];
     for (var i = 0; i < 256; i++) {

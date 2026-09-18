@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../foundation/exceptions/elivre_exception.dart';
-import '../codec/mobi_binary.dart';
+import '../codec/mobi_text_codec.dart';
 import '../exceptions/mobi_exception.dart';
 import 'exth_header.dart';
 
@@ -15,26 +15,36 @@ class MobiHeader {
     textRecordSize = record0.length >= 12 ? view.getUint16(10) : 0;
     encryptionType = record0.length >= 14 ? view.getUint16(12) : 0;
     ancient = record0.length <= 16;
-    if (ancient) {
-      codec = 'cp1252';
-      extraFlags = 0;
-      title = '';
-      langCode = 0;
-      mobiVersion = 1;
-      firstImageIndex = -1;
-      exth = null;
-      headerLength = 0;
-      codepage = 1252;
-      uniqueId = 0;
-      fileVersion = 0;
-      ncxIndex = nullIndex;
-      divIndex = skelIndex = othIndex = fdstIndex = nullIndex;
-      fdstCount = 0;
-      huffOffset = huffRecordCount = 0;
-      doctype = '';
 
+    if (ancient) {
+      _initializeAncient();
       return;
     }
+
+    _parseModern(record0, view);
+  }
+
+  void _initializeAncient() {
+    codec = 'cp1252';
+    extraFlags = 0;
+    title = '';
+    langCode = 0;
+    mobiVersion = 1;
+    firstImageIndex = -1;
+    exth = null;
+    headerLength = 0;
+    codepage = 1252;
+    uniqueId = 0;
+    fileVersion = 0;
+    ncxIndex = nullIndex;
+    divIndex = skelIndex = othIndex = fdstIndex = nullIndex;
+    fdstCount = 0;
+    huffOffset = huffRecordCount = 0;
+    doctype = '';
+  }
+
+  void _parseModern(final Uint8List record0, final ByteData view) {
+    if (record0.length < 0x84) throw const InvalidBookException('Truncated MOBI header.');
 
     doctype = String.fromCharCodes(record0.sublist(16, 20));
     headerLength = view.getUint32(20);
@@ -42,6 +52,13 @@ class MobiHeader {
     uniqueId = view.getUint32(32);
     fileVersion = view.getUint32(36);
     codec = codepage == 65001 ? 'utf-8' : 'cp1252';
+    _parseCompressionDetails(record0, view);
+    _parseTitleAndVersion(record0, view);
+    _parseExth(record0, view);
+    _parseKf8Indexes(record0, view);
+  }
+
+  void _parseCompressionDetails(final Uint8List record0, final ByteData view) {
     const maxHeaderLength = 500;
     if (ident == 'TEXTREAD' || headerLength < 0xE4 || headerLength > maxHeaderLength) {
       extraFlags = 0;
@@ -57,23 +74,34 @@ class MobiHeader {
       huffOffset = 0;
       huffRecordCount = 0;
     }
+  }
+
+  void _parseTitleAndVersion(final Uint8List record0, final ByteData view) {
     final titleOffset = view.getUint32(0x54);
     final titleLength = view.getUint32(0x58);
     final titleEnd = titleOffset + titleLength;
 
-    title = titleEnd < record0.length && titleLength > 0
+    title = titleEnd <= record0.length && titleLength > 0
         ? decodeBytes(Uint8List.sublistView(record0, titleOffset, titleEnd), codec).trim()
         : '';
     langCode = view.getUint32(0x5C);
     mobiVersion = view.getUint32(0x68);
     firstImageIndex = view.getUint32(0x6C);
+  }
+
+  void _parseExth(final Uint8List record0, final ByteData view) {
     final exthFlag = view.getUint32(0x80);
     if ((exthFlag & 0x40) != 0) {
       // EXTH is optional metadata. A stale flag or a damaged marker
       // must not discard otherwise readable book content, while the
       // sublist operation remains outside this recovery boundary so a
       // malformed mandatory header length still fails strictly.
-      final rawExth = Uint8List.sublistView(record0, 16 + headerLength);
+      final exthStart = 16 + headerLength;
+      if (exthStart > record0.length) {
+        throw const InvalidBookException('MOBI header exceeds record 0.');
+      }
+
+      final rawExth = Uint8List.sublistView(record0, exthStart);
       try {
         exth = ExthHeader.parse(rawExth, codec, title);
       } on MobiException {
@@ -82,6 +110,9 @@ class MobiHeader {
     } else {
       exth = null;
     }
+  }
+
+  void _parseKf8Indexes(final Uint8List record0, final ByteData view) {
     ncxIndex = record0.length >= 0xF8 ? view.getUint32(0xF4) : nullIndex;
     if (mobiVersion == 8 && record0.length >= 0xF8 + 16) {
       divIndex = view.getUint32(0xF8);
@@ -175,19 +206,22 @@ class MobiHeader {
   late final int fdstCount;
 
   /// Index of the first non-text record, bounded to the file.
-  int get firstNonTextRecordIndex =>
-      firstImageIndex == -1 || firstImageIndex == nullIndex ? textRecordCount + 1 : firstImageIndex;
+  int get firstNonTextRecordIndex {
+    return firstImageIndex == -1 || firstImageIndex == nullIndex
+        ? textRecordCount + 1
+        : firstImageIndex;
+  }
 }
 
 /// The `null` record index sentinel used by MOBI headers.
-const int nullIndex = 0xFFFFFFFF;
+const nullIndex = 0xFFFFFFFF;
 
 /// Validates that [header] is not DRM protected.
 void assertNotDrm(final MobiHeader header, final String bookName) {
   if (header.encryptionType != 0) {
     var name = bookName;
     if (name.isEmpty) {
-      name = header.exth?.string(503) ?? header.title;
+      name = header.exth?.title ?? header.title;
     }
     throw DrmProtectedException(name.isEmpty ? 'This MOBI book is DRM protected.' : name);
   }

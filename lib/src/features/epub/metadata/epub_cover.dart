@@ -7,7 +7,7 @@ import '../entities/entities.dart';
 
 /// Resolves the manifest item that holds the cover image.
 ///
-/// Precedence follows the EPUB specs (and mirrors Calibre):
+/// Checks standards-defined cover metadata in order, then falls back to an id/media-type heuristic:
 ///
 /// 1. EPUB 3 `properties="cover-image"` manifest item.
 /// 2. EPUB 2 `<meta name="cover" content="id"/>` referenced item.
@@ -26,6 +26,7 @@ ManifestItem? resolveCoverItem(final EpubPackage package) {
     final metaCover = items.firstWhereOrNull((final item) => item.id == coverId);
     if (metaCover != null) return metaCover;
   }
+
   final guideReference = package.guide?.references.firstWhereOrNull(
     (final reference) => reference.type.toLowerCase() == 'cover',
   );
@@ -66,11 +67,12 @@ BinaryFile getBookCover(
   if (entry == null) return BinaryFile.empty();
 
   final name = entry.name.split('/').last;
+  final dot = name.lastIndexOf('.');
 
   return BinaryFile(
     content: contentBytes(entry),
     name: name,
-    type: name.split('.').last,
+    type: dot < 0 || dot == name.length - 1 ? '' : name.substring(dot + 1),
     path: entry.name,
   );
 }

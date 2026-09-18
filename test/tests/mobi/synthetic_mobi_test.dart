@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:e_livre/e_livre.dart';
 import 'package:e_livre/src/features/mobi/header/exth_header.dart';
 import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
+import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
+import 'package:e_livre/src/features/mobi/reader/mobi8_resources.dart';
 import 'package:e_livre/src/features/mobi/reader/mobi_container.dart';
 import 'package:test/test.dart';
 
@@ -77,6 +79,22 @@ void main() {
       final container = MobiContainer(buildContRecord());
       expect(container.loadImage(Uint8List.fromList('CRES'.codeUnits)), isNull);
     });
+
+    test('rejects a truncated EXTH payload without leaking a range error', () {
+      final record = buildContRecord();
+      ByteData.sublistView(record).setUint32(64, 25);
+      final truncated = Uint8List.sublistView(record, 0, 70);
+
+      expect(MobiContainer(truncated).isImageContainer, isFalse);
+    });
+  });
+
+  test('resource ranges keep independent container state and unique names', () {
+    final records = _Records([buildContRecord(), buildCresRecord(tinyPng), tinyPng]);
+    final resources = Mobi8Resources.extract(pdb: records, resourceOffsets: const [(0, 1), (1, 3)]);
+
+    expect(resources.images.map((final image) => image.name), ['image00003.png']);
+    expect(resources.resourceMap, [null, null, 'image00003.png']);
   });
 
   group('KF8 with CONT/CRES image containers', () {
@@ -157,6 +175,22 @@ void main() {
       expect(header.firstNonTextRecordIndex, 1);
     });
 
+    test('reports truncated modern headers as invalid books', () {
+      expect(
+        () => MobiHeader.parse(Uint8List(17), 'BOOKMOBI'),
+        throwsA(isA<InvalidBookException>()),
+      );
+    });
+
+    test('reads a title that ends exactly at the record boundary', () {
+      final full = buildMobiRecord0(title: 'Exact');
+      final view = ByteData.sublistView(full);
+      final titleEnd = view.getUint32(0x54) + view.getUint32(0x58);
+      final exact = Uint8List.sublistView(full, 0, titleEnd);
+
+      expect(MobiHeader.parse(exact, 'BOOKMOBI').title, 'Exact');
+    });
+
     test('TEXTREAD headers never carry extra flags', () {
       final record = buildMobiRecord0(extraFlags: 0x0F);
       final header = MobiHeader.parse(record, 'TEXTREAD');
@@ -230,7 +264,7 @@ void main() {
       final metadata = readMobiMetadata(bytes);
 
       expect(book.header.exth, isNull);
-      expect(book.title, 'Header');
+      expect(book.metadata.title, 'Header');
       expect(book.files.html.single.content, contains('Recoverable'));
       expect(metadata.title, 'Header');
     });
@@ -318,5 +352,25 @@ void main() {
       expect(metadata.authorSort, isNull);
       expect(metadata.bookProducer, isNull);
     });
+
+    test('rejects impossible publication dates', () {
+      final metadata = BookReader.readMetadataSync(
+        buildBook([(106, Uint8List.fromList(convert.utf8.encode('2024-02-31')))]),
+      );
+
+      expect(metadata.publishedAt, isNull);
+    });
   });
+}
+
+final class _Records implements PdbRecordAccess {
+  const _Records(this.records);
+
+  final List<Uint8List> records;
+
+  @override
+  int get count => records.length;
+
+  @override
+  Uint8List record(final int index) => records[index];
 }

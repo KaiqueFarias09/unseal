@@ -120,6 +120,7 @@ final class PdfObjectDecryptor {
   /// with `finalize`).
   Uint8List _aesDecrypt(final Uint8List key, final Uint8List data) {
     if (data.length < 32) return Uint8List(0);
+
     final iv = Uint8List.sublistView(data, 0, 16);
     final plain = aesCbcDecryptNoPad(key, iv, Uint8List.sublistView(data, 16));
 
@@ -130,8 +131,10 @@ final class PdfObjectDecryptor {
   /// keeps all its bytes (pdf.js treats invalid padding as none).
   static Uint8List _stripCbcPadding(final Uint8List plain) {
     if (plain.isEmpty) return plain;
+
     final pad = plain[plain.length - 1];
     if (pad == 0 || pad > 16 || pad > plain.length) return plain;
+
     for (var i = plain.length - pad; i < plain.length; i++) {
       if (plain[i] != pad) return plain;
     }

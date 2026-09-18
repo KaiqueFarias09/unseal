@@ -1,16 +1,12 @@
-import 'dart:typed_data';
-
-import '../exceptions/exceptions.dart';
-
-import 'rar4_decoder.dart';
+part of '../parse_comic_book.dart';
 
 /// An entry extracted from a RAR archive.
-class RarEntry {
+class _RarEntry {
   /// Creates an entry extracted from a RAR archive.
-  const RarEntry({
+  const _RarEntry({
     required this.name,
     required this.isDirectory,
-    required this.isStored,
+    required this.isCompressed,
     required this.data,
   });
 
@@ -20,22 +16,22 @@ class RarEntry {
   /// Whether the entry is a directory.
   final bool isDirectory;
 
-  /// Whether the payload is stored (not compressed).
-  final bool isStored;
+  /// Whether the payload uses archive compression.
+  final bool isCompressed;
 
   /// The decoded payload bytes when the entry format is supported.
   ///
-  /// Unsupported compressed entries have an empty payload and retain
-  /// [isStored] as `false` so callers can report a useful error.
+  /// Unsupported compressed entries have an empty payload and retain the compressed flag so callers
+  /// can report a useful error.
   final Uint8List data;
 }
 
 /// Reads entries from RAR 4 and RAR 5 archives.
 ///
-/// Stored entries and ordinary non-solid RAR 2.9/3.x entries carry decoded
-/// data. Other compressed entries are reported with [RarEntry.isStored]
-/// `false` and an empty payload so callers can explain the limitation.
-List<RarEntry> readRarEntries(final Uint8List bytes) {
+/// Stored entries and ordinary non-solid RAR 2.9/3.x entries carry decoded data. Other compressed
+/// entries retain the compressed flag and have an empty payload so callers can explain the
+/// limitation.
+List<_RarEntry> _readRarEntries(final Uint8List bytes) {
   if (bytes.length < 8) throw const ComicException('File is too small to be a RAR archive.');
 
   final isRar4 =
@@ -60,9 +56,9 @@ List<RarEntry> readRarEntries(final Uint8List bytes) {
   return isRar4 ? _readRar4(bytes) : _readRar5(bytes);
 }
 
-List<RarEntry> _readRar4(final Uint8List bytes) {
+List<_RarEntry> _readRar4(final Uint8List bytes) {
   final view = ByteData.sublistView(bytes);
-  final entries = <RarEntry>[];
+  final entries = <_RarEntry>[];
   var offset = 7; // signature marker
 
   while (offset + 7 <= bytes.length) {
@@ -73,13 +69,10 @@ List<RarEntry> _readRar4(final Uint8List bytes) {
 
     if (blockType == 0x74) {
       // File header.
-      if (offset + 32 > bytes.length) {
-        break;
-      }
+      if (offset + 32 > bytes.length) break;
 
       var field = offset + 7;
       final packSize = view.getUint32(field, Endian.little);
-
       field += 4;
       final unpSize = view.getUint32(field, Endian.little);
       field += 4;
@@ -100,9 +93,7 @@ List<RarEntry> _readRar4(final Uint8List bytes) {
         field += 8; // salt
       }
       final nameEnd = field + nameSize;
-      if (nameEnd > bytes.length) {
-        break;
-      }
+      if (nameEnd > bytes.length) break;
 
       final name = String.fromCharCodes(bytes.sublist(field, nameEnd));
       final isDirectory = (flags & 0xE0) == 0xE0;
@@ -117,7 +108,9 @@ List<RarEntry> _readRar4(final Uint8List bytes) {
           : !stored
           ? _decodeRar4Entry(packed, unpSize, method, unpackVersion, flags)
           : Uint8List(0);
-      entries.add(RarEntry(name: name, isDirectory: isDirectory, isStored: stored, data: data));
+      entries.add(
+        _RarEntry(name: name, isDirectory: isDirectory, isCompressed: !stored, data: data),
+      );
       if (!isDirectory && flags & 0x8000 != 0) {
         offset = dataEnd;
       } else {
@@ -126,6 +119,7 @@ List<RarEntry> _readRar4(final Uint8List bytes) {
     } else {
       // Skip marker/end/other blocks by header size.
       offset += headSize;
+
       if (blockType == 0x7B) {
         break; // end of archive
       }
@@ -150,20 +144,19 @@ Uint8List _decodeRar4Entry(
     return Uint8List(0);
   }
 
-  // The synchronous reader supports ordinary non-solid RAR 2.9/3.x
-  // streams. Password-protected, split, and solid entries need state that
-  // cannot be reconstructed one entry at a time here.
+  // The synchronous reader supports ordinary non-solid RAR 2.9/3.x streams. Password-protected,
+  // split, and solid entries need state that cannot be reconstructed one entry at a time here.
   if (flags & 0x0017 != 0) return Uint8List(0);
 
   try {
-    return decodeRar4Method29(packed, unpackedSize);
+    return _decodeRar4Method29(packed, unpackedSize);
   } on FormatException {
     return Uint8List(0);
   }
 }
 
-List<RarEntry> _readRar5(final Uint8List bytes) {
-  final entries = <RarEntry>[];
+List<_RarEntry> _readRar5(final Uint8List bytes) {
+  final entries = <_RarEntry>[];
   var offset = 8; // signature
 
   while (offset + 8 <= bytes.length) {
@@ -171,8 +164,8 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
     offset += 4; // header CRC32 (unverified)
     final (headerSize, consumedH) = _vint(bytes, offset);
     offset += consumedH;
-    // Header size counts from the type field to the end of the
-    // header, excluding the CRC and the size vint itself.
+    // Header size counts from the type field to the end of the header, excluding the CRC and the
+    // size vint itself.
     final headerEnd = offset + headerSize;
     if (headerEnd > bytes.length) break;
 
@@ -193,6 +186,7 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
       dataSize = size;
       offset += consumedD;
     }
+
     if (headerType == 2) {
       // File header.
       final (fileFlags, consumedFF) = _vint(bytes, offset);
@@ -213,15 +207,12 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
       final (nameLength, consumedN) = _vint(bytes, offset);
       offset += consumedN;
       final nameEnd = offset + nameLength;
-      if (nameEnd > headerEnd) {
-        break;
-      }
+      if (nameEnd > headerEnd) break;
 
       final name = String.fromCharCodes(bytes.sublist(offset, nameEnd));
       final extraAreaEnd = nameEnd + extraAreaSize;
-      if (extraAreaEnd > headerEnd) {
-        break;
-      }
+      if (extraAreaEnd > headerEnd) break;
+
       final isDirectory = fileFlags & 0x0001 != 0;
       final method = (compressionInfo >> 7) & 0x07;
       final stored = method == 0;
@@ -229,15 +220,16 @@ List<RarEntry> _readRar5(final Uint8List bytes) {
       final dataEnd = dataStart + dataSize;
       final hasData = stored && !isDirectory && dataEnd <= bytes.length && unpackedSize == dataSize;
       entries.add(
-        RarEntry(
+        _RarEntry(
           name: name,
           isDirectory: isDirectory,
-          isStored: stored,
+          isCompressed: !stored,
           data: hasData ? Uint8List.sublistView(bytes, dataStart, dataEnd) : Uint8List(0),
         ),
       );
     }
     offset = headerEnd + dataSize;
+
     if (headerType == 5) {
       break; // end of archive (1 = main header, skipped above)
     }

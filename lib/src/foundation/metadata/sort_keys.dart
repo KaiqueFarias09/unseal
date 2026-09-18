@@ -7,41 +7,6 @@
 /// these functions. The `effectiveAuthorSort` getter applies that fallback.
 library;
 
-const _authorNameCopywords = {
-  'Agency',
-  'Corporation',
-  'Company',
-  'Co.',
-  'Council',
-  'Committee',
-  'Inc.',
-  'Institute',
-  'National',
-  'Society',
-  'Club',
-  'Team',
-  'Software',
-  'Games',
-  'Entertainment',
-  'Media',
-  'Studios',
-};
-const _authorNameSuffixes = {
-  'Jr',
-  'Sr',
-  'Inc',
-  'Ph.D',
-  'Phd',
-  'MD',
-  'M.D',
-  'I',
-  'II',
-  'III',
-  'IV',
-  'Junior',
-  'Senior',
-};
-
 /// Determines how a missing author sort key is derived from an author name.
 ///
 /// The default matches the library's surname-first sort behavior.
@@ -65,12 +30,10 @@ enum AuthorSortMethod {
 /// established bracket-removal behavior.
 String removeBracketedText(final String source) {
   const brackets = {'(': ')', '[': ']', '{': '}'};
-
   final closerToOpener = {for (final entry in brackets.entries) entry.value: entry.key};
   final counts = <String, int>{};
   var total = 0;
   final buf = StringBuffer();
-
   for (final rune in source.runes) {
     final char = String.fromCharCode(rune);
     if (brackets.containsKey(char)) {
@@ -104,6 +67,41 @@ String authorToAuthorSort(
   final Set<String>? namePrefixes,
   final Set<String>? nameSuffixes,
 }) {
+  const authorNameCopywords = {
+    'Agency',
+    'Corporation',
+    'Company',
+    'Co.',
+    'Council',
+    'Committee',
+    'Inc.',
+    'Institute',
+    'National',
+    'Society',
+    'Club',
+    'Team',
+    'Software',
+    'Games',
+    'Entertainment',
+    'Media',
+    'Studios',
+  };
+  const authorNameSuffixes = {
+    'Jr',
+    'Sr',
+    'Inc',
+    'Ph.D',
+    'Phd',
+    'MD',
+    'M.D',
+    'I',
+    'II',
+    'III',
+    'IV',
+    'Junior',
+    'Senior',
+  };
+
   const authorNamePrefixes = {'Mr', 'Mrs', 'Ms', 'Dr', 'Prof'};
   const authorSurnamePrefixes = {'da', 'de', 'di', 'la', 'le', 'van', 'von'};
 
@@ -117,7 +115,7 @@ String authorToAuthorSort(
   if (tokens.length < 2) return author;
 
   final lowerTokens = tokens.map((final token) => token.toLowerCase()).toSet();
-  final effectiveCopywords = (copywords ?? _authorNameCopywords)
+  final effectiveCopywords = (copywords ?? authorNameCopywords)
       .map((final word) => word.toLowerCase())
       .toSet();
   if (lowerTokens.intersection(effectiveCopywords).isNotEmpty) return author;
@@ -135,7 +133,7 @@ String authorToAuthorSort(
   final first = _firstNonMatchingToken(tokens, effectiveNamePrefixes);
   if (first == -1) return author;
 
-  final effectiveNameSuffixes = _withDotted((nameSuffixes ?? _authorNameSuffixes));
+  final effectiveNameSuffixes = _withDotted((nameSuffixes ?? authorNameSuffixes));
   var last = _lastNonMatchingToken(tokens, first, effectiveNameSuffixes);
   if (last == -1) return author;
 
@@ -148,7 +146,6 @@ String authorToAuthorSort(
   }
   final sortTokens = <String>[...tokens.sublist(last, last + 1), ...tokens.sublist(first, last)];
   final numToks = sortTokens.length;
-
   if (suffix.isNotEmpty) sortTokens.add(suffix);
   if (method != AuthorSortMethod.nocomma && numToks > 1) sortTokens[0] = '${sortTokens[0]},';
 
@@ -168,8 +165,8 @@ String authorsToSortString(
   final Set<String>? nameSuffixes,
 }) {
   return authors
-      .map(
-        (final author) => authorToAuthorSort(
+      .map((final author) {
+        return authorToAuthorSort(
           author,
           method: method,
           copywords: copywords,
@@ -177,8 +174,8 @@ String authorsToSortString(
           surnamePrefixes: surnamePrefixes,
           namePrefixes: namePrefixes,
           nameSuffixes: nameSuffixes,
-        ),
-      )
+        );
+      })
       .join(' & ');
 }
 

@@ -1,31 +1,43 @@
+import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:collection/collection.dart';
+import 'package:xml/xml.dart';
 
 import '../../foundation/entities/entities.dart';
-import 'container/fb2_document.dart';
+import '../../foundation/images/image_dimensions.dart';
+import '../../foundation/images/image_type_sniffer.dart';
+import '../../foundation/metadata/series_index.dart';
+import '../../foundation/text/xml_encoding.dart';
 import 'entities/entities.dart';
-import 'metadata/fb2_metadata.dart';
-import 'rendering/fb2_html_renderer.dart';
-import 'resources/fb2_resources.dart';
+import 'exceptions/exceptions.dart';
 
-export 'metadata/fb2_metadata.dart' show readFb2Metadata;
+part 'container/fb2_document.dart';
+part 'metadata/fb2_metadata.dart';
+part 'rendering/fb2_html_renderer.dart';
+part 'resources/fb2_resources.dart';
 
 /// Parses an FB2 book from raw [bytes] (plain XML or zipped FB2).
-Fb2Book parseFb2Book(final Uint8List bytes) => _parseFb2Source(Fb2Source.fromBytes(bytes));
+Fb2Book parseFb2Book(final Uint8List bytes) => _parseFb2Source(_Fb2Source.fromBytes(bytes));
 
 /// Parses an FB2 book from a zip archive [entry].
-Fb2Book parseFb2Archive(final ArchiveFile entry) => _parseFb2Source(Fb2Source.fromArchive(entry));
+Fb2Book parseFb2Archive(final ArchiveFile entry) => _parseFb2Source(_Fb2Source.fromArchive(entry));
 
-Fb2Book _parseFb2Source(final Fb2Source source) {
+/// Reads only the metadata of an FB2 book from [bytes].
+BookMetadata readFb2Metadata(final Uint8List bytes) {
+  return _readFb2SourceMetadata(_Fb2Source.fromBytes(bytes));
+}
+
+Fb2Book _parseFb2Source(final _Fb2Source source) {
   final document = source.parseDocument();
-  final resources = Fb2Resources.fromRoot(document.root);
-  final metadata = mapFb2Metadata(document.root, resources);
-  final converted = convertBodies(
+  final resources = _Fb2Resources.fromRoot(document.root);
+  final metadata = _mapFb2Metadata(document.root, resources);
+  final converted = _convertBodies(
     document.bodies,
     metadata.title ?? '',
     resources.extensionMap,
-    stylesheets: extractFb2Stylesheets(document.root),
+    stylesheets: _extractFb2Stylesheets(document.root),
   );
   final htmlFiles = <TextFile>[
     for (final entry in converted.files.entries)

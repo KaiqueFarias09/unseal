@@ -5,13 +5,10 @@ import '../header/pdf_object.dart';
 
 /// Reads the PDF bookmark outline into [Navigation].
 ///
-/// Each bookmark carries `/Dest` (an explicit destination array) or a
-/// `/A` GoTo action; both resolve to a page whose 1-based index
-/// becomes the `page_N` anchor the reflowed pages emit — the same
-/// anchor scheme `pdftohtml -xml` output feeds through Calibre's
-/// reflow (`href="index.html#page_N"`). Bookmarks that resolve to no
-/// page are dropped; named destinations (string `/Dest`) resolve
-/// through the catalog `/Names` tree when present.
+/// Each bookmark carries `/Dest` (an explicit destination array) or a `/A` GoTo action. Both
+/// resolve to a page whose 1-based index becomes the `page_N` anchor emitted by the reflowed HTML
+/// (`href="index.html#page_N"`). Bookmarks without a resolvable page are dropped; named
+/// destinations (string `/Dest`) resolve through the catalog `/Names` tree when present.
 class PdfOutlineReader {
   const PdfOutlineReader._();
 
@@ -27,7 +24,6 @@ class PdfOutlineReader {
     final pageIndexByObject = <int, int>{
       for (var i = 0; i < pages.length; i++) pages[i].objectNumber: i,
     };
-
     final navPoints = <NavPoint>[];
     final counter = _OrderCounter();
     var node = document.resolve(outlines['First']);
@@ -66,7 +62,7 @@ class PdfOutlineReader {
       playOrder: '${counter.current}',
       label: label,
       // The reflowed page HTML anchors its first block with
-      // id="page_N" (1-based), matching the Calibre href scheme;
+      // id="page_N" (1-based), matching the `page_N` anchors emitted by the reflowed HTML;
       // the section path plus that fragment is what navTargetOf
       // resolves.
       content: 'page_${pageIndex + 1}.html#page_${pageIndex + 1}',
@@ -96,11 +92,9 @@ class PdfOutlineReader {
         }
       }
     }
-
     if (destination is PdfString) {
       destination = _namedDestination(document, _decode(destination));
     }
-
     if (destination is PdfArray && destination.items.isNotEmpty) {
       final page = destination.items.first;
       if (page is PdfIndirectRef) return pageIndexByObject[page.objectNumber];
@@ -140,6 +134,7 @@ class PdfOutlineReader {
       for (final kid in kids.items) {
         final kidDict = document.resolve(kid);
         if (kidDict is! PdfDictionary) continue;
+
         final limits = document.resolve(kidDict['Limits']);
         if (limits is PdfArray && limits.items.length == 2) {
           final lower = _nameOf(limits.items[0]);
@@ -150,6 +145,7 @@ class PdfOutlineReader {
             continue;
           }
         }
+
         final found = _findInNameTree(document, kidDict, name, depth: depth + 1);
         if (found != null) return found;
       }
@@ -159,10 +155,9 @@ class PdfOutlineReader {
 
     final namesArray = document.resolve(node['Names']);
     if (namesArray is! PdfArray) return null;
+
     for (var i = 0; i + 1 < namesArray.items.length; i += 2) {
-      if (_nameOf(namesArray.items[i]) == name) {
-        return document.resolve(namesArray.items[i + 1]);
-      }
+      if (_nameOf(namesArray.items[i]) == name) return document.resolve(namesArray.items[i + 1]);
     }
 
     return null;

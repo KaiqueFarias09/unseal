@@ -1,10 +1,8 @@
 import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
 
-/// Parity tests ported from calibre's
-/// `src/calibre/ebooks/metadata/test_author_sort.py`, plus the
-/// documented `title_sort` behaviors. Defaults mirror calibre's
-/// default tweaks (`author_sort_copy_method = 'comma'`).
+/// Regression tests for the documented author-sort cases and `title_sort` behavior.
+/// Author sorting defaults to the `comma` method (`author_sort_copy_method = 'comma'`).
 void main() {
   void checkAllMethods(
     final String? name, {
@@ -143,36 +141,36 @@ void main() {
     });
   });
 
-  group('titleSort (calibre title_sort)', () {
+  group('computeTitleSortKey (calibre title_sort)', () {
     test('documented example', () {
-      expect(titleSort('The Lord of the Rings'), 'Lord of the Rings, The');
+      expect(computeTitleSortKey('The Lord of the Rings'), 'Lord of the Rings, The');
     });
 
     test('articles a and an', () {
-      expect(titleSort('A Study in Scarlet'), 'Study in Scarlet, A');
-      expect(titleSort('An Experiment in Criticism'), 'Experiment in Criticism, An');
+      expect(computeTitleSortKey('A Study in Scarlet'), 'Study in Scarlet, A');
+      expect(computeTitleSortKey('An Experiment in Criticism'), 'Experiment in Criticism, An');
     });
 
     test('no article stays untouched', () {
-      expect(titleSort('Jane Doe'), 'Jane Doe');
-      expect(titleSort('  1984  '), '1984');
+      expect(computeTitleSortKey('Jane Doe'), 'Jane Doe');
+      expect(computeTitleSortKey('  1984  '), '1984');
     });
 
     test('case insensitive articles', () {
-      expect(titleSort('the time machine'), 'time machine, the');
+      expect(computeTitleSortKey('the time machine'), 'time machine, the');
     });
 
     test('language specific articles', () {
-      expect(titleSort('O Cortiço', lang: 'pt'), 'Cortiço, O');
-      expect(titleSort('O Cortiço', lang: 'pt-BR'), 'Cortiço, O');
-      expect(titleSort('O Cortiço', lang: 'en'), 'O Cortiço');
-      expect(titleSort('Der Steppenwolf', lang: 'de'), 'Steppenwolf, Der');
-      expect(titleSort('La Peste', lang: 'fr'), 'Peste, La');
+      expect(computeTitleSortKey('O Cortiço', language: 'pt'), 'Cortiço, O');
+      expect(computeTitleSortKey('O Cortiço', language: 'pt-BR'), 'Cortiço, O');
+      expect(computeTitleSortKey('O Cortiço', language: 'en'), 'O Cortiço');
+      expect(computeTitleSortKey('Der Steppenwolf', language: 'de'), 'Steppenwolf, Der');
+      expect(computeTitleSortKey('La Peste', language: 'fr'), 'Peste, La');
     });
 
     test('quoted titles', () {
-      expect(titleSort('“The Time Machine”'), 'Time Machine, The');
-      expect(titleSort('“Alice”'), 'Alice');
+      expect(computeTitleSortKey('“The Time Machine”'), 'Time Machine, The');
+      expect(computeTitleSortKey('“Alice”'), 'Alice');
     });
   });
 

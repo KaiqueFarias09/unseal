@@ -13,39 +13,42 @@ import 'book_components_wire.dart';
 
 /// Decodes a [BookMetadata] wire payload produced by
 /// [encodeMetadataWire].
-BookMetadata decodeMetadataWire(final Map<String, Object?> json, final List<Object> blobs) =>
-    decodeMetadataWireValue(json, blobs);
+BookMetadata decodeMetadataWire(final Map<String, Object?> json, final List<Object> blobs) {
+  return decodeMetadataWireValue(json, blobs);
+}
 
 /// Encodes metadata into an existing book payload and blob list.
 Map<String, Object?> encodeMetadataWireValue(
   final BookMetadata metadata,
   final List<Object> blobs,
-) => <String, Object?>{
-  'format': metadata.format.name,
-  'title': metadata.title,
-  'titleSort': metadata.titleSort,
-  'authorSort': metadata.authorSort,
-  'bookProducer': metadata.bookProducer,
-  'publisher': metadata.publisher,
-  'description': metadata.description,
-  'isbn': metadata.isbn,
-  'rights': metadata.rights,
-  'series': metadata.series,
-  'seriesIndex': metadata.seriesIndex,
-  'publishedAt': metadata.publishedAt?.toIso8601String(),
-  'authors': List<String>.of(metadata.authors),
-  'languages': List<String>.of(metadata.languages),
-  'subjects': List<String>.of(metadata.subjects),
-  'identifiers': Map<String, String>.of(metadata.identifiers),
-  'cover': metadata.cover == null
-      ? null
-      : <String, Object?>{
-          'blob': pushWireBlob(blobs, metadata.cover!.bytes),
-          'type': metadata.cover!.type.name,
-          'width': metadata.cover!.width,
-          'height': metadata.cover!.height,
-        },
-};
+) {
+  return <String, Object?>{
+    'format': metadata.format.name,
+    'title': metadata.title,
+    'titleSort': metadata.titleSort,
+    'authorSort': metadata.authorSort,
+    'bookProducer': metadata.bookProducer,
+    'publisher': metadata.publisher,
+    'description': metadata.description,
+    'isbn': metadata.isbn,
+    'rights': metadata.rights,
+    'series': metadata.series,
+    'seriesIndex': metadata.seriesIndex,
+    'publishedAt': metadata.publishedAt?.toIso8601String(),
+    'authors': List<String>.of(metadata.authors),
+    'languages': List<String>.of(metadata.languages),
+    'subjects': List<String>.of(metadata.subjects),
+    'identifiers': Map<String, String>.of(metadata.identifiers),
+    'cover': metadata.cover == null
+        ? null
+        : <String, Object?>{
+            'blob': pushWireBlob(blobs, metadata.cover!.bytes),
+            'type': metadata.cover!.type.name,
+            'width': metadata.cover!.width,
+            'height': metadata.cover!.height,
+          },
+  };
+}
 
 /// Decodes metadata embedded in a book payload.
 BookMetadata decodeMetadataWireValue(final Map<String, Object?> json, final List<Object> blobs) {

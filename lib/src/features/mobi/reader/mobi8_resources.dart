@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../../foundation/entities/entities.dart';
 import '../../../foundation/images/image_type_sniffer.dart';
+import '../codec/mobi_byte_search.dart';
 import '../header/pdb_header.dart';
 import 'mobi_container.dart';
 import 'mobi_font.dart';
@@ -19,61 +20,23 @@ final class Mobi8Resources {
     final images = <BinaryFile>[];
     final fonts = <BinaryFile>[];
     final resourceMap = <String?>[];
-    MobiContainer? container;
-
     for (final (start, end) in resourceOffsets) {
+      MobiContainer? container;
       for (var i = start; i < end && i < pdb.count; i++) {
-        final fnameIdx = i - start + 1;
+        final resourceNumber = resourceMap.length + 1;
         final data = pdb.record(i);
         final type = data.length >= 4 ? String.fromCharCodes(data.sublist(0, 4)) : '';
-        String? href;
+        final href = _extractResource(
+          type: type,
+          data: data,
+          resourceNumber: resourceNumber,
+          container: container,
+          images: images,
+          fonts: fonts,
+        );
 
-        if (const {
-              'FLIS',
-              'FCIS',
-              'SRCS',
-              'BOUN',
-              'FDST',
-              'DATP',
-              'AUDI',
-              'VIDE',
-              'RESC',
-              'CMET',
-              'PAGE',
-            }.contains(type) ||
-            _isUnknownMarker(data)) {
-          // Ignored record kinds.
-        } else if (type == 'FONT') {
-          final font = decodeFontRecord(data);
-          final name = 'font${fnameIdx.toString().padLeft(5, '0')}.${font.extension}';
-          href = name;
-          fonts.add(BinaryFile(content: font.data, name: name, type: font.extension, path: name));
-        } else if (type == 'CONT') {
-          container = _hasMagic(data, 'CONTBOUNDARY') ? null : MobiContainer(data);
-        } else if (type == 'CRES') {
-          if (container != null) {
-            final image = container.loadImage(data);
-            if (image != null) {
-              final sniffed = sniffImageType(image)!;
-              final name =
-                  'image${container.resourceIndex.toString().padLeft(5, '0')}.${sniffed.fileExtension}';
-              href = name;
-              images.add(
-                BinaryFile(content: image, name: name, type: sniffed.fileExtension, path: name),
-              );
-            }
-          }
-        } else if (_isPlaceholder(data) && container != null) {
-          container.resourceIndex += 1;
-        } else if (container == null) {
-          final sniffed = sniffImageType(data);
-          if (sniffed != null) {
-            final name = 'image${fnameIdx.toString().padLeft(5, '0')}.${sniffed.fileExtension}';
-            href = name;
-            images.add(
-              BinaryFile(content: data, name: name, type: sniffed.fileExtension, path: name),
-            );
-          }
+        if (type == 'CONT') {
+          container = hasAsciiAt(data, 'CONTBOUNDARY') ? null : MobiContainer(data);
         }
 
         resourceMap.add(href);
@@ -93,17 +56,85 @@ final class Mobi8Resources {
   final List<String?> resourceMap;
 }
 
-bool _hasMagic(final Uint8List data, final String magic) {
-  if (data.length < magic.length) return false;
-  for (var i = 0; i < magic.length; i++) {
-    if (data[i] != magic.codeUnitAt(i)) return false;
+String? _extractResource({
+  required final String type,
+  required final Uint8List data,
+  required final int resourceNumber,
+  required final MobiContainer? container,
+  required final List<BinaryFile> images,
+  required final List<BinaryFile> fonts,
+}) {
+  const ignoredRecordTypes = <String>{
+    'FLIS',
+    'FCIS',
+    'SRCS',
+    'BOUN',
+    'FDST',
+    'DATP',
+    'AUDI',
+    'VIDE',
+    'RESC',
+    'CMET',
+    'PAGE',
+  };
+  if (type == 'CONT' || ignoredRecordTypes.contains(type) || _isUnknownMarker(data)) {
+    return null;
   }
 
-  return true;
+  if (type == 'FONT') {
+    final font = decodeFontRecord(data);
+    final name = _resourceName('font', resourceNumber, font.extension);
+    fonts.add(BinaryFile(content: font.data, name: name, type: font.extension, path: name));
+
+    return name;
+  }
+
+  if (type == 'CRES') {
+    if (container == null) return null;
+
+    final image = container.loadImage(data);
+    if (image == null) return null;
+
+    return _addImage(image, resourceNumber, images);
+  }
+
+  if (_isPlaceholder(data) && container != null) {
+    container.resourceIndex += 1;
+
+    return null;
+  }
+
+  if (container == null) return _addImage(data, resourceNumber, images);
+
+  return null;
 }
 
-bool _isUnknownMarker(final Uint8List data) =>
-    data.length >= 4 && data[0] == 0xE9 && data[1] == 0x8E && data[2] == 0x0D && data[3] == 0x0A;
+String? _addImage(final Uint8List data, final int resourceNumber, final List<BinaryFile> images) {
+  final sniffed = sniffImageType(data);
+  if (sniffed == null) return null;
 
-bool _isPlaceholder(final Uint8List data) =>
-    data.length == 4 && data[0] == 0xA0 && data[1] == 0xA0 && data[2] == 0xA0 && data[3] == 0xA0;
+  final name = _resourceName('image', resourceNumber, sniffed.fileExtension);
+  images.add(BinaryFile(content: data, name: name, type: sniffed.fileExtension, path: name));
+
+  return name;
+}
+
+String _resourceName(final String kind, final int number, final String extension) {
+  return '$kind${number.toString().padLeft(5, '0')}.$extension';
+}
+
+bool _isUnknownMarker(final Uint8List data) {
+  return data.length >= 4 &&
+      data[0] == 0xE9 &&
+      data[1] == 0x8E &&
+      data[2] == 0x0D &&
+      data[3] == 0x0A;
+}
+
+bool _isPlaceholder(final Uint8List data) {
+  return data.length == 4 &&
+      data[0] == 0xA0 &&
+      data[1] == 0xA0 &&
+      data[2] == 0xA0 &&
+      data[3] == 0xA0;
+}

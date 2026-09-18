@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/comic/archive/rar_reader.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -50,6 +49,19 @@ void main() {
       expect(book.metadata.languages, ['pt']);
     });
 
+    test('keeps valid metadata when a later duplicate is malformed', () {
+      const validComicInfo = '<ComicInfo><Title>Valid title</Title></ComicInfo>';
+      final png = _png();
+      final archive = Archive()
+        ..addFile(ArchiveFile('ComicInfo.xml', validComicInfo.length, validComicInfo.codeUnits))
+        ..addFile(ArchiveFile('page.png', png.length, png))
+        ..addFile(ArchiveFile('comicinfo.xml', 8, '<broken>'.codeUnits));
+
+      final book = parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive)!));
+
+      expect(book.metadata.title, 'Valid title');
+    });
+
     test('first page is the cover with dimensions', () {
       final book = parseComicBook(cbz);
       expect(book.cover.name, 'page1.png');
@@ -87,12 +99,6 @@ void main() {
     test('compressed entries are rejected with a clear error', () {
       final compressed = _buildCbr(method: 0x31);
       expect(() => parseComicBook(compressed), throwsA(isA<ComicException>()));
-    });
-
-    test('rar reader lists stored and compressed entries', () {
-      final entries = readRarEntries(_buildCbr(method: 0x31));
-      expect(entries.length, 2);
-      expect(entries.every((final entry) => !entry.isStored), isTrue);
     });
   });
 

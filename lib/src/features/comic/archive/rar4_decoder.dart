@@ -1,11 +1,11 @@
-import 'dart:typed_data';
+part of '../parse_comic_book.dart';
 
 /// Decodes the classic RAR 2.9/3.x compression stream used by RAR 4 files.
 ///
-/// This covers the non-solid LZSS/Huffman stream used by ordinary CBR files.
-/// RAR VM filters and PPMd blocks remain unsupported and are reported as a
-/// compressed entry that the comic parser cannot decode.
-Uint8List decodeRar4Method29(final Uint8List packed, final int unpackedSize) {
+/// This covers the non-solid LZSS/Huffman stream used by ordinary CBR files. RAR VM filters and
+/// PPMd blocks remain unsupported and are reported as a compressed entry that the comic parser
+/// cannot decode.
+Uint8List _decodeRar4Method29(final Uint8List packed, final int unpackedSize) {
   if (unpackedSize < 0) throw const FormatException('Invalid RAR4 output size.');
   if (unpackedSize == 0) return Uint8List(0);
 
@@ -15,6 +15,7 @@ Uint8List decodeRar4Method29(final Uint8List packed, final int unpackedSize) {
   }
 
   final decoder = _Rar4Decoder(Uint8List(windowSize));
+
   return decoder.decode(packed, unpackedSize);
 }
 
@@ -240,101 +241,127 @@ final class _Rar4Decoder {
     _parseCodes(bits);
     final target = unpackedSize;
     final mask = _output.length - 1;
-
     while (_writePtr < target) {
       final symbol = _mainCode!.decode(bits);
-      if (symbol < 256) {
-        _output[_writePtr++ & mask] = symbol;
-        continue;
-      }
+      if (_writeLiteralOrControl(symbol, bits, mask)) continue;
 
-      if (symbol == 256) {
-        final newFile = bits.read(1) == 0;
-        if (newFile) {
-          if (bits.read(1) != 0) _parseCodes(bits);
-        } else {
-          _parseCodes(bits);
-        }
-        continue;
-      }
-
-      if (symbol == 257) {
-        throw const FormatException('RAR4 VM filters are not supported.');
-      }
-
-      int offset;
-      int length;
-      if (symbol == 258) {
-        if (_lastLength == 0) continue;
-        offset = _lastOffset;
-        length = _lastLength;
-      } else if (symbol <= 262) {
-        final offsetIndex = symbol - 259;
-        offset = _oldOffset[offsetIndex];
-        length = _readLength(bits);
-        for (var i = offsetIndex; i > 0; i--) {
-          _oldOffset[i] = _oldOffset[i - 1];
-        }
-        _oldOffset[0] = offset;
-      } else if (symbol <= 270) {
-        final shortIndex = symbol - 263;
-        offset = _shortBases[shortIndex] + 1;
-        final extraBits = _shortBits[shortIndex];
-        if (extraBits > 0) offset += bits.read(extraBits);
-        length = 2;
-        for (var i = 3; i > 0; i--) {
-          _oldOffset[i] = _oldOffset[i - 1];
-        }
-        _oldOffset[0] = offset;
-      } else {
-        final lengthIndex = symbol - 271;
-        if (lengthIndex >= _lengthBases.length) {
-          throw const FormatException('Invalid RAR4 match length.');
-        }
-        length = _lengthBases[lengthIndex] + 3;
-        final extraBits = _lengthBits[lengthIndex];
-        if (extraBits > 0) length += bits.read(extraBits);
-
-        final offsetSymbol = _offsetCode!.decode(bits);
-        if (offsetSymbol >= _offsetBases.length) {
-          throw const FormatException('Invalid RAR4 match offset.');
-        }
-        offset = _offsetBases[offsetSymbol] + 1;
-        final offsetBits = _offsetBits[offsetSymbol];
-        if (offsetBits > 0) {
-          if (offsetSymbol > 9) {
-            if (offsetBits > 4) offset += bits.read(offsetBits - 4) << 4;
-            if (_lowOffsetRepeats > 0) {
-              _lowOffsetRepeats--;
-              offset += _lastLowOffset;
-            } else {
-              final lowOffset = _lowOffsetCode!.decode(bits);
-              if (lowOffset == 16) {
-                _lowOffsetRepeats = 15;
-                offset += _lastLowOffset;
-              } else {
-                offset += lowOffset;
-                _lastLowOffset = lowOffset;
-              }
-            }
-          } else {
-            offset += bits.read(offsetBits);
-          }
-        }
-        if (offset >= 0x40000) length++;
-        if (offset >= 0x2000) length++;
-        for (var i = 3; i > 0; i--) {
-          _oldOffset[i] = _oldOffset[i - 1];
-        }
-        _oldOffset[0] = offset;
-      }
-
-      _lastOffset = offset;
-      _lastLength = length;
-      _copy(offset, length, target, mask);
+      final match = _decodeMatch(symbol, bits);
+      if (match.skipped) continue;
+      _lastOffset = match.offset;
+      _lastLength = match.length;
+      _copy(match.offset, match.length, target, mask);
     }
 
     return Uint8List.fromList(_output.sublist(0, target));
+  }
+
+  bool _writeLiteralOrControl(final int symbol, final _BitReader bits, final int mask) {
+    if (symbol < 256) {
+      _output[_writePtr++ & mask] = symbol;
+
+      return true;
+    }
+    if (symbol == 256) {
+      _parseNewFile(bits);
+
+      return true;
+    }
+    if (symbol == 257) {
+      throw const FormatException('RAR4 VM filters are not supported.');
+    }
+
+    return false;
+  }
+
+  void _parseNewFile(final _BitReader bits) {
+    final newFile = bits.read(1) == 0;
+    if (newFile && bits.read(1) == 0) return;
+    _parseCodes(bits);
+  }
+
+  _Rar4Match _decodeMatch(final int symbol, final _BitReader bits) {
+    if (symbol == 258) {
+      if (_lastLength == 0) return const _Rar4Match.skip();
+
+      return _Rar4Match(offset: _lastOffset, length: _lastLength);
+    }
+    if (symbol <= 262) return _decodeRecentMatch(symbol, bits);
+    if (symbol <= 270) return _decodeShortMatch(symbol, bits);
+
+    return _decodeLongMatch(symbol, bits);
+  }
+
+  _Rar4Match _decodeRecentMatch(final int symbol, final _BitReader bits) {
+    final offsetIndex = symbol - 259;
+    final offset = _oldOffset[offsetIndex];
+    final length = _readLength(bits);
+    _rememberOffset(offset, offsetIndex);
+
+    return _Rar4Match(offset: offset, length: length);
+  }
+
+  _Rar4Match _decodeShortMatch(final int symbol, final _BitReader bits) {
+    final shortIndex = symbol - 263;
+    var offset = _shortBases[shortIndex] + 1;
+    final extraBits = _shortBits[shortIndex];
+    if (extraBits > 0) offset += bits.read(extraBits);
+    _rememberOffset(offset);
+
+    return _Rar4Match(offset: offset, length: 2);
+  }
+
+  _Rar4Match _decodeLongMatch(final int symbol, final _BitReader bits) {
+    final lengthIndex = symbol - 271;
+    if (lengthIndex >= _lengthBases.length) {
+      throw const FormatException('Invalid RAR4 match length.');
+    }
+
+    var length = _lengthBases[lengthIndex] + 3;
+    final extraBits = _lengthBits[lengthIndex];
+    if (extraBits > 0) length += bits.read(extraBits);
+
+    final offset = _decodeLongOffset(bits);
+    if (offset >= 0x40000) length++;
+    if (offset >= 0x2000) length++;
+    _rememberOffset(offset);
+
+    return _Rar4Match(offset: offset, length: length);
+  }
+
+  int _decodeLongOffset(final _BitReader bits) {
+    final offsetSymbol = _offsetCode!.decode(bits);
+    if (offsetSymbol >= _offsetBases.length) {
+      throw const FormatException('Invalid RAR4 match offset.');
+    }
+
+    var offset = _offsetBases[offsetSymbol] + 1;
+    final offsetBits = _offsetBits[offsetSymbol];
+    if (offsetBits == 0) return offset;
+    if (offsetSymbol <= 9) return offset + bits.read(offsetBits);
+
+    if (offsetBits > 4) offset += bits.read(offsetBits - 4) << 4;
+    if (_lowOffsetRepeats > 0) {
+      _lowOffsetRepeats--;
+
+      return offset + _lastLowOffset;
+    }
+
+    final lowOffset = _lowOffsetCode!.decode(bits);
+    if (lowOffset == 16) {
+      _lowOffsetRepeats = 15;
+
+      return offset + _lastLowOffset;
+    }
+    _lastLowOffset = lowOffset;
+
+    return offset + lowOffset;
+  }
+
+  void _rememberOffset(final int offset, [final int from = 3]) {
+    for (var i = from; i > 0; i--) {
+      _oldOffset[i] = _oldOffset[i - 1];
+    }
+    _oldOffset[0] = offset;
   }
 
   int _readLength(final _BitReader bits) {
@@ -342,7 +369,9 @@ final class _Rar4Decoder {
     if (symbol >= _lengthBases.length) {
       throw const FormatException('Invalid RAR4 match length.');
     }
+
     final extraBits = _lengthBits[symbol];
+
     return _lengthBases[symbol] + 2 + (extraBits == 0 ? 0 : bits.read(extraBits));
   }
 
@@ -386,6 +415,7 @@ final class _Rar4Decoder {
       if (value < 16) {
         _lengthTable[i] = (_lengthTable[i] + value) & 0xF;
         i++;
+
         continue;
       }
 
@@ -430,6 +460,16 @@ final class _Rar4Decoder {
   }
 }
 
+final class _Rar4Match {
+  const _Rar4Match({required this.offset, required this.length}) : skipped = false;
+
+  const _Rar4Match.skip() : offset = 0, length = 0, skipped = true;
+
+  final int offset;
+  final int length;
+  final bool skipped;
+}
+
 final class _BitReader {
   _BitReader(this._bytes);
 
@@ -442,6 +482,7 @@ final class _BitReader {
     if (!has(count)) throw const FormatException('Truncated RAR4 stream.');
     final value = peek(count);
     _position += count;
+
     return value;
   }
 
@@ -454,6 +495,7 @@ final class _BitReader {
           : 0;
       value = (value << 1) | bit;
     }
+
     return value;
   }
 
@@ -474,6 +516,7 @@ final class _Huffman {
     if (maxLength == 0) {
       _maxLength = 1;
       _table = Int32List(2)..fillRange(0, 2, -1);
+
       return;
     }
     if (maxLength > 16) throw const FormatException('Invalid RAR4 Huffman length.');
@@ -505,8 +548,10 @@ final class _Huffman {
   int decode(final _BitReader bits) {
     final entry = _table[bits.peek(_maxLength)];
     if (entry < 0) throw const FormatException('Invalid RAR4 Huffman code.');
+
     final length = entry >> 16;
     bits.consume(length);
+
     return entry & 0xFFFF;
   }
 }

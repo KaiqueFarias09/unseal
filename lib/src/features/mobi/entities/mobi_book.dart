@@ -2,6 +2,10 @@ import '../../../foundation/entities/entities.dart';
 import '../header/mobi_header.dart';
 import '../metadata/mobi_metadata.dart';
 
+final RegExp _fileposLinkPattern = RegExp(r'#filepos(\d+)$');
+
+final RegExp _anyTagPattern = RegExp('<[^>]*>');
+
 /// A parsed MOBI 6 / KF8 (AZW3) book.
 class MobiBook extends Book {
   /// Creates a [MobiBook] from already parsed parts.
@@ -37,24 +41,9 @@ class MobiBook extends Book {
   /// list here. Computed once on first access.
   late final List<MobiChapter> chapters = _splitChapters();
 
-  /// The book author names.
-  List<String> get creators => metadata.authors;
-
-  /// The book language code.
-  String get language => metadata.languages.isEmpty ? '' : metadata.languages.first;
-
   /// The format-agnostic metadata of this book.
   @override
-  BookMetadata get metadata => mobiBookMetadata(header, coverFile: cover);
-
-  /// The book publisher.
-  String? get publisher => metadata.publisher;
-
-  /// The book title.
-  String get title => header.exth?.title ?? header.title;
-
-  /// The MOBI version (6 or 8).
-  int get version => header.mobiVersion;
+  late final BookMetadata metadata = mobiBookMetadata(header, coverFile: cover);
 
   MobiChapter _chapter(final int index, final String title, final String html) {
     final name = 'chapter${index.toString().padLeft(5, '0')}.html';
@@ -72,7 +61,6 @@ class MobiBook extends Book {
 
     // Collect the anchor position of every TOC entry.
     final anchors = <(int, String)>[];
-
     for (final point in navigation.navPoints) {
       final number = _fileposLinkPattern.firstMatch(point.content);
       if (number == null) continue;
@@ -80,6 +68,7 @@ class MobiBook extends Book {
       final position = html.indexOf('id="filepos${number.group(1)}"');
       if (position >= 0) anchors.add((position, point.label));
     }
+
     if (anchors.isEmpty) return const <MobiChapter>[];
 
     anchors.sort((final a, final b) => a.$1.compareTo(b.$1));
@@ -89,6 +78,7 @@ class MobiBook extends Book {
     for (final anchor in anchors) {
       if (boundaries.isEmpty || boundaries.last.$1 != anchor.$1) boundaries.add(anchor);
     }
+
     final chapters = <MobiChapter>[];
     var index = 0;
     // Leading front matter (cover, title page) before the first
@@ -96,7 +86,7 @@ class MobiBook extends Book {
     if (boundaries.first.$1 > 0) {
       final leading = html.substring(0, boundaries.first.$1);
       if (leading.replaceAll(_anyTagPattern, '').trim().isNotEmpty) {
-        chapters.add(_chapter(index++, title, leading));
+        chapters.add(_chapter(index++, metadata.title ?? '', leading));
       }
     }
 
@@ -126,7 +116,3 @@ final class MobiChapter {
   @override
   String toString() => 'MobiChapter(title: $title, file: ${file.name})';
 }
-
-final RegExp _fileposLinkPattern = RegExp(r'#filepos(\d+)$');
-
-final RegExp _anyTagPattern = RegExp('<[^>]*>');

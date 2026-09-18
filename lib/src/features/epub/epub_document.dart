@@ -1,4 +1,5 @@
 import '../../foundation/entities/entities.dart';
+import 'entities/package/epub_package.dart';
 
 /// Domain contract for a parsed EPUB document.
 abstract interface class EpubDocument implements Book {
@@ -20,7 +21,7 @@ abstract interface class EpubDocument implements Book {
   Navigation get navigation;
 
   /// The format-specific EPUB package metadata.
-  Object get package;
+  EpubPackage get package;
 
   /// Archive paths of spine items in reading order.
   List<String>? get spinePaths;

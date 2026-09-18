@@ -1,12 +1,10 @@
-import 'package:e_livre/src/features/annotations/annotation_merge.dart';
-import 'package:e_livre/src/features/annotations/bookmark_record.dart';
-import 'package:e_livre/src/features/annotations/highlight_record.dart';
+import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
 
-/// The Calibre fixture timestamps: '20{year}-06-29T03:21:48.895323+00:00'
-/// in calibre/src/pyj/test_annotations.pyj (merging_annotations).
-DateTime goldenTime(final int year) =>
-    DateTime.utc(2000 + year, 6, 29, 3, 21, 48).add(const Duration(microseconds: 895323));
+/// Returns the fixed UTC timestamp used by the merge fixtures; [year] is added to 2000.
+DateTime goldenTime(final int year) {
+  return DateTime.utc(2000 + year, 6, 29, 3, 21, 48).add(const Duration(microseconds: 895323));
+}
 
 /// Builds a highlight whose group key is [id] and whose reading
 /// position is section 0 at offset [offset].
@@ -15,18 +13,20 @@ HighlightRecord highlight({
   required final int year,
   required final int offset,
   final String? note,
-}) => HighlightRecord(
-  id: id,
-  sectionIndex: 0,
-  start: offset,
-  end: offset + 1,
-  text: 'text $id',
-  before: '',
-  after: '',
-  color: PaletteHighlightColor.yellow,
-  createdAt: goldenTime(year),
-  note: note,
-);
+}) {
+  return HighlightRecord(
+    id: id,
+    sectionIndex: 0,
+    start: offset,
+    end: offset + 1,
+    text: 'text $id',
+    before: '',
+    after: '',
+    color: PaletteHighlightColor.yellow,
+    createdAt: goldenTime(year),
+    note: note,
+  );
+}
 
 /// Builds a bookmark whose merge identity is [title] and whose
 /// reading position is section 0 at offset [offset].
@@ -36,22 +36,21 @@ BookmarkRecord bookmark({
   required final int offset,
   final int section = 0,
   final String? note,
-}) => BookmarkRecord(
-  id: 'bm-$title',
-  title: title,
-  sectionIndex: section,
-  charOffset: offset,
-  createdAt: goldenTime(year),
-  note: note,
-);
+}) {
+  return BookmarkRecord(
+    id: 'bm-$title',
+    title: title,
+    sectionIndex: section,
+    charOffset: offset,
+    createdAt: goldenTime(year),
+    note: note,
+  );
+}
 
 void main() {
   group('mergeHighlights (golden case)', () {
-    // The exact fixture of calibre/src/pyj/test_annotations.pyj
-    // (merging_annotations), mapped onto HighlightRecord where the
-    // group key (Calibre's uuid field) is the id: the viewer's parity
-    // test expects survivors ['10', '2', '30', '3'] for keys
-    // one/two/a/b — here the keys are the ids themselves.
+    // The fixture uses HighlightRecord.id as its group key. Newer records replace older ones, and
+    // survivors are ordered by reading position as ['one', 'two', 'b', 'a'].
     final local = [
       highlight(id: 'one', year: 20, offset: 2),
       highlight(id: 'two', year: 20, offset: 4),
@@ -168,17 +167,20 @@ void main() {
         required final String id,
         required final int section,
         required final int offset,
-      }) => HighlightRecord(
-        id: id,
-        sectionIndex: section,
-        start: offset,
-        end: offset + 1,
-        text: 'text $id',
-        before: '',
-        after: '',
-        color: PaletteHighlightColor.yellow,
-        createdAt: goldenTime(20),
-      );
+      }) {
+        return HighlightRecord(
+          id: id,
+          sectionIndex: section,
+          start: offset,
+          end: offset + 1,
+          text: 'text $id',
+          before: '',
+          after: '',
+          color: PaletteHighlightColor.yellow,
+          createdAt: goldenTime(20),
+        );
+      }
+
       final local = [
         at(id: 'late', section: 0, offset: 5),
         at(id: 'other-section', section: 1, offset: 1),

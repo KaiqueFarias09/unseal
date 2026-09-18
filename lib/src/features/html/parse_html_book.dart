@@ -1,20 +1,25 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:html/dom.dart' as dom;
+import 'package:html/parser.dart' as html_parser;
+import 'package:xml/xml.dart';
 
 import '../../foundation/archive/archive_access.dart';
 import '../../foundation/entities/entities.dart';
+import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';
 import '../../foundation/text/xml_encoding.dart';
 import 'exceptions/html_exception.dart';
-import 'metadata/html_metadata.dart';
-import 'parsing/html_document.dart';
+
+part 'metadata/html_metadata.dart';
+part 'parsing/html_document.dart';
 
 /// Parses a standalone HTML, HTM or XHTML document.
 DocumentBook parseHtmlBook(final List<int> bytes, {final String fileName = 'index.html'}) {
   final path = _safePath(fileName, fallback: 'index.html');
-  final data = parseHtmlDocument(bytes, path: path);
-  final metadata = buildHtmlMetadata(data.metadata, BookFormat.html);
+  final data = _parseHtmlDocument(bytes, path: path);
+  final metadata = _buildHtmlMetadata(data.metadata, BookFormat.html);
 
   return DocumentBook(
     format: BookFormat.html,
@@ -32,22 +37,15 @@ DocumentBook parseHtmlBook(final List<int> bytes, {final String fileName = 'inde
 }
 
 /// Reads only standalone HTML metadata and headings are not retained.
-BookMetadata readHtmlMetadata(final List<int> bytes, {final String fileName = 'index.html'}) {
-  final path = _safePath(fileName, fallback: 'index.html');
-  final data = parseHtmlDocument(bytes, path: path);
-  return buildHtmlMetadata(data.metadata, BookFormat.html);
+BookMetadata readHtmlMetadata(final List<int> bytes) {
+  final source = _decodeHtmlSource(bytes);
+
+  return _buildHtmlMetadata(_metadataFromHtml(source.document), BookFormat.html);
 }
 
-/// Parses an HTMLZ ZIP archive following Calibre's top-level convention.
+/// Parses an HTMLZ ZIP archive whose entry point is a top-level HTML file.
 DocumentBook parseHtmlzBook(final List<int> bytes) {
-  if (bytes.isEmpty) throw const HtmlException('HTMLZ archive is empty');
-  final Archive archive;
-  try {
-    archive = ZipDecoder().decodeBytes(bytes);
-  } on Object catch (error) {
-    throw HtmlException('Invalid HTMLZ ZIP archive: $error');
-  }
-  return parseHtmlzArchive(archive);
+  return parseHtmlzArchive(_decodeHtmlzArchive(bytes));
 }
 
 /// Parses an already decoded HTMLZ archive.
@@ -58,13 +56,11 @@ DocumentBook parseHtmlzArchive(final Archive archive) {
     throw HtmlException('HTMLZ top-level HTML file "${selection.htmlPath}" is empty');
   }
 
-  final data = parseHtmlDocument(htmlBytes, path: selection.htmlPath);
-  final opfValues = selection.opf == null
-      ? const HtmlMetadataValues()
-      : _tryReadOpf(selection.opf!);
-  final merged = mergeMetadataValues(data.metadata, opfValues);
+  final data = _parseHtmlDocument(htmlBytes, path: selection.htmlPath);
+  final opfValues = selection.opf == null ? const _HtmlMetadata() : _tryReadOpf(selection.opf!);
+  final merged = _mergeHtmlMetadata(data.metadata, opfValues);
   final cover = _readCover(archive, selection.opfPath, merged.coverHref);
-  final metadata = buildHtmlMetadata(merged, BookFormat.htmlz, cover: cover);
+  final metadata = _buildHtmlMetadata(merged, BookFormat.htmlz, cover: cover);
   final files = _extractFiles(archive, data.file, selection.opfPath);
 
   return DocumentBook(
@@ -80,31 +76,24 @@ DocumentBook parseHtmlzArchive(final Archive archive) {
 
 /// Reads only the selected HTML and top-level OPF from an HTMLZ archive.
 BookMetadata readHtmlzMetadata(final List<int> bytes) {
-  if (bytes.isEmpty) throw const HtmlException('HTMLZ archive is empty');
-  final Archive archive;
-  try {
-    archive = ZipDecoder().decodeBytes(bytes);
-  } on Object catch (error) {
-    throw HtmlException('Invalid HTMLZ ZIP archive: $error');
-  }
-  return readHtmlzMetadataFromArchive(archive);
+  return readHtmlzMetadataFromArchive(_decodeHtmlzArchive(bytes));
 }
 
-/// Reads HTMLZ metadata from an already decoded archive without extracting
-/// CSS, images, fonts or unrelated resources.
+/// Reads HTMLZ metadata from an already decoded archive without extracting CSS, images, fonts or
+/// unrelated resources.
 BookMetadata readHtmlzMetadataFromArchive(final Archive archive) {
   final selection = _selectHtmlzEntries(archive);
   final bytes = contentBytes(selection.html);
   if (bytes.isEmpty) {
     throw HtmlException('HTMLZ top-level HTML file "${selection.htmlPath}" is empty');
   }
-  final htmlValues = parseHtmlDocument(bytes, path: selection.htmlPath).metadata;
-  final opfValues = selection.opf == null
-      ? const HtmlMetadataValues()
-      : _tryReadOpf(selection.opf!);
-  final merged = mergeMetadataValues(htmlValues, opfValues);
+
+  final htmlValues = _metadataFromHtml(_decodeHtmlSource(bytes).document);
+  final opfValues = selection.opf == null ? const _HtmlMetadata() : _tryReadOpf(selection.opf!);
+  final merged = _mergeHtmlMetadata(htmlValues, opfValues);
   final cover = _readCover(archive, selection.opfPath, merged.coverHref);
-  return buildHtmlMetadata(merged, BookFormat.htmlz, cover: cover);
+
+  return _buildHtmlMetadata(merged, BookFormat.htmlz, cover: cover);
 }
 
 _HtmlzSelection _selectHtmlzEntries(final Archive archive) {
@@ -120,9 +109,7 @@ _HtmlzSelection _selectHtmlzEntries(final Archive archive) {
     if (html != null) break;
   }
   html ??= htmlFiles.isEmpty ? null : htmlFiles.first;
-  if (html == null) {
-    throw const HtmlException('HTMLZ archive has no top-level HTML file');
-  }
+  if (html == null) throw const HtmlException('HTMLZ archive has no top-level HTML file');
 
   ArchiveFile? opf;
   for (final entry in topLevel) {
@@ -131,6 +118,7 @@ _HtmlzSelection _selectHtmlzEntries(final Archive archive) {
       opf = entry;
       break;
     }
+
     if (opf == null && _extension(name) == 'opf') opf = entry;
   }
 
@@ -142,26 +130,34 @@ _HtmlzSelection _selectHtmlzEntries(final Archive archive) {
   );
 }
 
-HtmlMetadataValues _tryReadOpf(final ArchiveFile entry) {
+Archive _decodeHtmlzArchive(final List<int> bytes) {
+  if (bytes.isEmpty) throw const HtmlException('HTMLZ archive is empty');
+
   try {
-    return metadataValuesFromOpf(contentBytes(entry));
-  } on Object {
-    // A malformed optional metadata sidecar must not make readable HTMLZ
-    // content unusable.
-    return const HtmlMetadataValues();
+    return ZipDecoder().decodeBytes(bytes);
+  } on Exception catch (error) {
+    throw HtmlException('Invalid HTMLZ ZIP archive: $error');
+  }
+}
+
+_HtmlMetadata _tryReadOpf(final ArchiveFile entry) {
+  try {
+    return _metadataFromOpf(contentBytes(entry));
+  } on Exception {
+    // A malformed optional metadata sidecar must not make readable HTMLZ content unusable.
+    return const _HtmlMetadata();
   }
 }
 
 BinaryFile? _readCover(final Archive archive, final String? opfPath, final String? coverHref) {
   if (coverHref == null || coverHref.trim().isEmpty) return null;
+
   final path = resolveItemPath(opfPath, _decodeUri(coverHref));
-  final entry = archive.files.cast<ArchiveFile?>().firstWhere(
-    (final candidate) =>
-        candidate!.isFile && _normalized(candidate.name).toLowerCase() == path.toLowerCase(),
-    orElse: () => null,
-  );
+  final entry = findArchiveFile(archive, path);
   if (entry == null) return null;
+
   final name = _normalized(entry.name).split('/').last;
+
   return BinaryFile(
     name: name,
     type: _extension(name),
@@ -177,7 +173,6 @@ Files _extractFiles(final Archive archive, final TextFile htmlFile, final String
   final others = <BinaryFile>[];
   final normalizedHtml = htmlFile.path.toLowerCase();
   final normalizedOpf = opfPath?.toLowerCase();
-
   for (final entry in archive.files.where((final candidate) => candidate.isFile)) {
     final path = _normalized(entry.name);
     final lower = path.toLowerCase();
@@ -198,8 +193,8 @@ Files _extractFiles(final Archive archive, final TextFile htmlFile, final String
     } else if (_isFontType(type)) {
       fonts.add(BinaryFile(name: name, type: type, path: path, content: content));
     } else {
-      // Non-selected HTML files are retained in the physical resource set;
-      // Calibre still uses only one top-level HTML spine item for HTMLZ.
+      // Keep non-selected HTML files in the physical resource set while the document model exposes
+      // only the selected top-level HTML entry.
       others.add(BinaryFile(name: name, type: type, path: path, content: content));
     }
   }
@@ -216,11 +211,13 @@ List<ArchiveEntry> _archiveEntries(final Archive archive) {
 
 bool _isHtmlPath(final String path) {
   final extension = _extension(path);
+
   return extension == 'html' || extension == 'htm' || extension == 'xhtml';
 }
 
 bool _isImagePath(final String path, final Uint8List content) {
   if (sniffImageType(content) != null) return true;
+
   return const {
     'avif',
     'gif',
@@ -239,6 +236,7 @@ bool _isFontType(final String type) => const {'eot', 'otf', 'ttf', 'woff', 'woff
 
 String _safePath(final String path, {required final String fallback}) {
   final normalized = _normalized(path);
+
   return normalized.isEmpty ? fallback : normalized;
 }
 
@@ -248,6 +246,7 @@ String _extension(final String path) {
   final name = path.split('/').last;
   final dot = name.lastIndexOf('.');
   if (dot <= 0 || dot == name.length - 1) return '';
+
   return name.substring(dot + 1).toLowerCase();
 }
 

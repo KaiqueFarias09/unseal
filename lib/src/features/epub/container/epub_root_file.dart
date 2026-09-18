@@ -49,6 +49,7 @@ String? findEpubRootFilePath(final Archive epubArchive) {
     final path = normalizeZipPath(entry.name);
     try {
       parsePackageBytes(entry.content as List<int>);
+
       return path;
     } on Exception {
       // Continue past unrelated or malformed OPF-looking entries.
@@ -97,6 +98,7 @@ String? _getRootFilePath(final XmlElement package, final Archive archive) {
 
     try {
       parsePackageBytes(entry.content as List<int>);
+
       return normalizedPath;
     } on Exception {
       // Try a later rootfile when this candidate is not a usable package.

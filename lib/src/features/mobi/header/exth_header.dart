@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../codec/mobi_binary.dart';
+import '../codec/mobi_text_codec.dart';
 import '../exceptions/exceptions.dart';
 
 /// The EXTH (extended header) of a MOBI file.
@@ -30,9 +30,9 @@ class ExthHeader {
       records.putIfAbsent(id, () => <Uint8List>[]).add(content);
       pos += size;
     }
+
     var title = headerTitle;
     final updatedTitle = records[ExthIds.updatedTitle];
-
     if (updatedTitle != null && updatedTitle.isNotEmpty) {
       final decoded = decodeBytes(updatedTitle.first, codec).trim();
       if (decoded.isNotEmpty) {
@@ -70,8 +70,8 @@ class ExthHeader {
   }
 
   /// Page progression direction (EXTH 527): `ltr`, `rtl` or `default`
-  /// when the record carries a value, null otherwise. Mirrors
-  /// Calibre, which copies the raw EXTH string through.
+  /// when the record carries a value, null otherwise. The raw EXTH string
+  /// is returned without normalizing its value.
   String? get pageProgressionDirection => _nonEmpty(ExthIds.pageProgressionDirection);
 
   /// Primary writing mode (EXTH 525) when the record carries a value.
@@ -100,16 +100,18 @@ class ExthHeader {
   }
 
   /// All payloads for [id] decoded with [codec].
-  List<String> strings(final int id, [final String codec = 'utf-8']) =>
-      (_records[id] ?? const <Uint8List>[])
-          .map((final value) => decodeBytes(value, codec))
-          .toList();
+  List<String> strings(final int id, [final String codec = 'utf-8']) {
+    return (_records[id] ?? const <Uint8List>[])
+        .map((final value) => decodeBytes(value, codec))
+        .toList();
+  }
 
   /// The first payload for [id] decoded and trimmed; null when absent
   /// or empty.
   String? _nonEmpty(final int id) {
     final value = string(id);
     if (value == null) return null;
+
     final trimmed = value.trim();
 
     return trimmed.isEmpty ? null : trimmed;
@@ -119,62 +121,62 @@ class ExthHeader {
 /// Well-known EXTH record ids.
 abstract final class ExthIds {
   /// ASIN.
-  static const int asin = 113;
+  static const asin = 113;
 
   /// Author name (`Last, First` in Amazon files).
-  static const int author = 100;
+  static const author = 100;
 
   /// Book producer.
-  static const int bookProducer = 108;
+  static const bookProducer = 108;
 
   /// cdetype (`EBOK`, `PDOC`, `EBSP`, ...).
-  static const int cdeType = 501;
+  static const cdeType = 501;
 
   /// Cover image record offset (relative to first image record).
-  static const int coverOffset = 201;
+  static const coverOffset = 201;
 
   /// Description / comments.
-  static const int description = 103;
+  static const description = 103;
 
   /// Fake cover flag.
-  static const int hasFakeCover = 203;
+  static const hasFakeCover = 203;
 
   /// ISBN.
-  static const int isbn = 104;
+  static const isbn = 104;
 
   /// KF8 header record index in joint files.
-  static const int kf8Header = 121;
+  static const kf8Header = 121;
 
   /// Language code string.
-  static const int language = 524;
+  static const language = 524;
 
   /// Page progression direction (`ltr`, `rtl` or `default`).
-  static const int pageProgressionDirection = 527;
+  static const pageProgressionDirection = 527;
 
   /// Primary writing mode.
-  static const int primaryWritingMode = 525;
+  static const primaryWritingMode = 525;
 
   /// Publication date.
-  static const int publishDate = 106;
+  static const publishDate = 106;
 
   /// Publisher.
-  static const int publisher = 101;
+  static const publisher = 101;
 
   /// Copyright / rights.
-  static const int rights = 109;
+  static const rights = 109;
 
-  /// dc:source (may carry `urn:isbn:` or `calibre:<uuid>`).
-  static const int source = 112;
+  /// dc:source (may carry an ISBN URI or a provider UUID).
+  static const source = 112;
 
   /// Start reading offset.
-  static const int startOffset = 116;
+  static const startOffset = 116;
 
   /// Subject / tags (`;` separated).
-  static const int subject = 105;
+  static const subject = 105;
 
   /// Thumbnail image record offset.
-  static const int thumbnailOffset = 202;
+  static const thumbnailOffset = 202;
 
   /// Long (updated) title — authoritative per Amazon.
-  static const int updatedTitle = 503;
+  static const updatedTitle = 503;
 }

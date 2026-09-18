@@ -33,10 +33,10 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (_hasPrefix(bytes, tpzMagic)) {
     throw const FormatNotSupportedException('Amazon Topaz books (.azw1/.tpz) are not supported.');
   }
-
   if (_hasPrefix(bytes, kfxMagic)) {
     throw const FormatNotSupportedException('Amazon KFX books are not supported.');
   }
+
   if (_pdfHeaderOffset(bytes) != null) return DetectedFormat.pdf;
 
   if (_hasPrefix(bytes, rtfMagic)) {
@@ -52,6 +52,7 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (_isMobiFamily(bytes)) {
     return _isAzw4(bytes) ? DetectedFormat.azw4 : DetectedFormat.mobiFamily;
   }
+
   if (_isFictionBook(bytes)) return DetectedFormat.fb2;
   if (_isHtml(bytes)) return DetectedFormat.html;
   if (_isText(bytes)) return DetectedFormat.txt;
@@ -73,7 +74,6 @@ bool _isFictionBook(final Uint8List bytes) {
   final window = bytes.sublist(0, bytes.length < 4096 ? bytes.length : 4096);
   final head = decodeXmlText(window);
   var cursor = 0;
-
   while (cursor < head.length) {
     while (cursor < head.length && _isXmlWhitespace(head.codeUnitAt(cursor))) {
       cursor++;
@@ -84,7 +84,6 @@ bool _isFictionBook(final Uint8List bytes) {
       if (end < 0) return false;
 
       cursor = end + 2;
-
       continue;
     }
 
@@ -93,7 +92,6 @@ bool _isFictionBook(final Uint8List bytes) {
       if (end < 0) return false;
 
       cursor = end + 3;
-
       continue;
     }
 
@@ -102,7 +100,6 @@ bool _isFictionBook(final Uint8List bytes) {
       if (end < 0) return false;
 
       cursor = end + 1;
-
       continue;
     }
 
@@ -132,6 +129,7 @@ int? _pdfHeaderOffset(final Uint8List bytes) {
     while (preambleEnd < offset && _isPdfWhitespace(bytes[preambleEnd])) {
       preambleEnd++;
     }
+
     if (preambleEnd == offset) return offset;
   }
 
@@ -154,7 +152,6 @@ bool _isText(final Uint8List bytes) {
   final byteLimit = bytes.length < 8192 ? bytes.length : 8192;
   var printableCount = 0;
   var controlCount = 0;
-
   for (var index = 0; index < byteLimit; index++) {
     final byte = bytes[index];
     if (byte == 0) return false;
@@ -167,6 +164,7 @@ bool _isText(final Uint8List bytes) {
 
     controlCount++;
   }
+
   if (byteLimit == 0 || controlCount > byteLimit ~/ 20) return false;
 
   return printableCount * 100 >= byteLimit * 85;

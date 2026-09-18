@@ -6,14 +6,15 @@ import 'package:collection/collection.dart';
 import 'package:xml/xml.dart';
 
 import '../../../foundation/metadata/sort_keys.dart';
+import '../../../foundation/metadata/title_sort.dart';
 import '../container/epub_root_file.dart';
 
 /// The metadata changes to apply to an EPUB file.
 ///
 /// Every non-null field is written into the OPF; `null` fields are
-/// left untouched. Sort keys follow Calibre's behavior: an explicit
-/// [titleSort]/[authorSort] is stored as-is, and when a title/author
-/// is set without its sort key the key is computed Calibre-style.
+/// left untouched. An explicit [titleSort]/[authorSort] is stored as-is;
+/// when a title or author is set without its sort key, the key is computed
+/// from the corresponding display value.
 final class EpubMetadataUpdate {
   /// Creates an [EpubMetadataUpdate].
   const EpubMetadataUpdate({
@@ -63,10 +64,10 @@ final class EpubMetadataUpdate {
   /// The new publication date.
   final DateTime? publishedAt;
 
-  /// The series name (stored as `calibre:series`).
+  /// The series name, written to a legacy OPF `meta` value.
   final String? series;
 
-  /// The position inside the series (stored as `calibre:series_index`).
+  /// The position inside the series, written to a legacy OPF `meta` value.
   final double? seriesIndex;
 }
 
@@ -88,14 +89,13 @@ Uint8List updateEpubMetadata(final Uint8List bytes, final EpubMetadataUpdate upd
     (final file) => _samePath(file.name, rootFilePath),
     orElse: () => throw const FormatException('EPUB metadata writing error: no root file found.'),
   );
-
   final document = XmlDocument.parse(convert.utf8.decode(rootFile.content as List<int>));
   final metadataElement = document.rootElement.findElements('metadata').firstOrNull;
   if (metadataElement == null) {
     throw const FormatException('EPUB metadata writing error: no metadata element found.');
   }
 
-  _apply(metadataElement, update);
+  _applyMetadataUpdate(metadataElement, update);
 
   final updatedXml = convert.utf8.encode(document.toXmlString());
   final updatedEntry = ArchiveFile(rootFilePath, updatedXml.length, updatedXml);
@@ -109,6 +109,7 @@ Uint8List updateEpubMetadata(final Uint8List bytes, final EpubMetadataUpdate upd
       break;
     }
   }
+
   var rootWritten = false;
   for (final file in archive.files) {
     if (!file.isFile || _samePath(file.name, 'mimetype')) continue;
@@ -117,6 +118,7 @@ Uint8List updateEpubMetadata(final Uint8List bytes, final EpubMetadataUpdate upd
       rootWritten = true;
       continue;
     }
+
     out.addFile(ArchiveFile(file.name, file.size, file.content));
   }
   if (!rootWritten) out.addFile(updatedEntry);
@@ -125,23 +127,35 @@ Uint8List updateEpubMetadata(final Uint8List bytes, final EpubMetadataUpdate upd
   if (encoded == null) {
     throw const FormatException('EPUB metadata writing error: could not encode the zip.');
   }
+
   return Uint8List.fromList(encoded);
 }
 
-bool _samePath(final String a, final String b) =>
-    a.replaceAll('\\', '/') == b.replaceAll('\\', '/');
+bool _samePath(final String a, final String b) {
+  return a.replaceAll('\\', '/') == b.replaceAll('\\', '/');
+}
 
-void _apply(final XmlElement metadata, final EpubMetadataUpdate update) {
+void _applyMetadataUpdate(final XmlElement metadata, final EpubMetadataUpdate update) {
+  _applyTitleUpdate(metadata, update);
+  _applyAuthorUpdate(metadata, update);
+  _applyPublicationUpdate(metadata, update);
+  _applySeriesUpdate(metadata, update);
+}
+
+void _applyTitleUpdate(final XmlElement metadata, final EpubMetadataUpdate update) {
   if (update.title != null) {
     _setDcElement(metadata, 'title', update.title!);
-    final sort = update.titleSort ?? titleSort(update.title!, lang: null);
+    final sort = update.titleSort ?? computeTitleSortKey(update.title!);
     _setNamedMeta(metadata, 'calibre:title_sort', sort);
-  } else if (update.titleSort != null) {
-    _setNamedMeta(metadata, 'calibre:title_sort', update.titleSort!);
-  }
 
+    return;
+  }
+  if (update.titleSort != null) _setNamedMeta(metadata, 'calibre:title_sort', update.titleSort!);
+}
+
+void _applyAuthorUpdate(final XmlElement metadata, final EpubMetadataUpdate update) {
   if (update.authors != null) {
-    _removeAll(metadata, 'dc:creator');
+    _removeDcElements(metadata, 'creator');
     for (final author in update.authors!) {
       metadata.children.add(
         XmlElement(
@@ -151,12 +165,16 @@ void _apply(final XmlElement metadata, final EpubMetadataUpdate update) {
         ),
       );
     }
+
     final sort = update.authorSort ?? authorsToSortString(update.authors!);
     _setNamedMeta(metadata, 'calibre:author_sort', sort);
-  } else if (update.authorSort != null) {
-    _setNamedMeta(metadata, 'calibre:author_sort', update.authorSort!);
-  }
 
+    return;
+  }
+  if (update.authorSort != null) _setNamedMeta(metadata, 'calibre:author_sort', update.authorSort!);
+}
+
+void _applyPublicationUpdate(final XmlElement metadata, final EpubMetadataUpdate update) {
   if (update.publisher != null) _setDcElement(metadata, 'publisher', update.publisher!);
   if (update.language != null) _setDcElement(metadata, 'language', update.language!);
   if (update.description != null) _setDcElement(metadata, 'description', update.description!);
@@ -164,17 +182,16 @@ void _apply(final XmlElement metadata, final EpubMetadataUpdate update) {
   if (update.publishedAt != null) {
     _setDcElement(metadata, 'date', update.publishedAt!.toIso8601String());
   }
-
   if (update.subjects != null) {
-    _removeAll(metadata, 'dc:subject');
+    _removeDcElements(metadata, 'subject');
     for (final subject in update.subjects!) {
       metadata.children.add(XmlElement(XmlName('dc:subject'), const [], [XmlText(subject)]));
     }
   }
+}
 
-  if (update.series != null) {
-    _setNamedMeta(metadata, 'calibre:series', update.series!);
-  }
+void _applySeriesUpdate(final XmlElement metadata, final EpubMetadataUpdate update) {
+  if (update.series != null) _setNamedMeta(metadata, 'calibre:series', update.series!);
   if (update.seriesIndex != null) {
     _setNamedMeta(metadata, 'calibre:series_index', _formatIndex(update.seriesIndex!));
   }
@@ -183,20 +200,29 @@ void _apply(final XmlElement metadata, final EpubMetadataUpdate update) {
 /// Sets the text of the first `dc:[name]` element, creating it when
 /// the metadata block does not carry one yet.
 void _setDcElement(final XmlElement metadata, final String name, final String value) {
-  final existing = metadata.findElements('dc:$name').firstOrNull;
+  final existing = metadata.childElements.firstWhereOrNull(
+    (final element) => _isDcElement(element, name),
+  );
   if (existing != null) {
     existing.children
       ..clear()
       ..add(XmlText(value));
+
     return;
   }
+
   metadata.children.add(XmlElement(XmlName('dc:$name'), const [], [XmlText(value)]));
 }
 
-void _removeAll(final XmlElement metadata, final String qualifiedName) {
-  metadata.children.removeWhere(
-    (final child) => child is XmlElement && child.name.qualified == qualifiedName,
-  );
+void _removeDcElements(final XmlElement metadata, final String name) {
+  metadata.children.removeWhere((final child) => child is XmlElement && _isDcElement(child, name));
+}
+
+bool _isDcElement(final XmlElement element, final String name) {
+  const dcNamespace = 'http://purl.org/dc/elements/1.1/';
+
+  return element.name.local == name &&
+      (element.namespaceUri == dcNamespace || element.name.qualified == 'dc:$name');
 }
 
 /// Updates or creates `<meta name="[name]" content="[value]"/>`.
@@ -204,6 +230,7 @@ void _setNamedMeta(final XmlElement metadata, final String name, final String va
   for (final meta in metadata.findElements('meta')) {
     if (meta.getAttribute('name') == name) {
       meta.setAttribute('content', value);
+
       return;
     }
   }
@@ -215,11 +242,12 @@ void _setNamedMeta(final XmlElement metadata, final String name, final String va
   );
 }
 
-/// `2.5` → `2.5`; whole numbers keep no trailing zero, like calibre.
+/// `2.5` → `2.5`; integral values no greater than `0x7FFFFFFF` omit `.0`.
 String _formatIndex(final double index) {
   if (index == index.roundToDouble()) {
     final whole = index.round();
     if (whole <= 0x7FFFFFFF) return '$whole';
   }
+
   return '$index';
 }

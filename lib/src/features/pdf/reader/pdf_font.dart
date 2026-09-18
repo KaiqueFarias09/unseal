@@ -36,7 +36,6 @@ class PdfFont {
     final subtype = document.resolve(dictionary['Subtype']);
     final baseFont = document.resolve(dictionary['BaseFont']);
     final baseFontName = baseFont is PdfName ? baseFont.value : '';
-
     if (subtype is PdfName && subtype.value == 'Type0') {
       return _type0(document, dictionary, baseFontName);
     }
@@ -210,6 +209,7 @@ class PdfFont {
   static PdfCMap? _toUnicodeCMap(final PdfDocument document, final PdfDictionary dictionary) {
     final stream = document.resolve(dictionary['ToUnicode']);
     if (stream is! PdfStream) return null;
+
     try {
       final text = String.fromCharCodes(document.decodeStream(stream));
 
@@ -239,6 +239,7 @@ class PdfFont {
           final start = wArray.items[i];
           if (start is! PdfNumber) {
             i++;
+
             continue;
           }
           final second = i + 1 < wArray.items.length ? wArray.items[i + 1] : null;
@@ -284,6 +285,7 @@ class PdfFont {
     final differences = <int, String>{};
     final array = document.resolve(encoding['Differences']);
     if (array is! PdfArray) return differences;
+
     var code = 0;
     for (final item in array.items) {
       if (item is PdfNumber) {
@@ -320,12 +322,15 @@ class PdfFont {
   /// (`Arial-BoldMT` measures as Helvetica-Bold).
   static List<int?>? _standard14Row(final String name) {
     if (name.isEmpty) return null;
+
     final exact = pdfStandard14Widths['/$name'];
     if (exact != null) return exact;
+
     final lower = name.toLowerCase();
     for (final entry in pdfStandard14Widths.entries) {
       if (entry.key.substring(1).toLowerCase() == lower) return entry.value;
     }
+
     final bold = lower.contains('bold');
     final italic = lower.contains('italic') || lower.contains('oblique');
     String family;
@@ -342,9 +347,8 @@ class PdfFont {
     } else {
       return null;
     }
-    if (family == 'Symbol' || family == 'ZapfDingbats') {
-      return pdfStandard14Widths['/$family'];
-    }
+    if (family == 'Symbol' || family == 'ZapfDingbats') return pdfStandard14Widths['/$family'];
+
     final oblique = family == 'Times' ? 'Italic' : 'Oblique';
     final base = family == 'Times' ? '-Roman' : '';
     String suffix;

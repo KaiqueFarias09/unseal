@@ -10,6 +10,8 @@ const String _wordBoundaryBehind = '(?:^|$_nonWordChar)';
 /// Zero-width boundary after a whole-word token.
 const String _wordBoundaryAhead = '(?=$_nonWordChar|\$)';
 
+final RegExp _whitespacePattern = RegExp(r'\s');
+
 /// Compiles one search expression into the internal matching module used by book search.
 ///
 /// This function is public-named only because Dart privacy is library-scoped. It is not exported
@@ -30,10 +32,10 @@ CompiledQuery compileSearchQuery(
     case SearchMode.wholeWords:
       // Whole-word matching wraps the complete token phrase in Unicode word boundaries. The
       // zero-width non-word lookahead behind the phrase stays in the pattern, while the
-      // boundary-behind is verified per candidate by CompiledQuery. A look-behind is no option
-      // — dart2js support for it is browser-dependent — and a consumed-prefix class in the scan
-      // path makes matching an order of magnitude slower. Interior tokens need no boundaries of
-      // their own: the whitespace runs joining them are non-word characters on both sides.
+      // boundary-behind is verified per candidate by CompiledQuery. A look-behind is no option —
+      // dart2js support for it is browser-dependent — and a consumed-prefix class in the scan path
+      // makes matching an order of magnitude slower. Interior tokens need no boundaries of their
+      // own: the whitespace runs joining them are non-word characters on both sides.
       final tokens = trimmed.split(RegExp(r'\s+'))..removeWhere((final token) => token.isEmpty);
       final phrase = tokens
           .map((final token) => _tokenPattern(token, isTolerant: isTolerant))
@@ -101,7 +103,6 @@ String _proximityGap(final int interval) {
 }) {
   final parts = expr.trim().split(RegExp(r'\s+'))..removeWhere((final part) => part.isEmpty);
   var interval = defaultInterval;
-
   if (parts.length > 1 && RegExp(r'^\d+$').hasMatch(parts.last)) {
     interval = int.tryParse(parts.removeLast()) ?? defaultInterval;
   }
@@ -119,10 +120,9 @@ String _tokenPattern(final String token, {required final bool isTolerant}) {
   final buffer = StringBuffer();
   const invisibleSeparators = r'[\u00AD\u200B\u200C\u200D]?';
   var wasPreviousWhitespace = false;
-
   for (final rune in token.runes) {
     final char = String.fromCharCode(rune);
-    final isWhitespace = RegExp(r'\s').hasMatch(char);
+    final isWhitespace = _whitespacePattern.hasMatch(char);
 
     // collapse the whitespace run into one `\s+`
     if (isWhitespace && wasPreviousWhitespace) continue;

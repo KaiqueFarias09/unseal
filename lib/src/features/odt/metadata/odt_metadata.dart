@@ -1,21 +1,7 @@
-import 'dart:typed_data';
-
-import 'package:archive/archive.dart';
-import 'package:xml/xml.dart';
-
-import '../../../foundation/entities/entities.dart';
-import '../container/odt_package.dart';
-
-/// Reads metadata from an ODT package without rendering the document body.
-BookMetadata readOdtMetadata(final Uint8List bytes) =>
-    readOdtPackageMetadata(OdtPackage.fromBytes(bytes));
-
-/// Reads metadata from an already decoded ODT [archive].
-BookMetadata readOdtMetadataFromArchive(final Archive archive) =>
-    readOdtPackageMetadata(OdtPackage.fromArchive(archive));
+part of '../parse_odt_book.dart';
 
 /// Maps the metadata document of a validated [package] to the common model.
-BookMetadata readOdtPackageMetadata(final OdtPackage package) {
+BookMetadata _readOdtPackageMetadata(final _OdtPackage package) {
   final document = package.meta;
   if (document == null) return const BookMetadata(format: BookFormat.odt);
 
@@ -56,6 +42,7 @@ BookMetadata readOdtPackageMetadata(final OdtPackage package) {
 String? _firstText(final XmlElement root, final Set<String> names) {
   for (final element in root.descendants.whereType<XmlElement>()) {
     if (!names.contains(element.name.local.toLowerCase())) continue;
+
     final value = element.innerText.trim();
     if (value.isNotEmpty) return value;
   }
@@ -63,17 +50,20 @@ String? _firstText(final XmlElement root, final Set<String> names) {
   return null;
 }
 
-List<String> _allText(final XmlElement root, final String name) => <String>[
-  for (final element in root.descendants.whereType<XmlElement>())
-    if (element.name.local.toLowerCase() == name && element.innerText.trim().isNotEmpty)
-      element.innerText.trim(),
-];
+List<String> _allText(final XmlElement root, final String name) {
+  return <String>[
+    for (final element in root.descendants.whereType<XmlElement>())
+      if (element.name.local.toLowerCase() == name && element.innerText.trim().isNotEmpty)
+        element.innerText.trim(),
+  ];
+}
 
 Map<String, String> _userDefined(final XmlElement root) {
   final result = <String, String>{};
   for (final element in root.descendants.whereType<XmlElement>()) {
     if (element.name.local.toLowerCase() != 'user-defined') continue;
-    final name = odtAttribute(element, 'name')?.trim().toLowerCase();
+
+    final name = _odtAttribute(element, 'name')?.trim().toLowerCase();
     final value = element.innerText.trim();
     if (name != null && name.isNotEmpty && value.isNotEmpty) result[name] = value;
   }
@@ -81,13 +71,16 @@ Map<String, String> _userDefined(final XmlElement root) {
   return result;
 }
 
-List<String> _splitAuthors(final String value) =>
-    _splitList(value, RegExp(r'\s*(?:;|&|\band\b)\s*'));
+List<String> _splitAuthors(final String value) {
+  return _splitList(value, RegExp(r'\s*(?:;|&|\band\b)\s*', caseSensitive: false));
+}
 
 List<String> _splitValues(final String value) => _splitList(value, RegExp(r'\s*(?:;|,)\s*'));
 
-List<String> _splitList(final String value, final Pattern separator) => value
-    .split(separator)
-    .map((final item) => item.trim())
-    .where((final item) => item.isNotEmpty)
-    .toList(growable: false);
+List<String> _splitList(final String value, final Pattern separator) {
+  return value
+      .split(separator)
+      .map((final item) => item.trim())
+      .where((final item) => item.isNotEmpty)
+      .toList(growable: false);
+}

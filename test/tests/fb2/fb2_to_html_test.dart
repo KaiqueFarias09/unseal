@@ -1,15 +1,10 @@
-import 'package:e_livre/src/features/fb2/rendering/fb2_html_renderer.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:e_livre/fb2.dart';
 import 'package:test/test.dart';
-import 'package:xml/xml.dart';
 
 void main() {
-  Fb2Bodies convertBodiesFrom(final String xml, [final Map<String, String> binaries = const {}]) {
-    final root = XmlDocument.parse(
-      '<FictionBook xmlns:l="http://www.w3.org/1999/xlink">$xml</FictionBook>',
-    ).rootElement;
-    return convertBodies(root.findElements('body').toList(), 'Book', binaries);
-  }
-
   group('block elements', () {
     test('converts poems, stanzas and verse lines', () {
       final result = convertBodiesFrom('''
@@ -116,6 +111,15 @@ void main() {
       expect(result.files['index.html'] ?? '', contains('href="https://example.com/a?b=1"'));
     });
 
+    test('unsafe external hrefs are rendered without a link', () {
+      final result = convertBodiesFrom(
+        '<body><p><a l:href="javascript:alert(1)">unsafe</a></p></body>',
+      );
+
+      expect(result.files['index.html'] ?? '', isNot(contains('javascript:')));
+      expect(result.files['index.html'] ?? '', contains('>unsafe</span>'));
+    });
+
     test('links without href render as typed spans', () {
       final result = convertBodiesFrom('<body><p><a type="note">x</a></p></body>');
       expect(
@@ -127,18 +131,15 @@ void main() {
 
   group('images', () {
     test('resolve binary references through the extension map', () {
-      final result = convertBodiesFrom('<body><p><image l:href="#cover.jpg"/></p></body>', {
-        'cover.jpg': 'cover.jpg.jpg',
+      final result = convertBodiesFrom('<body><p><image l:href="#cover"/></p></body>', {
+        'cover': _pngBase64,
       });
-      expect(
-        result.files['index.html'] ?? '',
-        contains('<img src="cover.jpg.jpg" alt="cover.jpg"/>'),
-      );
+      expect(result.files['index.html'] ?? '', contains('<img src="cover.png" alt="cover"/>'));
     });
 
     test('skip references without a binary target', () {
       final result = convertBodiesFrom(
-        '<body><p><image l:href="cover.jpg"/><image l:href="#"/></p></body>',
+        '<body><p><image l:href="cover.jpg"/><image l:href="#"/><image l:href="#missing"/></p></body>',
       );
       expect(result.files['index.html'] ?? '', isNot(contains('<img')));
     });
@@ -170,6 +171,19 @@ void main() {
       expect(result.navigation.navPoints.single.id, 'fb2-section-1');
     });
 
+    test('generated section ids do not collide with source ids', () {
+      final result = convertBodiesFrom('''
+<body>
+<section id="fb2-section-1"><title>One</title></section>
+<section><title>Two</title></section>
+</body>''');
+
+      expect(result.navigation.navPoints.map((final point) => point.id), [
+        'fb2-section-1',
+        'fb2-section-2',
+      ]);
+    });
+
     test('titles anchor to their parent section id', () {
       final result = convertBodiesFrom(
         '<body><section id="s9"><title>T</title><p>t</p></section></body>',
@@ -183,5 +197,55 @@ void main() {
 <body name="notes"><section id="n"><title>Note</title></section></body>''');
       expect(result.navigation.navPoints.map((final p) => p.label), ['Main']);
     });
+
+    test('a titleless section does not borrow a nested section title', () {
+      final result = convertBodiesFrom('''
+<body>
+<section id="outer">
+  <section id="inner"><title>Inner</title><p>t</p></section>
+</section>
+</body>''');
+
+      expect(result.navigation.navPoints, hasLength(1));
+      expect(result.navigation.navPoints.single.id, 'inner');
+      expect(result.navigation.navPoints.single.label, 'Inner');
+    });
+
+    test('duplicate and unsafe body names produce unique safe file names', () {
+      final result = convertBodiesFrom('''
+<body><section><p>Main</p></section></body>
+<body name="../notes"><section id="n1"><p>One</p></section></body>
+<body name="../notes"><section id="n2"><p>Two</p></section></body>''');
+
+      expect(result.files.keys, containsAll(<String>['index.html', 'notes.html', 'notes-2.html']));
+    });
   });
 }
+
+({Map<String, String> files, Navigation navigation}) convertBodiesFrom(
+  final String bodies, [
+  final Map<String, String> binaries = const <String, String>{},
+]) {
+  final binaryXml = binaries.entries.map((final entry) {
+    return '<binary id="${entry.key}" content-type="image/png">${entry.value}</binary>';
+  }).join();
+  final bytes = Uint8List.fromList(
+    utf8.encode(
+      '<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" '
+      'xmlns:l="http://www.w3.org/1999/xlink">'
+      '<description><title-info><book-title>Book</book-title></title-info></description>'
+      '$bodies$binaryXml'
+      '</FictionBook>',
+    ),
+  );
+  final book = parseFb2Book(bytes);
+
+  return (
+    files: <String, String>{for (final file in book.files.html) file.name: file.content},
+    navigation: book.navigation,
+  );
+}
+
+const String _pngBase64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'
+    'YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';

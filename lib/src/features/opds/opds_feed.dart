@@ -2,16 +2,16 @@ import 'package:collection/collection.dart';
 import 'package:xml/xml.dart';
 
 /// The Atom namespace OPDS feeds are built on.
-const String _atomNamespace = 'http://www.w3.org/2005/Atom';
+const _atomNamespace = 'http://www.w3.org/2005/Atom';
 
 /// Acquisition (download) link relation of the OPDS 1.0 spec.
-const String opdsAcquisitionRel = 'http://opds-spec.org/acquisition';
+const opdsAcquisitionRel = 'http://opds-spec.org/acquisition';
 
 /// Cover image link relation of the OPDS 1.0 spec.
-const String opdsCoverRel = 'http://opds-spec.org/cover';
+const opdsCoverRel = 'http://opds-spec.org/cover';
 
 /// Thumbnail link relation of the OPDS 1.0 spec.
-const String opdsThumbnailRel = 'http://opds-spec.org/thumbnail';
+const opdsThumbnailRel = 'http://opds-spec.org/thumbnail';
 
 /// An author of a feed or entry.
 final class OpdsAuthor {
@@ -36,8 +36,7 @@ final class OpdsLink {
   /// The target URI (relative to the feed URL when relative).
   final String href;
 
-  /// The link relation (`self`, `next`,
-  /// `http://opds-spec.org/acquisition`, ...).
+  /// The link relation (`self`, `next`, `http://opds-spec.org/acquisition`, ...).
   final String? rel;
 
   /// The MIME type of the target (`application/epub+zip`, ...).
@@ -50,8 +49,8 @@ final class OpdsLink {
   String toString() => 'OpdsLink($rel -> $href)';
 }
 
-/// One `<entry>` of an OPDS feed: either a catalog navigation point
-/// or an acquisition-ready publication.
+/// One `<entry>` of an OPDS feed: either a catalog navigation point or an acquisition-ready
+/// publication.
 final class OpdsEntry {
   /// Creates an [OpdsEntry].
   const OpdsEntry({
@@ -86,25 +85,26 @@ final class OpdsEntry {
   final List<OpdsLink> links;
 
   /// Links that download the book file (EPUB, MOBI, PDF...).
-  List<OpdsLink> get acquisitionLinks =>
-      links.where((final link) => link.rel == opdsAcquisitionRel).toList();
+  List<OpdsLink> get acquisitionLinks {
+    return links.where((final link) => link.rel == opdsAcquisitionRel).toList();
+  }
 
   /// The full cover image link, when present.
   OpdsLink? get coverLink => links.firstWhereOrNull((final link) => link.rel == opdsCoverRel);
 
   /// The thumbnail link, when present.
-  OpdsLink? get thumbnailLink =>
-      links.firstWhereOrNull((final link) => link.rel == opdsThumbnailRel);
+  OpdsLink? get thumbnailLink {
+    return links.firstWhereOrNull((final link) => link.rel == opdsThumbnailRel);
+  }
 
   @override
   String toString() => 'OpdsEntry($title)';
 }
 
-/// A parsed OPDS feed: a catalog navigation page or an acquisition
-/// page of publications.
+/// A parsed OPDS feed: a catalog navigation page or an acquisition page of publications.
 ///
-/// Parsing only — fetching the feed over HTTP is left to the caller,
-/// keeping this module dependency-free.
+/// Parsing only — fetching the feed over HTTP is left to the caller, keeping this module
+/// dependency-free.
 final class OpdsFeed {
   /// Creates an [OpdsFeed].
   const OpdsFeed({
@@ -130,8 +130,8 @@ final class OpdsFeed {
   /// The entries of the feed.
   final List<OpdsEntry> entries;
 
-  /// Whether any entry carries acquisition links (an acquisition feed
-  /// lists downloadable books; a navigation feed lists catalogs).
+  /// Whether any entry carries acquisition links (an acquisition feed lists downloadable books; a
+  /// navigation feed lists catalogs).
   bool get isAcquisition => entries.any((final entry) => entry.acquisitionLinks.isNotEmpty);
 
   /// The `next` page link, when the feed is paginated.
@@ -142,18 +142,16 @@ final class OpdsFeed {
 
   /// Parses an OPDS (Atom) feed from its XML.
   ///
-  /// Throws [FormatException] when the XML cannot be parsed or lacks
-  /// a feed root element.
+  /// Throws [FormatException] when the XML cannot be parsed or lacks a feed root element.
   static OpdsFeed parse(final String xml) {
     final document = XmlDocument.parse(xml);
     final feed =
         document.findElements('feed', namespace: _atomNamespace).firstOrNull ??
         document.findElements('feed').firstOrNull;
-    if (feed == null) {
-      throw const FormatException('OPDS parsing error: no feed element found.');
-    }
+    if (feed == null) throw const FormatException('OPDS parsing error: no feed element found.');
 
     final entries = feed.findElements('entry', namespace: _atomNamespace).map(_parseEntry).toList();
+
     return OpdsFeed(
       id: _text(feed, 'id'),
       title: _text(feed, 'title'),
@@ -170,13 +168,9 @@ final class OpdsFeed {
       summary: _optionalText(element, 'summary'),
       content: _optionalText(element, 'content'),
       updated: DateTime.tryParse(_text(element, 'updated')),
-      authors: element
-          .findElements('author', namespace: _atomNamespace)
-          .map(
-            (final author) =>
-                OpdsAuthor(name: _text(author, 'name'), uri: _optionalText(author, 'uri')),
-          )
-          .toList(),
+      authors: element.findElements('author', namespace: _atomNamespace).map((final author) {
+        return OpdsAuthor(name: _text(author, 'name'), uri: _optionalText(author, 'uri'));
+      }).toList(),
       links: element.findElements('link', namespace: _atomNamespace).map(_parseLink).toList(),
     );
   }
@@ -190,11 +184,13 @@ final class OpdsFeed {
     );
   }
 
-  static String _text(final XmlElement parent, final String name) =>
-      _optionalText(parent, name) ?? '';
+  static String _text(final XmlElement parent, final String name) {
+    return _optionalText(parent, name) ?? '';
+  }
 
   static String? _optionalText(final XmlElement parent, final String name) {
     final element = parent.findElements(name, namespace: _atomNamespace).firstOrNull;
+
     return element?.innerText.trim();
   }
 }

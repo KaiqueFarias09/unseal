@@ -1,13 +1,28 @@
 import '../../../foundation/entities/entities.dart';
+import '../../../foundation/text/html_escape.dart';
 import '../entities/pdf_page.dart';
 import '../entities/pdf_page_text.dart';
 
+/// Tuned constants, values and roles carried over from reflow.py.
+const int _pageScanCount = 20;
+const int _lineScanCount = 2;
+const double _paraFactor = 1.8;
+const double _centerFactor = 0.15;
+const double _sameSpace = 3.0;
+const double _sameIndent = 2.0;
+
+// reflow.py probes these with re.match — anchored at the string
+// start — so every alternative carries its own anchor here.
+final RegExp _pageNumberPattern = RegExp(
+  r'^(.*\d+\s+\w+\s+\d+.*)|^(\s*\d+\s+.*)|^\s*[ivxlcIVXLC]+\s*$',
+);
+final RegExp _fixedLineNumberPattern = RegExp(r'(^.+[^0-9])\d+\s*$');
+
 /// Reflows extracted PDF pages into standalone HTML documents.
 ///
-/// A behavioral re-expression of Calibre's
-/// `src/calibre/ebooks/pdf/reflow.py` (GPLv3; ported behavior and
-/// tuned constants, no code): font-size statistics, automatic
-/// header/footer removal, margin/indent clustering, paragraph
+/// Implements PDF reflow with tuned constants for font-size statistics,
+/// automatic header/footer removal,
+/// margin/indent clustering, paragraph
 /// coalescing with line unwrapping, alignment and heading
 /// detection — adapted to this package's per-page-section model
 /// (each page is one section, so cross-page merges become
@@ -51,25 +66,170 @@ class PdfReflow {
   }
 }
 
-/// Tuned constants, values and roles carried over from reflow.py.
-const int _pageScanCount = 20;
-const int _lineScanCount = 2;
-const double _lineFactor = 0.2;
-const int _orphanLines = 5;
-const double _paraFactor = 1.8;
-const double _sectionFactor = 1.3;
-const double _rightFactor = 1.8;
-const double _centerFactor = 0.15;
-const double _sameSpace = 3.0;
-const double _sameIndent = 2.0;
-const double _unwrapFactor = 0.45;
+/// Finds repeated top and bottom lines without coupling the document's
+/// pipeline to the details of page-number matching.
+final class _HeaderFooterScanner {
+  _HeaderFooterScanner(this._pages);
 
-// reflow.py probes these with re.match — anchored at the string
-// start — so every alternative carries its own anchor here.
-final RegExp _pageNumberPattern = RegExp(
-  r'^(.*\d+\s+\w+\s+\d+.*)|^(\s*\d+\s+.*)|^\s*[ivxlcIVXLC]+\s*$',
-);
-final RegExp _fixedLineNumberPattern = RegExp(r'(^.+[^0-9])\d+\s*$');
+  final List<_Page> _pages;
+  final _EdgeMatches _head = _EdgeMatches();
+  final _EdgeMatches _foot = _EdgeMatches();
+
+  (double, double) scan() {
+    if (_pages.length < 2) {
+      return (0, 0);
+    }
+
+    var scanned = 0;
+    for (final page in _pages) {
+      _scanPage(page);
+      scanned++;
+      if (scanned >= _pageScanCount) {
+        break;
+      }
+    }
+
+    final needed = scanned / 2;
+    final header = _skipFor(_head, needed, isHeader: true);
+    final footer = _skipFor(_foot, needed, isHeader: false);
+
+    return (header, footer);
+  }
+
+  void _scanPage(final _Page page) {
+    _head.scanPage(page, fromTop: true);
+    _foot.scanPage(page, fromTop: false);
+  }
+
+  double _skipFor(final _EdgeMatches matches, final double needed, {required final bool isHeader}) {
+    final index = matches.bestIndex(needed);
+    if (matches.page == 0 || matches.page > _pages.length || !matches.hasMatch(index, needed)) {
+      return 0;
+    }
+
+    final lines = _pages[matches.page - 1].lines;
+    if (lines.length <= index) {
+      return 0;
+    }
+
+    return isHeader ? lines[index].bottom + 1 : lines[lines.length - 1 - index].top - 1;
+  }
+}
+
+final class _EdgeMatches {
+  final List<String> _text = List<String>.filled(_lineScanCount, '');
+  final List<int> _exact = List<int>.filled(_lineScanCount, 0);
+  final List<int> _numbered = List<int>.filled(_lineScanCount, 0);
+  final List<int> _fixed = List<int>.filled(_lineScanCount, 0);
+  int page = 0;
+  String _fixedPrefix = '';
+
+  void scanPage(final _Page pageData, {required final bool fromTop}) {
+    if (pageData.lines.isEmpty) {
+      return;
+    }
+    for (var index = 0; index < _lineScanCount; index++) {
+      final lineIndex = fromTop ? index : pageData.lines.length - 1 - index;
+      if (!_isInEdge(pageData, lineIndex, fromTop)) {
+        break;
+      }
+      _record(index, pageData.number, pageData.lines[lineIndex].text);
+    }
+  }
+
+  bool _isInEdge(final _Page pageData, final int index, final bool fromTop) {
+    if (index < 0 || index >= pageData.lines.length) {
+      return false;
+    }
+
+    final line = pageData.lines[index];
+
+    return fromTop ? line.top <= pageData.height / 2 : line.top >= pageData.height / 2;
+  }
+
+  void _record(final int index, final int pageNumber, final String value) {
+    if (_text[index].isEmpty) {
+      _text[index] = value;
+
+      return;
+    }
+    if (_text[index] == value) {
+      _exact[index]++;
+      page = page == 0 ? pageNumber : page;
+
+      return;
+    }
+    if (_pageNumberPattern.hasMatch(value)) {
+      _numbered[index]++;
+      page = page == 0 ? pageNumber : page;
+
+      return;
+    }
+
+    final fixed = _fixedLineNumberPattern.firstMatch(value);
+    if (fixed == null || fixed.group(1)!.isEmpty) {
+      return;
+    }
+
+    final prefix = fixed.group(1)!;
+    if (_fixedPrefix.isEmpty) {
+      _fixedPrefix = prefix;
+    } else if (_fixedPrefix == prefix) {
+      _fixed[index]++;
+      page = page == 0 ? pageNumber : page;
+    }
+  }
+
+  int bestIndex(final double needed) {
+    var result = 0;
+    for (var index = 0; index < _lineScanCount; index++) {
+      if (hasMatch(index, needed)) {
+        result = index;
+      }
+    }
+
+    return result;
+  }
+
+  bool hasMatch(final int index, final double needed) {
+    return _exact[index] > needed || _numbered[index] > needed || _fixed[index] > needed;
+  }
+}
+
+final class _IndentClusters {
+  _IndentClusters(final Map<double, int> values) : _working = Map<double, int>.of(values);
+
+  final Map<double, int> _working;
+
+  double mostPopular() {
+    var best = 0.0;
+    var bestCount = 0;
+    _working.forEach((final value, final count) {
+      if (count > 0 && bestCount <= count) {
+        bestCount = count;
+        best = value;
+      }
+    });
+
+    return best;
+  }
+
+  (double, double, int) clusterAround(final double center) {
+    var low = center;
+    var high = center;
+    var total = 0;
+    _working.forEach((final value, final count) {
+      if (count > 0 && (center - value).abs() <= _sameIndent) {
+        if (value < low) low = value;
+        if (value > high) high = value;
+        total += count;
+        _working[value] = -count;
+      }
+    });
+
+    return (low, high, total);
+  }
+}
 
 /// The whole-document reflow state and pipeline.
 final class _Document {
@@ -77,6 +237,7 @@ final class _Document {
     for (var i = 0; i < pageTexts.length && i < pages.length; i++) {
       this.pages.add(_Page(i + 1, pages[i].width, pages[i].height, pageTexts[i]));
     }
+
     if (this.pages.isEmpty) return;
 
     _collectFontStatistics();
@@ -127,6 +288,7 @@ final class _Document {
         );
       }
     }
+
     var best = -1;
     charsBySize.forEach((final size, final chars) {
       if (chars >= best) {
@@ -154,113 +316,17 @@ final class _Document {
   /// prefix plus a number — and requires more than half the scanned
   /// pages to agree (reflow.py `find_header_footer`).
   void _findHeaderFooter() {
-    if (pages.length < 2) return;
-
-    final headText = List<String>.filled(_lineScanCount, '');
-    final headMatch = List<int>.filled(_lineScanCount, 0);
-    final headMatch1 = List<int>.filled(_lineScanCount, 0);
-    final headMatch2 = List<int>.filled(_lineScanCount, 0);
-    var headPage = 0;
-    var fixedHead = '';
-    final footText = List<String>.filled(_lineScanCount, '');
-    final footMatch = List<int>.filled(_lineScanCount, 0);
-    final footMatch1 = List<int>.filled(_lineScanCount, 0);
-    final footMatch2 = List<int>.filled(_lineScanCount, 0);
-    var footPage = 0;
-    var fixedFoot = '';
-
-    var scanned = _pageScanCount;
-    for (final page in pages) {
-      if (page.lines.isNotEmpty) {
-        for (var i = 0; i < _lineScanCount; i++) {
-          if (page.lines.length < i + 1 || page.lines[i].top > page.height / 2) break;
-          final text = page.lines[i].text;
-          if (headText[i].isEmpty) {
-            headText[i] = text;
-          } else if (headText[i] == text) {
-            headMatch[i]++;
-            headPage = headPage == 0 ? page.number : headPage;
-          } else if (_pageNumberPattern.hasMatch(text)) {
-            headMatch1[i]++;
-            headPage = headPage == 0 ? page.number : headPage;
-          } else {
-            final fixed = _fixedLineNumberPattern.firstMatch(text);
-            if (fixed != null && fixed.group(1)!.isNotEmpty) {
-              if (fixedHead.isEmpty) {
-                fixedHead = fixed.group(1)!;
-              } else if (fixedHead == fixed.group(1)) {
-                headMatch2[i]++;
-                headPage = headPage == 0 ? page.number : headPage;
-              }
-            }
-          }
-        }
-        for (var i = 0; i < _lineScanCount; i++) {
-          if (page.lines.length < i + 1 ||
-              page.lines[page.lines.length - 1 - i].top < page.height / 2) {
-            break;
-          }
-          final text = page.lines[page.lines.length - 1 - i].text;
-          if (footText[i].isEmpty) {
-            footText[i] = text;
-          } else if (footText[i] == text) {
-            footMatch[i]++;
-            footPage = footPage == 0 ? page.number : footPage;
-          } else if (_pageNumberPattern.hasMatch(text)) {
-            footMatch1[i]++;
-            footPage = footPage == 0 ? page.number : footPage;
-          } else {
-            final fixed = _fixedLineNumberPattern.firstMatch(text);
-            if (fixed != null && fixed.group(1)!.isNotEmpty) {
-              if (fixedFoot.isEmpty) {
-                fixedFoot = fixed.group(1)!;
-              } else if (fixedFoot == fixed.group(1)) {
-                footMatch2[i]++;
-                footPage = footPage == 0 ? page.number : footPage;
-              }
-            }
-          }
-        }
-      }
-      if (--scanned < 1) break;
-    }
-    scanned = scanned > 0 ? _pageScanCount - scanned : _pageScanCount;
-    final needed = scanned / 2;
-
-    var headIndex = 0;
-    for (var i = 0; i < _lineScanCount; i++) {
-      if (headMatch[i] > needed || headMatch1[i] > needed || headMatch2[i] > needed) headIndex = i;
-    }
-    if (headPage > 0 &&
-        headPage <= pages.length &&
-        pages[headPage - 1].lines.length > headIndex &&
-        (headMatch[headIndex] > needed ||
-            headMatch1[headIndex] > needed ||
-            headMatch2[headIndex] > needed)) {
-      headerSkip = pages[headPage - 1].lines[headIndex].bottom + 1;
-    }
-
-    var footIndex = 0;
-    for (var i = 0; i < _lineScanCount; i++) {
-      if (footMatch[i] > needed || footMatch1[i] > needed || footMatch2[i] > needed) footIndex = i;
-    }
-    if (footPage > 0 &&
-        footPage <= pages.length &&
-        pages[footPage - 1].lines.length > footIndex &&
-        (footMatch[footIndex] > needed ||
-            footMatch1[footIndex] > needed ||
-            footMatch2[footIndex] > needed)) {
-      final lines = pages[footPage - 1].lines;
-      footerSkip = lines[lines.length - 1 - footIndex].top - 1;
-    }
+    final (header, footer) = _HeaderFooterScanner(pages).scan();
+    headerSkip = header;
+    footerSkip = footer;
   }
 
   void _removeHeaderFooter() {
     for (final page in pages) {
-      page.lines.removeWhere(
-        (final line) =>
-            (headerSkip > 0 && line.top < headerSkip) || (footerSkip > 0 && line.top > footerSkip),
-      );
+      page.lines.removeWhere((final line) {
+        return (headerSkip > 0 && line.top < headerSkip) ||
+            (footerSkip > 0 && line.top > footerSkip);
+      });
     }
   }
 
@@ -340,40 +406,10 @@ final class _Document {
   /// most-popular left, most-popular indent, and the rarer third
   /// cluster that sometimes is the true indent.
   void _setIndents(final Map<double, int> indents, final bool odd) {
-    final working = Map<double, int>.of(indents);
-
-    double mostPopular() {
-      var best = 0.0;
-      var bestCount = 0;
-      working.forEach((final value, final count) {
-        if (count > 0 && bestCount <= count) {
-          bestCount = count;
-          best = value;
-        }
-      });
-
-      return best;
-    }
-
-    (double, double, int) clusterAround(final double center) {
-      var low = center;
-      var high = center;
-      var total = 0;
-      working.forEach((final value, final count) {
-        if (count > 0 && (center - value).abs() <= _sameIndent) {
-          if (value < low) low = value;
-          if (value > high) high = value;
-          total += count;
-          working[value] = -count;
-        }
-      });
-
-      return (low, high, total);
-    }
-
-    final (leftLow, leftHigh, _) = clusterAround(mostPopular());
-    var (indentLow, indentHigh, indentCount) = clusterAround(mostPopular());
-    final (thirdLow, thirdHigh, thirdCount) = clusterAround(mostPopular());
+    final clusters = _IndentClusters(indents);
+    final (leftLow, leftHigh, _) = clusters.clusterAround(clusters.mostPopular());
+    var (indentLow, indentHigh, indentCount) = clusters.clusterAround(clusters.mostPopular());
+    final (thirdLow, thirdHigh, thirdCount) = clusters.clusterAround(clusters.mostPopular());
     if (thirdLow > 0 &&
         thirdLow < indentLow &&
         thirdLow > leftLow &&
@@ -416,13 +452,15 @@ final class _Document {
   /// marked as a continuation — it keeps its own page (sections are
   /// 1:1 with pages) but renders unindented and flush to the top.
   void _markContinuations() {
-    if (stats.lineSpace <= 0) return;
-    final orphanSpace = stats.bottom - _orphanLines * stats.lineSpace;
+    const orphanLines = 5;
 
+    if (stats.lineSpace <= 0) return;
+    final orphanSpace = stats.bottom - orphanLines * stats.lineSpace;
     for (var i = 1; i < pages.length; i++) {
       final previous = pages[i - 1];
       final next = pages[i];
       if (previous.lines.isEmpty || next.lines.isEmpty) continue;
+
       final last = previous.lines.last;
       final first = next.lines.first;
       if (last.bottom <= orphanSpace) continue;
@@ -565,6 +603,8 @@ final class _Page {
   }
 
   void _coalesceParagraphs(final _Stats stats) {
+    const sectionFactor = 1.3;
+
     var index = 0;
     _Line? last;
     while (index < lines.length) {
@@ -572,7 +612,6 @@ final class _Page {
       if (last != null && _canMerge(last, line, stats)) {
         last.merge(line);
         lines.removeAt(index);
-
         continue;
       }
       if (line.tag == 'p' &&
@@ -587,7 +626,7 @@ final class _Page {
       }
       if (last != null &&
           stats.paraSpace > 0 &&
-          line.bottom - last.bottom > stats.paraSpace * _sectionFactor) {
+          line.bottom - last.bottom > stats.paraSpace * sectionFactor) {
         line.blankLineBefore = true;
       }
       last = line;
@@ -596,6 +635,9 @@ final class _Page {
   }
 
   bool _canMerge(final _Line first, final _Line second, final _Stats stats) {
+    const lineFactor = 0.2;
+    const unwrapFactor = 0.45;
+
     final sameLeft =
         second.left >= first.lastLeft - _sameIndent && second.left <= first.lastLeft + _sameIndent;
     final leftish =
@@ -606,12 +648,14 @@ final class _Page {
         (second.left >= first.lastLeft && second.bottom <= first.bottom);
 
     return leftish &&
-        first.bottom + stats.lineSpace + stats.lineSpace * _lineFactor >= second.bottom &&
-        first.finalWidth > width * _unwrapFactor &&
+        first.bottom + stats.lineSpace + stats.lineSpace * lineFactor >= second.bottom &&
+        first.finalWidth > width * unwrapFactor &&
         !_adjacentQuotes(first.parts.last.text, second.text);
   }
 
   void _checkCentered(final _Stats stats) {
+    const rightFactor = 1.8;
+
     var first = true;
     var contents = false;
     for (var index = 0; index < lines.length; index++) {
@@ -634,7 +678,7 @@ final class _Page {
           leftMargin >= rightMargin - rightMargin * _centerFactor &&
           leftMargin <= rightMargin + rightMargin * _centerFactor) {
         line.align = 'C';
-      } else if (leftMargin > statsIndentMax && leftMargin > rightMargin * _rightFactor) {
+      } else if (leftMargin > statsIndentMax && leftMargin > rightMargin * rightFactor) {
         line.align = 'R';
       }
       if (!contents) {
@@ -875,7 +919,7 @@ final class _Line {
     for (var i = 0; i < parts.length; i++) {
       if (i > 0) out.write('\n');
       final part = parts[i];
-      final escaped = _escape(part.text);
+      final escaped = escapeHtml(part.text);
       if (part.em != 0 && part.em != 1) {
         out.write('<span style="font-size:${_formatEm(part.em)}em">$escaped</span>');
       } else {
@@ -885,11 +929,9 @@ final class _Line {
   }
 }
 
-String _escape(final String text) =>
-    text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-
-String _formatEm(final double em) =>
-    em == em.roundToDouble() ? em.toInt().toString() : em.toString();
+String _formatEm(final double em) {
+  return em == em.roundToDouble() ? em.toInt().toString() : em.toString();
+}
 
 bool _adjacentQuotes(final String first, final String second) {
   final lastChar = RegExp(r'.*([^ ])\s*$').firstMatch(first)?.group(1) ?? ' ';

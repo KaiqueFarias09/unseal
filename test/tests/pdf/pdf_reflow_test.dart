@@ -36,7 +36,7 @@ void main() {
         final book = parsePdfBook(bytes);
         for (var i = 0; i < book.pageCount; i++) {
           expect(
-            documentText(book.files.html[i].content),
+            DocumentTextScanner(book.files.html[i].content).scan(),
             book.pageTexts[i].text,
             reason: 'page ${i + 1} of ${book.pageCount} broke the canonical invariant',
           );

@@ -1,11 +1,8 @@
 import 'package:e_livre/src/heuristics.dart';
 import 'package:test/test.dart';
 
-/// Parity tests for the Calibre heuristic-processing port
-/// (src/calibre/ebooks/oeb/polish/smarten_punctuation.py and
-/// calibre.ebooks.heuristics). The Calibre ships no unit tests for
-/// these transforms; the golden values below pin the behaviour the
-/// port reproduces.
+/// Golden tests for the heuristic transforms. The expected values pin the behavior of punctuation
+/// normalization, chapter detection, scene-break normalization, and line unwrapping.
 void main() {
   group('smartenPunctuation', () {
     test('opens quotes after whitespace and closes before it', () {

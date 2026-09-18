@@ -54,23 +54,26 @@ abstract final class WorkerBookReader {
     final int nearChars = 60,
     final int contextChars = 48,
     final int maxMatches = 200,
-  }) => WorkerClient.instance.searchInWorker(
-    query,
-    mode: mode,
-    isCaseSensitive: isCaseSensitive,
-    isTolerant: isTolerant,
-    nearChars: nearChars,
-    contextChars: contextChars,
-    maxMatches: maxMatches,
-  );
+  }) {
+    return WorkerClient.instance.searchInWorker(
+      query,
+      mode: mode,
+      isCaseSensitive: isCaseSensitive,
+      isTolerant: isTolerant,
+      nearChars: nearChars,
+      contextChars: contextChars,
+      maxMatches: maxMatches,
+    );
+  }
 
   /// Worker-backed fast path for `EpubCfiResolver.resolveCfi`:
   /// resolves [cfi] against the resident book inside the worker.
   /// Returns `null` when the worker or its resident book is
   /// unavailable, or when the CFI is malformed or resolves nowhere —
   /// resolve inline as the fallback.
-  static Future<EpubCfiLocation?> resolveCfiInWorker(final String cfi) =>
-      WorkerClient.instance.resolveCfiInWorker(cfi);
+  static Future<EpubCfiLocation?> resolveCfiInWorker(final String cfi) {
+    return WorkerClient.instance.resolveCfiInWorker(cfi);
+  }
 
   /// Worker-backed fast path for `EpubCfiResolver.buildEpubCfi`:
   /// builds a book-level CFI for a reading position in the resident
@@ -79,8 +82,10 @@ abstract final class WorkerBookReader {
   static Future<String?> buildCfiInWorker({
     required final int contentIndex,
     required final int offsetInText,
-  }) => WorkerClient.instance.buildCfiInWorker(
-    contentIndex: contentIndex,
-    offsetInText: offsetInText,
-  );
+  }) {
+    return WorkerClient.instance.buildCfiInWorker(
+      contentIndex: contentIndex,
+      offsetInText: offsetInText,
+    );
+  }
 }
