@@ -46,6 +46,15 @@ release with breaking changes after 2.0.0.
   families and structural landmarks). The normal suite keeps a quick release
   gate, while opt-in tagged campaigns run deterministic byte/structure
   mutations in killable isolates with deadlines.
+- **Bounded input handling**: empty or malformed books fail through typed
+  eLivre exceptions. ZIP-backed formats reject encrypted entries, symbolic
+  links, unsupported compression, forged sizes, entries over 512 MiB,
+  aggregate expansion over 1 GiB, and excessive expansion ratios before or
+  during inflation.
+- **PDF and FB2 parser safety**: PDF marked-content dictionaries are consumed
+  with guaranteed lexer progress, and explicit nesting limits protect PDF
+  object graphs and FB2 XML trees. Focused adversarial tests cover these
+  boundaries and their typed failure contracts.
 - **Structured performance tooling**: one benchmark matrix covers all 16
   supported formats and can emit versioned JSON, compare same-machine
   baselines, or alternate A/B commands. A separate, strictly opt-in Calibre
@@ -53,7 +62,7 @@ release with breaking changes after 2.0.0.
   with persisted random IDs whose private map stays outside the repository.
 
 - **Calibre format expansion**: TXT/TXZ, HTML/HTMLZ, DOCX, ODT, AZW4,
-  CB7 and CBC are now detected and parsed into the common book model.
+  CB7 and CBC are detected and parsed into the common book model.
   Document formats preserve metadata, navigation and reflowable HTML;
   archive formats preserve styles, images and fonts where present, while
   AZW4 retains its embedded PDF for downstream facsimile rendering.
@@ -83,7 +92,7 @@ release with breaking changes after 2.0.0.
   goldens). First runs: CCITT corpus **10 images / 1.31M pixels at
   100.0000%**; JBIG2 arithmetic paths **100.0000%** on
   `jbig2_symbol_offset` and all 8 `issue12963` page scans (69.5M
-  pixels). The real scanned-book Huffman corpus now reaches
+  pixels). The real scanned-book Huffman corpus covers
   **199 images / 904,063,634 pixels at 100.0000%**, including
   Flate-compressed globals, OOB-terminated text regions and signed
   custom-table bounds.
@@ -101,16 +110,15 @@ release with breaking changes after 2.0.0.
 - **Font fidelity**: real standard-14 width tables (Adobe core14
   AFMs as distributed by Apache PDFBox; provenance header included)
   replace the per-family averages when a font carries no `/Widths`,
-  and Type0 fonts with an embedded `/Encoding` CMap now decode
+  and Type0 fonts with an embedded `/Encoding` CMap support
   one-byte codes and measure `/W` widths by CID through the
   `cidrange` mapping (plus the previously unparsed range-array form
   of `/W`).
 - **Robustness**: the LZWDecode stream filter (with `/EarlyChange`),
   exact rotated-text bounding boxes from the text matrix, and a
   deterministic byte-level fuzz suite (1,500 mutations over real and
-  synthetic fixtures) that surfaced and fixed a latent crash — a
-  zero font size now degrades instead of poisoning the reflow
-  statistics with NaN.
+  synthetic fixtures). Zero-sized fonts degrade safely without introducing
+  NaN into reflow statistics.
 - **PDF support**: a pure-Dart PDF pipeline, with `pointycastle` used by
   the standard security handler for encrypted documents. `parsePdfBook`
   reads the document structure (classic
@@ -184,7 +192,7 @@ release with breaking changes after 2.0.0.
   throwing `FormatException` when invalid); proximity (Calibre's
   "near") requires every word inside a window of `nearChars`
   characters (default 60), with a trailing all-digits query token
-  overriding the interval. Soft-hyphen tolerance now also folds
+  overriding the interval. Soft-hyphen tolerance also folds
   straight quotes onto curly ones and collapses whitespace runs
   like `text_to_regex`.
 - **RTL metadata**: the EPUB spine's `page-progression-direction`
@@ -218,50 +226,16 @@ release with breaking changes after 2.0.0.
   conditional implementations are compiled and tested on both runtimes. The
   publication archive is explicitly filtered by `.pubignore`, and PDF
   fixtures are marked binary for stable Git handling.
-- Search no longer rescans `files.html` linearly for every section
-  (O(n²) → map lookup).
+- Search resolves sections through a prebuilt map instead of an O(n²)
+  repeated scan.
 
 ### Fixed
 
-- **Hostile and malformed inputs fail safely**: empty inputs and corrupt ZIP
-  containers now produce typed eLivre exceptions; all ZIP-backed formats
-  reject encrypted entries, symbolic links, unsupported compression, forged
-  sizes, entries over 512 MiB, aggregate expansion over 1 GiB, and excessive
-  expansion ratios before or during inflation. Deep PDF object graphs and FB2
-  XML trees are bounded instead of risking stack exhaustion.
-- **PDF and FB2 regressions**: marked-content dictionaries no longer leave the
-  PDF content lexer spinning, nested PDF objects and deeply nested FB2 fail
-  predictably, and the affected parsing paths have focused regression tests.
 - EPUB cover resolution now follows spec precedence: EPUB 3
   `cover-image`, EPUB 2 `<meta name="cover">`, guide references, then
   heuristics, instead of an id-substring match.
 - Incomplete OPF packages no longer crash with `StateError` on optional
   EPUB 3 metadata fields.
-- MOBI 6 internal links normalize padded `filepos` numbers, and EPUB
-  binary extraction uses views instead of copying every decoded entry,
-  reducing peak memory for full parses.
-- **Format recovery**: NCX labels that were empty, AZW3 navigation
-  trees, prefixed FB2 cover links, declared or detected FB2 encodings,
-  XML entities, HTML5 tag-soup sections, CJK word counts and Unicode
-  whole-word boundaries are handled correctly.
-- **Comics and Calibre compatibility**: compressed RAR 4 entries,
-  natural CBZ ordering, RAR 5 headers, EPUB recovery, FB2/MOBI/PDF
-  parsing gaps, obfuscated fonts and Calibre metadata edge cases are
-  repaired.
-- **KF8 books with image containers no longer crash**: `MobiContainer`
-  assigned its `late final isImageContainer` twice whenever the `CONT`
-  record carried an EXTH 539 `application/image` entry — every AZW3
-  using CONT/CRES-wrapped images threw `LateInitializationError`.
-  Found by the new synthetic CONT/CRES tests.
-- **KF8 headers with a single FDST section no longer crash**:
-  `MobiHeader` assigned `fdstIndex` twice when `fdstCount <= 1`,
-  throwing `LateInitializationError` during the parse.
-- **RAR 5 reading matches the format spec**: the reader treated the
-  main archive header (type 1) as the end of the archive — real RAR 5
-  files yielded zero entries — and computed header ends without the
-  header-size vint length, misaligning every block. End of archive is
-  type 5; the main header is now skipped like any other non-file
-  block.
 
 ### Performance
 
