@@ -9,11 +9,11 @@ Prepare eLivre 3.3.0 and its companion packages for publication:
 - `/Volumes/SSD/Projects/e_livre_viewer_narration`
 - `/Volumes/SSD/Projects/steward`
 
-Finish the four Steward scanner corrections, run the module review in `docs/v3-module-review-guide.md`, resolve release blockers, and validate clean publication archives in dependency order.
+Finish the four Steward scanner corrections, use `docs/elivre-codebase-guide.md` to understand the module boundaries before reviewing them, resolve release blockers, and validate clean publication archives in dependency order.
 
 ## Read first
 
-1. `/Volumes/SSD/Projects/eLivre/docs/v3-module-review-guide.md`
+1. `/Volumes/SSD/Projects/eLivre/docs/elivre-codebase-guide.md`
 2. `/Volumes/SSD/Projects/eLivre/docs/library-architecture-standard.md`
 3. `/Volumes/SSD/Projects/eLivre/docs/library-architecture-migration-plan.md`
 4. The README and changelog in each package.
@@ -207,7 +207,7 @@ Completion criterion: all Steward tests pass, the tracked launcher matches the s
 
 ## Run the package review
 
-Use `docs/v3-module-review-guide.md` in dependency order. This is a structural code-quality review. The automated tests remain responsible for implementation behavior and format correctness.
+Use `docs/elivre-codebase-guide.md` in dependency order to understand each module before its structural code-quality review. The guide supplies context; the code and automated tests remain responsible for implementation behavior and format correctness.
 
 For each review unit, record one decision:
 

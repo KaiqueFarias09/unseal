@@ -90,21 +90,20 @@
   `TextQuote` relocation context, `CfiLocator` carrying an EPUB CFI,
   `PageLocator` for comics and future PDF), with a JSON codec
   (`locatorToJson`/`locatorFromJson`, envelope versioned via `v`),
-  `eLv1` interop (`textLocatorFromELv1`/`eLv1Of`, grammar identical
-  to the viewer's serialized positions), `SearchMatch.toTextLocator`,
-  and pure fuzzy relocation (`relocateTextLocator`) that re-anchors
-  a quote after edition drift, preferring the original section and
-  scoring context agreement.
+  `SearchMatch.toTextLocator`, and pure fuzzy relocation
+  (`relocateTextLocator`) that re-anchors a quote after edition
+  drift, preferring the original section and scoring context
+  agreement.
 - **EPUB CFI ranges**: `buildEpubCfiRange(contentIndex, startOffset,
   endOffset)` emits the spec's three-path range form (boundary
   subpaths relative to the leading path, round-tripping through
   `EpubCfi.tryParse`), and `resolveCfi` accepts ranges — the new
   `EpubCfiLocation.endCharOffset` carries the exclusive range end
   (null for points; cross-section ranges resolve to null).
-- **TOC target resolution**: `parseNavContent` parses raw
+- **TOC target resolution**: `NavResolution.navTargetOf` parses raw
   `NavPoint.content` strings (EPUB href/fragment, MOBI `filepos`,
-  bare fragments) and `NavResolution.navTargetOf` /
-  `resolveNavigation` resolve them to `NavTarget` positions
+  bare fragments), and `resolveNavigation` resolves them to
+  `NavTarget` positions
   (section index plus, for EPUB anchors, a `documentText` offset).
 - **Book progression**: `BookProgression.of(book)` measures
   per-section character totals and exposes `fractionOf` /
@@ -114,8 +113,8 @@
 - **Portable annotations**: `HighlightRecord`/`BookmarkRecord` value
   types (Calibre palette or custom colors, decorations, notes,
   dual CFI), a versioned tolerant JSON codec
-  (`encodeAnnotations`/`decodeAnnotations`, `formatVersion: 1`,
-  eLv1 bookmark interop on decode) and Calibre-parity merges
+  (`encodeAnnotations`/`decodeAnnotations`, `formatVersion: 1`) and
+  Calibre-parity merges
   (`mergeHighlights`/`mergeBookmarks` — newest timestamp wins per
   identity, ties keep local, survivors re-sorted by position;
   behavioral re-expression of `annotations.pyj`).
@@ -281,8 +280,8 @@ fonts and navigation — from a single format-agnostic API.
 - `Navigation` is now a concrete, format-agnostic structure
   (`title` + `navPoints`); EPUB 3 `nav.xhtml` documents are supported
   in addition to NCX.
-- `Files`, `BinaryFile`, `TextFile`, `NavPoint` moved to
-  `features/core`; the EPUB barrels re-export them for compatibility.
+- `Files`, `BinaryFile`, `TextFile`, and `NavPoint` moved to the
+  shared foundation layer and are exported from the main library.
 - Archive entries are matched by exact normalized path instead of
   substring matching.
 
