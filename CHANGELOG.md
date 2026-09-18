@@ -1,6 +1,46 @@
-## 3.3.0 - September 7, 2026
+## 3.0.0 - Unreleased
+
+This is the consolidated eLivre v3 release. Intermediate development
+labels were never published; their changes are included here as one major
+release with breaking changes after 2.0.0.
 
 ### Added
+
+- **Format-neutral reader**: `BookReader.openFromBytes`/
+  `openFromPath`/`parseBook` detect the supported format and return the
+  common `Book` model; `readMetadataFromBytes`/
+  `readMetadataFromPath` provide fast metadata-only reads, including
+  filename and OPF sidecar fallbacks.
+- **Common models and format detection**: `Book`, `BookMetadata`,
+  `BookCover`, `BookFormat`, `Files`, `TextFile`, `BinaryFile`,
+  `Navigation`, `NavPoint`, `detectFormat`, `refineMobiFormat` and
+  `sniffImageType` are shared across every parser.
+- **MOBI and AZW3/KF8**: PDB/MOBI/EXTH headers, PalmDoc and HUFF/CDIC
+  decompression, MOBI 6 chapters and anchors, KF8 skeleton/div
+  reassembly, FDST flows, CSS/SVG, CONT/CRES resources, NCX navigation,
+  joint MOBI 6 + KF8 files, fonts and image mappings. DRM-protected
+  files raise `DrmProtectedException`.
+- **FB2/FBZ**: metadata, coverpage covers, declared encodings, notes,
+  links, styles, body-to-XHTML conversion and section navigation.
+- **Metadata and reading data**: series and series indexes, Calibre
+  sidecar OPF merging, filename metadata fallback, `BookStatistics`,
+  `TextFile.plainText`, `extractPlainText`, `countWords`, cover
+  dimensions, Calibre-compatible title/author sort keys, `bookProducer`
+  metadata and physical `archiveEntries` inventories.
+- **Search and reading operations**: full-text search, versioned
+  `BookLocator`/`TextLocator`/`CfiLocator`/`PageLocator` values, fuzzy
+  text relocation, EPUB CFI ranges, TOC target resolution, reading
+  progression, portable annotations, OPDS feeds and public search
+  result types.
+- **EPUB reading features**: EPUB 3 media overlays/SMIL parsing,
+  `readEpubMetadata`, EPUB metadata writing, `Book.readingOrder`,
+  reading-order resolution, RTL page flow and EPUB 2/3 navigation and
+  CFI support.
+- **Additional formats**: TXT/TXZ, HTML/HTMLZ, DOCX, ODT, AZW4, CBZ,
+  CBR, CB7 and CBC, with shared metadata, navigation, resource and
+  cover behavior where the format supports it.
+- **Reading heuristics**: punctuation normalization, scene-break
+  detection, chapter guessing and line unwrapping for reflowable text.
 
 - **Calibre format expansion**: TXT/TXZ, HTML/HTMLZ, DOCX, ODT, AZW4,
   CB7 and CBC are now detected and parsed into the common book model.
@@ -61,8 +101,9 @@
   synthetic fixtures) that surfaced and fixed a latent crash — a
   zero font size now degrades instead of poisoning the reflow
   statistics with NaN.
-- **PDF support**: a pure-Dart PDF pipeline with zero new
-  dependencies. `parsePdfBook` reads the document structure (classic
+- **PDF support**: a pure-Dart PDF pipeline, with `pointycastle` used by
+  the standard security handler for encrypted documents. `parsePdfBook`
+  reads the document structure (classic
   cross-reference tables, PDF 1.5 cross-reference streams, object
   streams and a scan-based recovery for broken files), extracts
   per-page text (content-stream interpreter, simple fonts through the
@@ -141,13 +182,49 @@
   (`'rtl'`/`'ltr'`, null when undeclared), so readers can mirror
   page flow for RTL books.
 
-### Performance
+### Changed
 
+- **Breaking public API**: the former `EBook` entry point is replaced by
+  `BookReader`, whose final contracts are `openFromBytes`/
+  `openFromPath`/`parseBook` and `readMetadataFromBytes`/
+  `readMetadataFromPath`/`readMetadataSync`.
+- **Format entry points**: standalone format barrels expose explicit
+  parser and metadata functions, while the shared foundation owns the
+  common file and navigation entities.
+- **Search contracts**: search argument names use `isCaseSensitive` and
+  `isTolerant`; result fields use `isTruncated`; the complete
+  `SearchResults`, `SearchMatch` and `SearchMode` contract is public.
+- **Execution model**: native parsing remains on the calling runtime,
+  while browser parsing can use a resident web worker behind platform
+  adapters; typed failures cross the worker boundary.
+- **Navigation and archive resolution**: `Navigation` is a concrete,
+  format-agnostic structure; EPUB 3 `nav.xhtml` is supported alongside
+  NCX, and archive entries use exact normalized paths instead of
+  substring matching.
+- **Dependencies and platform baseline**: the package now requires Dart
+  3.8 or newer and uses `web`, `pointycastle` and `koni_archive` for
+  browser, PDF-security and archive capabilities.
 - Search no longer rescans `files.html` linearly for every section
   (O(n²) → map lookup).
 
 ### Fixed
 
+- EPUB cover resolution now follows spec precedence: EPUB 3
+  `cover-image`, EPUB 2 `<meta name="cover">`, guide references, then
+  heuristics, instead of an id-substring match.
+- Incomplete OPF packages no longer crash with `StateError` on optional
+  EPUB 3 metadata fields.
+- MOBI 6 internal links normalize padded `filepos` numbers, and EPUB
+  binary extraction uses views instead of copying every decoded entry,
+  reducing peak memory for full parses.
+- **Format recovery**: NCX labels that were empty, AZW3 navigation
+  trees, prefixed FB2 cover links, declared or detected FB2 encodings,
+  XML entities, HTML5 tag-soup sections, CJK word counts and Unicode
+  whole-word boundaries are handled correctly.
+- **Comics and Calibre compatibility**: compressed RAR 4 entries,
+  natural CBZ ordering, RAR 5 headers, EPUB recovery, FB2/MOBI/PDF
+  parsing gaps, obfuscated fonts and Calibre metadata edge cases are
+  repaired.
 - **KF8 books with image containers no longer crash**: `MobiContainer`
   assigned its `late final isImageContainer` twice whenever the `CONT`
   record carried an EXTH 539 `application/image` entry — every AZW3
@@ -206,94 +283,18 @@
 - `EpubBook.fromBytes` no longer copies the input when it already is
   a `Uint8List`.
 
-## 3.2.0 - August 29, 2026
+### Removed
 
-### Added
-
-- `Book.readingOrder`: the content files in reading order. EPUB
-  resolves the OPF spine (exposed on `EpubBook.spinePaths` too);
-  other formats fall back to the extraction order; comics list their
-  pages with `isHtml: false`.
-
-## 3.1.0 - August 29, 2026
-
-### Added
-
-- **Series support**: `BookMetadata.series` / `seriesIndex` from EPUB
-  `calibre:series` metas, EPUB 3 `belongs-to-collection` +
-  `group-position` and FB2 `<sequence name number>`.
-- **Calibre sidecar OPF**: `EBook.readMetadataFromPath/File` merge a
-  sibling `<basename>.opf` / `metadata.opf` over the book's own
-  metadata (`mergeBookMetadata` is public for custom merges).
-- **Filename fallback**: books without internal metadata get
-  title/authors from the Calibre `Title - Author.ext` pattern.
-- **`BookStatistics`**: `book.statistics` exposes `wordCount`,
-  `characterCount` and `estimatedReadingTime(wordsPerMinute: 200)`.
-- **Plain text**: `TextFile.plainText` (and `extractPlainText` /
-  `countWords` utils) strip markup and decode entities.
-- **Cover dimensions**: `BookCover.width`/`height` parsed from
-  JPEG/PNG/GIF/BMP/WebP headers without decoding (`imageSize`).
-- **MOBI 6 chapters**: `MobiBook.chapters` splits the single HTML
-  stream at the TOC anchors, including the front-matter part.
-- **Comic books**: CBZ (zip + `ComicInfo.xml`) and CBR (RAR 4/5 with
-  stored entries) with natural page ordering, page count and
-  first-page cover.
-
-### Fixed
-
-- MOBI 6 internal links now normalize `filepos` numbers so padded
-  hrefs (`#filepos0000198965`) match their anchor ids.
-- EPUB binary extraction no longer copies every archive entry a
-  second time (views over the decoded buffers), halving peak memory
-  of full parses.
-
-## 3.0.0 - August 29, 2026
-
-Multi-format release: eLivre now parses EPUB, MOBI, AZW3 (KF8) and FB2
-with full feature parity — metadata, cover, content files, stylesheets,
-fonts and navigation — from a single format-agnostic API.
-
-### Added
-
-- `EBook` entry point: `openFromBytes`/`openFromFile`/`openFromPath`
-  detect the format by magic bytes and return the fully parsed book in
-  a background isolate; `readMetadataFrom*` performs a fast
-  metadata-only read without extracting content.
-- `Book` / `BookMetadata` / `BookCover` / `BookFormat`: the common,
-  format-agnostic result types every module maps into.
-- MOBI support: PDB/MOBI/EXTH headers, PalmDoc and HUFF/CDIC
-  decompression, MOBI 6 content extraction (filepos anchors, recindex
-  image mapping, fonts), KF8 (AZW3) skeleton/div reassembly, FDST
-  flows (CSS/SVG), CONT/CRES wrapped resources, NCX-based navigation
-  and joint MOBI 6 + KF8 files. DRM-protected files raise
-  `DrmProtectedException`.
-- FB2 (and zipped FB2) support: title-info/publish-info metadata,
-  coverpage covers, body-to-XHTML conversion with notes bodies,
-  internal link rewriting and section-based navigation.
-- Format detection helpers (`detectFormat`, `refineMobiFormat`) and an
-  image magic-byte sniffer (`sniffImageType`).
-- `readEpubMetadata` fast path and a metadata-only EPUB read in
-  `EBook.readMetadataFrom*`.
-
-### Changed
-
-- `Navigation` is now a concrete, format-agnostic structure
-  (`title` + `navPoints`); EPUB 3 `nav.xhtml` documents are supported
-  in addition to NCX.
-- `Files`, `BinaryFile`, `TextFile`, and `NavPoint` moved to the
-  shared foundation layer and are exported from the main library.
-- Archive entries are matched by exact normalized path instead of
-  substring matching.
-
-### Fixed
-
-- EPUB cover resolution now follows the spec precedence (EPUB 3
-  `cover-image` property, EPUB 2 `<meta name="cover">`, guide
-  references, then heuristics) instead of an id-substring match.
-- `EpubBook.fromFile` no longer reads the file before checking that
-  it exists.
-- Incomplete OPF packages no longer crash with `StateError` on
-  optional EPUB 3 metadata fields.
+- The legacy `EBook` entry point and its `openFromFile`/
+  `readMetadataFromFile` contracts were replaced by `BookReader`.
+- The public `EpubCfi.serialize()` alias was removed in favor of the
+  current CFI codec.
+- EPUB deep-import compatibility shims and obsolete internal file and
+  navigation aliases were removed; consumers should use the public
+  barrels and foundation entities.
+- Legacy annotation paths and the `eLv1` compatibility/fallback wire
+  paths were removed from the final v3 contracts.
+- The obsolete `parser` pubspec topic was removed.
 
 ## 2.0.0 - February 6, 2024
 

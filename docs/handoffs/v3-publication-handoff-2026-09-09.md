@@ -2,7 +2,7 @@
 
 ## Objective
 
-Prepare eLivre 3.3.0 and its companion packages for publication:
+Prepare eLivre 3.0.0 and its companion packages for publication:
 
 - `/Volumes/SSD/Projects/eLivre`
 - `/Volumes/SSD/Projects/e_livre_viewer`
@@ -223,7 +223,7 @@ Completion criterion: every review unit has a decision, every **Block v3** item 
 
 ## Publication sequence
 
-1. Publish eLivre 3.3.0 from a clean checkout. Remove local overrides and run the dry-run again.
+1. Publish eLivre 3.0.0 from a clean checkout. Remove local overrides and run the dry-run again.
 2. Replace Viewer's local override with the hosted eLivre constraint. Run analysis, tests, and the dry-run. Publish Viewer 0.2.0.
 3. Replace Narration's local overrides with hosted constraints. Run analysis, tests, and the dry-run. Publish Narration 0.1.0.
 4. Tag the exact published commits and verify that a new consumer project resolves all three packages from the hosted registry.

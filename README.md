@@ -55,7 +55,7 @@ Or add the dependency manually:
 
 ```yaml
 dependencies:
-  e_livre: ^3.3.0
+  e_livre: ^3.0.0
 ```
 
 The package requires Dart `>=3.8.0 <4.0.0`.
