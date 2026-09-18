@@ -35,6 +35,17 @@ void main() {
     expect(() => BookReader.parseBook(bytes), throwsA(isA<InvalidBookException>()));
   });
 
+  test('forged tiny size cannot bypass the streaming expansion cap', () {
+    final zeros = Uint8List(34 << 20);
+    final archive = Archive()..addFile(ArchiveFile('forged.bin', zeros.length, zeros));
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final central = _signatureOffset(bytes, const <int>[0x50, 0x4B, 0x01, 0x02]);
+    _writeUint32At(bytes, 22, 1); // local-header uncompressed size
+    _writeUint32At(bytes, central + 24, 1); // central-directory uncompressed size
+
+    expect(() => BookReader.parseBook(bytes), throwsA(isA<InvalidBookException>()));
+  });
+
   test('legitimate books still parse after the caps', () {
     final chapter = Uint8List.fromList(('chapter text. ' * 293).codeUnits);
     final archive = Archive()
@@ -102,3 +113,21 @@ Uint8List _uint32(final int value) =>
 
 Uint8List _uint16(final int value) =>
     Uint8List(2)..buffer.asByteData().setUint16(0, value, Endian.little);
+
+int _signatureOffset(final Uint8List bytes, final List<int> signature) {
+  for (var offset = 0; offset <= bytes.length - signature.length; offset++) {
+    var matches = true;
+    for (var index = 0; index < signature.length; index++) {
+      if (bytes[offset + index] != signature[index]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return offset;
+  }
+  throw StateError('ZIP signature not found');
+}
+
+void _writeUint32At(final Uint8List bytes, final int offset, final int value) {
+  ByteData.sublistView(bytes).setUint32(offset, value, Endian.little);
+}

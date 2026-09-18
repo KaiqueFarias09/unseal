@@ -2,8 +2,8 @@
 ///
 /// Runs the WHOLE tracked corpus (bounded per-file size) plus seeded
 /// mutations of every corpus file through the killable-worker
-/// invariants. Only invoked via `dart test --tags fuzz`; never part
-/// of the default CI pass.
+/// invariants. The regular CI lane excludes this tag; run it explicitly
+/// with `dart test --tags fuzz`.
 @Tags(<String>['fuzz'])
 library;
 
@@ -20,15 +20,13 @@ void main() {
     'extended corpus campaign respects the parse invariants',
     () async {
       final root = fuzzCorpusRoot();
-      if (root == null) {
-        markTestSkipped('tracked fuzz corpus not present (test/resources/fuzz)');
-        return;
-      }
+      expect(root, isNotNull, reason: 'tracked fuzz corpus is missing');
       final files = fuzzCorpusFiles(limit: 512);
+      expect(files, isNotEmpty, reason: 'tracked fuzz corpus is empty');
       final failures = <String>[];
       for (final file in files) {
         final bytes = file.readAsBytesSync();
-        final id = fuzzCorpusFixtureId(file, root);
+        final id = fuzzCorpusFixtureId(file, root!);
         final verdict = await runBoundedParse(bytes, timeout: const Duration(seconds: 120));
         if (verdict.isDefect) failures.add('$id: ${verdict.defectSummary}');
 

@@ -258,7 +258,9 @@ final class PrivateIdMap {
           (decoded['byPath'] as Map<String, Object?>).cast<String, String>(),
         );
       } on Object {
-        stderr.writeln('id map unreadable — regenerating (ids will change).');
+        throw FormatException(
+          'Private id map is unreadable; refusing to regenerate stable identifiers: $path',
+        );
       }
     }
     return PrivateIdMap(path, <String, String>{});
@@ -748,7 +750,9 @@ final class _Checkpoint {
           (decoded['completed'] as Map<String, Object?>).cast<String, Map<String, Object?>>(),
         );
       } on Object {
-        stderr.writeln('checkpoint unreadable — starting fresh.');
+        throw FormatException(
+          'Sweep checkpoint is unreadable; refusing to discard completed work: $path',
+        );
       }
     }
     return _Checkpoint(path, <String, Map<String, Object?>>{});

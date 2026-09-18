@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -32,28 +33,91 @@ const int minZipBytesForRatioCheck = 32 << 20;
 /// parse entry point. Archive structures declaring more expansion
 /// than [maxZipTotalUncompressedBytes] / [maxZipEntryUncompressedBytes]
 /// / [maxZipExpansionRatio] are rejected the same way WITHOUT being
-/// inflated — a hostile container must never get the chance to
-/// allocate gigabytes from kilobytes.
+/// inflated. Actual output is bounded again while each supported
+/// entry is materialized, so forged sizes cannot bypass the guard.
 ///
-/// Known limitation: the caps read DECLARED sizes from the central
-/// directory; a forged pair (tiny declared size, bomb-sized deflate
-/// stream) is caught only when the entry is inflated.
 Archive decodeBookZip(final Uint8List bytes) {
   assertZipExpansionBounded(bytes);
   try {
-    final archive = ZipDecoder().decodeBytes(bytes);
-    // package:archive decodes entries LAZILY: a corrupt deflate stream
-    // only throws when a parser first touches the entry's content, far
-    // away from any typed boundary. Materialize every entry HERE so
-    // hostile payloads fail typed at the container boundary.
-    for (final file in archive.files) {
-      if (file.isFile) contentBytes(file);
+    final decoded = ZipDecoder().decodeBytes(bytes);
+    final archive = Archive()..comment = decoded.comment;
+    final actualTotalLimit = math.min(
+      maxZipTotalUncompressedBytes,
+      math.max(minZipBytesForRatioCheck, bytes.length * maxZipExpansionRatio),
+    );
+    var actualTotal = 0;
+    for (final file in decoded.files) {
+      if (file.compressionType != ArchiveFile.STORE &&
+          file.compressionType != ArchiveFile.DEFLATE) {
+        throw InvalidBookException(
+          'Zip entry ${file.name} uses unsupported compression method '
+          '${file.compressionType}.',
+        );
+      }
+      final remainingTotal = actualTotalLimit - actualTotal;
+      if (remainingTotal <= 0) {
+        throw InvalidBookException('Zip container exceeds the bounded expansion limit.');
+      }
+      final output = _BoundedOutputStream(math.min(maxZipEntryUncompressedBytes, remainingTotal));
+      final rawContent = file.rawContent;
+      if (rawContent == null) {
+        throw InvalidBookException('Zip entry ${file.name} has no readable payload.');
+      }
+      if (file.compressionType == ArchiveFile.DEFLATE) {
+        Inflate.stream(rawContent, output);
+      } else {
+        output.writeInputStream(rawContent);
+      }
+      final content = Uint8List.fromList(output.getBytes());
+      if (file.crc32 != null && getCrc32(content) != file.crc32) {
+        throw InvalidBookException('Zip entry ${file.name} has an invalid checksum.');
+      }
+      actualTotal += content.length;
+      final materialized = ArchiveFile(file.name, content.length, content)
+        ..mode = file.mode
+        ..isFile = file.isFile
+        ..isSymbolicLink = file.isSymbolicLink
+        ..nameOfLinkedFile = file.nameOfLinkedFile
+        ..crc32 = file.crc32
+        ..comment = file.comment
+        ..lastModTime = file.lastModTime;
+      archive.addFile(materialized);
     }
     return archive;
   } on ELivreException {
     rethrow;
   } on Object catch (error) {
     throw InvalidBookException('Zip container could not be decoded (${error.runtimeType}).');
+  }
+}
+
+final class _BoundedOutputStream extends OutputStream {
+  _BoundedOutputStream(this.maxBytes) : super(size: math.min(maxBytes, 0x8000));
+
+  final int maxBytes;
+
+  void _ensureCapacity(final int additionalBytes) {
+    if (additionalBytes < 0 || length + additionalBytes > maxBytes) {
+      throw InvalidBookException('Zip entry exceeds the bounded expansion limit.');
+    }
+  }
+
+  @override
+  void writeByte(final int value) {
+    _ensureCapacity(1);
+    super.writeByte(value);
+  }
+
+  @override
+  void writeBytes(final List<int> bytes, [final int? len]) {
+    _ensureCapacity(len ?? bytes.length);
+    super.writeBytes(bytes, len);
+  }
+
+  @override
+  void writeInputStream(final InputStreamBase stream) {
+    _ensureCapacity(stream.length);
+    super.writeInputStream(stream);
   }
 }
 
@@ -115,6 +179,21 @@ void assertZipExpansionBounded(final Uint8List bytes) {
   var largest = 0;
   while (entryCount > 0 && cursor + 46 <= directoryEnd) {
     if (_readUint32(bytes, cursor) != centralSignature) return null;
+    final flags = _readUint16(bytes, cursor + 8);
+    final compressionMethod = _readUint16(bytes, cursor + 10);
+    final externalAttributes = _readUint32(bytes, cursor + 38);
+    final unixFileType = (externalAttributes >> 16) & 0xF000;
+    if ((flags & 0x1) != 0) {
+      throw InvalidBookException('Encrypted zip entries are not supported.');
+    }
+    if (compressionMethod != ArchiveFile.STORE && compressionMethod != ArchiveFile.DEFLATE) {
+      throw InvalidBookException(
+        'Zip entry uses unsupported compression method $compressionMethod.',
+      );
+    }
+    if (unixFileType == 0xA000) {
+      throw InvalidBookException('Symbolic links are not supported in book containers.');
+    }
     final uncompressed = _readUint32(bytes, cursor + 24);
     total += uncompressed;
     if (uncompressed > largest) largest = uncompressed;

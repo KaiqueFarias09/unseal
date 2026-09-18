@@ -1,8 +1,7 @@
 # Fuzz suite tag configuration.
 #
-# `fuzz` marks the long-running corpus campaigns; they never run in
-# the default `dart test` pass — invoke them explicitly with
-# `dart test --tags fuzz`.
+# `fuzz` marks the long-running corpus campaigns. CI excludes the tag
+# from its regular VM lane; invoke it explicitly with `dart test --tags fuzz`.
 tags:
   fuzz:
     timeout: 30m

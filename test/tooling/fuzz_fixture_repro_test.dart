@@ -38,7 +38,7 @@ void main() {
       }
     });
 
-    test('every book-shaped generated fixture parses with synthetic metadata', () {
+    test('every book-shaped generated fixture parses into readable content', () {
       final bookFixtures = buildCorpusPlan().where(
         (final f) =>
             f.relativePath.endsWith('.epub') ||
@@ -48,7 +48,12 @@ void main() {
       expect(bookFixtures.length, greaterThanOrEqualTo(11));
       for (final fixture in bookFixtures) {
         final book = BookReader.parseBook(fixture.bytes);
-        expect(book.metadata, isNotNull, reason: fixture.relativePath);
+        expect(book.readingOrder, isNotEmpty, reason: fixture.relativePath);
+        expect(
+          book.readingOrder.every((final item) => item.name.trim().isNotEmpty),
+          isTrue,
+          reason: fixture.relativePath,
+        );
       }
     });
 

@@ -1,10 +1,8 @@
 /// Access to the tracked fuzz corpus at `test/resources/fuzz`.
 ///
-/// The corpus is owned by a parallel tooling stream and may be absent
-/// on this branch. Every consumer must stay tolerant: when the
-/// directory does not exist the helpers return an empty list and the
-/// suites skip their corpus-driven tests cleanly, so the fuzz front
-/// stays independently green.
+/// The corpus is a tracked test dependency. Its absence is a broken
+/// checkout and must fail the consuming suite instead of producing a
+/// vacuous green result.
 library;
 
 import 'dart:io';
@@ -20,14 +18,13 @@ Directory? fuzzCorpusRoot() {
   return directory;
 }
 
-/// Whether the tracked corpus is available.
-bool get fuzzCorpusPresent => fuzzCorpusRoot() != null;
-
 /// Lists corpus files deterministically (sorted by path), capped by
 /// [maxBytes] per file and [limit] in total.
 List<File> fuzzCorpusFiles({final int limit = 64, final int maxBytes = defaultCorpusMaxFileBytes}) {
   final root = fuzzCorpusRoot();
-  if (root == null) return const <File>[];
+  if (root == null) {
+    throw StateError('tracked fuzz corpus is missing: test/resources/fuzz');
+  }
 
   final files =
       root

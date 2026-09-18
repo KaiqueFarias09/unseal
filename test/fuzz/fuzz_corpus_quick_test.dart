@@ -5,9 +5,7 @@ import 'harness/fuzz_invariants.dart';
 
 /// Corpus-driven invariants (quick mode).
 ///
-/// Consumes the tracked fuzz corpus at `test/resources/fuzz/` when
-/// the parallel tooling stream has landed it; SKIPS CLEANLY when the
-/// directory is absent so this branch stays independently green.
+/// Consumes the tracked fuzz corpus at `test/resources/fuzz/`.
 /// Every corpus file runs through the killable-worker invariants with
 /// bounded time; the extended (tag: fuzz) suite multiplies corpus
 /// files with deterministic mutations.
@@ -16,11 +14,9 @@ void main() {
     'tracked fuzz corpus files respect the parse invariants',
     () async {
       final root = fuzzCorpusRoot();
-      if (root == null) {
-        markTestSkipped('tracked fuzz corpus not present (test/resources/fuzz)');
-        return;
-      }
+      expect(root, isNotNull, reason: 'tracked fuzz corpus is missing');
       final files = fuzzCorpusFiles(limit: 24);
+      expect(files, isNotEmpty, reason: 'tracked fuzz corpus is empty');
       final failures = <String>[];
       for (final file in files) {
         final verdict = await runBoundedParse(
@@ -28,7 +24,7 @@ void main() {
           timeout: const Duration(seconds: 60),
         );
         if (verdict.isDefect) {
-          failures.add('${fuzzCorpusFixtureId(file, root)}: ${verdict.defectSummary}');
+          failures.add('${fuzzCorpusFixtureId(file, root!)}: ${verdict.defectSummary}');
         }
       }
       expect(failures, isEmpty, reason: 'corpus invariants violated: $failures');
