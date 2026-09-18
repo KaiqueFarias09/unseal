@@ -29,12 +29,13 @@ List<File> fuzzCorpusFiles({final int limit = 64, final int maxBytes = defaultCo
   final root = fuzzCorpusRoot();
   if (root == null) return const <File>[];
 
-  final files = root
-      .listSync(recursive: true)
-      .whereType<File>()
-      .where((final file) => file.lengthSync() <= maxBytes)
-      .toList()
-    ..sort((final a, final b) => a.path.compareTo(b.path));
+  final files =
+      root
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((final file) => file.lengthSync() <= maxBytes)
+          .toList()
+        ..sort((final a, final b) => a.path.compareTo(b.path));
 
   return files.take(limit).toList();
 }

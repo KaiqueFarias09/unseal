@@ -36,8 +36,7 @@ Uint8List mutateBytes(final Uint8List seed, final Random random, {final int roun
         }
       case 4: // append random tail
         final tailLength = random.nextInt(64);
-        final merged = Uint8List(out.length + tailLength)
-          ..setRange(0, out.length, out);
+        final merged = Uint8List(out.length + tailLength)..setRange(0, out.length, out);
         for (var index = out.length; index < merged.length; index++) {
           merged[index] = random.nextInt(256);
         }

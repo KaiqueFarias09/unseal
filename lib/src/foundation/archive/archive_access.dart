@@ -107,7 +107,8 @@ void assertZipExpansionBounded(final Uint8List bytes) {
 
   var entryCount = _readUint16(bytes, eocd + 10);
   var cursor = _readUint32(bytes, eocd + 16);
-  final directoryEnd = cursor < bytes.length && cursor + _readUint32(bytes, eocd + 12) <= bytes.length
+  final directoryEnd =
+      cursor < bytes.length && cursor + _readUint32(bytes, eocd + 12) <= bytes.length
       ? cursor + _readUint32(bytes, eocd + 12)
       : bytes.length;
   var total = 0;

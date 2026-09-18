@@ -35,9 +35,7 @@ void main() {
         final input = generateFuzzInput(family: family, seed: quickSeed, index: index);
         final verdict = await runBoundedParse(input.bytes, timeout: timeout);
         if (verdict.isDefect) {
-          failures.add(
-            '${input.fixtureId} (${input.bytes.length}B): ${verdict.defectSummary}',
-          );
+          failures.add('${input.fixtureId} (${input.bytes.length}B): ${verdict.defectSummary}');
         }
       }
     }

@@ -201,8 +201,7 @@ Future<void> _campaign(final _Options options) async {
   _writeJson(options.out ?? 'artifacts/fuzz/fuzz-campaign.json', report);
 
   final totals = _totals(results.values.toList());
-  final defects =
-      totals['untyped']! + totals['crash']! + totals['timeout']! + totals['oom']!;
+  final defects = totals['untyped']! + totals['crash']! + totals['timeout']! + totals['oom']!;
   stdout.writeln('campaign done: $totals');
   if (defects > 0 && options.failOnDefect) {
     exitCode = 1;
@@ -387,11 +386,7 @@ final class _Checkpoint {
       file.parent.createSync(recursive: true);
       final tmp = File('${file.path}.tmp');
       tmp.writeAsStringSync(
-        '${const JsonEncoder.withIndent('  ').convert(<String, Object?>{
-          'schemaVersion': 1,
-          'kind': 'fuzz-campaign-checkpoint',
-          'completed': completed,
-        })}\n',
+        '${const JsonEncoder.withIndent('  ').convert(<String, Object?>{'schemaVersion': 1, 'kind': 'fuzz-campaign-checkpoint', 'completed': completed})}\n',
         flush: true,
       );
       tmp.renameSync(file.path);

@@ -108,7 +108,8 @@ const _chapterXhtml = '''
 <body><h1>Chapter one</h1><p>Deterministic EPUB chapter.</p></body></html>
 ''';
 
-String _opf(final String label) => '''
+String _opf(final String label) =>
+    '''
 <?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -126,7 +127,8 @@ String _opf(final String label) => '''
 </package>
 ''';
 
-String _core(final String label) => '''
+String _core(final String label) =>
+    '''
 <?xml version="1.0" encoding="UTF-8"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
     xmlns:dc="http://purl.org/dc/elements/1.1/">

@@ -53,11 +53,8 @@ void main() {
     // data') from CONTENT access, outside the typed boundary.
     final archive = Archive()
       ..addFile(
-        ArchiveFile(
-          'book.txt',
-          512,
-          Uint8List.fromList(('deterministic chapter. ' * 24).codeUnits),
-        )..lastModTime = 946684800,
+        ArchiveFile('book.txt', 512, Uint8List.fromList(('deterministic chapter. ' * 24).codeUnits))
+          ..lastModTime = 946684800,
       );
     final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
     // Replace the 2-byte zlib header of the first entry's payload
@@ -72,6 +69,8 @@ void main() {
   });
 }
 
-Uint8List _uint32(final int value) => Uint8List(4)..buffer.asByteData().setUint32(0, value, Endian.little);
+Uint8List _uint32(final int value) =>
+    Uint8List(4)..buffer.asByteData().setUint32(0, value, Endian.little);
 
-Uint8List _uint16(final int value) => Uint8List(2)..buffer.asByteData().setUint16(0, value, Endian.little);
+Uint8List _uint16(final int value) =>
+    Uint8List(2)..buffer.asByteData().setUint16(0, value, Endian.little);

@@ -195,13 +195,16 @@ Future<FuzzVerdict> runBoundedParse(
   }
 
   try {
-    await done.future.timeout(timeout, onTimeout: () {
-      entries.putIfAbsent(
-        inFlight,
-        () => FuzzEntryVerdict(FuzzStatus.timeout, errorType: 'TimeoutException'),
-      );
-      isolate.kill(priority: Isolate.immediate);
-    });
+    await done.future.timeout(
+      timeout,
+      onTimeout: () {
+        entries.putIfAbsent(
+          inFlight,
+          () => FuzzEntryVerdict(FuzzStatus.timeout, errorType: 'TimeoutException'),
+        );
+        isolate.kill(priority: Isolate.immediate);
+      },
+    );
   } on Object {
     entries.putIfAbsent(
       inFlight,
@@ -227,10 +230,7 @@ final class _FuzzJob {
 Future<void> _worker(final _FuzzJob job) async {
   final port = job.sendPort;
 
-  Future<void> attempt(
-    final FuzzEntryPoint entry,
-    final Future<Object?> Function() action,
-  ) async {
+  Future<void> attempt(final FuzzEntryPoint entry, final Future<Object?> Function() action) async {
     port.send(<String, Object?>{'event': 'enter', 'entry': entry.name});
     try {
       await action();
@@ -278,5 +278,4 @@ Future<void> _worker(final _FuzzJob job) async {
   port.send(<String, Object?>{'event': 'done'});
 }
 
-String _truncate(final String value) =>
-    value.length <= 400 ? value : '${value.substring(0, 400)}…';
+String _truncate(final String value) => value.length <= 400 ? value : '${value.substring(0, 400)}…';

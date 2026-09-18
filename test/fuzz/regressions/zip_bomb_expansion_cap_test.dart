@@ -40,11 +40,8 @@ void main() {
     final archive = Archive()
       ..addFile(ArchiveFile('book.txt', chapter.length, chapter)..lastModTime = 946684800)
       ..addFile(
-        ArchiveFile(
-          'meta.xml',
-          29,
-          Uint8List.fromList('<meta><title>t</title></meta>'.codeUnits),
-        )..lastModTime = 946684800,
+        ArchiveFile('meta.xml', 29, Uint8List.fromList('<meta><title>t</title></meta>'.codeUnits))
+          ..lastModTime = 946684800,
       );
     final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
 

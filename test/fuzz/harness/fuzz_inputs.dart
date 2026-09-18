@@ -152,35 +152,24 @@ Uint8List _structuralHostile(final FuzzFamily family, final Random random, final
       return buildDeepNestedFb2(1000 + random.nextInt(30) * 1000);
     case FuzzFamily.mobi:
       final seeds = _seedsByFamily[FuzzFamily.mobi]!;
-      return buildMobiLyingRecordCount(
-        seeds.first.value,
-        random.nextInt(0x10000),
-      );
+      return buildMobiLyingRecordCount(seeds.first.value, random.nextInt(0x10000));
     case FuzzFamily.azw4:
       // AZW4 wrapping a hostile PDF payload.
-      return _azw4Wrapping(
-        switch (index ~/ 4 % 2) {
-          0 => buildDeepNestedPdf(20000),
-          _ => buildChainedFlatePdf(stages: 2, targetBytes: 2 << 20),
-        },
-      );
+      return _azw4Wrapping(switch (index ~/ 4 % 2) {
+        0 => buildDeepNestedPdf(20000),
+        _ => buildChainedFlatePdf(stages: 2, targetBytes: 2 << 20),
+      });
     case FuzzFamily.comic:
       return switch (index ~/ 4 % 2) {
         0 => buildZipBombEpub(targetBytes: 2 << 20), // CBZ-shaped bomb
-        _ => randomBytesWithMagic(
-          const <int>[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C],
-          random,
-        ),
+        _ => randomBytesWithMagic(const <int>[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C], random),
       };
     case FuzzFamily.images:
-      return randomBytesWithMagic(
-        switch (random.nextInt(3)) {
-          0 => const <int>[0x89, 0x50, 0x4E, 0x47],
-          1 => const <int>[0xFF, 0xD8, 0xFF],
-          _ => const <int>[0x47, 0x49, 0x46, 0x38],
-        },
-        random,
-      );
+      return randomBytesWithMagic(switch (random.nextInt(3)) {
+        0 => const <int>[0x89, 0x50, 0x4E, 0x47],
+        1 => const <int>[0xFF, 0xD8, 0xFF],
+        _ => const <int>[0x47, 0x49, 0x46, 0x38],
+      }, random);
     case FuzzFamily.text:
       return randomPrintableText(random, maxLength: 8192);
   }
@@ -209,9 +198,7 @@ Uint8List _manyEntryZip(final int count) {
 Uint8List _deepPathZip(final int depth) {
   final name = '${List.filled(depth, 'd').join('/')}/leaf.txt';
   final archive = Archive()
-    ..addFile(
-      ArchiveFile(name, 1, Uint8List.fromList('x'.codeUnits))..lastModTime = 946684800,
-    );
+    ..addFile(ArchiveFile(name, 1, Uint8List.fromList('x'.codeUnits))..lastModTime = 946684800);
 
   return Uint8List.fromList(ZipEncoder().encode(archive)!);
 }
@@ -232,7 +219,9 @@ Uint8List _azw4Wrapping(final Uint8List pdf) {
     view.setUint8(index, 0);
   }
   view.setUint8(87, 1);
-  final out = BytesBuilder(copy: false)..add(header)..add(pdf);
+  final out = BytesBuilder(copy: false)
+    ..add(header)
+    ..add(pdf);
 
   return out.toBytes();
 }
