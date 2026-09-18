@@ -36,7 +36,7 @@ const String _booksManifestPath = 'test/resources/books/manifest.json';
 
 Future<void> main(final List<String> arguments) async {
   final options = _parseOptions(arguments);
-  final tracked = _trackedResourceFiles();
+  final tracked = _trackedResourceFiles(excluding: options.manifestPath);
   if (tracked.isEmpty) {
     stderr.writeln(
       'inventory: no tracked files found under $_resourcesRoot (git ls-files empty?).',
@@ -225,17 +225,20 @@ String _familyFor(final String path, final Uint8List bytes) {
   }
 }
 
-/// Sorted relative paths of all git-tracked files under test/resources.
-List<String> _trackedResourceFiles() {
+/// Sorted relative paths of all git-tracked files under test/resources,
+/// excluding the generated manifest itself.
+List<String> _trackedResourceFiles({required final String excluding}) {
   final result = Process.runSync('git', ['ls-files', _resourcesRoot]);
   if (result.exitCode != 0) {
     return const [];
   }
+  final excludedPath = excluding.replaceAll('\\', '/').replaceFirst(RegExp(r'^\./'), '');
   return (result.stdout as String)
       .split('\n')
       .map((final line) => line.trim())
       .where((final line) => line.isNotEmpty)
       .where((final line) => !line.endsWith('/'))
+      .where((final line) => line != excludedPath)
       .toList()
     ..sort();
 }
