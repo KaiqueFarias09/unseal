@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/KaiqueFarias09/unseal/main/logo.png" alt="Unseal logo" width="180">
+  <img src="https://raw.githubusercontent.com/KaiqueFarias09/unseal/main/logo.webp" alt="Unseal logo" width="180">
 </p>
 
 <h1 align="center">Unseal</h1>

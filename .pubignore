@@ -9,6 +9,9 @@
 AGENTS.md
 steward.yaml
 
+# Repository presentation
+logo.webp
+
 # Generated output
 build/
 coverage/
