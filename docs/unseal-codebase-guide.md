@@ -9,7 +9,7 @@ Use it in two ways:
 1. Read "The whole library in one picture" before reviewing any feature.
 2. Open a feature section and read its files in table order. The first files show the public result and orchestration. The later files contain format details.
 
-This document describes unseal itself. unseal Viewer owns interactive rendering. unseal Viewer Narration owns speech and audio playback. Neither concern belongs in a format parser here.
+This document describes Unseal itself. Grimoire owns interactive rendering. Grimoire Narration owns speech and audio playback. Neither concern belongs in a format parser here.
 
 Paths that start with `features/`, `foundation/`, or `platform/` are relative to `lib/src/`. Paths that start with `lib/` or `web/` are relative to the repository root.
 
