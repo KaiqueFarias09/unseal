@@ -12,10 +12,11 @@ producing format-neutral reading data.
 - Provides metadata-only reads, automatic format detection, full-text search,
   locators, EPUB CFI operations, reading progression, portable annotations,
   OPDS parsing, and web-worker support.
-- Supports EPUB media overlays, right-to-left progression, sidecar OPF
-  metadata, MOBI/KF8 navigation, PDF text extraction and reflow, and comic
-  archive page ordering.
-- Rejects DRM-protected or encrypted books that cannot be opened safely.
+- Parses EPUB media-overlay timing, preserves right-to-left progression, reads
+  sidecar OPF metadata, and supports MOBI/KF8 navigation, PDF extraction and
+  reflow, and comic page ordering.
+- Rejects unsupported DRM and encrypted inputs; supported password-protected
+  PDFs can be opened with the correct password.
 
 ### Safety and reliability
 
@@ -24,11 +25,5 @@ producing format-neutral reading data.
 - Bounds ZIP expansion, entry sizes, compression ratios, PDF object nesting,
   and FB2 XML depth to make hostile input fail predictably.
 - Rejects symbolic links and unsupported archive compression methods.
-- Includes deterministic fuzzing, tracked regression seeds, focused parser
-  regressions, and separate Dart VM and browser validation.
-
-### Tooling
-
-- Includes benchmarks for all 16 supported formats, versioned JSON reports,
-  baseline comparison, and an opt-in privacy-preserving Calibre library scan.
-- Includes a reproducible PDF validation and image-parity harness.
+- Includes focused regression coverage for malformed and adversarial input on
+  the Dart VM and in browsers.

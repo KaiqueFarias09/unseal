@@ -21,6 +21,7 @@ pubspec.lock
 
 # Development-only suites and tooling
 benchmark/
+dart_test.yaml
 docs/
 test/
 tool/

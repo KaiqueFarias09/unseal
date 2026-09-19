@@ -1,4 +1,4 @@
-package com.example.example
+package dev.kaiquefarias.unseal.example
 
 import io.flutter.embedding.android.FlutterActivity
 

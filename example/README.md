@@ -1,19 +1,14 @@
-# unseal example
+# Unseal example
 
-This Flutter app demonstrates the public `unseal` entry point by loading the
-bundled EPUB asset and displaying its format-agnostic metadata.
+This Flutter app loads the bundled EPUB through `Unseal.read` and displays its
+title, detected format, and content-file count. It demonstrates the public
+package entry point without adding reader UI or application architecture.
 
-A new Flutter project.
+From this directory, run:
 
-## Getting Started
+```sh
+flutter pub get
+flutter run
+```
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The parsing call is in `lib/book_summary_page.dart`.

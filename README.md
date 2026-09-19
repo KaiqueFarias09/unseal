@@ -263,8 +263,9 @@ component.
 
 DRM is not bypassed. DRM-protected MOBI/AZW3 books, unsupported EPUB
 encryption, and encrypted archive entries are rejected. Supported PDF
-standard-security documents can be opened with the correct password, but PDF
-permission flags are exposed as metadata and are not enforced by unseal.
+standard-security documents can be opened with the correct password. After a
+successful open, Unseal does not enforce or expose copy, print, or extraction
+permission flags.
 
 ## Errors
 

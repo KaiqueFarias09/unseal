@@ -9,11 +9,11 @@ environment:
   sdk: ">=3.8.0 <4.0.0"
 
 dependencies:
-  unseal:
-    path: ../
-
   flutter:
     sdk: flutter
+
+  unseal:
+    path: ../
 
 dev_dependencies:
   flutter_lints: ^6.0.0

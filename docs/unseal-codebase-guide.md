@@ -196,7 +196,14 @@ Read `lib/unseal.dart` first when reviewing public compatibility. An item export
 | `foundation/text/xml_encoding_tables.dart` | Holds the single-byte character tables used by `xml_encoding.dart`. Data stays separate from decoding control flow. |
 | `foundation/exceptions/unseal_exception.dart` | Defines package-wide errors for unsupported formats, invalid books, and DRM-protected input. Format modules add more specific subclasses. |
 
-`lib/src/heuristics.dart` is a separate package-wide policy file. It improves weak source documents by guessing chapter headings, normalizing scene breaks, straightening hard-wrapped lines, and replacing plain punctuation. These are opt-in reading heuristics, not format detection.
+Reading heuristics are separate, opt-in policies rather than part of format detection:
+
+| File | What it does and why it exists |
+| --- | --- |
+| `lib/src/heuristics.dart` | Exposes the package-wide heuristics API. |
+| `heuristics/chapter_detection.dart` | Finds likely chapter headings in imported plain text. |
+| `heuristics/punctuation_normalization.dart` | Converts plain quotes, double hyphens, and three dots into typographic punctuation. |
+| `heuristics/text_normalization.dart` | Normalizes scene breaks and joins hard-wrapped lines. |
 
 ### Two text views with different jobs
 
@@ -374,6 +381,7 @@ The flow is:
 | `features/epub/encryption/epub_encryption.dart` | Reads `META-INF/encryption.xml`, handles supported font obfuscation, and distinguishes obfuscation from unsupported DRM. |
 | `features/epub/media_overlays/media_overlay.dart` | Defines timed text and audio segments parsed from SMIL. It describes synchronization but does not play audio. |
 | `features/epub/media_overlays/parse_media_overlay.dart` | Parses SMIL sequences, parallel text/audio nodes, clip times, and relative resource references into `MediaOverlayDocument`. |
+| `features/epub/media_overlays/parse_smil_clock.dart` | Parses full, partial, and unit-based SMIL clock values into durations. |
 | `features/epub/exceptions/epub_exception.dart` | Defines EPUB failures with archive and package context. |
 | `features/epub/exceptions/empty_bytes_exception.dart` | Gives `EpubBook.fromBytes` a clear empty-input failure. `BookDispatch` performs its own empty check; the lower-level `parseEpubBook` function calls the ZIP decoder directly. |
 | `features/epub/exceptions/exceptions.dart` | Re-exports the public EPUB exception types. |
@@ -849,4 +857,4 @@ When a change adds, removes, or renames a Dart file under `lib/`, update the mat
 
 When a change alters a format flow, update its flow before adding implementation detail. When a change introduces a new term from a file format, define that term near its first use.
 
-Agents should treat this guide as an index, then verify the relevant code before changing behavior. The code and tests remain authoritative when this document and the implementation disagree.
+Contributors should use this guide as an index, then verify the relevant code before changing behavior. The code and tests remain authoritative when this document and the implementation disagree.
