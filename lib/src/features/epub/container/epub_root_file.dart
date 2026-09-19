@@ -32,7 +32,7 @@ String? getEpubRootFilePath(final Archive epubArchive) {
 ///
 /// The normal EPUB path comes from `META-INF/container.xml`. For recovery of
 /// ZIP archives that omit that entry, this function scans `.opf` entries and
-/// keeps only packages that can be parsed by eLivre. It returns `null` when
+/// keeps only packages that can be parsed by unseal. It returns `null` when
 /// the archive contains no usable EPUB package.
 String? findEpubRootFilePath(final Archive epubArchive) {
   try {

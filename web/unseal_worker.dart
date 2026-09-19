@@ -2,11 +2,11 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/epub/exceptions/empty_bytes_exception.dart';
-import 'package:e_livre/src/foundation/entities/book/book.dart';
-import 'package:e_livre/src/foundation/exceptions/elivre_exception.dart';
-import 'package:e_livre/src/platform/web/book_wire.dart';
-import 'package:e_livre/src/platform/web/worker_ops.dart';
+import 'package:unseal/src/features/epub/exceptions/empty_bytes_exception.dart';
+import 'package:unseal/src/foundation/entities/book/book.dart';
+import 'package:unseal/src/foundation/exceptions/unseal_exception.dart';
+import 'package:unseal/src/platform/web/book_wire.dart';
+import 'package:unseal/src/platform/web/worker_ops.dart';
 import 'package:web/web.dart' as web;
 
 /// The book retained from the last successful `parse`; `search`,
@@ -14,13 +14,13 @@ import 'package:web/web.dart' as web;
 /// replaces it.
 Book? _book;
 
-/// Entry point of the e_livre parsing worker.
+/// Entry point of the unseal parsing worker.
 ///
 /// Compile it next to your web app and point
-/// `WorkerBookReader.configure` at the output URL:
+/// `UnsealWorker.configure` at the output URL:
 ///
 /// ```
-/// dart compile js web/e_livre_worker.dart -o web/e_livre_worker.js
+/// dart compile js web/unseal_worker.dart -o web/unseal_worker.js
 /// ```
 ///
 /// The worker answers `parse` (whole book), `metadata` (fast path),
@@ -61,7 +61,7 @@ void _handle(final web.MessageEvent event) {
     _reply(id, reply.kind, reply.json, reply.blobs);
   } on EmptyBytesException catch (error) {
     _error(id, 'EmptyBytesException', error.message);
-  } on ELivreException catch (error) {
+  } on UnsealException catch (error) {
     _error(id, error.runtimeType.toString(), error.message);
   } on FormatException catch (error) {
     _error(id, 'FormatException', error.message);

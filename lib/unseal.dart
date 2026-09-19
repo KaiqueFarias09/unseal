@@ -1,4 +1,4 @@
-/// Public, format-agnostic eLivre API.
+/// Public, format-agnostic Unseal API.
 library;
 
 export 'azw4.dart';
@@ -37,7 +37,7 @@ export 'src/features/search/entities/search_results.dart';
 export 'src/foundation/entities/book/book.dart';
 export 'src/foundation/entities/book/document_book.dart';
 export 'src/foundation/entities/entities.dart';
-export 'src/foundation/exceptions/elivre_exception.dart';
+export 'src/foundation/exceptions/unseal_exception.dart';
 export 'src/foundation/images/image_dimensions.dart';
 export 'src/foundation/images/image_type_sniffer.dart';
 export 'src/foundation/language/rtl_languages.dart';
@@ -50,6 +50,6 @@ export 'src/foundation/text/plain_text.dart';
 export 'src/foundation/text/word_count.dart';
 export 'src/foundation/text/xml_encoding.dart';
 export 'src/heuristics.dart';
-export 'src/platform/book_reader.dart';
-export 'src/platform/worker_book_reader.dart';
+export 'src/platform/unseal_reader.dart';
+export 'src/platform/unseal_worker.dart';
 export 'txt.dart';

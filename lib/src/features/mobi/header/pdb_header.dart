@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 
 /// The PalmDB (PDB) header of a MOBI file plus zero-copy record access.
 class PdbHeader implements PdbRecordAccess {

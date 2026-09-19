@@ -1,6 +1,6 @@
-name: e_livre
-version: 3.0.0
-repository: https://github.com/KaiqueFarias09/eLivre
+name: unseal
+version: 1.0.0
+repository: https://github.com/KaiqueFarias09/unseal
 description: >-
   Pure Dart book parsing library. Extract metadata, covers, content,
   stylesheets, fonts and navigation from EPUB 2.0/3.0, MOBI, AZW3

@@ -1,11 +1,11 @@
-import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 
 /// Thrown when a PDF document cannot be parsed.
 ///
 /// Structure problems that leave the document unusable (no pages,
 /// unreadable cross-reference after the scan fallback) surface here;
 /// per-page extraction problems degrade silently instead.
-class PdfException extends ELivreException {
+class PdfException extends UnsealException {
   /// Creates a [PdfException] with the given [message].
   const PdfException(super.message);
 

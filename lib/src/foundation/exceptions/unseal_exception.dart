@@ -1,17 +1,17 @@
-/// Base class for all exceptions thrown by eLivre.
-class ELivreException implements Exception {
-  /// Creates an [ELivreException] with the given [message].
-  const ELivreException(this.message);
+/// Base class for all exceptions thrown by Unseal.
+class UnsealException implements Exception {
+  /// Creates an [UnsealException] with the given [message].
+  const UnsealException(this.message);
 
   /// The error message.
   final String message;
 
   @override
-  String toString() => 'ELivreException: $message';
+  String toString() => 'UnsealException: $message';
 }
 
-/// Thrown when the book format is recognized but not supported by eLivre.
-class FormatNotSupportedException extends ELivreException {
+/// Thrown when the book format is recognized but not supported by Unseal.
+class FormatNotSupportedException extends UnsealException {
   /// Creates a [FormatNotSupportedException] with the given [message].
   const FormatNotSupportedException(super.message);
 
@@ -20,7 +20,7 @@ class FormatNotSupportedException extends ELivreException {
 }
 
 /// Thrown when a book is protected by DRM and cannot be parsed.
-class DrmProtectedException extends ELivreException {
+class DrmProtectedException extends UnsealException {
   /// Creates a [DrmProtectedException] with the given [message].
   const DrmProtectedException(super.message);
 
@@ -29,7 +29,7 @@ class DrmProtectedException extends ELivreException {
 }
 
 /// Thrown when the underlying data cannot be parsed as the detected format.
-class InvalidBookException extends ELivreException {
+class InvalidBookException extends UnsealException {
   /// Creates an [InvalidBookException] with the given [message].
   const InvalidBookException(super.message);
 

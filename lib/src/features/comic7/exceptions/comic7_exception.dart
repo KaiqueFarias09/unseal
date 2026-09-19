@@ -1,7 +1,7 @@
-import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 
 /// Error raised while opening a CB7 or CBC comic container.
-class Comic7Exception extends ELivreException {
+class Comic7Exception extends UnsealException {
   /// Creates a [Comic7Exception].
   const Comic7Exception(super.message);
 

@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as path;
 
-import '../exceptions/elivre_exception.dart';
+import '../exceptions/unseal_exception.dart';
 
 /// Hard cap on the TOTAL uncompressed size a book zip container may
 /// declare (1 GiB) — the first zip-bomb guard, checked from the
@@ -84,7 +84,7 @@ Archive decodeBookZip(final Uint8List bytes) {
       archive.addFile(materialized);
     }
     return archive;
-  } on ELivreException {
+  } on UnsealException {
     rethrow;
   } on Object catch (error) {
     throw InvalidBookException('Zip container could not be decoded (${error.runtimeType}).');

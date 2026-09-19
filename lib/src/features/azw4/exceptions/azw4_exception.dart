@@ -1,7 +1,7 @@
-import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 
 /// Base exception for an AZW4 container that cannot be safely read.
-class Azw4Exception extends ELivreException {
+class Azw4Exception extends UnsealException {
   /// Creates an [Azw4Exception] with [message].
   const Azw4Exception(super.message);
 

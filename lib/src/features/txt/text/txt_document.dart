@@ -230,7 +230,7 @@ String _markdownInline(final String input) {
     final source = match.group(2)!.trim();
     if (!_isLocalReference(source)) return match.group(0)!;
 
-    final token = '__ELIVRE_IMAGE_${placeholderIndex++}__';
+    final token = '__UNSEAL_IMAGE_${placeholderIndex++}__';
     placeholders[token] =
         '<img src="${_escapeHtml(source)}" alt="${_escapeHtml(match.group(1)!)}">';
 
@@ -240,7 +240,7 @@ String _markdownInline(final String input) {
     final href = match.group(2)!.trim();
     if (!_isSafeLink(href)) return match.group(0)!;
 
-    final token = '__ELIVRE_LINK_${placeholderIndex++}__';
+    final token = '__UNSEAL_LINK_${placeholderIndex++}__';
     placeholders[token] = '<a href="${_escapeHtml(href)}">${_escapeHtml(match.group(1)!)}</a>';
 
     return token;
@@ -268,7 +268,7 @@ String _textileInline(final String input) {
     final source = match.group(1)!;
     if (!_isLocalReference(source)) return match.group(0)!;
 
-    final token = '__ELIVRE_IMAGE_${placeholderIndex++}__';
+    final token = '__UNSEAL_IMAGE_${placeholderIndex++}__';
     placeholders[token] =
         '<img src="${_escapeHtml(source)}" alt="${_escapeHtml(match.group(2) ?? '')}">';
 

@@ -1,4 +1,4 @@
-/// The book formats supported by eLivre.
+/// The book formats supported by unseal.
 enum BookFormat {
   /// EPUB 2.0 / 3.0 container (zip + OPF package).
   epub,

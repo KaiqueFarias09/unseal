@@ -30,7 +30,7 @@ const _imageExtensions = <String>{
 ///
 /// Koni's archive reader is asynchronous because 7z decompression is streaming-first. CBZ/CBR use
 /// their synchronous parser; CB7/CBC are exposed through this asynchronous entry point and through
-/// `BookReader.openFromBytes`.
+/// `Unseal.read`.
 Future<ComicBook> parseComic7Book(final Uint8List bytes) async {
   if (!_isSevenZip(bytes)) throw const Comic7Exception('Input is not a 7-Zip archive.');
 
@@ -60,7 +60,7 @@ Future<BookMetadata> readComic7Metadata(final Uint8List bytes) async {
 ///
 /// Each non-empty line has the form `path[:title]`; `#` is replaced in paths before resolving them
 /// inside the collection. Multi-comic collections use the first declared title; a single comic
-/// retains its embedded metadata title. The common eLivre comic model has one flat page sequence
+/// retains its embedded metadata title. The common unseal comic model has one flat page sequence
 /// rather than a nested table of contents.
 Future<ComicBook> parseCbcBook(final Uint8List bytes) async {
   final archive = _decodeZip(bytes);

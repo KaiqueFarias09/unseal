@@ -5,7 +5,7 @@ import 'package:collection/collection.dart';
 
 import '../../foundation/archive/archive_access.dart';
 import '../../foundation/entities/entities.dart';
-import '../../foundation/exceptions/elivre_exception.dart';
+import '../../foundation/exceptions/unseal_exception.dart';
 import '../azw4/parse_azw4_book.dart';
 import '../comic/parse_comic_book.dart';
 import '../comic7/parse_comic7_book.dart';
@@ -62,7 +62,7 @@ abstract final class BookDispatch {
         return parseAzw4Book(bytes, password: password);
       case DetectedFormat.comic7:
         throw const FormatNotSupportedException(
-          'CB7 parsing is asynchronous; use BookReader.openFromBytes or parseComic7Book.',
+          'CB7 parsing is asynchronous; use Unseal.read or parseComic7Book.',
         );
     }
   }
@@ -93,7 +93,7 @@ abstract final class BookDispatch {
 
         if (_isCbcArchive(archive)) {
           throw const FormatNotSupportedException(
-            'CBC metadata is asynchronous; use BookReader.readMetadataFromBytes.',
+            'CBC metadata is asynchronous; use Unseal.readMetadata.',
           );
         }
 
@@ -119,7 +119,7 @@ abstract final class BookDispatch {
         return readAzw4Metadata(bytes, password: password);
       case DetectedFormat.comic7:
         throw const FormatNotSupportedException(
-          'CB7 metadata is asynchronous; use BookReader.readMetadataFromBytes.',
+          'CB7 metadata is asynchronous; use Unseal.readMetadata.',
         );
     }
   }
@@ -200,7 +200,7 @@ abstract final class BookDispatch {
 
     if (_isCbcArchive(archive)) {
       throw const FormatNotSupportedException(
-        'CBC parsing is asynchronous; use BookReader.openFromBytes.',
+        'CBC parsing is asynchronous; use Unseal.read.',
       );
     }
 

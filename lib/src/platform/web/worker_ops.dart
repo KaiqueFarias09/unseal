@@ -9,7 +9,7 @@ import '../../features/search/book_search.dart';
 import '../../features/search/entities/search_mode.dart';
 import '../../foundation/entities/book/book.dart';
 import '../../foundation/entities/book_format.dart';
-import '../../foundation/exceptions/elivre_exception.dart';
+import '../../foundation/exceptions/unseal_exception.dart';
 
 import 'book_wire.dart';
 
@@ -20,14 +20,14 @@ import 'book_wire.dart';
 /// `parse`).
 ///
 /// Pure and VM-testable: no browser types, no message channel — the
-/// shell in `web/e_livre_worker.dart` only unwraps the incoming
+/// shell in `web/unseal_worker.dart` only unwraps the incoming
 /// message, calls this and wraps the result.
 ///
 /// `parse` / `metadata` read [bytes]; `search`, `cfiResolve` and
 /// `cfiBuild` read [payload] (see the `wireKey*` payload keys) and act
-/// on [residentBook], throwing [ELivreException] when no book is
+/// on [residentBook], throwing [UnsealException] when no book is
 /// resident or the resident book cannot serve the op. Unknown ops
-/// throw [ELivreException]; a bad [SearchMode.regex] pattern or
+/// throw [UnsealException]; a bad [SearchMode.regex] pattern or
 /// proximity query surfaces as [FormatException] untouched, so the
 /// error reply keeps the exception type.
 ({String kind, Map<String, Object?> json, List<Object> blobs}) runWorkerOp({
@@ -60,7 +60,7 @@ import 'book_wire.dart';
     case workerOpCfiBuild:
       return _cfiBuild(payload!, residentBook);
     default:
-      throw ELivreException('Worker request holds an unknown op: $op');
+      throw UnsealException('Worker request holds an unknown op: $op');
   }
 }
 
@@ -112,7 +112,7 @@ import 'book_wire.dart';
 /// nothing was parsed yet.
 Book _residentFor(final Book? residentBook) {
   if (residentBook == null) {
-    throw const ELivreException('No resident book: parse one before running stateful ops.');
+    throw const UnsealException('No resident book: parse one before running stateful ops.');
   }
 
   return residentBook;
@@ -123,7 +123,7 @@ Book _residentFor(final Book? residentBook) {
 EpubBook _residentEpubFor(final Book? residentBook) {
   final book = _residentFor(residentBook);
   if (book is! EpubBook) {
-    throw ELivreException('CFI ops need a resident EPUB book, got ${book.format.name}.');
+    throw UnsealException('CFI ops need a resident EPUB book, got ${book.format.name}.');
   }
 
   return book;

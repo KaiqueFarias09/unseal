@@ -9,10 +9,10 @@ import '../../../features/html/exceptions/html_exception.dart';
 import '../../../features/mobi/exceptions/mobi_exception.dart';
 import '../../../features/odt/exceptions/odt_exception.dart';
 import '../../../features/pdf/exceptions/pdf_exception.dart';
-import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 
 /// Rebuilds the exception hierarchy behind a worker error reply:
-/// known [ELivreException] subtypes come back with their own type,
+/// known [UnsealException] subtypes come back with their own type,
 /// [FormatException] (a bad regex query) keeps its own type, unknown
 /// ones degrade to the base exception with the original text
 /// preserved.
@@ -63,6 +63,6 @@ Exception decodeErrorWire(final String type, final String message) {
     case 'PdfEncryptedException':
       return const PdfEncryptedException();
     default:
-      return ELivreException(message);
+      return UnsealException(message);
   }
 }

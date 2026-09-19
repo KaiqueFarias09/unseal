@@ -1,7 +1,7 @@
-import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 
 /// Error thrown while reading or parsing an FB2 book.
-class Fb2Exception extends ELivreException {
+class Fb2Exception extends UnsealException {
   /// Creates an [Fb2Exception] with the given [message].
   const Fb2Exception(super.message);
 

@@ -10,7 +10,7 @@ import '../../features/search/entities/search_mode.dart';
 import '../../features/search/entities/search_results.dart';
 import '../../foundation/entities/book/book.dart';
 import '../../foundation/entities/book_metadata.dart';
-import '../../foundation/exceptions/elivre_exception.dart';
+import '../../foundation/exceptions/unseal_exception.dart';
 import 'book_wire.dart';
 
 /// Owns the configured web worker and the request/reply protocol.
@@ -18,7 +18,7 @@ import 'book_wire.dart';
 /// Failures that mean "no worker" (nothing configured, the script
 /// failed to load, the worker died) surface as `null` results so
 /// callers fall back to inline parsing; genuine parse failures surface
-/// as the original [ELivreException] hierarchy, rebuilt through
+/// as the original [UnsealException] hierarchy, rebuilt through
 /// [decodeErrorWire].
 ///
 /// The worker is stateful: a successful [parseInWorker] leaves the
@@ -42,7 +42,7 @@ final class WorkerClient {
   bool get isConfigured => _script != null && !_broken;
 
   /// Points the client at a compiled [workerScript] (see
-  /// `web/e_livre_worker.dart` for the build command). The worker is
+  /// `web/unseal_worker.dart` for the build command). The worker is
   /// spawned lazily on the first parse.
   void configure(final Uri workerScript) {
     dispose();
@@ -236,7 +236,7 @@ final class WorkerClient {
             ),
           );
         default:
-          completer.completeError(ELivreException('Worker reply holds an unknown kind: $kind'));
+          completer.completeError(UnsealException('Worker reply holds an unknown kind: $kind'));
       }
     } on Object catch (error) {
       completer.completeError(error);

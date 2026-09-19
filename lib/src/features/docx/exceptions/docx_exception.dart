@@ -1,7 +1,7 @@
-import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 
-/// Base error for a DOCX package that cannot be read by eLivre.
-class DocxException extends ELivreException {
+/// Base error for a DOCX package that cannot be read by unseal.
+class DocxException extends UnsealException {
   /// Creates a [DocxException].
   const DocxException(super.message);
 

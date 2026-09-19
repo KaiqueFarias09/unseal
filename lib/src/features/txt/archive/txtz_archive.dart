@@ -64,7 +64,7 @@ final class _TxtzMetadata {
   /// Creates TXTZ metadata.
   const _TxtzMetadata({required this.metadata, this.coverPath, this.formatting});
 
-  /// Normalized metadata mapped to eLivre's common contract.
+  /// Normalized metadata mapped to unseal's common contract.
   final BookMetadata metadata;
 
   /// Resolved archive path of the optional cover resource.

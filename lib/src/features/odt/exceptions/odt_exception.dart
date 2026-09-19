@@ -1,7 +1,7 @@
-import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 
 /// Base error for an OpenDocument Text package that cannot be read.
-class OdtException extends ELivreException {
+class OdtException extends UnsealException {
   /// Creates an [OdtException].
   const OdtException(super.message);
 

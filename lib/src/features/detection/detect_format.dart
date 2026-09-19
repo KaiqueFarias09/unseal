@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../foundation/exceptions/elivre_exception.dart';
+import '../../foundation/exceptions/unseal_exception.dart';
 import '../../foundation/text/xml_encoding.dart';
 import 'entities/detected_format.dart';
 

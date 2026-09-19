@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../../foundation/exceptions/elivre_exception.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 import '../../mobi/exceptions/mobi_exception.dart';
 import '../../mobi/header/mobi_header.dart';
 import '../../mobi/header/pdb_header.dart';
