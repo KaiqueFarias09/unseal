@@ -19,7 +19,9 @@ import 'web/book_path_reader.dart' if (dart.library.io) 'io/book_path_reader.dar
 abstract final class Unseal {
   /// Reads a book from [bytes], opening encrypted PDFs with [password].
   static Future<Book> read(final Uint8List bytes, {final String password = ''}) {
-    return BookDispatch.openFromBytes(bytes, execute: parseBookInBackground, password: password);
+    return Future<Book>.sync(
+      () => BookDispatch.openFromBytes(bytes, execute: parseBookInBackground, password: password),
+    );
   }
 
   /// Reads a book from the file at [path], opening encrypted PDFs with [password].
@@ -34,10 +36,12 @@ abstract final class Unseal {
 
   /// Reads only metadata from [bytes], opening encrypted PDFs with [password].
   static Future<BookMetadata> readMetadata(final Uint8List bytes, {final String password = ''}) {
-    return BookDispatch.readMetadataFromBytes(
-      bytes,
-      execute: readMetadataInBackground,
-      password: password,
+    return Future<BookMetadata>.sync(
+      () => BookDispatch.readMetadataFromBytes(
+        bytes,
+        execute: readMetadataInBackground,
+        password: password,
+      ),
     );
   }
 
