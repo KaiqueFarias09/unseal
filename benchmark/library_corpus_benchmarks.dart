@@ -116,11 +116,7 @@ Future<void> _addGiantBookBenchmarks(
   final label = '$displayName (${formatBytes(book.size)})';
   final bytes = book.read();
 
-  group.add(
-    'Unseal.parse — $label',
-    () => Unseal.parse(bytes),
-    inputBytes: bytes.length,
-  );
+  group.add('Unseal.parse — $label', () => Unseal.parse(bytes), inputBytes: bytes.length);
   group.add('Unseal.readMetadataSync — $label', () => Unseal.readMetadataSync(bytes));
   if (withOpenFromBytes) {
     await _addOpenFromBytesBenchmark(group, bytes, label);

@@ -4,11 +4,10 @@ import '../../exceptions/pdf_exception.dart';
 import '../../header/pdf_object.dart';
 import 'ccitt_tables.dart';
 
-/// Safety net 1: absurd `/Columns`/`/Rows` combinations are rejected
-/// up front instead of allocating.
+/// Maximum supported row width. Wider rows are rejected before allocation.
 const int _maxColumns = 1 << 16;
 
-/// Safety net 2: the drain loop caps the returned payload size.
+/// Maximum decoded payload returned by the drain loop.
 const int _maxOutputBytes = 64 << 20;
 
 /// Decodes a CCITTFaxDecode payload (ITU-T T.4/T.6 fax coding) into
@@ -24,16 +23,15 @@ const int _maxOutputBytes = 64 << 20;
 /// sample polarity inside the decoder, so callers always receive
 /// rows in the default `/Decode [0 1]` convention (0 = black).
 ///
-/// Ground truth: pdf.js v3.11.174 `src/core/ccitt.js`
-/// (`CCITTFaxDecoder` + the `CCITTFaxStream.readBlock` drain loop).
-/// Port with parity comments pointing at it. pdf.js is Apache-2.0
+/// This implementation is based on pdf.js v3.11.174 `src/core/ccitt.js`
+/// (`CCITTFaxDecoder` and the `CCITTFaxStream.readBlock` drain loop).
+/// Comments identify the corresponding pdf.js operations. pdf.js is Apache-2.0
 /// (Copyright 2012 Mozilla Foundation; the original CCITT stream
 /// implementation is a JavaScript port of XPDF's, Copyright
 /// 1996-2003 Glyph & Cog, LLC, also Apache-2.0).
 ///
-/// Two deliberate deviations from pdf.js, both safety nets so a
-/// malformed stream degrades as [PdfException] instead of hanging
-/// or exhausting memory (the fuzz discipline):
+/// Two deliberate deviations make malformed streams fail with [PdfException]
+/// instead of hanging or exhausting memory:
 /// 1. absurd `/Columns`/`/Rows` combinations are rejected up front;
 /// 2. the drain loop caps the returned payload size, and a row that
 ///    consumes no input bits forces EOF (pdf.js spins forever on the
@@ -43,7 +41,7 @@ Uint8List decodeCcittFax(
   final PdfObject? parm,
   final PdfObject? Function(PdfObject object) resolve,
 ) {
-  /// Safety net 1: reject absurd `/Rows` values before allocating.
+  /// Maximum supported row count, checked before allocation.
   const maxRows = 1 << 20;
 
   var k = 0;

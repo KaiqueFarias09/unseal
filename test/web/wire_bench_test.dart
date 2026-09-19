@@ -225,9 +225,7 @@ void main() {
         '<html><body><p>Ünïcødé — 中文 📚🦋 '
         '${'lorem ipsum dolor sit amet ' * 200}</p></body></html>';
     final book =
-        Unseal.parse(
-              _syntheticEpub(title: 'Ünïcødé — 中文 📚', chapters: [('ch1.xhtml', body)]),
-            )
+        Unseal.parse(_syntheticEpub(title: 'Ünïcødé — 中文 📚', chapters: [('ch1.xhtml', body)]))
             as EpubBook;
     expect(book.files.html.single.content.length, greaterThan(5000));
 
@@ -245,8 +243,7 @@ void main() {
         ('ch$i.xhtml', '<html><body><p>Section $i body.</p></body></html>'),
     ];
     final book =
-        Unseal.parse(_syntheticEpub(title: 'Many Sections', chapters: chapters))
-            as EpubBook;
+        Unseal.parse(_syntheticEpub(title: 'Many Sections', chapters: chapters)) as EpubBook;
 
     final (json, blobs) = encodeBookWire(book);
     final roundtrip = decodeBookWire(decodeJson(encodeJson(json)), blobs) as EpubBook;

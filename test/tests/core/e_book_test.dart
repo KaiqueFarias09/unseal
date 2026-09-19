@@ -6,9 +6,7 @@ import 'package:unseal/unseal.dart';
 void main() {
   group('Unseal dispatcher', () {
     test('opens an EPUB into an EpubBook', () async {
-      final book = await Unseal.readFile(
-        'test/resources/books/epub/vertical-writing-ja.epub',
-      );
+      final book = await Unseal.readFile('test/resources/books/epub/vertical-writing-ja.epub');
       expect(book, isA<EpubBook>());
       expect(book.format, BookFormat.epub);
       expect(book.metadata.title, isNotEmpty);
@@ -28,9 +26,7 @@ void main() {
     });
 
     test('opens an FB2 book into an Fb2Book', () async {
-      final book = await Unseal.readFile(
-        'test/resources/books/fb2/synthetic-multilingual.fb2',
-      );
+      final book = await Unseal.readFile('test/resources/books/fb2/synthetic-multilingual.fb2');
       expect(book, isA<Fb2Book>());
       expect(book.format, BookFormat.fb2);
     });
@@ -51,9 +47,7 @@ void main() {
     });
 
     test('opens a CBR comic into a ComicBook', () async {
-      final book = await Unseal.readFile(
-        'test/resources/books/comic/synthetic-stored-pages.cbr',
-      );
+      final book = await Unseal.readFile('test/resources/books/comic/synthetic-stored-pages.cbr');
       expect(book, isA<ComicBook>());
       expect(book.format, BookFormat.cbr);
       expect((book as ComicBook).pageCount, 2);

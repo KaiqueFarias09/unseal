@@ -1014,6 +1014,7 @@ final class _ContentLexer {
           _pos++;
         }
         _pos++;
+
         continue;
       }
       if (byte == 0x28) {

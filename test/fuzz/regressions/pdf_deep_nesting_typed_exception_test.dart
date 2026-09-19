@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 import 'package:unseal/unseal.dart';
 
-/// Regression: deep PDF object nesting must fail TYPED.
+/// Regression: deep PDF object nesting must fail with a typed exception.
 ///
 /// Found by the fuzz structural sweep: a PDF object made of ~20k
 /// nested `[` arrays overflowed the stack inside PdfObjectParser
@@ -13,8 +13,7 @@ void main() {
   test('deeply nested PDF arrays fail with PdfException, not a crash', () {
     final deep = _deepNestedPdf(100000);
 
-    expect(() => Unseal.parse(deep), throwsA(isA<UnsealException>()));
-    expect(() => Unseal.parse(deep), throwsA(isA<PdfException>()));
+    expect(() => Unseal.parse(deep), throwsA(allOf(isA<UnsealException>(), isA<PdfException>())));
   });
 
   test('shallow PDF structures never trip the depth cap', () {

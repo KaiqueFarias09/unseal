@@ -28,16 +28,13 @@ _Fb2Bodies _convertBodies(
   final Map<String, String> binaryExtensions, {
   final List<TextFile> stylesheets = const <TextFile>[],
 }) {
-  // The converter walks elements recursively; a hostile document can
-  // nest elements far deeper than any stack tolerates (fuzz finding:
-  // ~20k nested sections overflow the isolate stack). Reject absurd
-  // depth UP FRONT with the typed contract, keeping the recursion
-  // itself simple.
+  // The converter walks elements recursively. Reject excessive depth before
+  // conversion so hostile input cannot exhaust the isolate stack.
   for (final body in bodies) {
-    if (xmlElementDepthExceeds(body, maxFb2ElementNestingDepth)) {
+    if (_xmlElementDepthExceeds(body, _maxFb2ElementNestingDepth)) {
       throw const Fb2Exception(
         'FB2 element nesting exceeds the maximum supported depth of '
-        '$maxFb2ElementNestingDepth.',
+        '$_maxFb2ElementNestingDepth.',
       );
     }
   }
@@ -50,12 +47,12 @@ _Fb2Bodies _convertBodies(
 /// Maximum FB2 element nesting the converter tolerates. Legitimate
 /// FB2 nesting (body > section > section > title/p) stays under ~20;
 /// the cap sits an order of magnitude above that.
-const int maxFb2ElementNestingDepth = 128;
+const int _maxFb2ElementNestingDepth = 128;
 
 /// Whether any element reachable from [root] nests deeper than
 /// [limit] levels. Iterative on purpose: a recursive walk would crash
 /// exactly on the documents this check exists to reject.
-bool xmlElementDepthExceeds(final XmlElement root, final int limit) {
+bool _xmlElementDepthExceeds(final XmlElement root, final int limit) {
   final stack = <(XmlElement, int)>[(root, 1)];
   while (stack.isNotEmpty) {
     final (element, depth) = stack.removeLast();

@@ -1,9 +1,9 @@
 /// JBIG2 (ITU-T T.88) image decoding for PDF's JBIG2Decode filter.
 ///
-/// Ported from pdf.js v3.11.174 `src/core/jbig2.js` (`Jbig2Image`,
-/// `SimpleSegmentVisitor`, `processSegment` and `readSegments`),
-/// Apache-2.0; parity comments point at the mirrored
-/// functions. Companion files hold the shared plumbing:
+/// Based on pdf.js v3.11.174 `src/core/jbig2.js` (`Jbig2Image`,
+/// `SimpleSegmentVisitor`, `processSegment`, and `readSegments`), Apache-2.0.
+/// Comments identify the corresponding pdf.js operations. Companion files
+/// hold the shared plumbing:
 /// `pdf_jbig2_arithmetic.dart` (MQ), `pdf_jbig2_mmr.dart` (Group 4),
 /// `pdf_jbig2_segment.dart` (headers + Annex A integers),
 /// `pdf_jbig2_huffman.dart` (Annex B) and
@@ -28,9 +28,9 @@ import 'segment_decoder.dart';
 /// stream (retained symbol and pattern dictionaries shared across
 /// pages) when the image references one.
 ///
-/// Ground truth: pdf.js v3.11.174 `src/core/jbig2.js`
-/// (`Jbig2Image`) plus the color inversion `jbig2_stream.js` applies
-/// to its output. Port with parity comments pointing at it.
+/// The implementation follows pdf.js v3.11.174 `src/core/jbig2.js`
+/// (`Jbig2Image`) and the color inversion that `jbig2_stream.js` applies to
+/// its output.
 // pdf.js jbig2_stream.js readBlock: the globals chunk is decoded
 // first, then the image chunk, through one shared visitor; the block
 // ends by inverting every byte because JBIG2 encodes black as 1 while

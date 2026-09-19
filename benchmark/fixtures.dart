@@ -257,10 +257,7 @@ void _ensureDerived() {
   if (_derivedReady) return;
 
   _derivedReady = true;
-  final books = <Book>[
-    Unseal.parse(epubAlice.bytes),
-    Unseal.parse(comicSample.bytes),
-  ];
+  final books = <Book>[Unseal.parse(epubAlice.bytes), Unseal.parse(comicSample.bytes)];
   for (final book in books) {
     final images = book is ComicBook ? book.pages : book.files.images;
     for (final image in images) {

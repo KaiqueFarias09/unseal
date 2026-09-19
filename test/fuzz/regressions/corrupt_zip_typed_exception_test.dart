@@ -4,7 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:test/test.dart';
 import 'package:unseal/unseal.dart';
 
-/// Regression: corrupt zip containers must fail TYPED.
+/// Regression: corrupt ZIP containers must fail with a typed exception.
 ///
 /// Found by the fuzz mutation sweep: a seed EPUB/TXTZ with a few
 /// flipped central-directory bytes escaped `Unseal.parse` as
@@ -25,8 +25,10 @@ void main() {
       corrupted[index] = 0xAB;
     }
 
-    expect(() => Unseal.parse(corrupted), throwsA(isA<UnsealException>()));
-    expect(() => Unseal.parse(corrupted), throwsA(isA<InvalidBookException>()));
+    expect(
+      () => Unseal.parse(corrupted),
+      throwsA(allOf(isA<UnsealException>(), isA<InvalidBookException>())),
+    );
   });
 
   test('central-directory offset beyond the buffer throws typed, not RangeError', () {
@@ -64,8 +66,10 @@ void main() {
     corrupted[38] = 0xFF;
     corrupted[39] = 0xFF;
 
-    expect(() => Unseal.parse(corrupted), throwsA(isA<UnsealException>()));
-    expect(() => Unseal.parse(corrupted), throwsA(isA<InvalidBookException>()));
+    expect(
+      () => Unseal.parse(corrupted),
+      throwsA(allOf(isA<UnsealException>(), isA<InvalidBookException>())),
+    );
   });
 }
 

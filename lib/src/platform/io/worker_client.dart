@@ -31,10 +31,9 @@ final class WorkerClient {
   /// Always `null`: callers read metadata inline / on the isolate.
   Future<BookMetadata?> metadataInWorker(final Uint8List bytes) => Future<BookMetadata?>.value();
 
-  /// Always `null`: search keeps running on the calling thread — the
-  /// background isolate parses and discards the book, so nothing is
-  /// held resident to serve the op from (future work). Defaults
-  /// mirror `BookSearch.search` to keep the signature interchangeable
+  /// Always `null`: search keeps running on the calling thread. The background
+  /// isolate discards the parsed book, so it has no resident book to search.
+  /// Defaults mirror `BookSearch.search` to keep the signature interchangeable
   /// with the web client.
   Future<SearchResults?> searchInWorker(
     final String query, {

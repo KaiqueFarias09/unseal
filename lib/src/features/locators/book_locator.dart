@@ -1,4 +1,4 @@
-/// The versioned locator currency for positions inside a parsed book.
+/// Versioned locator types for positions inside a parsed book.
 ///
 /// A locator addresses one point or range of a book in exactly one of three coordinate systems:
 ///

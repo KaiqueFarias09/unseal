@@ -47,9 +47,10 @@ final class MediaOverlayDocument {
   /// Segments in playback order.
   final List<OverlaySegment> segments;
 
-  /// Total declared duration (`media:duration` lives in the OPF, so
-  /// this sums parsed clips where `clipEnd` is present) — informational
-  /// only; players derive timing from the audio itself.
+  /// Duration implied by parsed clips with `clipEnd`; informational only.
+  ///
+  /// This does not read the OPF `media:duration` value. Players derive timing
+  /// from the audio itself.
   Duration get declaredDuration {
     return segments.fold(Duration.zero, (final total, final segment) {
       return total + ((segment.clipEnd ?? segment.clipBegin) - segment.clipBegin);

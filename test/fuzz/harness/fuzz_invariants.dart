@@ -1,10 +1,10 @@
 /// The fuzzing invariants engine shared by the deterministic suites
 /// (`test/fuzz/`) and the campaign runner (`tool/fuzz_runner.dart`).
 ///
-/// INVARIANTS for every parse entry point over hostile input:
+/// Every parse entry point must preserve these invariants over hostile input:
 ///
 /// 1. terminates within a bounded wall-clock budget;
-/// 2. returns a `Book`/`BookMetadata` or throws a TYPED
+/// 2. returns a `Book`/`BookMetadata` or throws a typed
 ///    [UnsealException] — never a bare `RangeError`, `StateError`,
 ///    `FormatException`, `ArgumentError` or `TypeError` escaping;
 /// 3. memory stays bounded for small inputs (gigabyte expansions are
@@ -12,9 +12,9 @@
 /// 4. no unbounded recursion (deep nesting must not crash the
 ///    isolate with a stack overflow).
 ///
-/// Every input is executed inside a dedicated worker isolate that the
-/// caller KILLS on timeout, so a wedged parser can never hang the
-/// suite: the same pattern as `benchmark/library_sweep.dart`.
+/// Every input is executed inside a dedicated worker isolate. The caller kills
+/// the isolate on timeout so a wedged parser cannot hang the suite. This uses
+/// the same pattern as `benchmark/library_sweep.dart`.
 library;
 
 import 'dart:async';
@@ -31,7 +31,7 @@ enum FuzzStatus {
   /// The entry point threw a typed exception (contract-compliant).
   typed,
 
-  /// The entry point threw an UNTYPED exception/error (defect).
+  /// The entry point threw an untyped exception or error (defect).
   untyped,
 
   /// The worker isolate died (uncaught error, e.g. stack overflow).

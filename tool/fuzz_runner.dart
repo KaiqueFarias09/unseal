@@ -2,15 +2,15 @@
 ///
 /// Drives bounded fuzzing campaigns over deterministic generated
 /// inputs (and, when present, the tracked corpus at
-/// `test/resources/fuzz/`), executing every input inside a KILLABLE
-/// worker isolate with a hard wall-clock deadline — the same
-/// kill-on-timeout discipline as `benchmark/library_sweep.dart`. A
+/// `test/resources/fuzz/`), executing every input inside a disposable worker
+/// isolate with a hard wall-clock deadline. This uses the same kill-on-timeout
+/// discipline as `benchmark/library_sweep.dart`. A
 /// wedged parser is killed and classified as `timeout`; an isolate
 /// death (stack overflow, VM abort) is classified as `crash`; a
 /// process death at the same input twice classifies as `oom`.
 ///
-/// Campaigns run for HOURS locally but stay strictly bounded by
-/// `--iterations`; results stream into an atomic checkpoint so any
+/// Campaigns can run for hours locally but stay bounded by `--iterations`;
+/// results stream into an atomic checkpoint so any
 /// interruption resumes without re-running completed inputs.
 ///
 /// Output is a schema-compatible JSON report (schemaVersion/suite/

@@ -199,9 +199,7 @@ abstract final class BookDispatch {
     if (_isEpubArchive(archive)) return parseEpubArchive(archive);
 
     if (_isCbcArchive(archive)) {
-      throw const FormatNotSupportedException(
-        'CBC parsing is asynchronous; use Unseal.read.',
-      );
+      throw const FormatNotSupportedException('CBC parsing is asynchronous; use Unseal.read.');
     }
 
     final fb2Entry = _fb2Entry(archive);

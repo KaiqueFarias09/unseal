@@ -16,8 +16,7 @@ import 'web/worker_client.dart' if (dart.library.io) 'io/worker_client.dart';
 /// ```
 ///
 /// From then on `Unseal.read` and `Unseal.readMetadata` run inside the
-/// worker. Books
-/// that fail to parse throw exactly like the inline path; if the
+/// worker. Books that fail to parse throw exactly like the inline path; if the
 /// worker itself is unavailable (script unreachable, workers blocked
 /// by the host), parsing silently falls back to the main thread.
 ///

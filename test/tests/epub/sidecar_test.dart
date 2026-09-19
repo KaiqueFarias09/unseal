@@ -15,9 +15,7 @@ void main() {
     });
 
     test('basename sidecar is preferred over metadata.opf', () async {
-      final metadata = await Unseal.readMetadataFile(
-        'test/resources/sidecar_named/alice.epub',
-      );
+      final metadata = await Unseal.readMetadataFile('test/resources/sidecar_named/alice.epub');
       expect(metadata.title, 'Named Sidecar');
     });
 

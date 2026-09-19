@@ -23,8 +23,10 @@ void main() {
       );
     final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
 
-    expect(() => Unseal.parse(bytes), throwsA(isA<UnsealException>()));
-    expect(() => Unseal.parse(bytes), throwsA(isA<InvalidBookException>()));
+    expect(
+      () => Unseal.parse(bytes),
+      throwsA(allOf(isA<UnsealException>(), isA<InvalidBookException>())),
+    );
   });
 
   test('declared totals above the safety cap are rejected before decoding', () {
