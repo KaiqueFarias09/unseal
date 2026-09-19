@@ -12,6 +12,8 @@ steward.yaml
 # Generated output
 build/
 coverage/
+doc/
+.dart-test-tmp/
 pubspec.lock
 *.log
 *.swp
