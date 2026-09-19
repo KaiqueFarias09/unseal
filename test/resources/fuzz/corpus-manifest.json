@@ -7,7 +7,7 @@
       "path": "test/resources/books/README.md",
       "format": "manifest",
       "bytes": 5519,
-      "sha256": "0012e5ee3ec467faa701f7d6ed28c3382118c4749f6804ad5031bfc911f8c092",
+      "sha256": "dc3fb4c56dd1875a7b1dbaa9fd12bbaf90b2173cfdcd8b38797fe3a7fa9dbb45",
       "container": "unknown",
       "landmarks": 0
     },
@@ -30,8 +30,8 @@
     {
       "path": "test/resources/books/comic/synthetic-collection.cbc",
       "format": "cbc",
-      "bytes": 913,
-      "sha256": "d82083bc2ca862df54a3ee9947873f3e262a361b4113acd4d86841d1877f478e",
+      "bytes": 911,
+      "sha256": "747f1ccb4015ba608f919755d4dde56c2e7daf050b381921f1e80519b1db93cb",
       "container": "zip",
       "landmarks": 7
     },
@@ -39,7 +39,7 @@
       "path": "test/resources/books/comic/synthetic-pages.cb7",
       "format": "cb7",
       "bytes": 306,
-      "sha256": "b00d2430c744119821b2f4e47900398d21372ef4642cf1f8f34b134803b37e9a",
+      "sha256": "dc22487dfe022c416fa387f5ee30e03c4d92d64006eb5410790f8d167fcb1beb",
       "container": "unknown",
       "landmarks": 0
     },
@@ -47,7 +47,7 @@
       "path": "test/resources/books/comic/synthetic-pages.cbz",
       "format": "cbz",
       "bytes": 627,
-      "sha256": "ba89fbce72adc0725ce9686f0a983265d760cbb18f321a1de0d5c2c68f76a3cc",
+      "sha256": "798192fa8e065a18aaf9867e1aa1323011290e75e4b7a7472a33be44feb9d03f",
       "container": "zip",
       "landmarks": 7
     },
@@ -63,7 +63,7 @@
       "path": "test/resources/books/docx/synthetic.docx",
       "format": "docx",
       "bytes": 919,
-      "sha256": "ed93c54434fbed9e81e73ad05bc5081b44165be2b5e90fce374e9252cd9ed0bc",
+      "sha256": "f7c154495bcb73f8f9fdbefec5edb46475d678f54bd6386b1bd44c9de2b8e968",
       "container": "zip",
       "landmarks": 7
     },
@@ -214,7 +214,7 @@
       "path": "test/resources/books/fb2/synthetic-multilingual.fb2",
       "format": "fb2",
       "bytes": 1554,
-      "sha256": "993603dcffefab689d61ca0a266e5a2508eb5a9fa85514e0d4a3b16cd97ba610",
+      "sha256": "c29d04f5e0ebc00f2206d0bcc1b16e127ef309dc2e50b4da94a646c3c356f7f5",
       "container": "unknown",
       "landmarks": 1
     },
@@ -222,15 +222,15 @@
       "path": "test/resources/books/html/synthetic.html",
       "format": "html",
       "bytes": 180,
-      "sha256": "24496b422df2cade8ebb6dbf1970d585813ef0333a9c873430a4a27e436c789c",
+      "sha256": "2f8c0929b8e41313fc1844de3e9a775de98de5f58fafe64b08b275e442a2fa82",
       "container": "unknown",
       "landmarks": 0
     },
     {
       "path": "test/resources/books/html/synthetic.htmlz",
       "format": "htmlz",
-      "bytes": 988,
-      "sha256": "1274583485ff03ee13d76b204ef50f4ea95c6ee9b7e7e67b6e886949d7237a79",
+      "bytes": 989,
+      "sha256": "ba137218384d189fc2889d71bc338f5de768c9c8a4f87a8c7eb31a418660e428",
       "container": "zip",
       "landmarks": 11
     },
@@ -262,7 +262,7 @@
       "path": "test/resources/books/manifest.json",
       "format": "manifest",
       "bytes": 22408,
-      "sha256": "1a24daa8fbd9ecf068dff0bea72210223000a6094bc64b67260f937164ad2f3e",
+      "sha256": "a6c241c92959e5596d7b4fe947462f2c9ba2e7f414b720f313bcfacfb98cc0f4",
       "container": "unknown",
       "landmarks": 0
     },
@@ -293,8 +293,8 @@
     {
       "path": "test/resources/books/odt/synthetic.odt",
       "format": "odt",
-      "bytes": 787,
-      "sha256": "124e128d86d003054caf1c175a27e91e42255fceca2ca273d3bbd633117aed24",
+      "bytes": 783,
+      "sha256": "f98fad84d827126788c712c4ee606e75204d809edcbb65f0f22a547e9e559ac3",
       "container": "zip",
       "landmarks": 7
     },
@@ -318,7 +318,7 @@
       "path": "test/resources/books/txt/synthetic.txt",
       "format": "txt",
       "bytes": 137,
-      "sha256": "03e4c9d2e17d972c252022c5231b0e50041e3813eed33e18e410c4469cdef4cd",
+      "sha256": "65d07576d9363a42add5654b87f198bd362cfdd6cc224a08bb199ea16a8d724c",
       "container": "unknown",
       "landmarks": 0
     },
@@ -326,7 +326,7 @@
       "path": "test/resources/books/txt/synthetic.txtz",
       "format": "txtz",
       "bytes": 945,
-      "sha256": "c8d807515aa90b331bbb2d79118c4e23d58f64cd3528deb7217688adae0f84ae",
+      "sha256": "47cc6f8699556e21c679411a68028aae072ca71fe8d801bfbfd20d49b6c11b08",
       "container": "zip",
       "landmarks": 11
     },
@@ -381,8 +381,8 @@
     {
       "path": "test/resources/fuzz/generated/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 3972,
-      "sha256": "8f58fe9e4743bd1d53e2eef3cff0ba80c3131a6bf6bb9a01ffe22a57d1828c3f",
+      "bytes": 3964,
+      "sha256": "73fa4c5897baea120b8595279d0a00a6b4d3fde7dd1fb6e69629db93e797e9f2",
       "container": "unknown",
       "landmarks": 0,
       "generated": true
@@ -1025,7 +1025,7 @@
   ],
   "counts": {
     "total": 122,
-    "totalBytes": 83038612,
+    "totalBytes": 83038599,
     "byFormat": {
       "manifest": 7,
       "cbr": 2,
