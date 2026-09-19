@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 /// Regression: deeply nested FB2 documents must fail TYPED.
 ///
@@ -13,15 +13,15 @@ void main() {
   test('deeply nested FB2 fails with Fb2Exception, not a crash', () {
     final deep = _deepNestedFb2(20000);
 
-    expect(() => BookReader.parseBook(deep), throwsA(isA<ELivreException>()));
-    expect(() => BookReader.parseBook(deep), throwsA(isA<Fb2Exception>()));
+    expect(() => Unseal.parse(deep), throwsA(isA<UnsealException>()));
+    expect(() => Unseal.parse(deep), throwsA(isA<Fb2Exception>()));
   });
 
   test('legitimately nested FB2 still parses after the depth guard', () {
     // body > section > section > section > title/p — depth 7.
     final nested = _deepNestedFb2(3);
 
-    expect(() => BookReader.parseBook(nested), returnsNormally);
+    expect(() => Unseal.parse(nested), returnsNormally);
   });
 }
 

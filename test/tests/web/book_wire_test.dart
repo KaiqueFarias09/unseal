@@ -6,10 +6,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/mobi/header/pdb_header.dart';
+import 'package:unseal/src/platform/web/book_wire.dart';
+import 'package:unseal/unseal.dart';
 
 Uint8List _bytes(final String name) =>
     Uint8List.fromList(File('test/resources/$name').readAsBytesSync());
@@ -31,7 +31,7 @@ Uint8List _bytes(final String name) =>
 void main() {
   group('EPUB wire round-trip', () {
     final bytes = _bytes('epub/Alices Adventures in Wonderland.epub');
-    final book = BookReader.parseBook(bytes) as EpubBook;
+    final book = Unseal.parse(bytes) as EpubBook;
 
     test('carries metadata, navigation and files', () {
       final (json, blobs) = encode(book, bytes);
@@ -61,7 +61,7 @@ void main() {
         'books/epub/accessible-epub-3.epub',
       ]) {
         final source = _bytes(name);
-        final original = BookReader.parseBook(source) as EpubBook;
+        final original = Unseal.parse(source) as EpubBook;
         final (json, blobs) = encode(original, source);
         final decoded = decodeBookWire(json, blobs) as EpubBook;
 
@@ -88,7 +88,7 @@ void main() {
 
     test('keeps EPUB 3 metadata extras', () {
       final source = _bytes('books/epub/accessible-epub-3.epub');
-      final original = BookReader.parseBook(source) as EpubBook;
+      final original = Unseal.parse(source) as EpubBook;
       final package = original.package;
       if (package is! Epub3Package) return;
 
@@ -106,7 +106,7 @@ void main() {
   group('MOBI wire round-trip', () {
     test('rebuilds the header from the record 0 slice', () {
       final bytes = _bytes('mobi/alice-old.mobi');
-      final book = BookReader.parseBook(bytes) as MobiBook;
+      final book = Unseal.parse(bytes) as MobiBook;
       final (json, blobs) = encode(book, bytes);
       final decoded = decodeBookWire(json, blobs) as MobiBook;
 
@@ -121,7 +121,7 @@ void main() {
 
     test('round-trips the KF8 flavor', () {
       final bytes = _bytes('mobi/alice-kf8.azw3');
-      final original = BookReader.parseBook(bytes) as MobiBook;
+      final original = Unseal.parse(bytes) as MobiBook;
       final (json, blobs) = encode(original, bytes);
       final decoded = decodeBookWire(json, blobs) as MobiBook;
 
@@ -133,7 +133,7 @@ void main() {
 
   group('FB2 wire round-trip', () {
     test('carries the stored metadata', () {
-      final book = BookReader.parseBook(_bytes('fb2/alice.fb2')) as Fb2Book;
+      final book = Unseal.parse(_bytes('fb2/alice.fb2')) as Fb2Book;
       final (json, blobs) = encode(book, _bytes('fb2/alice.fb2'));
       final decoded = decodeBookWire(json, blobs) as Fb2Book;
 
@@ -147,7 +147,7 @@ void main() {
   group('Comic wire round-trip', () {
     test('carries pages and metadata', () {
       final source = _bytes('comic/sample.cbz');
-      final book = BookReader.parseBook(source) as ComicBook;
+      final book = Unseal.parse(source) as ComicBook;
       final (json, blobs) = encode(book, source);
       final decoded = decodeBookWire(json, blobs) as ComicBook;
 
@@ -219,7 +219,7 @@ void main() {
 
   group('metadata wire round-trip', () {
     test('carries every scalar, list, map, date and cover', () {
-      final metadata = BookReader.readMetadataSync(_bytes('books/epub/tristram-shandy.epub'));
+      final metadata = Unseal.readMetadataSync(_bytes('books/epub/tristram-shandy.epub'));
       final (json, blobs) = encodeMetadataWire(metadata);
       final decoded = decodeMetadataWire(json, blobs);
 
@@ -242,7 +242,7 @@ void main() {
     });
 
     test('survives the JSON channel', () {
-      final metadata = BookReader.readMetadataSync(_bytes('books/epub/tristram-shandy.epub'));
+      final metadata = Unseal.readMetadataSync(_bytes('books/epub/tristram-shandy.epub'));
       final (json, blobs) = encodeMetadataWire(metadata);
       final channel = decodeJson(encodeJson(json));
       final decoded = decodeMetadataWire(channel, blobs);
@@ -271,7 +271,7 @@ void main() {
       expect(decodeErrorWire('InvalidDocxXmlException', 'x'), isA<DocxException>());
       expect(decodeErrorWire('HtmlException', 'x'), isA<HtmlException>());
       expect(decodeErrorWire('MissingOdtPartException', 'x'), isA<OdtException>());
-      expect(decodeErrorWire('RangeError', 'boom'), isA<ELivreException>());
+      expect(decodeErrorWire('RangeError', 'boom'), isA<UnsealException>());
     });
   });
 }

@@ -1,6 +1,6 @@
-# eLivre example
+# unseal example
 
-This Flutter app demonstrates the public `e_livre` entry point by loading the
+This Flutter app demonstrates the public `unseal` entry point by loading the
 bundled EPUB asset and displaying its format-agnostic metadata.
 
 A new Flutter project.

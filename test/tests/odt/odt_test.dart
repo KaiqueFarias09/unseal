@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/odt.dart';
 import 'package:test/test.dart';
+import 'package:unseal/odt.dart';
 
 void main() {
   test('renders ODT headings, inline styles, lists, tables and images', () {

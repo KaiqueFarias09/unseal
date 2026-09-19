@@ -1,18 +1,18 @@
 import 'dart:io';
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 void main() {
-  group('Reader', () {
-    test('should throw exception when path is empty', () async {
+  group('Unseal.readFile', () {
+    test('throws when path is empty', () async {
       const path = '';
-      expect(BookReader.openFromPath(path), throwsA(isA<ArgumentError>()));
+      expect(Unseal.readFile(path), throwsA(isA<ArgumentError>()));
     });
 
-    test('should throw exception when file does not exist', () async {
+    test('throws when file does not exist', () async {
       const path = '/path/to/nonexistent/file.epub';
-      expect(BookReader.openFromPath(path), throwsA(isA<FileSystemException>()));
+      expect(Unseal.readFile(path), throwsA(isA<FileSystemException>()));
     });
 
     final directory = Directory('test/resources/epub');
@@ -22,8 +22,8 @@ void main() {
     }).toList();
 
     for (final book in books) {
-      test('should succeed', () async {
-        final bookEntity = await BookReader.openFromPath(book.path);
+      test('reads a book', () async {
+        final bookEntity = await Unseal.readFile(book.path);
         expect(bookEntity, isA<EpubBook>());
       });
     }
@@ -33,7 +33,7 @@ void main() {
     // The physical zip view is manifest-independent: infrastructure
     // entries ship alongside the content files.
     test('lists every zip entry, including non-manifest ones', () async {
-      final book = await BookReader.openFromPath(
+      final book = await Unseal.readFile(
         'test/resources/epub/Alices Adventures in Wonderland.epub',
       );
       final paths = book.archiveEntries.map((final entry) => entry.path).toSet();
@@ -45,7 +45,7 @@ void main() {
     });
 
     test('keeps the manifest content inside the physical inventory', () async {
-      final book = await BookReader.openFromPath(
+      final book = await Unseal.readFile(
         'test/resources/epub/Alices Adventures in Wonderland.epub',
       );
       final entries = book.archiveEntries.map((final entry) => entry.path).toSet();
@@ -59,7 +59,7 @@ void main() {
     // Regression: `XmlElement.value` is always null in package:xml, so
     // NCX labels used to come out empty for every book.
     test('reads labels and title from a real calibre-generated NCX', () async {
-      final book = await BookReader.openFromPath(
+      final book = await Unseal.readFile(
         'test/resources/epub/Alices Adventures in Wonderland.epub',
       );
       expect(book.navigation.title, isNotEmpty);

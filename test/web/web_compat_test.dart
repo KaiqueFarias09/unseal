@@ -10,10 +10,10 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:koni_archive/koni_archive.dart' as koni;
 import 'package:test/test.dart';
+import 'package:unseal/src/platform/web/book_wire.dart';
+import 'package:unseal/unseal.dart';
 
 import '../tests/mobi/mobi_fixture_builder.dart';
 import '../tests/pdf/pdf_fixture_builder.dart';
@@ -167,8 +167,8 @@ Uint8List buildSyntheticCbc(final Uint8List nested) => _zip([
 
 void main() {
   group('parsing on the browser runtime', () {
-    test('opens an EPUB through openFromBytes', () async {
-      final book = await BookReader.openFromBytes(buildSyntheticEpub());
+    test('reads an EPUB through Unseal.read', () async {
+      final book = await Unseal.read(buildSyntheticEpub());
 
       expect(book, isA<EpubBook>());
       expect(book.metadata.title, 'Synthetic Web');
@@ -180,14 +180,14 @@ void main() {
     });
 
     test('reads EPUB metadata through the fast path', () async {
-      final metadata = await BookReader.readMetadataFromBytes(buildSyntheticEpub());
+      final metadata = await Unseal.readMetadata(buildSyntheticEpub());
 
       expect(metadata.title, 'Synthetic Web');
       expect(metadata.format, BookFormat.epub);
     });
 
     test('opens a synthetic MOBI', () async {
-      final book = await BookReader.openFromBytes(
+      final book = await Unseal.read(
         buildPdb('SyntheticMobiWeb', [
           buildMobiRecord0(textRecordCount: 1, title: 'Synthetic Mobi Web'),
           _utf8('<html><body><p>Mobi on the web.</p></body></html>'),
@@ -200,7 +200,7 @@ void main() {
     });
 
     test('opens an FB2 document', () async {
-      final book = await BookReader.openFromBytes(_utf8(_fb2Content));
+      final book = await Unseal.read(_utf8(_fb2Content));
 
       expect(book, isA<Fb2Book>());
       expect(book.metadata.title, 'Synthetic FB2');
@@ -208,7 +208,7 @@ void main() {
     });
 
     test('opens a CBZ comic', () async {
-      final book = await BookReader.openFromBytes(buildSyntheticCbz());
+      final book = await Unseal.read(buildSyntheticCbz());
 
       expect(book, isA<ComicBook>());
       expect((book as ComicBook).pageCount, 2);
@@ -216,21 +216,21 @@ void main() {
     });
 
     test('opens the new document and archive formats', () async {
-      final txt = await BookReader.openFromBytes(_utf8('Browser TXT\n\n\nTXT Author\n\nTXT body.'));
-      final html = await BookReader.openFromBytes(
+      final txt = await Unseal.read(_utf8('Browser TXT\n\n\nTXT Author\n\nTXT body.'));
+      final html = await Unseal.read(
         _utf8(
           '<!doctype html><html><head><title>Browser HTML</title></head><body><p>HTML body.</p></body></html>',
         ),
       );
-      final txtz = await BookReader.openFromBytes(buildSyntheticTxtz());
-      final htmlz = await BookReader.openFromBytes(buildSyntheticHtmlz());
-      final docx = await BookReader.openFromBytes(buildSyntheticDocx());
-      final odt = await BookReader.openFromBytes(buildSyntheticOdt());
-      final azw4 = await BookReader.openFromBytes(
+      final txtz = await Unseal.read(buildSyntheticTxtz());
+      final htmlz = await Unseal.read(buildSyntheticHtmlz());
+      final docx = await Unseal.read(buildSyntheticDocx());
+      final odt = await Unseal.read(buildSyntheticOdt());
+      final azw4 = await Unseal.read(
         buildPdb('Browser AZW4', [buildMobiRecord0(), textPageFixture().build()]),
       );
-      final cb7 = await BookReader.openFromBytes(await buildSyntheticCb7());
-      final cbc = await BookReader.openFromBytes(buildSyntheticCbc(buildSyntheticCbz()));
+      final cb7 = await Unseal.read(await buildSyntheticCb7());
+      final cbc = await Unseal.read(buildSyntheticCbc(buildSyntheticCbz()));
 
       expect(txt.format, BookFormat.txt);
       expect(html.format, BookFormat.html);
@@ -255,17 +255,17 @@ void main() {
 
   group('worker wire codec on the browser', () {
     test('public worker facade binds to the browser client', () {
-      addTearDown(WorkerBookReader.dispose);
+      addTearDown(UnsealWorker.dispose);
 
-      expect(WorkerBookReader.isConfigured, isFalse);
-      WorkerBookReader.configure(Uri.parse('e_livre_worker.js'));
-      expect(WorkerBookReader.isConfigured, isTrue);
-      WorkerBookReader.dispose();
-      expect(WorkerBookReader.isConfigured, isFalse);
+      expect(UnsealWorker.isConfigured, isFalse);
+      UnsealWorker.configure(Uri.parse('unseal_worker.js'));
+      expect(UnsealWorker.isConfigured, isTrue);
+      UnsealWorker.dispose();
+      expect(UnsealWorker.isConfigured, isFalse);
     });
 
     test('round-trips a parsed book through the wire', () async {
-      final book = await BookReader.openFromBytes(buildSyntheticEpub()) as EpubBook;
+      final book = await Unseal.read(buildSyntheticEpub()) as EpubBook;
       final (json, blobs) = encodeBookWire(book);
       final channel = decodeJson(encodeJson(json));
       final decoded = decodeBookWire(channel, blobs) as EpubBook;
@@ -279,12 +279,12 @@ void main() {
   });
 
   group('path-backed APIs on the browser', () {
-    test('openFromPath throws UnsupportedError', () {
-      expect(BookReader.openFromPath('books/sample.epub'), throwsUnsupportedError);
+    test('readFile throws UnsupportedError', () {
+      expect(Unseal.readFile('books/sample.epub'), throwsUnsupportedError);
     });
 
-    test('readMetadataFromPath throws UnsupportedError', () {
-      expect(BookReader.readMetadataFromPath('books/sample.epub'), throwsUnsupportedError);
+    test('readMetadataFile throws UnsupportedError', () {
+      expect(Unseal.readMetadataFile('books/sample.epub'), throwsUnsupportedError);
     });
   });
 }

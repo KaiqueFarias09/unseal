@@ -1,13 +1,13 @@
 import 'dart:convert' as convert;
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 const String acquisitionFeed = '''
 <?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2010/catalog">
   <id>urn:uuid:catalog-main</id>
-  <title>eLivre Library</title>
+  <title>unseal Library</title>
   <updated>2026-01-01T00:00:00Z</updated>
   <link rel="self" href="/catalog.xml" type="application/atom+xml"/>
   <link rel="next" href="/catalog-page2.xml" type="application/atom+xml"/>
@@ -52,7 +52,7 @@ void main() {
 
     test('reads feed identity and links', () {
       expect(feed.id, 'urn:uuid:catalog-main');
-      expect(feed.title, 'eLivre Library');
+      expect(feed.title, 'unseal Library');
       expect(feed.updated, DateTime.parse('2026-01-01T00:00:00Z'));
       expect(feed.nextLink!.href, '/catalog-page2.xml');
       expect(feed.searchLink!.href, '/search.xml');

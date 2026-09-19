@@ -21,9 +21,9 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/platform/web/book_wire.dart';
+import 'package:unseal/unseal.dart';
 
 import '../tests/mobi/mobi_fixture_builder.dart' show tinyJpeg;
 
@@ -122,7 +122,7 @@ int _time(final int iterations, final void Function() action) {
 void main() {
   test('wire codec benchmarks on the browser runtime', () {
     final bytes = buildWireBenchEpub();
-    final book = BookReader.parseBook(bytes) as EpubBook;
+    final book = Unseal.parse(bytes) as EpubBook;
 
     var wire = encodeBookWire(book);
     final encodeMicros = _time(_iterations, () => wire = encodeBookWire(book));
@@ -193,7 +193,7 @@ void main() {
 
   test('text bodies cross as blob-list strings, not JSON map values', () {
     final bytes = buildWireBenchEpub();
-    final book = BookReader.parseBook(bytes) as EpubBook;
+    final book = Unseal.parse(bytes) as EpubBook;
     final (json, blobs) = encodeBookWire(book);
 
     final filesJson = json['files'] as Map<String, Object?>;
@@ -210,7 +210,7 @@ void main() {
 
   test('keeps empty text content across the wire', () {
     final book =
-        BookReader.parseBook(_syntheticEpub(title: 'Empty Bodies', chapters: [('ch1.xhtml', '')]))
+        Unseal.parse(_syntheticEpub(title: 'Empty Bodies', chapters: [('ch1.xhtml', '')]))
             as EpubBook;
 
     final (json, blobs) = encodeBookWire(book);
@@ -225,7 +225,7 @@ void main() {
         '<html><body><p>Ünïcødé — 中文 📚🦋 '
         '${'lorem ipsum dolor sit amet ' * 200}</p></body></html>';
     final book =
-        BookReader.parseBook(
+        Unseal.parse(
               _syntheticEpub(title: 'Ünïcødé — 中文 📚', chapters: [('ch1.xhtml', body)]),
             )
             as EpubBook;
@@ -245,7 +245,7 @@ void main() {
         ('ch$i.xhtml', '<html><body><p>Section $i body.</p></body></html>'),
     ];
     final book =
-        BookReader.parseBook(_syntheticEpub(title: 'Many Sections', chapters: chapters))
+        Unseal.parse(_syntheticEpub(title: 'Many Sections', chapters: chapters))
             as EpubBook;
 
     final (json, blobs) = encodeBookWire(book);
@@ -261,7 +261,7 @@ void main() {
 
   test('round-trips a book with zero html', () {
     final book =
-        BookReader.parseBook(
+        Unseal.parse(
               _syntheticEpub(
                 title: 'No Html',
                 chapters: const [],
@@ -281,7 +281,7 @@ void main() {
   test('keeps the package, manifest and metadata flavors', () {
     for (final version in ['2.0', '3.0']) {
       final book =
-          BookReader.parseBook(
+          Unseal.parse(
                 _syntheticEpub(
                   title: 'Flavors $version',
                   chapters: [('ch1.xhtml', '<html><body><p>Flavor probe.</p></body></html>')],

@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 // 1x1 transparent PNG binary as base64.
 const String _pngBase64 =

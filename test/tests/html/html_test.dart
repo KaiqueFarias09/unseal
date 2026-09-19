@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/html.dart';
 import 'package:test/test.dart';
+import 'package:unseal/html.dart';
 
 void main() {
   group('HTML', () {

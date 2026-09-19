@@ -1,7 +1,7 @@
-import 'package:e_livre/src/features/locators/book_locator.dart';
-import 'package:e_livre/src/features/locators/search_locator.dart';
-import 'package:e_livre/src/features/search/entities/search_match.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/locators/book_locator.dart';
+import 'package:unseal/src/features/locators/search_locator.dart';
+import 'package:unseal/src/features/search/entities/search_match.dart';
 
 void main() {
   group('SearchMatchLocators.toTextLocator', () {

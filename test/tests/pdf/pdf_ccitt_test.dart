@@ -1,14 +1,14 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/pdf/codec/ccitt/ccitt_decoder.dart';
-import 'package:e_livre/src/features/pdf/codec/pdf_stream_decoder.dart';
-import 'package:e_livre/src/features/pdf/header/pdf_document.dart';
-import 'package:e_livre/src/features/pdf/header/pdf_object.dart';
-import 'package:e_livre/src/features/pdf/image/pdf_bitmap.dart';
-import 'package:e_livre/src/features/pdf/reader/pdf_content_stream.dart';
-import 'package:e_livre/src/features/pdf/reader/pdf_page_tree.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/pdf/codec/ccitt/ccitt_decoder.dart';
+import 'package:unseal/src/features/pdf/codec/pdf_stream_decoder.dart';
+import 'package:unseal/src/features/pdf/header/pdf_document.dart';
+import 'package:unseal/src/features/pdf/header/pdf_object.dart';
+import 'package:unseal/src/features/pdf/image/pdf_bitmap.dart';
+import 'package:unseal/src/features/pdf/reader/pdf_content_stream.dart';
+import 'package:unseal/src/features/pdf/reader/pdf_page_tree.dart';
 
 import 'pdf_fixture_builder.dart';
 

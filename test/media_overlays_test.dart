@@ -1,5 +1,5 @@
-import 'package:e_livre/epub.dart';
 import 'package:test/test.dart';
+import 'package:unseal/epub.dart';
 
 void main() {
   group('parseMediaOverlay', () {

@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 import '../../tool/fuzz/cfi_strings.dart';
 import '../../tool/generate_fuzz_fixtures.dart';
@@ -47,7 +47,7 @@ void main() {
       );
       expect(bookFixtures.length, greaterThanOrEqualTo(11));
       for (final fixture in bookFixtures) {
-        final book = BookReader.parseBook(fixture.bytes);
+        final book = Unseal.parse(fixture.bytes);
         expect(book.readingOrder, isNotEmpty, reason: fixture.relativePath);
         expect(
           book.readingOrder.every((final item) => item.name.trim().isNotEmpty),

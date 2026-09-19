@@ -1,4 +1,4 @@
-import 'package:e_livre/src/foundation/entities/entities.dart';
+import 'package:unseal/src/foundation/entities/entities.dart';
 
 /// A minimal in-memory [Book] for reading-feature tests: arbitrary
 /// HTML files, navigation and reading order without a container

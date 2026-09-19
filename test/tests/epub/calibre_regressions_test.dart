@@ -3,8 +3,8 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 const _idpfAlgorithm = 'http://www.idpf.org/2008/embedding';
 const _adobeAlgorithm = 'http://ns.adobe.com/pdf/enc#RC';
@@ -178,14 +178,14 @@ void main() {
       expect(automatic.files.html.single.content, contains('Fallback chapter'));
     });
 
-    test('BookReader does not misclassify an EPUB without container.xml as CBZ', () {
+    test('Unseal does not misclassify an EPUB without container.xml as CBZ', () {
       final bytes = _zip({
         'OEBPS/content.opf': _opf(),
         'OEBPS/chapter.xhtml': _chapter('Dispatcher fallback chapter'),
       });
 
-      final book = BookReader.parseBook(bytes);
-      final metadata = BookReader.readMetadataSync(bytes);
+      final book = Unseal.parse(bytes);
+      final metadata = Unseal.readMetadataSync(bytes);
 
       expect(book.format, BookFormat.epub);
       expect(book.files.html.single.content, contains('Dispatcher fallback chapter'));

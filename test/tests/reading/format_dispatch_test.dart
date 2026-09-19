@@ -2,21 +2,21 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/reading/book_dispatch.dart';
 import 'package:koni_archive/koni_archive.dart' as koni;
 import 'package:test/test.dart';
+import 'package:unseal/src/features/reading/book_dispatch.dart';
+import 'package:unseal/unseal.dart';
 
 void main() {
-  test('BookReader dispatches the new synchronous formats', () {
-    final txt = BookReader.parseBook(Uint8List.fromList('A title\n\nBody'.codeUnits));
-    final html = BookReader.parseBook(
+  test('Unseal dispatches the new synchronous formats', () {
+    final txt = Unseal.parse(Uint8List.fromList('A title\n\nBody'.codeUnits));
+    final html = Unseal.parse(
       Uint8List.fromList('<!doctype html><html><head><title>HTML</title></head></html>'.codeUnits),
     );
-    final txtz = BookReader.parseBook(_zip({'book.txt': 'TXTZ body'}));
-    final htmlz = BookReader.parseBook(_zip({'index.html': '<title>HTMLZ</title>'}));
-    final docx = BookReader.parseBook(_zip({'word/document.xml': _docxDocument}));
-    final odt = BookReader.parseBook(_zip({'content.xml': _odtContent}));
+    final txtz = Unseal.parse(_zip({'book.txt': 'TXTZ body'}));
+    final htmlz = Unseal.parse(_zip({'index.html': '<title>HTMLZ</title>'}));
+    final docx = Unseal.parse(_zip({'word/document.xml': _docxDocument}));
+    final odt = Unseal.parse(_zip({'content.xml': _odtContent}));
 
     expect(txt.format, BookFormat.txt);
     expect(html.format, BookFormat.html);
@@ -24,10 +24,10 @@ void main() {
     expect(htmlz.format, BookFormat.htmlz);
     expect(docx.format, BookFormat.docx);
     expect(odt.format, BookFormat.odt);
-    expect(BookReader.readMetadataSync(_zip({'content.xml': _odtContent})).format, BookFormat.odt);
+    expect(Unseal.readMetadataSync(_zip({'content.xml': _odtContent})).format, BookFormat.odt);
   });
 
-  test('BookReader keeps CB7 on its asynchronous path', () async {
+  test('Unseal keeps CB7 on its asynchronous path', () async {
     final sink = koni.BytesBuilderSink();
     final writer = koni.Archive.create(sink, format: const koni.SevenZWriteFormat());
     await writer.addBytes(koni.ArchiveEntrySpec(path: 'page1.png'), Uint8List.fromList(_png));
@@ -35,7 +35,7 @@ void main() {
     await sink.close();
 
     final bytes = sink.takeBytes();
-    final book = await BookReader.openFromBytes(bytes);
+    final book = await Unseal.read(bytes);
     var executorCalled = false;
     final dispatched = await BookDispatch.openFromBytes(
       bytes,
@@ -58,7 +58,7 @@ void main() {
     expect(executorCalled, isFalse);
   });
 
-  test('BookReader keeps CBC on its asynchronous path', () async {
+  test('Unseal keeps CBC on its asynchronous path', () async {
     final nestedComic = _zipBytes({'page.png': _png});
     final bytes = _zipBytes({
       'comics.txt': utf8.encode('nested.cbz:Nested comic\n'),

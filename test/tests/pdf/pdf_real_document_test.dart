@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 /// A real writer's output (macOS cupsfilter, PDF 1.3): genuine
 /// cross-reference, real Type1 fonts, realistic content streams —

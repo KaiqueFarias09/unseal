@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 Uint8List _alice() => Uint8List.fromList(
   File('test/resources/epub/Alices Adventures in Wonderland.epub').readAsBytesSync(),

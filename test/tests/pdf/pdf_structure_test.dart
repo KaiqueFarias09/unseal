@@ -1,6 +1,6 @@
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/platform/web/book_wire.dart';
+import 'package:unseal/unseal.dart';
 
 import 'pdf_fixture_builder.dart';
 
@@ -40,8 +40,8 @@ void main() {
       expect(metadata.title, "Alice's Adventures in Wonderland");
     });
 
-    test('flows through BookReader.parseBook', () {
-      final book = BookReader.parseBook(twoPageFixture().build());
+    test('flows through Unseal.parse', () {
+      final book = Unseal.parse(twoPageFixture().build());
 
       expect(book, isA<PdfBook>());
       expect(book.format, BookFormat.pdf);

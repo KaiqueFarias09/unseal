@@ -1,6 +1,6 @@
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre_example/example_app_constants.dart';
-import 'package:e_livre_example/shared/theme/theme.dart';
+import 'package:unseal/unseal.dart';
+import 'package:unseal_example/example_app_constants.dart';
+import 'package:unseal_example/shared/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,7 +10,7 @@ class BookSummaryPage extends StatelessWidget {
   @override
   Widget build(final BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(eLivreExampleTitle)),
+      appBar: AppBar(title: const Text(unsealExampleTitle)),
       body: FutureBuilder<Book>(
         future: _loadExampleBook(),
         builder: (final context, final snapshot) {
@@ -47,6 +47,6 @@ class BookSummaryPage extends StatelessWidget {
 
   static Future<Book> _loadExampleBook() async {
     final assetBytes = await rootBundle.load('assets/Alices Adventures in Wonderland.epub');
-    return BookReader.openFromBytes(Uint8List.sublistView(assetBytes));
+    return Unseal.read(Uint8List.sublistView(assetBytes));
   }
 }

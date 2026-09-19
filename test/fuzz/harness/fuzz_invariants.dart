@@ -5,7 +5,7 @@
 ///
 /// 1. terminates within a bounded wall-clock budget;
 /// 2. returns a `Book`/`BookMetadata` or throws a TYPED
-///    [ELivreException] — never a bare `RangeError`, `StateError`,
+///    [UnsealException] — never a bare `RangeError`, `StateError`,
 ///    `FormatException`, `ArgumentError` or `TypeError` escaping;
 /// 3. memory stays bounded for small inputs (gigabyte expansions are
 ///    classified as defects through the campaign runner);
@@ -21,7 +21,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 /// Outcome of one bounded parse attempt.
 enum FuzzStatus {
@@ -49,13 +49,13 @@ enum FuzzEntryPoint {
   /// `detectFormat` — the sniffing front door.
   detect,
 
-  /// `BookReader.parseBook` — synchronous parse.
+  /// `Unseal.parse` — synchronous parse.
   parse,
 
-  /// `BookReader.readMetadataSync` — synchronous metadata read.
+  /// `Unseal.readMetadataSync` — synchronous metadata read.
   metadata,
 
-  /// `BookReader.openFromBytes` — the flagship async reader.
+  /// `Unseal.read` — the flagship async reader.
   open,
 }
 
@@ -128,11 +128,11 @@ final class FuzzVerdict {
 
 /// Exception types that count as TYPED (contract-compliant) failures.
 ///
-/// [ELivreException] is the contract; `EmptyBytesException` currently
+/// [UnsealException] is the contract; `EmptyBytesException` currently
 /// sits outside it (tracked finding F-001) and is provisionally
 /// accepted here so suites surface NEW deviations instead of the
 /// known one.
-bool isTypedFailure(final Object error) => error is ELivreException || _isEmptyBytes(error);
+bool isTypedFailure(final Object error) => error is UnsealException || _isEmptyBytes(error);
 
 bool _isEmptyBytes(final Object error) => error.runtimeType.toString() == 'EmptyBytesException';
 
@@ -254,14 +254,14 @@ Future<void> _worker(final _FuzzJob job) async {
       return null;
     });
     await attempt(FuzzEntryPoint.parse, () async {
-      BookReader.parseBook(job.bytes);
+      Unseal.parse(job.bytes);
       return null;
     });
     await attempt(FuzzEntryPoint.metadata, () async {
-      BookReader.readMetadataSync(job.bytes);
+      Unseal.readMetadataSync(job.bytes);
       return null;
     });
-    await attempt(FuzzEntryPoint.open, () async => BookReader.openFromBytes(job.bytes));
+    await attempt(FuzzEntryPoint.open, () async => Unseal.read(job.bytes));
   } on Object catch (error) {
     // Anything escaping here is an isolate-level failure (worker bug,
     // not parser behavior): surface it as a crash verdict.

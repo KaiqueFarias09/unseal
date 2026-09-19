@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/docx.dart';
-import 'package:e_livre/src/foundation/images/image_type_sniffer.dart';
 import 'package:test/test.dart';
+import 'package:unseal/docx.dart';
+import 'package:unseal/src/foundation/images/image_type_sniffer.dart';
 
 void main() {
   group('DOCX parser', () {

@@ -73,13 +73,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.2"
-  e_livre:
-    dependency: "direct main"
-    description:
-      path: ".."
-      relative: true
-    source: path
-    version: "3.0.0"
   fake_async:
     dependency: transitive
     description:
@@ -335,6 +328,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.2"
+  unseal:
+    dependency: "direct main"
+    description:
+      path: ".."
+      relative: true
+    source: path
+    version: "1.0.0"
   vector_math:
     dependency: transitive
     description:

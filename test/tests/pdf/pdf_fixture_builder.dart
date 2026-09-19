@@ -239,7 +239,7 @@ PdfFixtureBuilder twoPageFixture({final bool withOutline = true}) {
     ..addObject(
       3,
       '<</Title (Alice\x27s Adventures in Wonderland) /Author (Lewis Carroll & John Tenniel) '
-      '/Creator (fixture writer) /Producer (eLivre tests) '
+      '/Creator (fixture writer) /Producer (unseal tests) '
       '/Subject (classic) /Keywords (fiction, ISBN 978-3-16-148410-0) '
       '/CreationDate (D:18651126090000+01\x2700\x27)>>',
     )

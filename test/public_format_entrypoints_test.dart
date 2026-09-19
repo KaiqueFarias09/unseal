@@ -1,20 +1,44 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/azw4.dart' as azw4;
-import 'package:e_livre/comic.dart' as comic;
-import 'package:e_livre/comic7.dart' as comic7;
-import 'package:e_livre/docx.dart' as docx;
-import 'package:e_livre/epub.dart' as epub;
-import 'package:e_livre/fb2.dart' as fb2;
-import 'package:e_livre/html.dart' as html;
-import 'package:e_livre/mobi.dart' as mobi;
-import 'package:e_livre/odt.dart' as odt;
-import 'package:e_livre/pdf.dart' as pdf;
-import 'package:e_livre/txt.dart' as txt;
 import 'package:test/test.dart';
+import 'package:unseal/azw4.dart' as azw4;
+import 'package:unseal/comic.dart' as comic;
+import 'package:unseal/comic7.dart' as comic7;
+import 'package:unseal/docx.dart' as docx;
+import 'package:unseal/epub.dart' as epub;
+import 'package:unseal/fb2.dart' as fb2;
+import 'package:unseal/html.dart' as html;
+import 'package:unseal/mobi.dart' as mobi;
+import 'package:unseal/odt.dart' as odt;
+import 'package:unseal/pdf.dart' as pdf;
+import 'package:unseal/txt.dart' as txt;
+import 'package:unseal/unseal.dart' as unseal;
 
 void main() {
+  test('public reading facade uses the package identity as its namespace', () {
+    final Future<unseal.Book> Function(Uint8List, {String password}) read = unseal.Unseal.read;
+    final Future<unseal.Book> Function(String, {String password}) readFile = unseal.Unseal.readFile;
+    final unseal.Book Function(Uint8List, {String password}) parse = unseal.Unseal.parse;
+    final Future<unseal.BookMetadata> Function(Uint8List, {String password}) readMetadata =
+        unseal.Unseal.readMetadata;
+    final Future<unseal.BookMetadata> Function(String, {String password}) readMetadataFile =
+        unseal.Unseal.readMetadataFile;
+    final unseal.BookMetadata Function(Uint8List, {String password}) readMetadataSync =
+        unseal.Unseal.readMetadataSync;
+    final void Function(Uri) configureWorker = unseal.UnsealWorker.configure;
+
+    expect(<Object?>[
+      read,
+      readFile,
+      parse,
+      readMetadata,
+      readMetadataFile,
+      readMetadataSync,
+      configureWorker,
+    ], hasLength(7));
+  });
+
   test('format entrypoints expose complete standalone operation contracts', () {
     final azw4.Azw4PdfPayload Function(Uint8List) extractAzw4Payload = azw4.extractAzw4PdfPayload;
     final Uint8List Function(Uint8List) extractAzw4 = azw4.extractAzw4Pdf;

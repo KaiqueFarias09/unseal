@@ -1,5 +1,5 @@
-name: e_livre_example
-description: Example app for the e_livre Dart library.
+name: unseal_example
+description: Example app for the unseal Dart library.
 
 publish_to: "none"
 
@@ -9,7 +9,7 @@ environment:
   sdk: ">=3.8.0 <4.0.0"
 
 dependencies:
-  e_livre:
+  unseal:
     path: ../
 
   flutter:

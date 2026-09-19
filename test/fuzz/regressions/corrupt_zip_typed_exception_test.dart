@@ -1,15 +1,15 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 /// Regression: corrupt zip containers must fail TYPED.
 ///
 /// Found by the fuzz mutation sweep: a seed EPUB/TXTZ with a few
-/// flipped central-directory bytes escaped `BookReader.parseBook` as
+/// flipped central-directory bytes escaped `Unseal.parse` as
 /// package:archive's own `ArchiveException`, `RangeError` or
-/// `FormatException` — outside the typed ELivreException contract.
+/// `FormatException` — outside the typed UnsealException contract.
 /// All book zip decodes now route through a typed boundary guard.
 void main() {
   test('flipped central-directory bytes throw InvalidBookException', () {
@@ -25,8 +25,8 @@ void main() {
       corrupted[index] = 0xAB;
     }
 
-    expect(() => BookReader.parseBook(corrupted), throwsA(isA<ELivreException>()));
-    expect(() => BookReader.parseBook(corrupted), throwsA(isA<InvalidBookException>()));
+    expect(() => Unseal.parse(corrupted), throwsA(isA<UnsealException>()));
+    expect(() => Unseal.parse(corrupted), throwsA(isA<InvalidBookException>()));
   });
 
   test('central-directory offset beyond the buffer throws typed, not RangeError', () {
@@ -44,7 +44,7 @@ void main() {
       ..add(_uint16(0)); // comment length
     final bytes = out.toBytes();
 
-    expect(() => BookReader.parseBook(bytes), throwsA(isA<ELivreException>()));
+    expect(() => Unseal.parse(bytes), throwsA(isA<UnsealException>()));
   });
 
   test('corrupt deflate payload throws typed even though headers decode', () {
@@ -64,8 +64,8 @@ void main() {
     corrupted[38] = 0xFF;
     corrupted[39] = 0xFF;
 
-    expect(() => BookReader.parseBook(corrupted), throwsA(isA<ELivreException>()));
-    expect(() => BookReader.parseBook(corrupted), throwsA(isA<InvalidBookException>()));
+    expect(() => Unseal.parse(corrupted), throwsA(isA<UnsealException>()));
+    expect(() => Unseal.parse(corrupted), throwsA(isA<InvalidBookException>()));
   });
 }
 

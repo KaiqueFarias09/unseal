@@ -10,7 +10,7 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
+import 'package:unseal/src/features/mobi/header/pdb_header.dart';
 
 /// A 1x1 transparent PNG.
 final Uint8List tinyPng = convert.base64.decode(

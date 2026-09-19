@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 void main() {
   group('CBZ', () {
@@ -75,9 +75,9 @@ void main() {
       expect(metadata.title, 'Test Comic');
     });
 
-    test('works through the BookReader dispatcher', () {
+    test('works through the Unseal dispatcher', () {
       // Handled async below in e_book_test too; check sync dispatch.
-      final book = BookReader.parseBook(cbz);
+      final book = Unseal.parse(cbz);
       expect(book, isA<ComicBook>());
     });
   });

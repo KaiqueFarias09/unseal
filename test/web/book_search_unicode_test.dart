@@ -1,6 +1,7 @@
 @TestOn('browser')
 library;
 
+import 'package:test/test.dart';
 // Unicode word boundaries on the browser runtime: the wholeWords and
 // proximity patterns use `\p{L}`/`\p{N}` property escapes with the
 // `unicode` flag, and this suite proves they compile through dart2js
@@ -8,8 +9,7 @@ library;
 // found zero matches for such words on any runtime).
 //
 // Run with: dart test test/web --platform chrome
-import 'package:e_livre/e_livre.dart';
-import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 Book buildUnicodeEpub(final String html) {
   return EpubBook(

@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart' show InvalidBookException;
-import 'package:e_livre/src/features/mobi/compression/huff_cdic.dart';
-import 'package:e_livre/src/features/mobi/compression/palmdoc.dart';
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/mobi/compression/huff_cdic.dart';
+import 'package:unseal/src/features/mobi/compression/palmdoc.dart';
+import 'package:unseal/src/features/mobi/exceptions/mobi_exception.dart';
+import 'package:unseal/src/features/mobi/header/mobi_header.dart';
+import 'package:unseal/src/features/mobi/header/pdb_header.dart';
+import 'package:unseal/unseal.dart' show InvalidBookException;
 
 import 'mobi_fixture_builder.dart';
 

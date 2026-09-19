@@ -1,5 +1,5 @@
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 /// Regression tests for the documented author-sort cases and `title_sort` behavior.
 /// Author sorting defaults to the `comma` method (`author_sort_copy_method = 'comma'`).

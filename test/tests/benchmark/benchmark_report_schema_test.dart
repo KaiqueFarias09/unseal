@@ -24,7 +24,7 @@ void main() {
 
   test('a tiny benchmark run validates against the schema', () {
     final schema = jsonDecode(schemaFile.readAsStringSync()) as Map<String, Object?>;
-    final directory = Directory.systemTemp.createTempSync('e_livre_schema_test');
+    final directory = Directory.systemTemp.createTempSync('unseal_schema_test');
     addTearDown(() => directory.deleteSync(recursive: true));
     final reportPath = '${directory.path}/report.json';
 
@@ -33,7 +33,7 @@ void main() {
     contract.resetForTest();
     contract.quickModeEnabled = true;
     contract.recordResult(
-      suite: 'e_livre',
+      suite: 'unseal',
       scenario: 'tiny — ok row',
       iterations: 3,
       warmup: 6,
@@ -48,7 +48,7 @@ void main() {
       note: 'tiny',
     );
     contract.recordResult(
-      suite: 'e_livre',
+      suite: 'unseal',
       scenario: 'tiny — fail row',
       iterations: 0,
       warmup: 1,
@@ -100,7 +100,7 @@ void main() {
 Map<String, Object?> get _recordSample {
   contract.resetForTest();
   contract.recordResult(
-    suite: 'e_livre',
+    suite: 'unseal',
     scenario: 'order — probe',
     iterations: 1,
     warmup: 1,

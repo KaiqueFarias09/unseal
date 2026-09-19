@@ -1,8 +1,8 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 import '../mobi/mobi_fixture_builder.dart';
 
@@ -13,7 +13,7 @@ Uint8List _buildBook(final String html) {
   ]);
 }
 
-Book parseFixture(final String html) => BookReader.parseBook(_buildBook(html));
+Book parseFixture(final String html) => Unseal.parse(_buildBook(html));
 
 /// Builds an EPUB book in memory. Unlike the MOBI pipeline, this
 /// preserves invisible characters (soft hyphens, zero-width spaces),

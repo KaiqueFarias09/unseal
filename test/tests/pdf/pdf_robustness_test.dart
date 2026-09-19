@@ -2,10 +2,10 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/pdf/codec/pdf_stream_decoder.dart';
-import 'package:e_livre/src/features/pdf/header/pdf_object.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/pdf/codec/pdf_stream_decoder.dart';
+import 'package:unseal/src/features/pdf/header/pdf_object.dart';
+import 'package:unseal/unseal.dart';
 
 void main() {
   group('LZWDecode filter', () {

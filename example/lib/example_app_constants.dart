@@ -1,1 +1,1 @@
-const String eLivreExampleTitle = 'eLivre example';
+const String unsealExampleTitle = 'unseal example';

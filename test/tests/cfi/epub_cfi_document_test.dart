@@ -1,5 +1,5 @@
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 /// Regression tests for CFI escaping, document round-tripping, entity handling, and ordering.
 const String page = '''
@@ -8,7 +8,7 @@ const String page = '''
   <body>
     <p id="p1">alpha beta</p>
     <p id="p2">one <b>two</b> three</p>
-    <p id="p3">calibre &amp; eLivre — quotes</p>
+    <p id="p3">calibre &amp; unseal — quotes</p>
     <div id="wrap"><p id="p4">nested text here</p></div>
   </body>
 </html>
@@ -74,7 +74,7 @@ void main() {
     });
 
     test('decodes entities into the text space', () {
-      final at = document.indexOfText('calibre & eLivre')!;
+      final at = document.indexOfText('calibre & unseal')!;
       final cfi = document.cfiForOffset(at);
       expect(document.offsetForCfi(cfi), at);
     });
@@ -140,7 +140,7 @@ void main() {
 
     test('offset-space parity on mixed predefined and named entities', () {
       const html =
-          '<html><body><p>calibre &amp; eLivre &lt;always&gt;, '
+          '<html><body><p>calibre &amp; unseal &lt;always&gt;, '
           'say &quot;hi&quot;/&apos;bye&apos;&nbsp;– done.</p></body></html>';
       final document = EpubCfiDocument.parse(html);
       expect(document.text, DocumentTextScanner(html).scan());

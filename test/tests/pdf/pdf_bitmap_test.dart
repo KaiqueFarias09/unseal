@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/pdf/image/pdf_bitmap.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/pdf/image/pdf_bitmap.dart';
 
 void main() {
   group('PdfBitmap', () {

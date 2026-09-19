@@ -3,12 +3,12 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/pdf/codec/pdf_stream_decoder.dart';
-import 'package:e_livre/src/features/pdf/header/pdf_document.dart';
-import 'package:e_livre/src/features/pdf/header/pdf_object.dart';
-import 'package:e_livre/src/features/pdf/image/pdf_bitmap.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/pdf/codec/pdf_stream_decoder.dart';
+import 'package:unseal/src/features/pdf/header/pdf_document.dart';
+import 'package:unseal/src/features/pdf/header/pdf_object.dart';
+import 'package:unseal/src/features/pdf/image/pdf_bitmap.dart';
+import 'package:unseal/unseal.dart';
 
 /// JBIG2Decode, the pure-Dart port of pdf.js's Jbig2Image, checked
 /// against pdf.js v3.11.174 reference rasters (the same goldens the

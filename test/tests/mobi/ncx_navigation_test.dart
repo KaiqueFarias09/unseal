@@ -1,5 +1,5 @@
-import 'package:e_livre/src/features/mobi/index/ncx_reader.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/mobi/index/ncx_reader.dart';
 
 NcxEntry _entry({
   required final int num,

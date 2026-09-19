@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:e_livre/fb2.dart';
 import 'package:test/test.dart';
+import 'package:unseal/fb2.dart';
 
 void main() {
   group('block elements', () {

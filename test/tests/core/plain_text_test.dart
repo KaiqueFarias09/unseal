@@ -1,5 +1,5 @@
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 void main() {
   group('extractPlainText — markup', () {

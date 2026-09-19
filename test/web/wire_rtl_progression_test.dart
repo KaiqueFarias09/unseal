@@ -16,15 +16,15 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/platform/web/book_wire.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/platform/web/book_wire.dart';
+import 'package:unseal/unseal.dart';
 
 void main() {
   test('keeps the declared spine page-progression-direction across the wire', () {
     for (final direction in ['rtl', 'ltr']) {
       final book =
-          BookReader.parseBook(
+          Unseal.parse(
                 _syntheticEpub(
                   language: 'ar',
                   spineAttribute: 'page-progression-direction="$direction"',
@@ -51,7 +51,7 @@ void main() {
   });
 
   test('keeps the language-inferred rtl direction across the wire', () {
-    final book = BookReader.parseBook(_syntheticEpub(language: 'ar')) as EpubBook;
+    final book = Unseal.parse(_syntheticEpub(language: 'ar')) as EpubBook;
 
     expect(book.package.spine.pageProgressionDirection, PageProgressionDirection.unspecified);
     expect(book.effectivePageProgressionDirection, PageProgressionDirection.rtl);
@@ -64,7 +64,7 @@ void main() {
   });
 
   test('keeps the unspecified direction across the wire', () {
-    final book = BookReader.parseBook(_syntheticEpub(language: 'pt')) as EpubBook;
+    final book = Unseal.parse(_syntheticEpub(language: 'pt')) as EpubBook;
 
     expect(book.effectivePageProgressionDirection, PageProgressionDirection.unspecified);
 

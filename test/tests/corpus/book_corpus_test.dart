@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 void main() {
   final manifestFile = File('test/resources/books/manifest.json');
@@ -53,7 +53,7 @@ void main() {
           .where((final file) => file.path.endsWith('.epub'));
 
       for (final file in epubFiles) {
-        final metadata = BookReader.readMetadataSync(file.readAsBytesSync());
+        final metadata = Unseal.readMetadataSync(file.readAsBytesSync());
         expect(
           forbiddenTitles.contains(metadata.title),
           isFalse,
@@ -74,7 +74,7 @@ void main() {
         expect(file.lengthSync(), expectedBytes, reason: relativePath);
         expect(sha256.convert(file.readAsBytesSync()).toString(), fixture['sha256']);
 
-        final book = await BookReader.openFromPath(file.path);
+        final book = await Unseal.readFile(file.path);
 
         expect(book, isA<EpubBook>());
         expect(book.metadata.title, isNotEmpty);
@@ -105,7 +105,7 @@ void main() {
         expect(file.lengthSync(), expectedBytes, reason: relativePath);
         expect(sha256.convert(file.readAsBytesSync()).toString(), fixture['sha256']);
 
-        final book = await BookReader.openFromPath(file.path);
+        final book = await Unseal.readFile(file.path);
 
         expect(book.format, expectedFormat);
         expect(book.readingOrder, isNotEmpty);
@@ -137,7 +137,7 @@ void main() {
 
         if (expectedError != null) {
           await expectLater(
-            BookReader.openFromPath(file.path),
+            Unseal.readFile(file.path),
             throwsA(
               isA<ComicException>().having(
                 (final error) => error.toString(),
@@ -149,7 +149,7 @@ void main() {
           return;
         }
 
-        final book = await BookReader.openFromPath(file.path);
+        final book = await Unseal.readFile(file.path);
 
         expect(book.format, expectedFormat);
         expect(book.readingOrder.length, greaterThanOrEqualTo(minimumReadingOrderItems!));

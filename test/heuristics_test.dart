@@ -1,5 +1,5 @@
-import 'package:e_livre/src/heuristics.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/heuristics.dart';
 
 /// Golden tests for the heuristic transforms. The expected values pin the behavior of punctuation
 /// normalization, chapter detection, scene-break normalization, and line unwrapping.

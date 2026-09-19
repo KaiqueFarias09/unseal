@@ -1,8 +1,8 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/header/exth_header.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/mobi/header/exth_header.dart';
 
 void main() {
   group('EXTH page progression (record 527) and writing mode (record 525)', () {

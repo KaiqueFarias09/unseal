@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/src/features/mobi/exceptions/mobi_exception.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/features/mobi/reader/mobi8_structure.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/mobi/exceptions/mobi_exception.dart';
+import 'package:unseal/src/features/mobi/header/mobi_header.dart';
+import 'package:unseal/src/features/mobi/header/pdb_header.dart';
+import 'package:unseal/src/features/mobi/reader/mobi8_structure.dart';
 
 import 'mobi_fixture_builder.dart';
 

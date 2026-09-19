@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 /// Regression: deep PDF object nesting must fail TYPED.
 ///
@@ -13,8 +13,8 @@ void main() {
   test('deeply nested PDF arrays fail with PdfException, not a crash', () {
     final deep = _deepNestedPdf(100000);
 
-    expect(() => BookReader.parseBook(deep), throwsA(isA<ELivreException>()));
-    expect(() => BookReader.parseBook(deep), throwsA(isA<PdfException>()));
+    expect(() => Unseal.parse(deep), throwsA(isA<UnsealException>()));
+    expect(() => Unseal.parse(deep), throwsA(isA<PdfException>()));
   });
 
   test('shallow PDF structures never trip the depth cap', () {
@@ -25,7 +25,7 @@ void main() {
     final bytes = _pdfWithObject(body);
 
     expect(
-      () => BookReader.parseBook(bytes),
+      () => Unseal.parse(bytes),
       throwsA(
         isA<PdfException>().having(
           (final e) => e.message,

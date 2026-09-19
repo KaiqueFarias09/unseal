@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 /// Regression: zip expansion is bounded BEFORE inflation.
 ///
@@ -23,8 +23,8 @@ void main() {
       );
     final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
 
-    expect(() => BookReader.parseBook(bytes), throwsA(isA<ELivreException>()));
-    expect(() => BookReader.parseBook(bytes), throwsA(isA<InvalidBookException>()));
+    expect(() => Unseal.parse(bytes), throwsA(isA<UnsealException>()));
+    expect(() => Unseal.parse(bytes), throwsA(isA<InvalidBookException>()));
   });
 
   test('declared totals above the safety cap are rejected before decoding', () {
@@ -32,7 +32,7 @@ void main() {
     // total) inside a few hundred real bytes.
     final bytes = _zipWithDeclaredSizes(<int>[600 << 20, 600 << 20]);
 
-    expect(() => BookReader.parseBook(bytes), throwsA(isA<InvalidBookException>()));
+    expect(() => Unseal.parse(bytes), throwsA(isA<InvalidBookException>()));
   });
 
   test('forged tiny size cannot bypass the streaming expansion cap', () {
@@ -43,7 +43,7 @@ void main() {
     _writeUint32At(bytes, 22, 1); // local-header uncompressed size
     _writeUint32At(bytes, central + 24, 1); // central-directory uncompressed size
 
-    expect(() => BookReader.parseBook(bytes), throwsA(isA<InvalidBookException>()));
+    expect(() => Unseal.parse(bytes), throwsA(isA<InvalidBookException>()));
   });
 
   test('legitimate books still parse after the caps', () {
@@ -58,7 +58,7 @@ void main() {
 
     // A small legitimate zip book still parses (text-backed zip book)
     // — the caps only reject hostile declared expansion.
-    final book = BookReader.parseBook(bytes);
+    final book = Unseal.parse(bytes);
     expect(book, isA<Book>());
   });
 }

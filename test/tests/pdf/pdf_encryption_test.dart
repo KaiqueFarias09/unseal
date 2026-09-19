@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/pdf/header/pdf_document.dart';
-import 'package:e_livre/src/features/pdf/header/pdf_object.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/pdf/header/pdf_document.dart';
+import 'package:unseal/src/features/pdf/header/pdf_object.dart';
+import 'package:unseal/unseal.dart';
 
 import 'pdf_fixture_builder.dart';
 
@@ -129,13 +129,13 @@ void main() {
       expect(() => parsePdfBook(fixture.build()), throwsA(isA<PdfEncryptedException>()));
     });
 
-    test('password threads through BookReader', () {
+    test('password threads through Unseal', () {
       final bytes = fixture('r6.pdf');
 
-      final book = BookReader.parseBook(bytes, password: userPassword);
+      final book = Unseal.parse(bytes, password: userPassword);
       expect(book, isA<PdfBook>());
       expect((book as PdfBook).pageCount, 1);
-      expect(() => BookReader.parseBook(bytes), throwsA(isA<PdfEncryptedException>()));
+      expect(() => Unseal.parse(bytes), throwsA(isA<PdfEncryptedException>()));
     });
   });
 

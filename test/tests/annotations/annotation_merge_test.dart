@@ -1,5 +1,5 @@
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 /// Returns the fixed UTC timestamp used by the merge fixtures; [year] is added to 2000.
 DateTime goldenTime(final int year) {

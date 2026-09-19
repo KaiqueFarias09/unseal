@@ -3,15 +3,15 @@
 // types stable across the wire.
 //
 // runWorkerOp is pure and VM-safe, so the whole protocol is tested
-// here without a browser; the shell in web/e_livre_worker.dart only
+// here without a browser; the shell in web/unseal_worker.dart only
 // unwraps messages around it.
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/platform/web/book_wire.dart';
-import 'package:e_livre/src/platform/web/worker_ops.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/platform/web/book_wire.dart';
+import 'package:unseal/src/platform/web/worker_ops.dart';
+import 'package:unseal/unseal.dart';
 
 Uint8List _bytes(final String name) =>
     Uint8List.fromList(File('test/resources/$name').readAsBytesSync());
@@ -51,7 +51,7 @@ void _expectSameResults(final SearchResults wire, final SearchResults inline) {
 
 void main() {
   final bytes = _bytes('epub/Alices Adventures in Wonderland.epub');
-  final inline = BookReader.parseBook(bytes) as EpubBook;
+  final inline = Unseal.parse(bytes) as EpubBook;
 
   // The resident book exactly the way the worker shell keeps it:
   // decoded back from the parse reply it just produced.
@@ -97,7 +97,7 @@ void main() {
     test('rejects the request without a resident book', () {
       expect(
         () => runWorkerOp(op: workerOpSearch, payload: _searchPayload('alice')),
-        throwsA(isA<ELivreException>()),
+        throwsA(isA<UnsealException>()),
       );
     });
 
@@ -166,7 +166,7 @@ void main() {
 
   group('op dispatch', () {
     test('unknown op throws', () {
-      expect(() => runWorkerOp(op: 'nope'), throwsA(isA<ELivreException>()));
+      expect(() => runWorkerOp(op: 'nope'), throwsA(isA<UnsealException>()));
     });
 
     test('metadata op keeps its reply kind', () {

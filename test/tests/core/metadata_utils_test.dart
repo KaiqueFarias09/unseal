@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 Uint8List _bytes() => Uint8List.fromList([1, 2, 3]);
 

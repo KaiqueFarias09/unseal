@@ -2,13 +2,13 @@ import 'dart:convert' as convert;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/mobi/header/exth_header.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/features/mobi/reader/mobi8_resources.dart';
-import 'package:e_livre/src/features/mobi/reader/mobi_container.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/mobi/header/exth_header.dart';
+import 'package:unseal/src/features/mobi/header/mobi_header.dart';
+import 'package:unseal/src/features/mobi/header/pdb_header.dart';
+import 'package:unseal/src/features/mobi/reader/mobi8_resources.dart';
+import 'package:unseal/src/features/mobi/reader/mobi_container.dart';
+import 'package:unseal/unseal.dart';
 
 import 'mobi_fixture_builder.dart';
 
@@ -50,7 +50,7 @@ void main() {
     });
 
     test('reads metadata through the fast path', () {
-      final metadata = BookReader.readMetadataSync(book);
+      final metadata = Unseal.readMetadataSync(book);
       expect(metadata.title, 'Synthetic HUFF');
       expect(metadata.cover, isNotNull);
     });
@@ -321,7 +321,7 @@ void main() {
     }
 
     test('maps EXTH 108 to the producer and keeps the Last, First sort form', () {
-      final metadata = BookReader.readMetadataSync(
+      final metadata = Unseal.readMetadataSync(
         buildBook([
           (100, Uint8List.fromList(convert.utf8.encode('Carroll, Lewis'))),
           (108, Uint8List.fromList(convert.utf8.encode('calibre (9.4.0)'))),
@@ -334,7 +334,7 @@ void main() {
     });
 
     test('joins multiple author sort keys with an ampersand', () {
-      final metadata = BookReader.readMetadataSync(
+      final metadata = Unseal.readMetadataSync(
         buildBook([
           (100, Uint8List.fromList(convert.utf8.encode('Carroll, Lewis'))),
           (100, Uint8List.fromList(convert.utf8.encode('Tenniel, John'))),
@@ -345,7 +345,7 @@ void main() {
     });
 
     test('plain author names carry no sort key', () {
-      final metadata = BookReader.readMetadataSync(
+      final metadata = Unseal.readMetadataSync(
         buildBook([(100, Uint8List.fromList(convert.utf8.encode('Lewis Carroll')))]),
       );
       expect(metadata.authors, ['Lewis Carroll']);
@@ -354,7 +354,7 @@ void main() {
     });
 
     test('rejects impossible publication dates', () {
-      final metadata = BookReader.readMetadataSync(
+      final metadata = Unseal.readMetadataSync(
         buildBook([(106, Uint8List.fromList(convert.utf8.encode('2024-02-31')))]),
       );
 

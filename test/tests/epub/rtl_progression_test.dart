@@ -1,8 +1,8 @@
-import 'package:e_livre/src/features/epub/entities/entities.dart';
-import 'package:e_livre/src/features/epub/package/parse_epub_package.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
-import 'package:e_livre/src/foundation/language/rtl_languages.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/epub/entities/entities.dart';
+import 'package:unseal/src/features/epub/package/parse_epub_package.dart';
+import 'package:unseal/src/foundation/entities/entities.dart';
+import 'package:unseal/src/foundation/language/rtl_languages.dart';
 
 void main() {
   group('isRtlLanguage', () {

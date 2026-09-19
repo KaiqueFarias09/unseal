@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/src/features/comic7/exceptions/exceptions.dart';
-import 'package:e_livre/src/features/comic7/parse_comic7_book.dart';
-import 'package:e_livre/src/foundation/entities/entities.dart';
 import 'package:koni_archive/koni_archive.dart' as koni;
 import 'package:test/test.dart';
+import 'package:unseal/src/features/comic7/exceptions/exceptions.dart';
+import 'package:unseal/src/features/comic7/parse_comic7_book.dart';
+import 'package:unseal/src/foundation/entities/entities.dart';
 
 void main() {
   test('reads CB7 image pages and ComicInfo.xml in natural order', () async {

@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:e_livre/e_livre.dart';
 import 'package:test/test.dart';
+import 'package:unseal/unseal.dart';
 
 void main() {
   test('EPUB reading order follows the spine', () {
@@ -34,7 +34,7 @@ void main() {
   });
 
   test('comic reading order lists pages as non-html', () {
-    final book = BookReader.parseBook(File('test/resources/comic/sample.cbz').readAsBytesSync());
+    final book = Unseal.parse(File('test/resources/comic/sample.cbz').readAsBytesSync());
     final order = book.readingOrder;
     expect(order.length, 3);
     expect(order.every((final item) => !item.isHtml), isTrue);

@@ -1,6 +1,6 @@
-import 'package:e_livre/src/features/cfi/epub_cfi_document.dart';
-import 'package:e_livre/src/foundation/text/canonical_document_text.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/cfi/epub_cfi_document.dart';
+import 'package:unseal/src/foundation/text/canonical_document_text.dart';
 
 /// Tag-soup sections rejected by the strict XML parser fall back to an HTML5 parse using
 /// `html5_parser`; the fallback tree must produce exactly the [DocumentTextScanner.scan] offset space.
