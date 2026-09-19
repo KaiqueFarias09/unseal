@@ -1,8 +1,8 @@
 {
   "package": "P20",
-  "repository": "eLivre",
+  "repository": "unseal",
   "source_head": "b29903d4cd7151d3ae8deae3762f5714b45f66b5",
-  "clone": "/private/tmp/elivre-p20-20260903-r2",
+  "clone": "/private/tmp/unseal-p20-20260903-r2",
   "steward_binary": "/Volumes/SSD/Projects/steward/.steward/bin/steward",
   "lane": "structural",
   "status": "partial_blocked",
@@ -27,7 +27,7 @@
     "dart_analyze": "passed; 113 info diagnostics",
     "dart_test": "passed; 227 tests",
     "api_snapshot": {
-      "path": "/private/tmp/elivre-p20-api-baseline.json",
+      "path": "/private/tmp/unseal-p20-api-baseline.json",
       "created_from": "HEAD b29903d before P20 apply",
       "note": "The ignored P10 snapshot was not present in the clone; this deterministic snapshot was created before source changes."
     },
@@ -38,7 +38,7 @@
     "valid_dart_files_checked": 80,
     "parser_rejected_files": [
       "lib/comic.dart",
-      "lib/e_livre.dart",
+      "lib/unseal.dart",
       "lib/epub.dart",
       "lib/fb2.dart",
       "lib/mobi.dart",
@@ -122,7 +122,7 @@
       "count": 8,
       "files": [
         "lib/comic.dart",
-        "lib/e_livre.dart",
+        "lib/unseal.dart",
         "lib/epub.dart",
         "lib/fb2.dart",
         "lib/mobi.dart",
@@ -149,7 +149,7 @@
       "reparse_after_apply": "passed for all 3 module-order applies",
       "dart_analyze": "passed; 113 info diagnostics",
       "dart_test": "passed; 227 tests",
-      "api_check": "passed against /private/tmp/elivre-p20-api-baseline.json",
+      "api_check": "passed against /private/tmp/unseal-p20-api-baseline.json",
       "steward_check": {
         "passed": false,
         "findings_by_target": {"example": 38, "library": 108, "total": 146},

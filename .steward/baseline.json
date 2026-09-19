@@ -1,5 +1,5 @@
 {
-  "profile": "e_livre",
+  "profile": "unseal",
   "target": "all",
   "created_at": "2026-09-07T10:32:51Z",
   "issues": [
@@ -68,12 +68,12 @@
       "message": "missing Riverpod ProviderScope"
     },
     {
-      "fingerprint": "example\u0000lib/main.dart\u0000dart.declaration.ownership\u0000declaration ownership violation: main.dart has peer declarations BookSummaryPage, ELivreExampleApp with no unique primary owner; move each declaration to its owning file",
+      "fingerprint": "example\u0000lib/main.dart\u0000dart.declaration.ownership\u0000declaration ownership violation: main.dart has peer declarations BookSummaryPage, UnsealExampleApp with no unique primary owner; move each declaration to its owning file",
       "target": "example",
       "path": "lib/main.dart",
       "rule_id": "dart.declaration.ownership",
       "severity": "gate",
-      "message": "declaration ownership violation: main.dart has peer declarations BookSummaryPage, ELivreExampleApp with no unique primary owner; move each declaration to its owning file"
+      "message": "declaration ownership violation: main.dart has peer declarations BookSummaryPage, UnsealExampleApp with no unique primary owner; move each declaration to its owning file"
     },
     {
       "fingerprint": "example\u0000lib/main.dart\u0000dart_quality.no-blank-line-before-single-return\u0000Dart compact return spacing violation: loadExampleBook should not leave a blank line before a compact return",
@@ -108,12 +108,12 @@
       "message": "navigation control boundary violation: raw AppBar belongs in the app shell or lib/shared/widgets/navigation; expose an app-owned navigation widget instead"
     },
     {
-      "fingerprint": "example\u0000lib/main.dart\u0000flutter.no-duplicate-string-literals\u0000duplicate string literal \"eLivre example\" used 2 times; first used at lib/main.dart:12",
+      "fingerprint": "example\u0000lib/main.dart\u0000flutter.no-duplicate-string-literals\u0000duplicate string literal \"unseal example\" used 2 times; first used at lib/main.dart:12",
       "target": "example",
       "path": "lib/main.dart",
       "rule_id": "flutter.no-duplicate-string-literals",
       "severity": "warn",
-      "message": "duplicate string literal \"eLivre example\" used 2 times; first used at lib/main.dart:12"
+      "message": "duplicate string literal \"unseal example\" used 2 times; first used at lib/main.dart:12"
     },
     {
       "fingerprint": "example\u0000lib/main.dart\u0000flutter.semantic-variable-names\u0000semantic variable name: data is too generic outside parser/API/database internals",
@@ -140,12 +140,12 @@
       "message": "public widget BookSummaryPage shares a file with another API; move reusable widgets to their own file"
     },
     {
-      "fingerprint": "example\u0000lib/main.dart\u0000flutter.widget-file-composition\u0000public widget ELivreExampleApp shares a file with another API; move reusable widgets to their own file",
+      "fingerprint": "example\u0000lib/main.dart\u0000flutter.widget-file-composition\u0000public widget UnsealExampleApp shares a file with another API; move reusable widgets to their own file",
       "target": "example",
       "path": "lib/main.dart",
       "rule_id": "flutter.widget-file-composition",
       "severity": "warn",
-      "message": "public widget ELivreExampleApp shares a file with another API; move reusable widgets to their own file"
+      "message": "public widget UnsealExampleApp shares a file with another API; move reusable widgets to their own file"
     },
     {
       "fingerprint": "example\u0000lib/main.dart\u0000flutter.widget-file-name\u0000widget file name mismatch: BookSummaryPage should be defined in book_summary_page.dart",
@@ -156,12 +156,12 @@
       "message": "widget file name mismatch: BookSummaryPage should be defined in book_summary_page.dart"
     },
     {
-      "fingerprint": "example\u0000lib/main.dart\u0000flutter.widget-file-name\u0000widget file name mismatch: ELivreExampleApp should be defined in e_livre_example_app.dart",
+      "fingerprint": "example\u0000lib/main.dart\u0000flutter.widget-file-name\u0000widget file name mismatch: UnsealExampleApp should be defined in unseal_example_app.dart",
       "target": "example",
       "path": "lib/main.dart",
       "rule_id": "flutter.widget-file-name",
       "severity": "warn",
-      "message": "widget file name mismatch: ELivreExampleApp should be defined in e_livre_example_app.dart"
+      "message": "widget file name mismatch: UnsealExampleApp should be defined in unseal_example_app.dart"
     },
     {
       "fingerprint": "example\u0000pubspec.yaml\u0000flutter.standard-packages\u0000standard package violation: missing runtime dependency dio",
@@ -516,12 +516,12 @@
       "message": "multiple top-level declarations in one Dart file; move function unescapeFromCfi to its own file unescape_from_cfi.dart"
     },
     {
-      "fingerprint": "library\u0000lib/src/features/cfi/epub_cfi_resolver.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class EpubCfiLocation to its own file epub_cfi_location.dart; independent consumers/owners: WorkerBookReader, WorkerClient, lib/src/platform/web/book_wire.dart",
+      "fingerprint": "library\u0000lib/src/features/cfi/epub_cfi_resolver.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class EpubCfiLocation to its own file epub_cfi_location.dart; independent consumers/owners: UnsealWorker, WorkerClient, lib/src/platform/web/book_wire.dart",
       "target": "library",
       "path": "lib/src/features/cfi/epub_cfi_resolver.dart",
       "rule_id": "dart.declaration.ownership",
       "severity": "gate",
-      "message": "multiple top-level declarations in one Dart file; move class EpubCfiLocation to its own file epub_cfi_location.dart; independent consumers/owners: WorkerBookReader, WorkerClient, lib/src/platform/web/book_wire.dart"
+      "message": "multiple top-level declarations in one Dart file; move class EpubCfiLocation to its own file epub_cfi_location.dart; independent consumers/owners: UnsealWorker, WorkerClient, lib/src/platform/web/book_wire.dart"
     },
     {
       "fingerprint": "library\u0000lib/src/features/cfi/epub_cfi_resolver.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move function _boundaryOffset to a private part file because it is local to this library",
@@ -676,12 +676,12 @@
       "message": "auxiliary declaration order violation: owned constant _tpzMagic must appear above primary BookFormatDetector"
     },
     {
-      "fingerprint": "library\u0000lib/src/features/detection/format_detector.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move enum DetectedFormat to its own file detected_format.dart; independent consumers/owners: BookReader",
+      "fingerprint": "library\u0000lib/src/features/detection/format_detector.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move enum DetectedFormat to its own file detected_format.dart; independent consumers/owners: Unseal",
       "target": "library",
       "path": "lib/src/features/detection/format_detector.dart",
       "rule_id": "dart.declaration.ownership",
       "severity": "gate",
-      "message": "multiple top-level declarations in one Dart file; move enum DetectedFormat to its own file detected_format.dart; independent consumers/owners: BookReader"
+      "message": "multiple top-level declarations in one Dart file; move enum DetectedFormat to its own file detected_format.dart; independent consumers/owners: Unseal"
     },
     {
       "fingerprint": "library\u0000lib/src/features/detection/format_detector.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move function _looksLikeFictionBook to a private part file because it is local to this library",
@@ -2468,12 +2468,12 @@
       "message": "multiple top-level declarations in one Dart file; move class SearchMatch to its own file search_match.dart; independent consumers/owners: lib/src/features/locators/search_locator.dart, lib/src/platform/web/book_wire.dart"
     },
     {
-      "fingerprint": "library\u0000lib/src/features/search/book_search.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class SearchResults to its own file search_results.dart; independent consumers/owners: WorkerBookReader, WorkerClient, lib/src/platform/web/book_wire.dart",
+      "fingerprint": "library\u0000lib/src/features/search/book_search.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class SearchResults to its own file search_results.dart; independent consumers/owners: UnsealWorker, WorkerClient, lib/src/platform/web/book_wire.dart",
       "target": "library",
       "path": "lib/src/features/search/book_search.dart",
       "rule_id": "dart.declaration.ownership",
       "severity": "gate",
-      "message": "multiple top-level declarations in one Dart file; move class SearchResults to its own file search_results.dart; independent consumers/owners: WorkerBookReader, WorkerClient, lib/src/platform/web/book_wire.dart"
+      "message": "multiple top-level declarations in one Dart file; move class SearchResults to its own file search_results.dart; independent consumers/owners: UnsealWorker, WorkerClient, lib/src/platform/web/book_wire.dart"
     },
     {
       "fingerprint": "library\u0000lib/src/features/search/book_search.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class _CompiledQuery to a private part file because it is local to this library",
@@ -2484,12 +2484,12 @@
       "message": "multiple top-level declarations in one Dart file; move class _CompiledQuery to a private part file because it is local to this library"
     },
     {
-      "fingerprint": "library\u0000lib/src/features/search/book_search.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move enum SearchMode to its own file search_mode.dart; independent consumers/owners: WorkerBookReader, WorkerClient, lib/src/platform/web/worker_ops.dart",
+      "fingerprint": "library\u0000lib/src/features/search/book_search.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move enum SearchMode to its own file search_mode.dart; independent consumers/owners: UnsealWorker, WorkerClient, lib/src/platform/web/worker_ops.dart",
       "target": "library",
       "path": "lib/src/features/search/book_search.dart",
       "rule_id": "dart.declaration.ownership",
       "severity": "gate",
-      "message": "multiple top-level declarations in one Dart file; move enum SearchMode to its own file search_mode.dart; independent consumers/owners: WorkerBookReader, WorkerClient, lib/src/platform/web/worker_ops.dart"
+      "message": "multiple top-level declarations in one Dart file; move enum SearchMode to its own file search_mode.dart; independent consumers/owners: UnsealWorker, WorkerClient, lib/src/platform/web/worker_ops.dart"
     },
     {
       "fingerprint": "library\u0000lib/src/features/search/book_search.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move function RegExp to its own file reg_exp.dart; independent consumers/owners: CalibreDatabase, ComicInfo, EpubCfiDocument, Mobi8Reader, PdfMetadataReader, _Document, _EpubCfiParser, _Page, lib/src/features/annotations/annotation_codec.dart, lib/src/features/cfi/epub_cfi.dart, lib/src/features/epub/utils/epub_metadata_mapper.dart, lib/src/features/fb2/utils/parse_fb2_book.dart, lib/src/features/media_overlays/utils/parse_media_overlay.dart, lib/src/features/mobi/entities/mobi_book.dart, lib/src/features/mobi/reader/mobi6_markup.dart, lib/src/features/mobi/reader/mobi8_reader.dart, lib/src/features/mobi/utils/mobi_metadata_mapper.dart, lib/src/features/pdf/reflow/pdf_reflow.dart, lib/src/features/reading/nav_resolution.dart, lib/src/foundation/utils/metadata_utils.dart, lib/src/foundation/utils/sort_keys.dart, lib/src/foundation/utils/xml_encoding.dart, lib/src/heuristics.dart",
@@ -2588,25 +2588,25 @@
       "message": "multiple top-level declarations in one Dart file; move function _wordBoundaryBehind to a private part file because it is local to this library"
     },
     {
-      "fingerprint": "library\u0000lib/src/foundation/exceptions/elivre_exception.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class DrmProtectedException to its own file drm_protected_exception.dart; independent consumers/owners: lib/src/features/mobi/header/mobi_header.dart, lib/src/platform/web/book_wire.dart",
+      "fingerprint": "library\u0000lib/src/foundation/exceptions/unseal_exception.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class DrmProtectedException to its own file drm_protected_exception.dart; independent consumers/owners: lib/src/features/mobi/header/mobi_header.dart, lib/src/platform/web/book_wire.dart",
       "target": "library",
-      "path": "lib/src/foundation/exceptions/elivre_exception.dart",
+      "path": "lib/src/foundation/exceptions/unseal_exception.dart",
       "rule_id": "dart.declaration.ownership",
       "severity": "gate",
       "message": "multiple top-level declarations in one Dart file; move class DrmProtectedException to its own file drm_protected_exception.dart; independent consumers/owners: lib/src/features/mobi/header/mobi_header.dart, lib/src/platform/web/book_wire.dart"
     },
     {
-      "fingerprint": "library\u0000lib/src/foundation/exceptions/elivre_exception.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class FormatNotSupportedException to its own file format_not_supported_exception.dart; independent consumers/owners: BookReader, lib/src/features/detection/format_detector.dart, lib/src/platform/web/book_wire.dart",
+      "fingerprint": "library\u0000lib/src/foundation/exceptions/unseal_exception.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class FormatNotSupportedException to its own file format_not_supported_exception.dart; independent consumers/owners: Unseal, lib/src/features/detection/format_detector.dart, lib/src/platform/web/book_wire.dart",
       "target": "library",
-      "path": "lib/src/foundation/exceptions/elivre_exception.dart",
+      "path": "lib/src/foundation/exceptions/unseal_exception.dart",
       "rule_id": "dart.declaration.ownership",
       "severity": "gate",
-      "message": "multiple top-level declarations in one Dart file; move class FormatNotSupportedException to its own file format_not_supported_exception.dart; independent consumers/owners: BookReader, lib/src/features/detection/format_detector.dart, lib/src/platform/web/book_wire.dart"
+      "message": "multiple top-level declarations in one Dart file; move class FormatNotSupportedException to its own file format_not_supported_exception.dart; independent consumers/owners: Unseal, lib/src/features/detection/format_detector.dart, lib/src/platform/web/book_wire.dart"
     },
     {
-      "fingerprint": "library\u0000lib/src/foundation/exceptions/elivre_exception.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class InvalidBookException to its own file invalid_book_exception.dart; independent consumers/owners: PdbHeader, lib/src/platform/web/book_wire.dart",
+      "fingerprint": "library\u0000lib/src/foundation/exceptions/unseal_exception.dart\u0000dart.declaration.ownership\u0000multiple top-level declarations in one Dart file; move class InvalidBookException to its own file invalid_book_exception.dart; independent consumers/owners: PdbHeader, lib/src/platform/web/book_wire.dart",
       "target": "library",
-      "path": "lib/src/foundation/exceptions/elivre_exception.dart",
+      "path": "lib/src/foundation/exceptions/unseal_exception.dart",
       "rule_id": "dart.declaration.ownership",
       "severity": "gate",
       "message": "multiple top-level declarations in one Dart file; move class InvalidBookException to its own file invalid_book_exception.dart; independent consumers/owners: PdbHeader, lib/src/platform/web/book_wire.dart"

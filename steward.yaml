@@ -1,11 +1,11 @@
 project:
-  name: e_livre
+  name: unseal
   kind: dart-library
   description: Dart library onboarded for Steward migration.
 architecture:
   extends: steward/publishable-package
   version: 1.0.0
-profile: e_livre
+profile: unseal
 default_severity: off
 docs:
   primary: AGENTS.md

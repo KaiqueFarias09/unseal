@@ -1,8 +1,8 @@
 {
   "package": "P10",
-  "repository": "eLivre",
+  "repository": "unseal",
   "source_head": "77c13e3a5838f05a0d280dc80a63840b33ca6b3a",
-  "clone": "/private/tmp/elivre-p10-20260903",
+  "clone": "/private/tmp/unseal-p10-20260903",
   "steward_binary": "/private/tmp/steward-p10 (compiled from /Volumes/SSD/Projects/steward because the indicated binary reproduced the same parser failure)",
   "lane": "readability",
   "initial_full_run": {
@@ -20,37 +20,37 @@
     "rejected_files": [
       {
         "file": "lib/comic.dart",
-        "output": "plan Dart file /private/tmp/elivre-p10-20260903/lib/comic.dart: dart fixer transformed source failed to parse",
+        "output": "plan Dart file /private/tmp/unseal-p10-20260903/lib/comic.dart: dart fixer transformed source failed to parse",
         "exit_code": 1
       },
       {
-        "file": "lib/e_livre.dart",
-        "output": "plan Dart file /private/tmp/elivre-p10-20260903/lib/e_livre.dart: dart fixer transformed source failed to parse",
+        "file": "lib/unseal.dart",
+        "output": "plan Dart file /private/tmp/unseal-p10-20260903/lib/unseal.dart: dart fixer transformed source failed to parse",
         "exit_code": 1
       },
       {
         "file": "lib/epub.dart",
-        "output": "plan Dart file /private/tmp/elivre-p10-20260903/lib/epub.dart: dart fixer transformed source failed to parse",
+        "output": "plan Dart file /private/tmp/unseal-p10-20260903/lib/epub.dart: dart fixer transformed source failed to parse",
         "exit_code": 1
       },
       {
         "file": "lib/fb2.dart",
-        "output": "plan Dart file /private/tmp/elivre-p10-20260903/lib/fb2.dart: dart fixer transformed source failed to parse",
+        "output": "plan Dart file /private/tmp/unseal-p10-20260903/lib/fb2.dart: dart fixer transformed source failed to parse",
         "exit_code": 1
       },
       {
         "file": "lib/mobi.dart",
-        "output": "plan Dart file /private/tmp/elivre-p10-20260903/lib/mobi.dart: dart fixer transformed source failed to parse",
+        "output": "plan Dart file /private/tmp/unseal-p10-20260903/lib/mobi.dart: dart fixer transformed source failed to parse",
         "exit_code": 1
       },
       {
         "file": "lib/src/features/mobi/compression/huff_cdic.dart",
-        "output": "plan Dart file /private/tmp/elivre-p10-20260903/lib/src/features/mobi/compression/huff_cdic.dart: dart fixer transformed source failed to parse",
+        "output": "plan Dart file /private/tmp/unseal-p10-20260903/lib/src/features/mobi/compression/huff_cdic.dart: dart fixer transformed source failed to parse",
         "exit_code": 1
       },
       {
         "file": "lib/src/heuristics.dart",
-        "output": "plan Dart file /private/tmp/elivre-p10-20260903/lib/src/heuristics.dart: dart fixer transformed source failed to parse",
+        "output": "plan Dart file /private/tmp/unseal-p10-20260903/lib/src/heuristics.dart: dart fixer transformed source failed to parse",
         "exit_code": 1
       }
     ]
@@ -2415,7 +2415,7 @@
       "transformations": []
     },
     {
-      "file": "lib/src/foundation/exceptions/elivre_exception.dart",
+      "file": "lib/src/foundation/exceptions/unseal_exception.dart",
       "transformations": []
     },
     {
