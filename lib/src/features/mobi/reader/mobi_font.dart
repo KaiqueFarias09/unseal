@@ -50,7 +50,7 @@ DecodedFont decodeFontRecord(final Uint8List data) {
   }
   if ((flags & 0x1) != 0) {
     try {
-      fontData = const ZLibDecoder().decodeBytes(fontData) as Uint8List;
+      fontData = const ZLibDecoder().decodeBytes(fontData);
     } on Object {
       return DecodedFont(data: data, extension: 'dat');
     }

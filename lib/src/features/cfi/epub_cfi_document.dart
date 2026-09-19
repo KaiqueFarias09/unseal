@@ -71,18 +71,18 @@ class EpubCfiDocument {
     );
     final document = html.parse(repaired);
     final root = _convertElement(document.documentElement);
-    final body = root.findAllElements('body').firstOrNull ?? XmlElement(XmlName('body'));
+    final body = root.findAllElements('body').firstOrNull ?? XmlElement(XmlName.qualified('body'));
 
     return EpubCfiDocument._(root, body, _indexTextNodes(body));
   }
 
   /// Converts an HTML DOM subtree into the XML node model.
   static XmlElement _convertElement(final dom.Element? element) {
-    if (element == null) return XmlElement(XmlName('body'));
+    if (element == null) return XmlElement(XmlName.qualified('body'));
 
-    return XmlElement(XmlName(element.localName ?? ''), [
+    return XmlElement(XmlName.qualified(element.localName ?? ''), [
       for (final entry in element.attributes.entries)
-        XmlAttribute(XmlName(entry.key.toString()), entry.value.toString()),
+        XmlAttribute(XmlName.qualified(entry.key.toString()), entry.value.toString()),
     ], element.nodes.map(_convertNode).nonNulls);
   }
 

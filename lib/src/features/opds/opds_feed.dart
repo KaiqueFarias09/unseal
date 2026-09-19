@@ -146,17 +146,20 @@ final class OpdsFeed {
   static OpdsFeed parse(final String xml) {
     final document = XmlDocument.parse(xml);
     final feed =
-        document.findElements('feed', namespace: _atomNamespace).firstOrNull ??
+        document.findElements('feed', namespaceUri: _atomNamespace).firstOrNull ??
         document.findElements('feed').firstOrNull;
     if (feed == null) throw const FormatException('OPDS parsing error: no feed element found.');
 
-    final entries = feed.findElements('entry', namespace: _atomNamespace).map(_parseEntry).toList();
+    final entries = feed
+        .findElements('entry', namespaceUri: _atomNamespace)
+        .map(_parseEntry)
+        .toList();
 
     return OpdsFeed(
       id: _text(feed, 'id'),
       title: _text(feed, 'title'),
       updated: DateTime.tryParse(_text(feed, 'updated')),
-      links: feed.findElements('link', namespace: _atomNamespace).map(_parseLink).toList(),
+      links: feed.findElements('link', namespaceUri: _atomNamespace).map(_parseLink).toList(),
       entries: entries,
     );
   }
@@ -168,10 +171,10 @@ final class OpdsFeed {
       summary: _optionalText(element, 'summary'),
       content: _optionalText(element, 'content'),
       updated: DateTime.tryParse(_text(element, 'updated')),
-      authors: element.findElements('author', namespace: _atomNamespace).map((final author) {
+      authors: element.findElements('author', namespaceUri: _atomNamespace).map((final author) {
         return OpdsAuthor(name: _text(author, 'name'), uri: _optionalText(author, 'uri'));
       }).toList(),
-      links: element.findElements('link', namespace: _atomNamespace).map(_parseLink).toList(),
+      links: element.findElements('link', namespaceUri: _atomNamespace).map(_parseLink).toList(),
     );
   }
 
@@ -189,7 +192,7 @@ final class OpdsFeed {
   }
 
   static String? _optionalText(final XmlElement parent, final String name) {
-    final element = parent.findElements(name, namespace: _atomNamespace).firstOrNull;
+    final element = parent.findElements(name, namespaceUri: _atomNamespace).firstOrNull;
 
     return element?.innerText.trim();
   }

@@ -61,7 +61,7 @@ Uint8List _zip(final Map<String, List<int>> entries) {
     archive.addFile(ArchiveFile(entry.key, bytes.length, bytes)..lastModTime = 946684800);
   }
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 Uint8List _buildTxtz() {
@@ -215,7 +215,7 @@ Uint8List _buildCbz() {
     ..addFile(_archiveFile('001.png', png))
     ..addFile(_archiveFile('ComicInfo.xml', utf8.encode(comicInfo)));
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 ArchiveFile _archiveFile(final String name, final List<int> bytes) {

@@ -139,7 +139,7 @@ Uint8List _zip(final Map<String, List<int>> entries) {
     archive.addFile(ArchiveFile(entry.key, entry.value.length, entry.value));
   }
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 Uint8List _utf16(final String text, {required final bool littleEndian}) {

@@ -1,3 +1,21 @@
+## 1.1.0 - September 19, 2026
+
+Dependency maintenance release. No public API changes.
+
+### Changed
+
+- Upgraded `archive` to `^4.3.0`, `koni_archive` to `^0.9.0`, and `xml` to
+  `^7.0.1`, with the corresponding parser migrations.
+- Shortened the package description to meet pub.dev conventions.
+
+### Safety and reliability
+
+- ZIP containers with a missing or unreadable central directory now fail with
+  `InvalidBookException` instead of decoding to an empty archive.
+- ZIP-bomb guards keep bounding decompression during inflation on the
+  `archive` 4 streaming API, and explicit directory records in book
+  containers keep parsing as empty entries.
+
 ## 1.0.0 - September 19, 2026
 
 Initial release of Unseal, a pure-Dart library for parsing ebooks and

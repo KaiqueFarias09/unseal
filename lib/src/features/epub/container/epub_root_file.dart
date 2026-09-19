@@ -69,7 +69,7 @@ ArchiveFile _getContainerFileEntry(final Archive epubArchive) {
 
 XmlElement _getPackageElement(final XmlDocument containerDocument) {
   final package = containerDocument
-      .findElements('container', namespace: _containerNamespace)
+      .findElements('container', namespaceUri: _containerNamespace)
       .firstOrNull;
   if (package == null) throw EpubException('EPUB parsing error: Invalid epub container');
 

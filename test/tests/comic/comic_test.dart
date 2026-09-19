@@ -29,7 +29,7 @@ void main() {
         ..addFile(ArchiveFile('volume/01.png', png.length, png))
         ..addFile(ArchiveFile('archive/01.png', png.length, png));
 
-      final book = parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive)!));
+      final book = parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive)));
 
       expect(book.pages.map((final page) => page.path).toList(), [
         'archive/01.png',
@@ -57,7 +57,7 @@ void main() {
         ..addFile(ArchiveFile('page.png', png.length, png))
         ..addFile(ArchiveFile('comicinfo.xml', 8, '<broken>'.codeUnits));
 
-      final book = parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive)!));
+      final book = parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive)));
 
       expect(book.metadata.title, 'Valid title');
     });
@@ -105,7 +105,7 @@ void main() {
   test('archives without pages throw', () {
     final archive = Archive()..addFile(ArchiveFile('note.txt', 3, 'abc'.codeUnits));
     expect(
-      () => parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive)!)),
+      () => parseComicBook(Uint8List.fromList(ZipEncoder().encode(archive))),
       throwsA(isA<ComicException>()),
     );
   });
@@ -136,7 +136,7 @@ Uint8List _buildCbz() {
     ..addFile(ArchiveFile('page10.png', png.length, png))
     ..addFile(ArchiveFile('page1.png', png.length, png))
     ..addFile(ArchiveFile('ComicInfo.xml', comicInfo.codeUnits.length, comicInfo.codeUnits));
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Builds a minimal RAR 4 archive with stored entries.

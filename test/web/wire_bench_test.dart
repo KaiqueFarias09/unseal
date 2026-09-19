@@ -89,11 +89,12 @@ Uint8List _utf8(final String value) => Uint8List.fromList(convert.utf8.encode(va
 Uint8List _zip(final List<(String, Uint8List, bool)> entries) {
   final archive = Archive();
   for (final (name, bytes, store) in entries) {
-    final file = ArchiveFile(name, bytes.length, bytes)..compress = !store;
+    final file = ArchiveFile(name, bytes.length, bytes)
+      ..compression = store ? CompressionType.none : CompressionType.deflate;
     archive.addFile(file);
   }
 
-  return Uint8List.fromList(ZipEncoder().encode(archive) ?? <int>[]);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 Uint8List buildWireBenchEpub() => _zip([

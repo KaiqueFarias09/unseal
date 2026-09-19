@@ -104,8 +104,8 @@ String? _fb2CoverId(final XmlElement root) {
 /// not inherit the root-level prefix declarations — fall back to the
 /// `href` local name in any namespace.
 String? _xlinkHref(final XmlElement element) {
-  return element.getAttribute('href', namespace: _xlinkNamespace) ??
-      element.getAttribute('href', namespace: '*') ??
+  return element.getAttribute('href', namespaceUri: _xlinkNamespace) ??
+      element.getAttribute('href', namespaceUri: '*') ??
       element.getAttribute('href');
 }
 

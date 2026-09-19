@@ -77,11 +77,7 @@ Iterable<({String name, Uint8List bytes})> _readArchiveFiles(
     for (final entry in archive.files) {
       if (!entry.isFile) continue;
 
-      final content = entry.content;
-      final data = content is Uint8List
-          ? Uint8List.sublistView(content)
-          : Uint8List.fromList(content as List<int>);
-      yield (name: entry.name, bytes: data);
+      yield (name: entry.name, bytes: Uint8List.sublistView(entry.content));
     }
 
     return;

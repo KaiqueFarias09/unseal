@@ -192,7 +192,7 @@ Uint8List _manyEntryZip(final int count) {
     archive.addFile(ArchiveFile('e$index.txt', 1, bytes)..lastModTime = 946684800);
   }
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 Uint8List _deepPathZip(final int depth) {
@@ -200,7 +200,7 @@ Uint8List _deepPathZip(final int depth) {
   final archive = Archive()
     ..addFile(ArchiveFile(name, 1, Uint8List.fromList('x'.codeUnits))..lastModTime = 946684800);
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Wraps [pdf] as an AZW4-style PalmDB payload (record 1 holds the

@@ -218,7 +218,7 @@ Uint8List _htmlzBytes() {
     ..addFile(ArchiveFile('cover.png', _png().length, _png()))
     ..addFile(ArchiveFile('metadata.opf', opf.length, utf8.encode(opf)))
     ..addFile(ArchiveFile('notes.txt', 5, utf8.encode('notes')));
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 Uint8List _png() => base64.decode(

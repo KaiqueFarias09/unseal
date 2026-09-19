@@ -49,7 +49,7 @@ void main() {
 
   test('rejects a package without content.xml', () {
     final archive = Archive()..addFile(ArchiveFile('meta.xml', 4, utf8.encode('<meta/>')));
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
 
     expect(
       () => parseOdtBook(bytes),
@@ -85,7 +85,7 @@ Uint8List _odtBytes({final String contentXml = _contentXml, final String metaXml
     ..addFile(ArchiveFile('styles.xml', _stylesXml.length, utf8.encode(_stylesXml)))
     ..addFile(ArchiveFile('Pictures/cover.png', _png.length, _png));
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 const _contentXml = '''<?xml version="1.0" encoding="UTF-8"?>

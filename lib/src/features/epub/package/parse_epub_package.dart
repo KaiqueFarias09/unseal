@@ -15,16 +15,16 @@ const _dcNamespace = 'http://purl.org/dc/elements/1.1/';
 EpubPackage parsePackage(final String xml) {
   final document = XmlDocument.parse(xml);
   final namespaceUri = document.rootElement.namespaceUri;
-  final package = document.findElements('package', namespace: namespaceUri).firstOrNull;
+  final package = document.findElements('package', namespaceUri: namespaceUri).firstOrNull;
   _validate(package, 'package');
   final version = package!.getAttribute('version')?.trim() ?? '2.0';
 
-  final metadataElement = package.findElements('metadata', namespace: namespaceUri).firstOrNull;
+  final metadataElement = package.findElements('metadata', namespaceUri: namespaceUri).firstOrNull;
   _validate(metadataElement, 'metadata');
 
-  final manifestElement = package.findElements('manifest', namespace: namespaceUri).firstOrNull;
+  final manifestElement = package.findElements('manifest', namespaceUri: namespaceUri).firstOrNull;
   _validate(manifestElement, 'manifest');
-  final spineElement = package.findElements('spine', namespace: namespaceUri).firstOrNull;
+  final spineElement = package.findElements('spine', namespaceUri: namespaceUri).firstOrNull;
   _validate(spineElement, 'spine');
 
   final uniqueIdentifierProperty = package.getAttribute('unique-identifier') ?? 'uuid_id';
@@ -32,7 +32,7 @@ EpubPackage parsePackage(final String xml) {
   final manifestItems = _parseManifestItems(manifestElement!, namespaceUri);
   final spine = _parseSpine(spineElement!);
   final xmlns = package.getAttribute('xmlns');
-  final guideElement = package.findElements('guide', namespace: namespaceUri).firstOrNull;
+  final guideElement = package.findElements('guide', namespaceUri: namespaceUri).firstOrNull;
   final guide = guideElement != null ? _parseGuide(guideElement) : null;
   if (_isEpub2(version)) {
     return Epub2Package(
@@ -171,7 +171,7 @@ _EpubCommonMetadata _readCommonMetadata(
 List<XmlElement> _metadataMetaElements(final XmlElement metadataElement) {
   return <XmlElement>[
     // Series and sort metadata can use either the OPF namespace or no namespace.
-    ...metadataElement.findElements('meta', namespace: _opfNamespace),
+    ...metadataElement.findElements('meta', namespaceUri: _opfNamespace),
     ...metadataElement.findElements('meta'),
   ];
 }
@@ -261,9 +261,11 @@ String? _coverId(final XmlElement metadataElement) {
   final XmlElement metadataElement,
   final List<XmlElement> metaElements,
 ) {
-  final titleElement = metadataElement.findElements('title', namespace: _dcNamespace).firstOrNull;
+  final titleElement = metadataElement
+      .findElements('title', namespaceUri: _dcNamespace)
+      .firstOrNull;
   final creatorElement = metadataElement
-      .findElements('creator', namespace: _dcNamespace)
+      .findElements('creator', namespaceUri: _dcNamespace)
       .firstOrNull;
 
   return (
@@ -409,7 +411,7 @@ List<ManifestItem> _parseManifestItems(
   final XmlElement manifestElement,
   final String? namespaceUri,
 ) {
-  return manifestElement.findElements('item', namespace: namespaceUri).map((final itemElement) {
+  return manifestElement.findElements('item', namespaceUri: namespaceUri).map((final itemElement) {
     return ManifestItem(
       path: _requiredAttribute(itemElement, 'href', elementName: 'manifest item'),
       id: _requiredAttribute(itemElement, 'id', elementName: 'manifest item'),
@@ -472,7 +474,10 @@ String? _fileAsOf(final XmlElement? element, final List<XmlElement> metaElements
 /// Text of the `dc:contributor` carrying the `bkp` (book producer)
 /// role, either as an attribute or as a `marc:relators` refines.
 String? _bookProducerOf(final XmlElement metadataElement, final List<XmlElement> metaElements) {
-  for (final contributor in metadataElement.findElements('contributor', namespace: _dcNamespace)) {
+  for (final contributor in metadataElement.findElements(
+    'contributor',
+    namespaceUri: _dcNamespace,
+  )) {
     final role = _opfAttribute(contributor, 'role');
     final isProducer = role?.toLowerCase() == 'bkp' || _refinesRoleIsBkp(contributor, metaElements);
     if (!isProducer) continue;
@@ -516,7 +521,7 @@ String _requiredAttribute(
 }
 
 Iterable<XmlElement> _dcElements(final XmlElement metadata, final String localName) {
-  final namespaced = metadata.findElements(localName, namespace: _dcNamespace);
+  final namespaced = metadata.findElements(localName, namespaceUri: _dcNamespace);
   if (namespaced.isNotEmpty) return namespaced;
 
   return metadata.childElements.where((final element) => element.name.local == localName);
@@ -527,7 +532,7 @@ Iterable<XmlElement> _dcElements(final XmlElement metadata, final String localNa
 /// Real-world files spell these attributes `opf:file-as`, `ns4:role`,
 /// plain `file-as`, ... so the prefix must not matter.
 String? _opfAttribute(final XmlElement element, final String localName) {
-  final namespaced = element.getAttribute(localName, namespace: _opfNamespace);
+  final namespaced = element.getAttribute(localName, namespaceUri: _opfNamespace);
   if (namespaced != null && namespaced.trim().isNotEmpty) return namespaced.trim();
 
   final plain = element.getAttribute(localName);

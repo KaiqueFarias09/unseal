@@ -309,17 +309,21 @@ void _addRoundtripBenchmark(
   for (final target in targets) {
     book.buildEpubCfi(contentIndex: target.contentIndex, offsetInText: target.offset);
   }
-  group.add('roundtrip build → parse → resolve · cached', () {
-    Object? last;
-    for (final target in targets) {
-      final cfi = EpubCfi.parse(
-        book.buildEpubCfi(contentIndex: target.contentIndex, offsetInText: target.offset),
-      );
-      last = book.resolveCfi(cfi);
-    }
+  group.add(
+    'roundtrip build → parse → resolve · cached',
+    () {
+      Object? last;
+      for (final target in targets) {
+        final cfi = EpubCfi.parse(
+          book.buildEpubCfi(contentIndex: target.contentIndex, offsetInText: target.offset),
+        );
+        last = book.resolveCfi(cfi);
+      }
 
-    return last;
-  }, note: '${targets.length} positions, section documents cached');
+      return last;
+    },
+    note: '${targets.length} positions, section documents cached',
+  );
 }
 
 /// The longest book-level CFI buildable from the fixture, found by

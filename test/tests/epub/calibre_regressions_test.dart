@@ -241,7 +241,7 @@ List<int> _entryBytes(final Object value, final String path) {
 }
 
 Uint8List _zip(final Map<String, Object> entries) {
-  return Uint8List.fromList(ZipEncoder().encode(_archive(entries))!);
+  return Uint8List.fromList(ZipEncoder().encode(_archive(entries)));
 }
 
 String _container(final String rootfiles) {

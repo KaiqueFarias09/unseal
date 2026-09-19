@@ -74,7 +74,7 @@ Uint8List _zip(final Map<String, List<int>> entries) {
     archive.addFile(ArchiveFile(entry.key, bytes.length, bytes)..lastModTime = 946684800);
   }
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 Uint8List _text(final String value) => Uint8List.fromList(utf8.encode(value));

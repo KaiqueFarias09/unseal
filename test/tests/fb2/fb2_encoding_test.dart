@@ -200,9 +200,10 @@ void main() {
 
   group('zipped cp1251 document', () {
     test('entry bytes are decoded with the declared encoding', () {
-      final entry = ArchiveFile('book.fb2', _cp1251Bytes.length, _cp1251Bytes)..compress = true;
+      final entry = ArchiveFile('book.fb2', _cp1251Bytes.length, _cp1251Bytes)
+        ..compression = CompressionType.deflate;
       final archive = Archive()..addFile(entry);
-      final zip = Uint8List.fromList(ZipEncoder().encode(archive) ?? <int>[]);
+      final zip = Uint8List.fromList(ZipEncoder().encode(archive));
 
       final book = parseFb2Book(zip);
       expect(book.metadata.title, pushkinTitle);

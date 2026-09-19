@@ -21,7 +21,7 @@ void main() {
         ArchiveFile('bomb.bin', zeros.length, Uint8List.fromList(const ZLibEncoder().encode(zeros)))
           ..lastModTime = 946684800,
       );
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
 
     expect(
       () => Unseal.parse(bytes),
@@ -40,7 +40,7 @@ void main() {
   test('forged tiny size cannot bypass the streaming expansion cap', () {
     final zeros = Uint8List(34 << 20);
     final archive = Archive()..addFile(ArchiveFile('forged.bin', zeros.length, zeros));
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
     final central = _signatureOffset(bytes, const <int>[0x50, 0x4B, 0x01, 0x02]);
     _writeUint32At(bytes, 22, 1); // local-header uncompressed size
     _writeUint32At(bytes, central + 24, 1); // central-directory uncompressed size
@@ -56,7 +56,7 @@ void main() {
         ArchiveFile('meta.xml', 29, Uint8List.fromList('<meta><title>t</title></meta>'.codeUnits))
           ..lastModTime = 946684800,
       );
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
 
     // A small legitimate zip book still parses (text-backed zip book)
     // — the caps only reject hostile declared expansion.

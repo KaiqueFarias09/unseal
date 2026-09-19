@@ -18,7 +18,7 @@ void main() {
         ArchiveFile('book.txt', 12, Uint8List.fromList('hello Moderna'.codeUnits))
           ..lastModTime = 946684800,
       );
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
     // Corrupt the central directory signature region near the end.
     final corrupted = Uint8List.fromList(bytes);
     for (var index = bytes.length - 40; index < bytes.length - 20; index++) {
@@ -58,7 +58,7 @@ void main() {
         ArchiveFile('book.txt', 512, Uint8List.fromList(('deterministic chapter. ' * 24).codeUnits))
           ..lastModTime = 946684800,
       );
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
     // Replace the 2-byte zlib header of the first entry's payload
     // (30-byte local header + 8-byte name) with an invalid stream
     // marker so inflation itself fails.

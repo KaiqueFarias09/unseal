@@ -226,5 +226,5 @@ Uint8List _docxBytes(
     archive.addFile(ArchiveFile(entry.key, entry.value.length, entry.value));
   }
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }

@@ -33,7 +33,7 @@ void main() {
       )
       ..addFile(ArchiveFile('first.cb7', first.length, first))
       ..addFile(ArchiveFile('second.cbz', second.length, second));
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
 
     final book = await parseCbcBook(bytes);
 
@@ -46,7 +46,7 @@ void main() {
 
   test('reports a missing CBC collection manifest', () async {
     final archive = Archive()..addFile(ArchiveFile('book.cb7', 1, [1]));
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
 
     expect(() => parseCbcBook(bytes), throwsA(isA<InvalidCbcCollectionException>()));
   });
@@ -68,7 +68,7 @@ Future<Uint8List> _cb7Bytes() async {
 Uint8List _cbzBytes() {
   final archive = Archive()..addFile(ArchiveFile('page1.png', _png.length, _png));
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 const List<int> _png = <int>[

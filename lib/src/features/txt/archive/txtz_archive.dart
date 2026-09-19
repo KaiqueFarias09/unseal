@@ -412,14 +412,7 @@ String _validatedArchivePath(final String rawPath) {
   return segments.join('/');
 }
 
-Uint8List _entryBytes(final ArchiveFile entry) {
-  final content = entry.content;
-  if (content is Uint8List) return Uint8List.sublistView(content);
-  if (content is List<int>) return Uint8List.fromList(content);
-  if (content is String) return Uint8List.fromList(convert.utf8.encode(content));
-
-  throw InvalidBookException('TXTZ entry "${entry.name}" has unsupported content.');
-}
+Uint8List _entryBytes(final ArchiveFile entry) => Uint8List.sublistView(entry.content);
 
 _TxtzArchiveFile? _selectMetadataFile(final List<_TxtzArchiveFile> files) {
   final candidates = files.where((final file) => file.name.toLowerCase() == 'metadata.opf').toList()

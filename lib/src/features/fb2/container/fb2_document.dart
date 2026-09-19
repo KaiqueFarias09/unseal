@@ -27,14 +27,7 @@ final class _Fb2Source {
   }
 
   /// Selects the FB2 XML stored in an already decoded archive [entry].
-  factory _Fb2Source.fromArchive(final ArchiveFile entry) {
-    final content = entry.content;
-    if (content is! List<int>) {
-      throw const Fb2Exception('FB2 archive entry does not contain bytes.');
-    }
-
-    return _Fb2Source._(content);
-  }
+  factory _Fb2Source.fromArchive(final ArchiveFile entry) => _Fb2Source._(entry.content);
 
   /// Raw bytes of the selected FB2 XML document.
   final List<int> bytes;

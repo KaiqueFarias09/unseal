@@ -1,11 +1,10 @@
 name: unseal
-version: 1.0.0
+version: 1.1.0
 repository: https://github.com/KaiqueFarias09/unseal
 description: >-
-  Pure Dart book parsing library. Extract metadata, covers, content,
-  stylesheets, fonts and navigation from EPUB 2.0/3.0, MOBI, AZW3
-  (KF8), FB2, TXT/TXZ, HTML/HTMLZ, DOCX, AZW4, CBZ/CBR/CB7/CBC,
-  ODT and PDF books.
+  Pure Dart book parsing: extract metadata, covers, content, styles,
+  fonts and navigation from EPUB, MOBI, AZW3, FB2, DOCX, ODT,
+  CBZ/CBR and PDF.
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
@@ -29,11 +28,11 @@ dev_dependencies:
   test: ^1.16.7
 
 dependencies:
-  archive: ^3.1.6
+  archive: ^4.3.0
   collection: ^1.15.0
   html: ^0.15.7
-  koni_archive: ^0.7.0
+  koni_archive: ^0.9.0
   path: ^1.8.1
   pointycastle: ^4.0.0
   web: ^1.1.0
-  xml: ^6.0.1
+  xml: ^7.0.1

@@ -119,7 +119,9 @@ Uint8List _syntheticEpub({required final String language, final String spineAttr
 
   Uint8List utf8(final String value) => Uint8List.fromList(convert.utf8.encode(value));
   final archive = Archive()
-    ..addFile(ArchiveFile('mimetype', 20, utf8('application/epub+zip'))..compress = false)
+    ..addFile(
+      ArchiveFile('mimetype', 20, utf8('application/epub+zip'))..compression = CompressionType.none,
+    )
     ..addFile(
       ArchiveFile(
         'META-INF/container.xml',
@@ -131,5 +133,5 @@ Uint8List _syntheticEpub({required final String language, final String spineAttr
     ..addFile(ArchiveFile('nav.xhtml', utf8(nav).length, utf8(nav)))
     ..addFile(ArchiveFile('ch1.xhtml', utf8(chapter).length, utf8(chapter)));
 
-  return Uint8List.fromList(ZipEncoder().encode(archive) ?? <int>[]);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }

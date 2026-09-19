@@ -105,7 +105,8 @@ Uint8List updateEpubMetadata(final Uint8List bytes, final EpubMetadataUpdate upd
   // EPUB requires the uncompressed `mimetype` entry to come first.
   for (final file in archive.files) {
     if (file.isFile && _samePath(file.name, 'mimetype')) {
-      final mimetype = ArchiveFile(file.name, file.size, file.content)..compress = false;
+      final mimetype = ArchiveFile(file.name, file.size, file.content)
+        ..compression = CompressionType.none;
       out.addFile(mimetype);
       break;
     }
@@ -125,9 +126,6 @@ Uint8List updateEpubMetadata(final Uint8List bytes, final EpubMetadataUpdate upd
   if (!rootWritten) out.addFile(updatedEntry);
 
   final encoded = ZipEncoder().encode(out);
-  if (encoded == null) {
-    throw const FormatException('EPUB metadata writing error: could not encode the zip.');
-  }
 
   return Uint8List.fromList(encoded);
 }
@@ -160,8 +158,8 @@ void _applyAuthorUpdate(final XmlElement metadata, final EpubMetadataUpdate upda
     for (final author in update.authors!) {
       metadata.children.add(
         XmlElement(
-          XmlName('dc:creator'),
-          [XmlAttribute(XmlName('opf:file-as'), authorToAuthorSort(author))],
+          XmlName.qualified('dc:creator'),
+          [XmlAttribute(XmlName.qualified('opf:file-as'), authorToAuthorSort(author))],
           [XmlText(author)],
         ),
       );
@@ -186,7 +184,9 @@ void _applyPublicationUpdate(final XmlElement metadata, final EpubMetadataUpdate
   if (update.subjects != null) {
     _removeDcElements(metadata, 'subject');
     for (final subject in update.subjects!) {
-      metadata.children.add(XmlElement(XmlName('dc:subject'), const [], [XmlText(subject)]));
+      metadata.children.add(
+        XmlElement(XmlName.qualified('dc:subject'), const [], [XmlText(subject)]),
+      );
     }
   }
 }
@@ -212,7 +212,7 @@ void _setDcElement(final XmlElement metadata, final String name, final String va
     return;
   }
 
-  metadata.children.add(XmlElement(XmlName('dc:$name'), const [], [XmlText(value)]));
+  metadata.children.add(XmlElement(XmlName.qualified('dc:$name'), const [], [XmlText(value)]));
 }
 
 void _removeDcElements(final XmlElement metadata, final String name) {
@@ -236,9 +236,9 @@ void _setNamedMeta(final XmlElement metadata, final String name, final String va
     }
   }
   metadata.children.add(
-    XmlElement(XmlName('meta'), [
-      XmlAttribute(XmlName('name'), name),
-      XmlAttribute(XmlName('content'), value),
+    XmlElement(XmlName.qualified('meta'), [
+      XmlAttribute(XmlName.qualified('name'), name),
+      XmlAttribute(XmlName.qualified('content'), value),
     ]),
   );
 }

@@ -92,7 +92,7 @@ void main() {
       // The uncompressed mimetype entry must stay first, as EPUB
       // requires.
       expect(afterNames.first, 'mimetype');
-      expect(after.files.first.compress, isFalse);
+      expect(after.files.first.compression, CompressionType.none);
 
       // Content entries keep their bytes.
       final beforeCover = before.files.firstWhere((final f) => f.name.endsWith('.jpg'));
@@ -101,8 +101,8 @@ void main() {
     });
 
     test('throws on archives without an OPF root', () {
-      final archive = Archive()..addFile(ArchiveFile('other.txt', 5, 'hello'));
-      final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+      final archive = Archive()..addFile(ArchiveFile.string('other.txt', 'hello'));
+      final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
       expect(
         () => updateEpubMetadata(bytes, const EpubMetadataUpdate(title: 'X')),
         throwsA(anyOf(isA<FormatException>(), isA<EpubException>())),

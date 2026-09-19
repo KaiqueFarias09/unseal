@@ -144,7 +144,7 @@ Uint8List buildZipBombEpub({final int targetBytes = 64 << 20}) {
         ..lastModTime = 946684800,
     );
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// FB2 document nesting [depth] XML elements deep — probes XML tree

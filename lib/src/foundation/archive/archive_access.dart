@@ -40,6 +40,13 @@ Archive decodeBookZip(final Uint8List bytes) {
   assertZipExpansionBounded(bytes);
   try {
     final decoded = ZipDecoder().decodeBytes(bytes);
+    if (decoded.files.isEmpty) {
+      // archive 4 silently yields an empty archive when the EOCD or the
+      // central directory cannot be read; a book container never is.
+      throw const InvalidBookException(
+        'Zip container has a missing or unreadable central directory.',
+      );
+    }
     final archive = Archive()..comment = decoded.comment;
     final actualTotalLimit = math.min(
       maxZipTotalUncompressedBytes,
@@ -47,11 +54,11 @@ Archive decodeBookZip(final Uint8List bytes) {
     );
     var actualTotal = 0;
     for (final file in decoded.files) {
-      if (file.compressionType != ArchiveFile.STORE &&
-          file.compressionType != ArchiveFile.DEFLATE) {
+      final compression = file.compression;
+      if (compression != CompressionType.none && compression != CompressionType.deflate) {
         throw InvalidBookException(
           'Zip entry ${file.name} uses unsupported compression method '
-          '${file.compressionType}.',
+          '$compression.',
         );
       }
       final remainingTotal = actualTotalLimit - actualTotal;
@@ -61,23 +68,29 @@ Archive decodeBookZip(final Uint8List bytes) {
       final output = _BoundedOutputStream(math.min(maxZipEntryUncompressedBytes, remainingTotal));
       final rawContent = file.rawContent;
       if (rawContent == null) {
-        throw InvalidBookException('Zip entry ${file.name} has no readable payload.');
+        if (file.isFile) {
+          throw InvalidBookException('Zip entry ${file.name} has no readable payload.');
+        }
+        // Directory records carry no payload; keep them as empty entries so
+        // containers that store them explicitly still parse.
+        archive.addFile(ArchiveFile(file.name, 0, Uint8List(0))..isFile = false);
+        continue;
       }
-      if (file.compressionType == ArchiveFile.DEFLATE) {
-        Inflate.stream(rawContent, output);
+      final rawStream = rawContent.getStream(decompress: false);
+      if (compression == CompressionType.deflate) {
+        Inflate.stream(rawStream, output: output);
       } else {
-        output.writeInputStream(rawContent);
+        output.writeStream(rawStream);
       }
-      final content = Uint8List.fromList(output.getBytes());
+      final content = output.getBytes();
       if (file.crc32 != null && getCrc32(content) != file.crc32) {
         throw InvalidBookException('Zip entry ${file.name} has an invalid checksum.');
       }
       actualTotal += content.length;
-      final materialized = ArchiveFile(file.name, content.length, content)
+      final materialized = ArchiveFile.bytes(file.name, content)
         ..mode = file.mode
         ..isFile = file.isFile
-        ..isSymbolicLink = file.isSymbolicLink
-        ..nameOfLinkedFile = file.nameOfLinkedFile
+        ..symbolicLink = file.symbolicLink
         ..crc32 = file.crc32
         ..comment = file.comment
         ..lastModTime = file.lastModTime;
@@ -92,10 +105,19 @@ Archive decodeBookZip(final Uint8List bytes) {
   }
 }
 
+/// OutputStream that aborts, with a typed error, the moment a write would
+/// push the entry past [maxBytes] — bounding zip-bomb expansion DURING
+/// inflation instead of after it.
 final class _BoundedOutputStream extends OutputStream {
-  _BoundedOutputStream(this.maxBytes) : super(size: math.min(maxBytes, 0x8000));
+  _BoundedOutputStream(this.maxBytes)
+    : _buffer = Uint8List(math.min(maxBytes, 0x8000)),
+      super(byteOrder: ByteOrder.littleEndian);
 
+  Uint8List _buffer;
   final int maxBytes;
+
+  @override
+  int length = 0;
 
   void _ensureCapacity(final int additionalBytes) {
     if (additionalBytes < 0 || length + additionalBytes > maxBytes) {
@@ -103,22 +125,73 @@ final class _BoundedOutputStream extends OutputStream {
     }
   }
 
+  void _grow(final int required) {
+    if (required <= _buffer.length) return;
+    var capacity = _buffer.length;
+    while (capacity < required) {
+      capacity = math.min(maxBytes, capacity * 2);
+    }
+    final grown = Uint8List(capacity);
+    grown.setRange(0, length, _buffer);
+    _buffer = grown;
+  }
+
   @override
   void writeByte(final int value) {
     _ensureCapacity(1);
-    super.writeByte(value);
+    _grow(length + 1);
+    _buffer[length++] = value;
   }
 
   @override
-  void writeBytes(final List<int> bytes, [final int? len]) {
-    _ensureCapacity(len ?? bytes.length);
-    super.writeBytes(bytes, len);
+  void writeBytes(final List<int> bytes, {final int? length}) {
+    final count = length ?? bytes.length;
+    _ensureCapacity(count);
+    _grow(this.length + count);
+    _buffer.setRange(this.length, this.length + count, bytes);
+    this.length += count;
   }
 
   @override
-  void writeInputStream(final InputStreamBase stream) {
+  void writeStream(final InputStream stream) {
     _ensureCapacity(stream.length);
-    super.writeInputStream(stream);
+    _grow(length + stream.length);
+    _buffer.setRange(length, length + stream.length, stream.toUint8List());
+    length += stream.length;
+  }
+
+  @override
+  void writeBackReference(final int distance, final int count) {
+    _ensureCapacity(count);
+    _grow(length + count);
+    final source = length - distance;
+    if (distance >= count) {
+      _buffer.setRange(length, length + count, _buffer, source);
+    } else {
+      var from = source;
+      var to = length;
+      final end = length + count;
+      while (to < end) {
+        _buffer[to++] = _buffer[from++];
+      }
+    }
+    length += count;
+  }
+
+  @override
+  void clear() => length = 0;
+
+  @override
+  void flush() {}
+
+  @override
+  Uint8List subset(int start, [int? end]) {
+    if (start < 0) start = length + start;
+
+    end ??= length;
+    if (end < 0) end = length + end;
+
+    return Uint8List.view(_buffer.buffer, _buffer.offsetInBytes + start, end - start);
   }
 }
 
@@ -158,6 +231,9 @@ void assertZipExpansionBounded(final Uint8List bytes) {
 (int, int)? _declaredUncompressed(final Uint8List bytes) {
   const eocdSignature = 0x06054b50;
   const centralSignature = 0x02014b50;
+  // ZIP compression methods: 0 = stored, 8 = deflate.
+  const storeMethod = 0;
+  const deflateMethod = 8;
   const maxComment = 65535 + 22;
   final eocdStart = bytes.length - maxComment < 0 ? 0 : bytes.length - maxComment;
   var eocd = -1;
@@ -186,7 +262,7 @@ void assertZipExpansionBounded(final Uint8List bytes) {
     if ((flags & 0x1) != 0) {
       throw InvalidBookException('Encrypted zip entries are not supported.');
     }
-    if (compressionMethod != ArchiveFile.STORE && compressionMethod != ArchiveFile.DEFLATE) {
+    if (compressionMethod != storeMethod && compressionMethod != deflateMethod) {
       throw InvalidBookException(
         'Zip entry uses unsupported compression method $compressionMethod.',
       );
@@ -266,11 +342,6 @@ String normalizeZipPath(final String zipPath) {
   return segments.join('/');
 }
 
-/// Returns archive entry content as a [Uint8List] without copying when the archive already decoded
-/// it into one.
-Uint8List contentBytes(final ArchiveFile entry) {
-  final content = entry.content;
-  if (content is Uint8List) return Uint8List.sublistView(content);
-
-  return Uint8List.fromList(content as List<int>);
-}
+/// Returns archive entry content as a [Uint8List] without copying; the
+/// archive decodes entries into typed byte lists.
+Uint8List contentBytes(final ArchiveFile entry) => Uint8List.sublistView(entry.content);
