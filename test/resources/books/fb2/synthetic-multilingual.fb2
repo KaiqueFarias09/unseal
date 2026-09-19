@@ -4,18 +4,18 @@
     <title-info>
       <genre>reference</genre>
       <author>
-        <first-name>eLivre</first-name>
+        <first-name>unseal</first-name>
         <last-name>contributors</last-name>
       </author>
-      <book-title>eLivre Multilingual Parser Fixture</book-title>
+      <book-title>unseal Multilingual Parser Fixture</book-title>
       <annotation><p>Synthetic test data with no third-party creative content.</p></annotation>
       <lang>mul</lang>
     </title-info>
     <document-info>
-      <author><nickname>eLivre contributors</nickname></author>
+      <author><nickname>unseal contributors</nickname></author>
       <program-used>hand-authored deterministic fixture</program-used>
       <date value="2026-09-06">2026-09-06</date>
-      <id>urn:elivre:test:fb2:multilingual</id>
+      <id>urn:unseal:test:fb2:multilingual</id>
       <version>1.0</version>
     </document-info>
   </description>

@@ -19,7 +19,7 @@ localization, reading-direction, accessibility, and media-overlay testing.
 
 1. Do not edit downloaded publications in place. Add a derived fixture under a different name and record
    its relationship to the source.
-2. Verify every new or refreshed file with its container checker, SHA-256, and the eLivre
+2. Verify every new or refreshed file with its container checker, SHA-256, and the unseal
    metadata/parser tests.
 3. Keep attribution and license notices with redistributed fixtures.
 4. Project Gutenberg status statements apply to the United States. The selected Gutenberg works
@@ -83,7 +83,7 @@ manifest.
 
 `REAL-CBR-IA-1909` is a valid RAR 4 archive whose 24 JPEG page entries are
 visible to system archive tools. They use ordinary non-solid RAR 2.9/3.x
-compression, which the eLivre CBR parser decodes. RAR VM filters, PPMd blocks,
+compression, which the unseal CBR parser decodes. RAR VM filters, PPMd blocks,
 solid entries, and encrypted entries remain explicitly unsupported and are
 reported as compressed-entry limitations rather than silently returning pages.
 

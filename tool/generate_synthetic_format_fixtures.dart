@@ -16,7 +16,7 @@ Future<void> main() async {
   File('${directory.path}/synthetic-pages.cbz').writeAsBytesSync(_buildCbz(), flush: true);
   File('${directory.path}/synthetic-stored-pages.cbr').writeAsBytesSync(_buildCbr(), flush: true);
 
-  _writeText('txt/synthetic.txt', '''eLivre TXT Fixture
+  _writeText('txt/synthetic.txt', '''unseal TXT Fixture
 
 
 Ada Lovelace
@@ -25,7 +25,7 @@ This is a deterministic plain-text fixture.
 It keeps paragraph boundaries and Unicode: café, 漢字.
 ''');
   _writeText('html/synthetic.html', '''<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>eLivre HTML Fixture</title></head>
+<html lang="en"><head><meta charset="utf-8"><title>unseal HTML Fixture</title></head>
 <body><h1>HTML chapter</h1><p>A deterministic HTML fixture.</p></body></html>
 ''');
   _writeBytes('txt/synthetic.txtz', _buildTxtz());
@@ -67,7 +67,7 @@ Uint8List _zip(final Map<String, List<int>> entries) {
 Uint8List _buildTxtz() {
   const metadata = '''<?xml version="1.0" encoding="utf-8"?>
 <package><metadata>
-  <title>eLivre TXTZ Fixture</title>
+  <title>unseal TXTZ Fixture</title>
   <creator>Ada Lovelace</creator>
   <language>en</language>
   <subject>text parsing</subject>
@@ -96,7 +96,7 @@ Uint8List _buildHtmlz() {
 <body><h1>HTMLZ chapter</h1><p>Archive-backed HTML.</p></body></html>''';
   const metadata = '''<?xml version="1.0" encoding="utf-8"?>
 <package><metadata>
-  <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">eLivre HTMLZ Fixture</dc:title>
+  <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">unseal HTMLZ Fixture</dc:title>
   <dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">Grace Hopper</dc:creator>
   <dc:language xmlns:dc="http://purl.org/dc/elements/1.1/">en</dc:language>
 </metadata><manifest>
@@ -124,7 +124,7 @@ Uint8List _buildDocx() {
   const core = '''<?xml version="1.0" encoding="UTF-8"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
     xmlns:dc="http://purl.org/dc/elements/1.1/">
-  <dc:title>eLivre DOCX Fixture</dc:title>
+  <dc:title>unseal DOCX Fixture</dc:title>
   <dc:creator>Ada Lovelace</dc:creator>
   <dc:language>en</dc:language>
 </cp:coreProperties>''';
@@ -155,7 +155,7 @@ Uint8List _buildOdt() {
     xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
     xmlns:dc="http://purl.org/dc/elements/1.1/"
     xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0">
-  <office:meta><dc:title>eLivre ODT Fixture</dc:title>
+  <office:meta><dc:title>unseal ODT Fixture</dc:title>
     <meta:initial-creator>Grace Hopper</meta:initial-creator>
     <dc:language>en</dc:language>
   </office:meta>
@@ -173,8 +173,8 @@ Future<Uint8List> _buildCb7() async {
   final writer = koni.Archive.create(sink, format: const koni.SevenZWriteFormat());
   await writer.addBytes(koni.ArchiveEntrySpec(path: '001/page1.png'), mobi_fixtures.tinyPng);
   const comicInfo =
-      '<ComicInfo><Title>eLivre CB7 Fixture</Title>'
-      '<Writer>eLivre contributors</Writer><LanguageISO>mul</LanguageISO></ComicInfo>';
+      '<ComicInfo><Title>unseal CB7 Fixture</Title>'
+      '<Writer>unseal contributors</Writer><LanguageISO>mul</LanguageISO></ComicInfo>';
 
   await writer.addBytes(
     koni.ArchiveEntrySpec(path: 'ComicInfo.xml'),
@@ -198,10 +198,10 @@ Uint8List _buildCbz() {
   const comicInfo = '''
 <?xml version="1.0"?>
 <ComicInfo>
-  <Title>eLivre Synthetic Comic</Title>
+  <Title>unseal Synthetic Comic</Title>
   <Series>Parser Fixtures</Series>
   <Number>1</Number>
-  <Writer>eLivre contributors</Writer>
+  <Writer>unseal contributors</Writer>
   <LanguageISO>mul</LanguageISO>
   <Summary>Generated test data with no third-party creative content.</Summary>
 </ComicInfo>

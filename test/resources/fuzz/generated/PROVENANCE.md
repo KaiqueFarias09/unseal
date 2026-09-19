@@ -51,7 +51,7 @@ Titles and authors inside these fixtures are generated nonsense words
 Validation performed when this corpus was assembled (all still asserted
 by the smoke test where the library is the oracle):
 
-- every book-shaped fixture parses via `BookReader.parseBook` with the
+- every book-shaped fixture parses via `Unseal.parse` with the
   expected synthetic metadata;
 - every PDF passes `qpdf --check` and extracts its text through pypdf,
   including the LZW stream (pypdf decodes it, proving encoder
