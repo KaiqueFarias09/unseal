@@ -53,8 +53,9 @@ Future<void> main(final List<String> arguments) async {
 
   _checkSchema(baseline, paths[0]);
   _checkSchema(current, paths[1]);
-  _rejectDuplicates(baseline, paths[0]);
-  _rejectDuplicates(current, paths[1]);
+  if (!_rejectDuplicates(baseline, paths[0]) || !_rejectDuplicates(current, paths[1])) {
+    return;
+  }
 
   stdout.writeln(
     'baseline : ${baseline['suite']} @ ${(baseline['commit'] as String?)?.substring(0, 8)} '
@@ -182,8 +183,10 @@ Future<void> _runAb(final List<String> arguments) async {
       exitCode = 2;
       return;
     }
-    _absorb('$workdir/ab/round$round-a.json', first, samplesA, samplesB);
-    _absorb('$workdir/ab/round$round-b.json', second, samplesA, samplesB);
+    if (!_absorb('$workdir/ab/round$round-a.json', first, samplesA, samplesB) ||
+        !_absorb('$workdir/ab/round$round-b.json', second, samplesA, samplesB)) {
+      return;
+    }
   }
 
   _printVarianceTable(samplesA, samplesB, filter);
@@ -209,7 +212,7 @@ bool _runSide(final String round, final String side, final String command, final
   return true;
 }
 
-void _absorb(
+bool _absorb(
   final String path,
   final String side,
   final Map<String, List<double>> samplesA,
@@ -217,13 +220,16 @@ void _absorb(
 ) {
   final report = _load(path);
   _checkSchema(report, path);
-  _rejectDuplicates(report, path);
+  if (!_rejectDuplicates(report, path)) {
+    return false;
+  }
   for (final record in (report['results'] as List<Object?>?) ?? <Object?>[]) {
     final row = record! as Map<String, Object?>;
     final scenario = row['scenario']! as String;
     final micros = ((row['medianMicros'] as num?) ?? 0).toDouble();
     (side == 'a' ? samplesA : samplesB).putIfAbsent(scenario, () => <double>[]).add(micros);
   }
+  return true;
 }
 
 void _printVarianceTable(
@@ -321,7 +327,7 @@ void _checkSchema(final Map<String, Object?> report, final String path) {
 /// A duplicate suite+scenario+fixtureId row makes joins ambiguous —
 /// most often two runs appended into one file — and is rejected instead
 /// of silently picking the last one.
-void _rejectDuplicates(final Map<String, Object?> report, final String path) {
+bool _rejectDuplicates(final Map<String, Object?> report, final String path) {
   final seen = <String, String>{};
   for (final record in (report['results'] as List<Object?>?) ?? <Object?>[]) {
     final row = record! as Map<String, Object?>;
@@ -333,10 +339,11 @@ void _rejectDuplicates(final Map<String, Object?> report, final String path) {
         'fixtureId=${row['fixtureId']}) — split the reports before comparing.',
       );
       exitCode = 64;
-      return;
+      return false;
     }
     seen[key] = path;
   }
+  return true;
 }
 
 Map<String, Map<String, Object?>> _index(final Map<String, Object?> report, final String? filter) {
