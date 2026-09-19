@@ -83,6 +83,7 @@ Archive decodeBookZip(final Uint8List bytes) {
         ..lastModTime = file.lastModTime;
       archive.addFile(materialized);
     }
+
     return archive;
   } on UnsealException {
     rethrow;
@@ -129,7 +130,6 @@ void assertZipExpansionBounded(final Uint8List bytes) {
   final declared = _declaredUncompressed(bytes);
   if (declared == null) return;
   final (total, largest) = declared;
-
   if (total > maxZipTotalUncompressedBytes) {
     throw InvalidBookException(
       'Zip container declares $total uncompressed bytes, above the '
@@ -167,8 +167,8 @@ void assertZipExpansionBounded(final Uint8List bytes) {
       break;
     }
   }
-  if (eocd < 0) return null;
 
+  if (eocd < 0) return null;
   var entryCount = _readUint16(bytes, eocd + 10);
   var cursor = _readUint32(bytes, eocd + 16);
   final directoryEnd =
@@ -203,16 +203,19 @@ void assertZipExpansionBounded(final Uint8List bytes) {
     cursor += 46 + nameLength + extraLength + commentLength;
     entryCount--;
   }
+
   return (total, largest);
 }
 
 int _readUint16(final Uint8List bytes, final int offset) {
   if (offset < 0 || offset + 2 > bytes.length) return 0;
+
   return ByteData.sublistView(bytes, offset, offset + 2).getUint16(0, Endian.little);
 }
 
 int _readUint32(final Uint8List bytes, final int offset) {
   if (offset < 0 || offset + 4 > bytes.length) return 0;
+
   return ByteData.sublistView(bytes, offset, offset + 4).getUint32(0, Endian.little);
 }
 

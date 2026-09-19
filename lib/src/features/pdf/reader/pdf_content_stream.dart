@@ -867,7 +867,6 @@ final class _ContentLexer {
 
     final keyword = String.fromCharCodes(bytes, start, _pos);
     if (keyword == 'BI') _skipInlineImage();
-
     if (keyword.isEmpty && _pos < bytes.length) {
       // A delimiter the token shapes above cannot classify (a stray
       // `>` from a mis-nested marked-content dictionary, a `)` or

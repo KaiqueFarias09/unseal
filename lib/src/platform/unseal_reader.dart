@@ -36,13 +36,13 @@ abstract final class Unseal {
 
   /// Reads only metadata from [bytes], opening encrypted PDFs with [password].
   static Future<BookMetadata> readMetadata(final Uint8List bytes, {final String password = ''}) {
-    return Future<BookMetadata>.sync(
-      () => BookDispatch.readMetadataFromBytes(
+    return Future<BookMetadata>.sync(() {
+      return BookDispatch.readMetadataFromBytes(
         bytes,
         execute: readMetadataInBackground,
         password: password,
-      ),
-    );
+      );
+    });
   }
 
   /// Reads only metadata from the file at [path], including a neighboring OPF sidecar.
