@@ -6,6 +6,8 @@ audio playback, networking, or application persistence.
 
 Read [the architecture guide](docs/architecture.md) before changing module
 boundaries, public exports, format dispatch, archive limits, or worker code.
+Use [the codebase guide](docs/unseal-codebase-guide.md) for the file-by-file
+tour of formats, shared policies, and platform implementations.
 The README is the public product contract. Tests are the behavioral contract.
 
 ## Repository map
