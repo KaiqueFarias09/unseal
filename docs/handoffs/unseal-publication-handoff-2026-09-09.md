@@ -1,21 +1,21 @@
-# Continue the eLivre v3 publication work
+# Continue the unseal v1 publication work
 
 ## Objective
 
-Prepare eLivre 3.0.0 and its companion packages for publication:
+Prepare unseal 1.0.0 and its companion packages for publication:
 
-- `/Volumes/SSD/Projects/eLivre`
-- `/Volumes/SSD/Projects/e_livre_viewer`
-- `/Volumes/SSD/Projects/e_livre_viewer_narration`
+- `/Volumes/SSD/Projects/unseal`
+- `/Volumes/SSD/Projects/grimoire`
+- `/Volumes/SSD/Projects/grimoire_narration`
 - `/Volumes/SSD/Projects/steward`
 
-Finish the four Steward scanner corrections, use `docs/elivre-codebase-guide.md` to understand the module boundaries before reviewing them, resolve release blockers, and validate clean publication archives in dependency order.
+Finish the four Steward scanner corrections, use `docs/unseal-codebase-guide.md` to understand the module boundaries before reviewing them, resolve release blockers, and validate clean publication archives in dependency order.
 
 ## Read first
 
-1. `/Volumes/SSD/Projects/eLivre/docs/elivre-codebase-guide.md`
-2. `/Volumes/SSD/Projects/eLivre/docs/library-architecture-standard.md`
-3. `/Volumes/SSD/Projects/eLivre/docs/library-architecture-migration-plan.md`
+1. `/Volumes/SSD/Projects/unseal/docs/unseal-codebase-guide.md`
+2. `/Volumes/SSD/Projects/unseal/docs/library-architecture-standard.md`
+3. `/Volumes/SSD/Projects/unseal/docs/library-architecture-migration-plan.md`
 4. The README and changelog in each package.
 
 The module review guide is the human review workbook. The architecture standard decides ownership and module shape. Do not replace either document with a fresh generic architecture proposal.
@@ -26,9 +26,9 @@ All repositories use branch `main`.
 
 | Repository | Reviewed head | Refactor commits | Known uncommitted work |
 | --- | --- | --- | --- |
-| eLivre | `58ad807` | 17 commits from `d67a258` through `58ad807` | `pubspec.yaml` removes the `parser` topic. Preserve it unless the owner says otherwise. The two v3 documents were added after this head. |
-| Viewer | `b46622a` | 12 commits from `5f8ae55` through `b46622a` | None at the last check. |
-| Narration | `a7809b8` | 8 commits from `e50f58c` through `a7809b8` | Pre-existing `.DS_Store` and `docs/`. Preserve them. |
+| unseal | `58ad807` | 17 commits from `d67a258` through `58ad807` | `pubspec.yaml` removes the `parser` topic. Preserve it unless the owner says otherwise. The release documents were added after this head. |
+| Grimoire | `b46622a` | 12 commits from `5f8ae55` through `b46622a` | None at the last check. |
+| Grimoire Narration | `a7809b8` | 8 commits from `e50f58c` through `a7809b8` | Pre-existing `.DS_Store` and `docs/`. Preserve them. |
 | Steward | `709133b` | No commits for the four defects | Concurrent edits under `internal/dartfix/readability/` and untracked `packages/steward_lints/.dart_tool/`. Do not stage or rewrite them. |
 
 Inspect status again before every edit. Stage exact files. Never use `git add .`.
@@ -41,7 +41,7 @@ The three libraries now have:
 - no handwritten `part` or `part of` decomposition;
 - no private self-package imports under `lib/src`;
 - public format entrypoints that compile independently;
-- format parsing in eLivre, rendering in Viewer, and optional platform audio in Narration.
+- format parsing in Unseal, rendering in Grimoire, and optional platform audio in Grimoire Narration.
 
 Major completed changes include DOCX, ODT, FB2, MOBI8, PDF security, Calibre SQLite, worker wire codecs, reader dispatch, navigation, page measurement, annotation state, annotation export, narration runners, and resource shutdown.
 
@@ -51,12 +51,12 @@ The remaining large files were reviewed. Lookup tables, bounded codecs, ordered 
 
 The following evidence passed after the refactor:
 
-- eLivre: `dart analyze`, 788 VM tests, and 23 Chrome tests.
-- Viewer: 209 Flutter tests. Analysis had no errors or warnings and 127 informational lints.
-- Narration: `dart analyze` and 13 Flutter tests.
+- unseal: `dart analyze`, 788 VM tests, and 23 Chrome tests.
+- Grimoire: 209 Flutter tests. Analysis had no errors or warnings and 127 informational lints.
+- Grimoire Narration: `dart analyze` and 13 Flutter tests.
 - The SSD remained mounted at `/dev/disk7s1` with 315 GiB available.
 
-Narration's publication dry-run produced one metadata warning and hints for local dependency overrides. Re-run every check because the worktrees can change after this handoff.
+Grimoire Narration's publication dry-run produced one metadata warning and hints for local dependency overrides. Re-run every check because the worktrees can change after this handoff.
 
 ## Fix the four Steward defects
 
@@ -89,7 +89,7 @@ Regression tests must cover:
 - `dependency_overrides` does not create a production path-dependency gate;
 - malformed YAML produces deterministic behavior.
 
-Completion criterion: focused package-architecture tests pass and eLivre no longer reports a path-dependency gate for its hosted `path` package.
+Completion criterion: focused package-architecture tests pass and unseal no longer reports a path-dependency gate for its hosted `path` package.
 
 ### 2. Honor function-owned parser modules
 
@@ -116,7 +116,7 @@ Required behavior:
 
 Replace the existing negative test with positive and negative cases. Include a parser function that calls two private builder or result classes, an unreachable private class, and a private class with an external consumer.
 
-Completion criterion: the focused ownership tests pass and the eLivre parser modules no longer produce false ownership gates.
+Completion criterion: the focused ownership tests pass and the unseal parser modules no longer produce false ownership gates.
 
 ### 3. Make self-import guidance target-aware
 
@@ -141,7 +141,7 @@ Required behavior:
 
 Add tests for an app, a Dart library, a Flutter library, a nested example, and a cross-package private import.
 
-Completion criterion: focused import tests pass, eLivre and Viewer receive no self-import warnings, and examples still reject upstream private imports.
+Completion criterion: focused import tests pass, unseal and Viewer receive no self-import warnings, and examples still reject upstream private imports.
 
 ### 4. Give examples a consumer profile
 
@@ -150,8 +150,8 @@ Defect: nested examples are classified as complete applications because they con
 Current implementation:
 
 - `standards/architecture/example-app.yaml`
-- `standards/architecture/fixtures/elivre.yaml`
-- `standards/architecture/fixtures/elivre-viewer.yaml`
+- `standards/architecture/fixtures/unseal.yaml`
+- `standards/architecture/fixtures/unseal-viewer.yaml`
 - `internal/scan/flutter/analysis_options_rules.go`
 - `analysisOptionsTargetContext`, near line 49
 - `internal/scan/flutter/package_architecture_rules.go`
@@ -175,7 +175,7 @@ Required behavior:
 
 Regression tests must show that a small package example with `runApp` and `lib/main.dart` passes without Riverpod or Dio. Add a second fixture that opts into full application rules and still receives them.
 
-Completion criterion: focused target-resolution and Flutter scan tests pass. eLivre and Viewer examples retain public-import checks but lose unrelated Riverpod, Dio, and full application findings.
+Completion criterion: focused target-resolution and Flutter scan tests pass. unseal and Viewer examples retain public-import checks but lose unrelated Riverpod, Dio, and full application findings.
 
 ## Validate Steward after the fixes
 
@@ -197,7 +197,7 @@ go build -o .steward/bin/steward ./cmd/steward
 
 Re-run Steward against:
 
-- eLivre library and example;
+- unseal library and example;
 - Viewer library and example;
 - Narration library.
 
@@ -207,24 +207,24 @@ Completion criterion: all Steward tests pass, the tracked launcher matches the s
 
 ## Run the package review
 
-Use `docs/elivre-codebase-guide.md` in dependency order to understand each module before its structural code-quality review. The guide supplies context; the code and automated tests remain responsible for implementation behavior and format correctness.
+Use `docs/unseal-codebase-guide.md` in dependency order to understand each module before its structural code-quality review. The guide supplies context; the code and automated tests remain responsible for implementation behavior and format correctness.
 
 For each review unit, record one decision:
 
-- **Keep** when ownership, interface, dependency direction, and naming are clear enough for v3;
+- **Keep** when ownership, interface, dependency direction, and naming are clear enough for v1;
 - **Refactor later** when the current design is publishable and the note names a concrete concept and owner;
-- **Block v3** when a public contract, lifecycle, dependency, or failure boundary is unsafe to publish.
+- **Block v1** when a public contract, lifecycle, dependency, or failure boundary is unsafe to publish.
 
 Do not split files to satisfy a line count. Split when the new module owns a coherent decision or state machine and callers learn a smaller interface.
 
 Do not convert the checklist into manual format acceptance testing. Inspect representative tests only as evidence that public interfaces and intended seams are usable.
 
-Completion criterion: every review unit has a decision, every **Block v3** item is resolved, every deferred refactor names its owner and reason, and the automated suite remains green.
+Completion criterion: every review unit has a decision, every **Block v1** item is resolved, every deferred refactor names its owner and reason, and the automated suite remains green.
 
 ## Publication sequence
 
-1. Publish eLivre 3.0.0 from a clean checkout. Remove local overrides and run the dry-run again.
-2. Replace Viewer's local override with the hosted eLivre constraint. Run analysis, tests, and the dry-run. Publish Viewer 0.2.0.
+1. Publish unseal 1.0.0 from a clean checkout. Remove local overrides and run the dry-run again.
+2. Replace Viewer's local override with the hosted unseal constraint. Run analysis, tests, and the dry-run. Publish Viewer 0.2.0.
 3. Replace Narration's local overrides with hosted constraints. Run analysis, tests, and the dry-run. Publish Narration 0.1.0.
 4. Tag the exact published commits and verify that a new consumer project resolves all three packages from the hosted registry.
 
@@ -235,7 +235,7 @@ Completion criterion: the clean consumer opens one reflowable book, one comic, o
 - Preserve concurrent changes listed in the repository-state table.
 - Stop immediately if `/Volumes/SSD` disappears, reads stall, or I/O errors appear.
 - Treat FVM cache permission errors as environment failures unless storage checks also fail.
-- Keep eLivre independent of Flutter.
+- Keep unseal independent of Flutter.
 - Keep Viewer independent of audio plugins.
 - Keep Narration optional.
 - Import upstream packages through public entrypoints.

@@ -1,6 +1,6 @@
-# Understand the eLivre codebase
+# Understand the unseal codebase
 
-This guide explains how eLivre turns book files into one model that reading applications can use. It is for developers who know Dart but do not yet know the details of EPUB, MOBI, PDF, office documents, or comic archives.
+This guide explains how unseal turns book files into one model that reading applications can use. It is for developers who know Dart but do not yet know the details of EPUB, MOBI, PDF, office documents, or comic archives.
 
 The guide follows the code in this repository. It explains each feature, the reason behind its internal layers, and the job of every Dart file under `lib/`.
 
@@ -9,7 +9,7 @@ Use it in two ways:
 1. Read "The whole library in one picture" before reviewing any feature.
 2. Open a feature section and read its files in table order. The first files show the public result and orchestration. The later files contain format details.
 
-This document describes eLivre itself. eLivre Viewer owns interactive rendering. eLivre Viewer Narration owns speech and audio playback. Neither concern belongs in a format parser here.
+This document describes unseal itself. unseal Viewer owns interactive rendering. unseal Viewer Narration owns speech and audio playback. Neither concern belongs in a format parser here.
 
 Paths that start with `features/`, `foundation/`, or `platform/` are relative to `lib/src/`. Paths that start with `lib/` or `web/` are relative to the repository root.
 
@@ -30,7 +30,7 @@ Most calls follow this path:
 
 ```mermaid
 flowchart LR
-    A["File path or bytes"] --> B["BookReader"]
+    A["File path or bytes"] --> B["Unseal"]
     B --> C["Format detection"]
     C --> D["Format parser"]
     D --> E["Book model"]
@@ -44,7 +44,7 @@ flowchart LR
 
 The input is a sequence of bytes. Detection identifies the family of the file. Dispatch chooses one parser. The parser translates its format into `Book`, `BookMetadata`, `Files`, `Navigation`, and `ReadingOrderItem`.
 
-That translation is the central job of eLivre. Consumers do not need one reading interface for EPUB and another for DOCX. They receive the same concepts even though the source formats store them in very different ways.
+That translation is the central job of unseal. Consumers do not need one reading interface for EPUB and another for DOCX. They receive the same concepts even though the source formats store them in very different ways.
 
 ### The common result
 
@@ -58,7 +58,7 @@ Every parsed publication is a `Book`:
 - `archiveEntries` records the physical files inside formats that preserve an archive inventory. TXTZ, HTMLZ, DOCX, ODT, and EPUB populate it; not every format backed by an archive does.
 - `statistics` derives word count and reading-time estimates from the extracted text.
 
-`DocumentBook` is the common concrete result for formats that eLivre converts into HTML: TXT/TXTZ, HTML/HTMLZ, DOCX, and ODT. FB2, EPUB, MOBI, comics, and PDF retain specialized book types because consumers need additional information from those formats.
+`DocumentBook` is the common concrete result for formats that unseal converts into HTML: TXT/TXTZ, HTML/HTMLZ, DOCX, and ODT. FB2, EPUB, MOBI, comics, and PDF retain specialized book types because consumers need additional information from those formats.
 
 ## Vocabulary used throughout the code
 
@@ -66,7 +66,7 @@ You only need a small set of format terms to understand most of the repository.
 
 | Term | Meaning in this project |
 | --- | --- |
-| Bytes | The raw numbers read from a file before eLivre knows what they represent. |
+| Bytes | The raw numbers read from a file before unseal knows what they represent. |
 | Format detection | Inspection of signatures and bounded content to identify a file family. A file extension alone is not trusted. |
 | Container | A file that stores other files or records. ZIP, RAR, 7-Zip, and Palm Database are containers. PDF instead stores a connected graph of objects and streams. |
 | Package | A container plus rules that say which internal files matter and how they relate. EPUB, DOCX, and ODT are ZIP packages. |
@@ -84,7 +84,7 @@ You only need a small set of format terms to understand most of the repository.
 | OPF | The EPUB package document. It holds metadata, the manifest, the spine, and related package declarations. TXTZ and HTMLZ may use an OPF file only as a metadata sidecar; that does not make them EPUBs. |
 | Spine | EPUB's ordered list of manifest item identifiers that make up the main reading sequence. Manifest order, spine order, and table-of-contents order can differ. |
 | NCX | The older XML table-of-contents format normally used by EPUB 2 and also represented in some Kindle data. |
-| SMIL | An XML timing format. A `seq` groups items in sequence; a `par` synchronizes text and audio in parallel. eLivre parses timing, while another package plays the audio. |
+| SMIL | An XML timing format. A `seq` groups items in sequence; a `par` synchronizes text and audio in parallel. unseal parses timing, while another package plays the audio. |
 | Sidecar | A neighboring file that adds information to the main book without being stored inside it, such as `metadata.opf`. |
 | WordprocessingML | The XML vocabulary used by DOCX for paragraphs, runs, styles, numbering, and document relationships. |
 | DOCX relationship | A mapping in a `.rels` part from an identifier in document XML to another package part or an external URL. |
@@ -100,14 +100,14 @@ You only need a small set of format terms to understand most of the repository.
 | Reflow | Conversion of fixed or loosely positioned content into text and blocks that adapt to the screen width. |
 | Facsimile view | Display of the original PDF pages with their original geometry. The Viewer can use the bytes retained by `PdfBook` for this mode. |
 | Fixed layout | Content whose original page geometry matters. PDF and most comics are fixed-layout formats. |
-| OCR | Recognition of characters inside an image. eLivre does not perform OCR, so an image-only scan has no searchable text unless the PDF already contains a text layer. |
+| OCR | Recognition of characters inside an image. unseal does not perform OCR, so an image-only scan has no searchable text unless the PDF already contains a text layer. |
 | Locator | A portable description of a reading position. It is separate from the viewer's temporary scroll state. |
 | CFI | EPUB Canonical Fragment Identifier, a standard path to a position inside an EPUB document. |
-| DRM | Access control that requires authorization or a key the library does not own. eLivre reports unsupported DRM instead of pretending that the file is corrupt. |
+| DRM | Access control that requires authorization or a key the library does not own. unseal reports unsupported DRM instead of pretending that the file is corrupt. |
 
 ## Supported publication formats
 
-| Format | What it contains | What eLivre produces |
+| Format | What it contains | What unseal produces |
 | --- | --- | --- |
 | EPUB 2 and EPUB 3 | A ZIP package with metadata, HTML chapters, resources, and navigation. | `EpubBook` with its package model, reading spine, resources, navigation, and links to optional SMIL media overlays. Consumers parse those SMIL files separately. |
 | MOBI 6 | A Palm Database container with compressed legacy Kindle markup. | `MobiBook` with reconstructed HTML, resources, metadata, and navigation. |
@@ -134,7 +134,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 
 | File | What it exposes |
 | --- | --- |
-| `lib/e_livre.dart` | The main format-neutral API. It exports every supported parser family, shared book types, detection, reading helpers, search, annotations, locators, CFI, OPDS, Calibre, text policies, and reader facades. |
+| `lib/unseal.dart` | The main format-neutral API. It exports every supported parser family, shared book types, detection, reading helpers, search, annotations, locators, CFI, OPDS, Calibre, text policies, and reader facades. |
 | `lib/epub.dart` | EPUB parsing, EPUB entities, metadata updates, media-overlay structure, and shared book entities. |
 | `lib/mobi.dart` | MOBI and AZW3 parsing, MOBI entities and exceptions, and shared book entities. |
 | `lib/azw4.dart` | AZW4 extraction and parsing plus the `PdfBook` result type. |
@@ -147,7 +147,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 | `lib/comic.dart` | CBZ and CBR parsing, comic entities and exceptions. |
 | `lib/comic7.dart` | CB7 and CBC parsing while reusing the common `ComicBook` model. |
 
-Read `lib/e_livre.dart` first when reviewing public compatibility. An item exported there becomes part of the normal consumer contract. A file under `lib/src/` stays internal unless an entry point exports it.
+Read `lib/unseal.dart` first when reviewing public compatibility. An item exported there becomes part of the normal consumer contract. A file under `lib/src/` stays internal unless an entry point exports it.
 
 ## Foundation: the language shared by all formats
 
@@ -194,7 +194,7 @@ Read `lib/e_livre.dart` first when reviewing public compatibility. An item expor
 | `foundation/text/word_count.dart` | Counts words in normalized text for statistics. |
 | `foundation/text/xml_encoding.dart` | Detects BOMs and XML encoding declarations, then decodes XML bytes. This is necessary because FB2, OPF, and office XML are not always UTF-8. |
 | `foundation/text/xml_encoding_tables.dart` | Holds the single-byte character tables used by `xml_encoding.dart`. Data stays separate from decoding control flow. |
-| `foundation/exceptions/elivre_exception.dart` | Defines package-wide errors for unsupported formats, invalid books, and DRM-protected input. Format modules add more specific subclasses. |
+| `foundation/exceptions/unseal_exception.dart` | Defines package-wide errors for unsupported formats, invalid books, and DRM-protected input. Format modules add more specific subclasses. |
 
 `lib/src/heuristics.dart` is a separate package-wide policy file. It improves weak source documents by guessing chapter headings, normalizing scene breaks, straightening hard-wrapped lines, and replacing plain punctuation. These are opt-in reading heuristics, not format detection.
 
@@ -240,7 +240,7 @@ The folders still matter: they let a reader find package access, metadata, rende
 
 ## TXT and TXTZ: create structure from plain text
 
-TXT has no formal metadata, resource manifest, or table of contents. eLivre must decode the bytes, apply bounded conventions, and produce one safe HTML document. TXTZ adds a ZIP container around that text and may include metadata or a cover.
+TXT has no formal metadata, resource manifest, or table of contents. unseal must decode the bytes, apply bounded conventions, and produce one safe HTML document. TXTZ adds a ZIP container around that text and may include metadata or a cover.
 
 The flow is:
 
@@ -462,7 +462,7 @@ MOBI is a family of binary formats used by older Kindle software. The outer file
 
 EXTH is an optional collection of numbered metadata records attached to the MOBI header. INDX, TAGX, and CNCX structures relate Kindle byte positions and records to tagged data and shared strings. Record trailers are bookkeeping bytes appended to compressed text chunks; the parser removes them before joining the chunks.
 
-Legacy MOBI 6 stores HTML-like markup with `filepos` links, where the value is a byte position in the original markup rather than a file path. KF8, commonly named AZW3, stores XHTML skeleton templates and byte-range fragments that must be reassembled. Flow zero holds the main XHTML data; later flows commonly hold CSS or SVG. Some Kindle files contain both MOBI 6 and KF8. eLivre chooses the KF8 half when it is present.
+Legacy MOBI 6 stores HTML-like markup with `filepos` links, where the value is a byte position in the original markup rather than a file path. KF8, commonly named AZW3, stores XHTML skeleton templates and byte-range fragments that must be reassembled. Flow zero holds the main XHTML data; later flows commonly hold CSS or SVG. Some Kindle files contain both MOBI 6 and KF8. unseal chooses the KF8 half when it is present.
 
 The flow is:
 
@@ -512,7 +512,7 @@ The flow is:
 
 MOBI support has intentional limits. The parser rejects DRM and unknown compression methods. Text decoding concentrates on UTF-8 and Windows-1252. MOBI 6 navigation chooses the longest useful sequence of `filepos` links when no useful NCX exists. KF8 reconstruction uses pattern-based markup rewriting rather than a complete DOM transformation; OTH and DATP information is not fully used, and ORDT handling is an approximate printable-character projection. Audio, video, and several control-record families are ignored. A font that cannot be decoded may remain as raw `.dat` bytes.
 
-The metadata-only path does not call the full DRM rejection used when opening content. It can read descriptive header values from a protected envelope without claiming that eLivre can open the book.
+The metadata-only path does not call the full DRM rejection used when opening content. It can read descriptive header values from a protected envelope without claiming that unseal can open the book.
 
 ## AZW4: extract a PDF before parsing it
 
@@ -586,7 +586,7 @@ The repeated role of page geometry matters. A PDF text operator may say which gl
 
 Security code opens a document that the caller is authorized to read. It does not bypass DRM or certificate-based public-key security.
 
-The handler accepts standard security versions `/V` 1 through 5 and revisions `/R` 2 through 6, including legacy RC4, V2, AESV2, AESV3, and identity crypt filters. It does not support public-key or certificate handlers. After successful authentication, eLivre does not enforce or expose copy, print, or extraction permission flags. The revision 5/6 `/Perms` verification helper is present but is not called by the current authentication path.
+The handler accepts standard security versions `/V` 1 through 5 and revisions `/R` 2 through 6, including legacy RC4, V2, AESV2, AESV3, and identity crypt filters. It does not support public-key or certificate handlers. After successful authentication, unseal does not enforce or expose copy, print, or extraction permission flags. The revision 5/6 `/Perms` verification helper is present but is not called by the current authentication path.
 
 ### CCITT fax images
 
@@ -627,7 +627,7 @@ The PDF feature aims for useful extraction, not full rendering-engine parity:
 - metadata strings outside UTF-16 use an approximate byte-for-byte PDFDocEncoding path, so rare high-byte characters can decode incorrectly;
 - extraction stops after bounded numbers of operations, placements, objects, and images;
 - the current image caps include 128 unique extracted images per book and 256 placements per page;
-- an image-only scan remains without text because eLivre does not run OCR;
+- an image-only scan remains without text because unseal does not run OCR;
 - reflowed paragraphs and reading order are informed guesses from page geometry;
 - page-faithful display must use the original bytes rather than the reflowed HTML.
 
@@ -665,7 +665,7 @@ Fuzzy relocation exists because a saved character offset becomes stale when a bo
 
 ## Annotations: persist bookmarks and highlights
 
-Annotations are portable records. The Viewer can render them, but eLivre owns their data shape, serialization, and merge policy so storage does not depend on Flutter widgets.
+Annotations are portable records. The Viewer can render them, but unseal owns their data shape, serialization, and merge policy so storage does not depend on Flutter widgets.
 
 | File | What it does and why it exists |
 | --- | --- |
@@ -688,7 +688,7 @@ EPUB CFI is a compact path language. It can point through the EPUB package docum
 | `features/cfi/epub_cfi_document.dart` | Builds a lightweight document tree from HTML or XML and provides node and text-boundary operations used during CFI traversal. |
 | `features/cfi/epub_cfi_resolver.dart` | Resolves a CFI against an `EpubBook` and builds a CFI from a content index and text offset. It bridges EPUB addressing and common reading positions. |
 
-CFI and `BookLocator` are related but not identical. CFI is an EPUB standard. Locators are eLivre's cross-format position model.
+CFI and `BookLocator` are related but not identical. CFI is an EPUB standard. Locators are unseal's cross-format position model.
 
 ## Reading progression and navigation targets
 
@@ -708,13 +708,13 @@ OPDS is a publication-discovery format built on Atom XML. A feed contains catalo
 | --- | --- |
 | `features/opds/opds_feed.dart` | Parses OPDS 1.x Atom XML into `OpdsFeed`, `OpdsEntry`, `OpdsAuthor`, and `OpdsLink`, then exposes acquisition, navigation, search, next-page, cover, and thumbnail relationships. |
 
-This feature does not make network requests and does not parse the downloaded EPUB or PDF. A client fetches the feed, chooses an acquisition link, downloads its bytes, and passes those bytes to `BookReader`.
+This feature does not make network requests and does not parse the downloaded EPUB or PDF. A client fetches the feed, chooses an acquisition link, downloads its bytes, and passes those bytes to `Unseal`.
 
 The convenience getter for acquisition links currently recognizes only the exact base relation `http://opds-spec.org/acquisition`. Specialized acquisition relations for cases such as borrowing, buying, or open access are not included by that getter.
 
 ## Calibre: read an existing library database
 
-Calibre stores library metadata in SQLite. The database refers to books and their available format files. eLivre reads the SQLite file format directly and converts the required tables into small domain values. It does not manage the Calibre application, execute SQL, mutate the database, or open the listed ebooks.
+Calibre stores library metadata in SQLite. The database refers to books and their available format files. unseal reads the SQLite file format directly and converts the required tables into small domain values. It does not manage the Calibre application, execute SQL, mutate the database, or open the listed ebooks.
 
 | File | What it does and why it exists |
 | --- | --- |
@@ -725,12 +725,12 @@ The SQLite reader is intentionally limited to whole-table scans of the rowid tab
 
 ## Platform: keep the same API on native Dart and the web
 
-Book parsing can take enough CPU time to freeze an application's interface. Native Dart can move work to an isolate. Browsers use Web Workers. eLivre hides that difference behind `BookReader` and conditional imports.
+Book parsing can take enough CPU time to freeze an application's interface. Native Dart can move work to an isolate. Browsers use Web Workers. unseal hides that difference behind `Unseal` and conditional imports.
 
 The normal asynchronous path for synchronously parsed formats is:
 
 ```text
-BookReader.openFromBytes
+Unseal.read
     -> BookDispatch.openFromBytes
     -> validate and detect the input
     -> native: Isolate.run
@@ -745,13 +745,13 @@ CB7 and CBC are exceptions. `BookDispatch.openFromBytes` detects them and calls 
 
 | File | What it does and why it exists |
 | --- | --- |
-| `platform/book_reader.dart` | Exposes the main API for opening bytes or filesystem paths and reading metadata. It delegates parsing to `BookDispatch` and combines embedded metadata, OPF sidecars, and filename fallback on path-based reads. |
-| `platform/worker_book_reader.dart` | Configures the optional web worker and exposes search and CFI operations against the last book kept inside that worker. |
+| `platform/unseal_reader.dart` | Exposes the main `Unseal` API for reading bytes or filesystem paths and reading metadata. It delegates parsing to `BookDispatch` and combines embedded metadata, OPF sidecars, and filename fallback on path-based reads. |
+| `platform/unseal_worker.dart` | Configures the optional web worker and exposes search and CFI operations against the last book kept inside that worker through `UnsealWorker`. |
 | `platform/io/background_parse.dart` | Runs parsing and metadata work in `Isolate.run` on native Dart, with a controlled fallback when isolate execution is unavailable. |
 | `platform/io/book_path_reader.dart` | Reads local paths and looks for neighboring OPF sidecars such as `<book>.opf` or `metadata.opf`. |
 | `platform/io/worker_client.dart` | Supplies the native no-op implementation of web-worker configuration. Resident worker operations return `null` so callers can use their inline path. |
 
-`BookReader.parseBook` is synchronous. A UI should normally use `openFromBytes` or `openFromPath` so the platform layer can move expensive work away from the UI thread.
+`Unseal.parse` is synchronous. A UI should normally use `Unseal.read` or `Unseal.readFile` so the platform layer can move expensive work away from the UI thread.
 
 ### Web implementation and worker protocol
 
@@ -771,7 +771,7 @@ CB7 and CBC are exceptions. `BookDispatch.openFromBytes` detects them and calls 
 | `platform/web/wire/cfi_wire.dart` | Encodes and decodes resolved EPUB CFI locations. |
 | `platform/web/wire/error_wire.dart` | Translates known package exceptions across the worker boundary so the caller receives useful error types and messages. |
 | `platform/web/wire/json_wire.dart` | Converts the protocol's small map structures to and from JSON. Large payloads stay outside JSON. |
-| `web/e_livre_worker.dart` | Compiles as the JavaScript worker entry point, accepts browser messages, keeps the last parsed book resident, calls `runWorkerOp`, and posts structured replies. |
+| `web/unseal_worker.dart` | Compiles as the JavaScript worker entry point, accepts browser messages, keeps the last parsed book resident, calls `runWorkerOp`, and posts structured replies. |
 
 The wire protocol is internal transport, not a saved-file format. Structure travels in small maps. HTML strings, image bytes, fonts, and other large values travel in a blob list that the browser can copy with structured clone.
 

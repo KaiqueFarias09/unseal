@@ -2,7 +2,7 @@
 
 This note records the compatibility decisions behind the TXT/TXZ, HTML/HTMLZ,
 DOCX, AZW4, CB7/CBC and ODT adapters. Calibre was used as a behavioral
-reference only. No Calibre source was copied into eLivre; eLivre remains MIT
+reference only. No Calibre source was copied into unseal; unseal remains MIT
 licensed and the implementation is independent pure Dart.
 
 ## Behavioral references
@@ -12,17 +12,17 @@ licensed and the implementation is independent pure Dart.
   metadata. The adapter also preserves Calibre's useful TXTZ conventions:
   multiple text members, deterministic source order and formatting hints.
 - [Calibre HTMLZ input](https://raw.githubusercontent.com/kovidgoyal/calibre/master/src/calibre/ebooks/conversion/plugins/htmlz_input.py)
-  selects a top-level index document and an optional OPF sidecar. eLivre keeps
+  selects a top-level index document and an optional OPF sidecar. unseal keeps
   OPF in the metadata/manifest channel instead of exposing it as a reading
   document.
 - [Calibre DOCX input](https://raw.githubusercontent.com/kovidgoyal/calibre/master/src/calibre/ebooks/conversion/plugins/docx_input.py)
-  delegates the Open XML package to a DOCX-to-HTML conversion path. eLivre
+  delegates the Open XML package to a DOCX-to-HTML conversion path. unseal
   implements the interoperable subset directly: WordprocessingML paragraphs,
   headings, lists, tables, runs, hyperlinks, relationships and images.
 - [Microsoft Open XML package guidance](https://learn.microsoft.com/en-us/office/open-xml/general/how-to-create-a-package)
   defines the ZIP parts and relationship model used by the DOCX adapter.
 - [Calibre AZW4 input](https://raw.githubusercontent.com/kovidgoyal/calibre/master/src/calibre/ebooks/conversion/plugins/azw4_input.py)
-  identifies AZW4 as a PDF-backed wrapper. eLivre validates the PalmDB/MOBI
+  identifies AZW4 as a PDF-backed wrapper. unseal validates the PalmDB/MOBI
   envelope, rejects DRM, extracts the PDF records and reuses the existing PDF
   parser.
 - [Calibre comic input](https://raw.githubusercontent.com/kovidgoyal/calibre/master/src/calibre/ebooks/conversion/plugins/comic_input.py)
@@ -37,7 +37,7 @@ source-code dependency of this package.
 
 ## Implemented contract
 
-| Family | eLivre result | Deliberate boundary |
+| Family | unseal result | Deliberate boundary |
 | --- | --- | --- |
 | TXT | `DocumentBook` with escaped XHTML, UTF-8/UTF-16 decoding, metadata-only reads and safe size limits | Plain text does not carry reliable metadata; a small header convention is recognized when present |
 | TXTZ | Multiple text sections, natural order, Markdown/Textile basics, CSS/images/fonts/other resources, OPF metadata and cover hints | It is not a full Markdown/Textile engine |
@@ -49,10 +49,10 @@ source-code dependency of this package.
 | CBC | `comics.txt` paths/titles, nested CBZ/CBR/CB7 resolution and flattened collection page order | The common `ComicBook` model exposes one page sequence rather than a multi-level collection TOC |
 | ODT | OpenDocument XML paragraphs, headings, spans, links, lists, tables, images and metadata | Advanced styles, tracked changes, fields, drawings and exact page layout are outside the reflow contract |
 
-All formats enter through `BookReader` and preserve a common model for
+All formats enter through `Unseal` and preserve a common model for
 metadata, `Files`, navigation, reading order and statistics. CB7/CBC use the
-asynchronous `openFromBytes` path because the 7-Zip API is asynchronous; the
-legacy synchronous `parseBook` API reports that boundary clearly.
+asynchronous `read` path because the 7-Zip API is asynchronous; the
+synchronous `parse` API reports that boundary clearly.
 
 ## Validation inventory
 
@@ -67,5 +67,5 @@ The focused regression suites cover:
 - CB7 writer/reader round trips and CBC nested collection resolution;
 - ODT metadata, headings, inline styles, lists, tables, images and missing
   required parts;
-- `BookReader` dispatch, format detection and the web-worker wire round trip
+- `Unseal` dispatch, format detection and the web-worker wire round trip
   for `DocumentBook`.

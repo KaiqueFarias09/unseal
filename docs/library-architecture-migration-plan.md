@@ -86,9 +86,9 @@ Apply rules in this order:
 
 Run verification from the base package toward optional packages:
 
-1. Verify `e_livre` with Dart analysis, focused tests, the full VM suite, and browser tests.
-2. Verify `e_livre_viewer` with Flutter analysis and its full test suite.
-3. Verify `e_livre_viewer_narration` with Flutter analysis, its full test suite, and a publish dry run.
+1. Verify `unseal` with Dart analysis, focused tests, the full VM suite, and browser tests.
+2. Verify `grimoire` with Flutter analysis and its full test suite.
+3. Verify `grimoire_narration` with Flutter analysis, its full test suite, and a publish dry run.
 4. Run Steward against all three repositories.
 5. Review each diff and create separate commits for source moves, behavior fixes, Steward rules, and generated architecture files.
 

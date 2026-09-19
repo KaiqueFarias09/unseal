@@ -1,7 +1,7 @@
 # Capability-first library architecture
 
-This document defines the default source layout for reusable libraries. eLivre,
-eLivre Viewer, and eLivre Viewer Narration are the reference implementation, but
+This document defines the default source layout for reusable libraries. unseal,
+Grimoire, and Grimoire Narration are the reference implementation, but
 the rules apply to future pure Dart libraries, Flutter libraries, and optional
 platform packages.
 
@@ -10,20 +10,20 @@ platform packages.
 Dependencies point from optional behavior toward stable data and parsing:
 
 ```text
-e_livre_viewer_narration
+grimoire_narration
         |
         v
-e_livre_viewer
+grimoire
         |
         v
-e_livre
+unseal
 ```
 
-`e_livre_viewer_narration` may also import the public API of `e_livre`. The reverse edges are forbidden.
+`grimoire_narration` may also import the public API of `unseal`. The reverse edges are forbidden.
 
-- `e_livre` owns format detection, parsing, book data, metadata, search, and reading-order concepts. It stays independent of Flutter.
-- `e_livre_viewer` owns Flutter rendering, reader interaction, navigation, and reader presentation state.
-- `e_livre_viewer_narration` owns optional speech, audio playback, media-session integration, and narration controls.
+- `unseal` owns format detection, parsing, book data, metadata, search, and reading-order concepts. It stays independent of Flutter.
+- `grimoire` owns Flutter rendering, reader interaction, navigation, and reader presentation state.
+- `grimoire_narration` owns optional speech, audio playback, media-session integration, and narration controls.
 
 Packages import another package through `lib/*.dart` entrypoints. They never import another package's `lib/src` files.
 
@@ -192,6 +192,6 @@ unpublished callers.
 
 ## Current repository state
 
-As of 2026-09-08, `e_livre`, `e_livre_viewer`, and `e_livre_viewer_narration` contain no `utils`, `helpers`, `common`, or `misc` directory below a feature root.
+As of 2026-09-08, `unseal`, `grimoire`, and `grimoire_narration` contain no `utils`, `helpers`, `common`, or `misc` directory below a feature root.
 
-eLivre keeps media-overlay parsing under `epub/media_overlays`. The viewer uses the public search API. The narration package separates playback coordination, sources, platform adapters, media-session integration, and presentation.
+unseal keeps media-overlay parsing under `epub/media_overlays`. The viewer uses the public search API. The narration package separates playback coordination, sources, platform adapters, media-session integration, and presentation.

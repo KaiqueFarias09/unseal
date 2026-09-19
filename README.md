@@ -1,6 +1,17 @@
-# eLivre
+<p align="center">
+  <img src="https://raw.githubusercontent.com/KaiqueFarias09/unseal/main/logo.png" alt="Unseal logo" width="180">
+</p>
 
-eLivre is a pure-Dart book parser and reading-data library. Give it bytes or a
+<h1 align="center">Unseal</h1>
+
+<p align="center">
+  <a href="https://pub.dev/packages/unseal"><img src="https://img.shields.io/pub/v/unseal.svg?logo=dart&amp;label=pub.dev" alt="pub.dev package"></a>
+  <a href="https://github.com/KaiqueFarias09/unseal/actions/workflows/dart.yml"><img src="https://github.com/KaiqueFarias09/unseal/actions/workflows/dart.yml/badge.svg" alt="Dart CI"></a>
+  <a href="https://github.com/KaiqueFarias09/unseal/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+  <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-%3E%3D3.8.0-0175C2?logo=dart" alt="Dart SDK 3.8 or newer"></a>
+</p>
+
+Unseal is a pure-Dart book parser and reading-data library. Give it bytes or a
 filesystem path and receive one format-neutral `Book` model with metadata,
 cover data, files, reading order, navigation, and statistics.
 
@@ -8,7 +19,7 @@ It supports EPUB, MOBI, AZW3, FB2, TXT, HTML, DOCX, ODT, AZW4, comic
 archives, and PDF without a native executable, FFI bridge, or Flutter
 dependency in the library itself.
 
-eLivre is a parser and data layer, not a reader UI or a general-purpose
+Unseal is a parser and data layer, not a reader UI or a general-purpose
 document renderer.
 
 ## At a glance
@@ -41,21 +52,21 @@ document renderer.
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text, reflow HTML, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not a general-purpose PDF renderer. |
 
-`OPF` is not a standalone reading format. When eLivre finds `metadata.opf`
+`OPF` is not a standalone reading format. When unseal finds `metadata.opf`
 inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
 uses it as a metadata and manifest sidecar.
 
 ## Installation
 
 ```sh
-dart pub add e_livre
+dart pub add unseal
 ```
 
 Or add the dependency manually:
 
 ```yaml
 dependencies:
-  e_livre: ^3.0.0
+  unseal: ^1.0.0
 ```
 
 The package requires Dart `>=3.8.0 <4.0.0`.
@@ -67,10 +78,10 @@ The byte-based asynchronous API is the most portable entry point:
 ```dart
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 Future<Book> openBook(Uint8List bytes) {
-  return BookReader.openFromBytes(bytes);
+  return Unseal.read(bytes);
 }
 
 Future<void> inspectBook(Uint8List bytes) async {
@@ -89,7 +100,7 @@ Future<void> inspectBook(Uint8List bytes) async {
 For a library scanner that does not need the content files:
 
 ```dart
-final metadata = await BookReader.readMetadataFromBytes(bytes);
+final metadata = await Unseal.readMetadata(bytes);
 print(metadata.title);
 print(metadata.authors);
 ```
@@ -97,8 +108,8 @@ print(metadata.authors);
 On native platforms, filesystem paths are also supported:
 
 ```dart
-final book = await BookReader.openFromPath('/books/wonderland.epub');
-final metadata = await BookReader.readMetadataFromPath('/books/wonderland.epub');
+final book = await Unseal.readFile('/books/wonderland.epub');
+final metadata = await Unseal.readMetadataFile('/books/wonderland.epub');
 ```
 
 Path-based reads are filesystem-only and read the input file into memory before
@@ -126,9 +137,9 @@ final cb7 = await parseComic7Book(bytes);
 final cbc = await parseCbcBook(bytes);
 ```
 
-CB7 and CBC use an asynchronous 7-Zip reader. `parseBook` and
-`readMetadataSync` reject those formats; use `openFromBytes`,
-`readMetadataFromBytes`, or the dedicated asynchronous functions instead.
+CB7 and CBC use an asynchronous 7-Zip reader. `Unseal.parse` and
+`Unseal.readMetadataSync` reject those formats; use `Unseal.read`,
+`Unseal.readMetadata`, or the dedicated asynchronous functions instead.
 
 ## The common book model
 
@@ -162,29 +173,29 @@ The library also provides reusable reading services:
 | Dart VM | Bytes and filesystem paths | Native asynchronous parsing uses an isolate when the runtime supports it. |
 | Flutter Android, iOS, macOS, Linux, and Windows | Bytes and filesystem paths | The library has no Flutter dependency; the repository includes a minimal Flutter example. |
 | Browser JavaScript | Bytes only | Without configuration, parsing runs on the browser's main thread. |
-| Browser JavaScript with worker | Bytes only | `WorkerBookReader` can move normal parsing off the main thread. |
+| Browser JavaScript with worker | Bytes only | `UnsealWorker` can move normal parsing off the main thread. |
 | WebAssembly | Not currently claimed as a verified target | There is no WASM build or compatibility guarantee in the current validation matrix. |
 
 ### Browser usage
 
 Browser applications should fetch or otherwise obtain a `Uint8List` and use a
-byte-based API. `openFromPath` and `readMetadataFromPath` throw
+byte-based API. `readFile` and `readMetadataFile` throw
 `UnsupportedError` on the web.
 
 To keep large parses off the browser's main thread, compile and serve the
 worker entry point:
 
 ```sh
-dart compile js web/e_livre_worker.dart -o <your-web-root>/e_livre_worker.js
+dart compile js web/unseal_worker.dart -o <your-web-root>/unseal_worker.js
 ```
 
 Configure it before opening books:
 
 ```dart
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 void configureReader() {
-  WorkerBookReader.configure(Uri.parse('e_livre_worker.js'));
+  UnsealWorker.configure(Uri.parse('unseal_worker.js'));
 }
 ```
 
@@ -202,7 +213,7 @@ worker operation.
 
 ### Rendering and fidelity
 
-eLivre produces reading data; it does not render pages or provide navigation
+unseal produces reading data; it does not render pages or provide navigation
 controls. DOCX and ODT preserve semantic structure and common formatting, but
 complex layouts, footnotes, charts, equations, advanced numbering, fields,
 tracked changes, and complex drawing effects can be lost.
@@ -216,7 +227,7 @@ its own facsimile renderer.
 ### Input and archive boundaries
 
 - Every ZIP-backed format goes through the same bounded decoder. Before
-  inflation, eLivre rejects containers declaring more than 1 GiB in total,
+  inflation, unseal rejects containers declaring more than 1 GiB in total,
   entries larger than 512 MiB, or an expansion ratio above 200x once the
   declared output exceeds 32 MiB. The materialized output is bounded again,
   so forged central-directory sizes cannot bypass the limit. Encrypted
@@ -253,7 +264,7 @@ component.
 DRM is not bypassed. DRM-protected MOBI/AZW3 books, unsupported EPUB
 encryption, and encrypted archive entries are rejected. Supported PDF
 standard-security documents can be opened with the correct password, but PDF
-permission flags are exposed as metadata and are not enforced by eLivre.
+permission flags are exposed as metadata and are not enforced by unseal.
 
 ## Errors
 
@@ -294,7 +305,7 @@ Compatibility work draws on:
 
 - Observable metadata and conversion conventions from Calibre. Calibre is a
   compatibility reference, not a runtime dependency, and Calibre source is
-  not copied into eLivre.
+  not copied into unseal.
 - Microsoft Open XML guidance for DOCX package structure.
 - `koni_archive` for the pure-Dart 7-Zip implementation used by CB7 and CBC.
 - PDF.js and Poppler as independent references for PDF extraction and image
@@ -330,9 +341,9 @@ The benchmark suite measures detection, full parsing, metadata-only reads,
 isolate entry points, and lazy getters against the repository fixtures:
 
 ```sh
-dart run benchmark/e_livre_benchmarks.dart --quick
-dart run benchmark/e_livre_benchmarks.dart
-dart run benchmark/e_livre_benchmarks.dart --json=artifacts/current.json
+dart run benchmark/unseal_benchmarks.dart --quick
+dart run benchmark/unseal_benchmarks.dart
+dart run benchmark/unseal_benchmarks.dart --json=artifacts/current.json
 dart run benchmark/compare_baselines.dart artifacts/baseline.json artifacts/current.json
 ```
 
