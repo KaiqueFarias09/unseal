@@ -303,16 +303,19 @@ The project is guided by a few practical goals:
 
 Compatibility work draws on:
 
-- Observable metadata and conversion conventions from Calibre. Calibre is a
-  compatibility reference, not a runtime dependency, and Calibre source is
-  not copied into unseal.
-- Microsoft Open XML guidance for DOCX package structure.
-- `koni_archive` for the pure-Dart 7-Zip implementation used by CB7 and CBC.
+- Observable metadata and conversion conventions from Calibre's
+  [TXT](https://github.com/kovidgoyal/calibre/blob/master/src/calibre/ebooks/conversion/plugins/txt_input.py),
+  [HTMLZ](https://github.com/kovidgoyal/calibre/blob/master/src/calibre/ebooks/conversion/plugins/htmlz_input.py),
+  [AZW4](https://github.com/kovidgoyal/calibre/blob/master/src/calibre/ebooks/conversion/plugins/azw4_input.py),
+  and [comic](https://github.com/kovidgoyal/calibre/blob/master/src/calibre/ebooks/conversion/plugins/comic_input.py)
+  importers. Calibre is GPLv3 and is a behavioral reference, not a runtime or
+  source-code dependency. Unseal's implementations are independent pure Dart.
+- [Microsoft Open XML package guidance](https://learn.microsoft.com/en-us/office/open-xml/general/how-to-create-a-package)
+  for DOCX parts and relationships.
+- [`koni_archive`](https://github.com/zenbaku/koni_archive) for the pure-Dart
+  7-Zip implementation used by CB7 and CBC.
 - PDF.js and Poppler as independent references for PDF extraction and image
   behavior.
-
-Detailed fixture provenance and comparison notes live in
-[`docs/audits/format-expansion-2026-09-07/`](docs/audits/format-expansion-2026-09-07/).
 
 ## Development
 
