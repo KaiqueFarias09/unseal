@@ -19,11 +19,11 @@ import 'dart:typed_data';
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
 
-import 'package:e_livre/src/features/mobi/compression/huff_cdic.dart';
-import 'package:e_livre/src/features/mobi/compression/palmdoc.dart';
-import 'package:e_livre/src/features/mobi/header/mobi_header.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/features/mobi/reader/mobi_trailing_data.dart';
+import 'package:unseal/src/features/mobi/compression/huff_cdic.dart';
+import 'package:unseal/src/features/mobi/compression/palmdoc.dart';
+import 'package:unseal/src/features/mobi/header/mobi_header.dart';
+import 'package:unseal/src/features/mobi/header/pdb_header.dart';
+import 'package:unseal/src/features/mobi/reader/mobi_trailing_data.dart';
 
 import '../test/tests/mobi/mobi_fixture_builder.dart' show buildCdic, buildHuffHeader;
 import 'benchmark_harness.dart';
@@ -38,7 +38,7 @@ const int _textRecordSize = 4096;
 /// Optional real HUFF/CDIC sample, kept outside the repository. Any
 /// HUFF-compressed (compression `DH`, 0x4448) .mobi / .azw3 works;
 /// e.g. libmobi's `tests/samples/sample-unicode-huffdic.mobi`.
-const String _realSamplePath = '/tmp/elivre-huffcdic-sample.mobi';
+const String _realSamplePath = '/tmp/unseal-huffcdic-sample.mobi';
 
 final Map<int, _ProseFixtures> _fixturesBySize = <int, _ProseFixtures>{};
 HuffReader? _huffReader;

@@ -1,4 +1,4 @@
-// Fixture loading for the eLivre benchmarks.
+// Fixture loading for the unseal benchmarks.
 //
 // Reuses the public-domain books under test/resources. Fixtures are
 // loaded once and cached; derived samples (largest HTML chapter, image
@@ -7,7 +7,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart' show formatBytes;
 
@@ -92,7 +92,7 @@ String _locate(final String relative) {
 }
 
 /// Fixtures whose full parse / metadata read run on the synchronous
-/// dispatcher ([BookReader.parseBook] / [BookReader.readMetadataSync]).
+/// dispatcher ([Unseal.parse] / [Unseal.readMetadataSync]).
 ///
 /// CB7 and CBC are async-only at the public API (7-Zip work runs on an
 /// isolate) — they are measured through [asyncParsingFixtures] instead,
@@ -108,7 +108,7 @@ List<BookFixture> get parsingFixtures => <BookFixture>[
 bool _syncParseable(final BookFixture fixture) => fixture != cb7Matrix && fixture != cbcMatrix;
 
 /// Fixtures measured through the async entry points
-/// ([BookReader.openFromBytes] / [BookReader.readMetadataFromBytes]):
+/// ([Unseal.read] / [Unseal.readMetadata]):
 /// the 7-Zip-backed formats.
 List<BookFixture> get asyncParsingFixtures => <BookFixture>[cb7Matrix, cbcMatrix];
 
@@ -258,8 +258,8 @@ void _ensureDerived() {
 
   _derivedReady = true;
   final books = <Book>[
-    BookReader.parseBook(epubAlice.bytes),
-    BookReader.parseBook(comicSample.bytes),
+    Unseal.parse(epubAlice.bytes),
+    Unseal.parse(comicSample.bytes),
   ];
   for (final book in books) {
     final images = book is ComicBook ? book.pages : book.files.images;

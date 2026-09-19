@@ -20,7 +20,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';
@@ -134,13 +134,13 @@ void _addRealCorpusSectionBenchmarks(final BenchmarkGroup group) {
 /// found.
 void _runBookSearchGroup() {
   final group = BenchmarkGroup('BookSearch.search');
-  final alice = BookReader.parseBook(epubAlice.bytes);
+  final alice = Unseal.parse(epubAlice.bytes);
 
   _addSearch(
     group,
     'alice.epub',
     alice,
-    () => BookReader.parseBook(epubAlice.bytes),
+    () => Unseal.parse(epubAlice.bytes),
     'the',
     SearchMode.contains,
     coldSamples: 16,
@@ -153,7 +153,7 @@ void _runBookSearchGroup() {
     group,
     'alice.epub',
     alice,
-    () => BookReader.parseBook(epubAlice.bytes),
+    () => Unseal.parse(epubAlice.bytes),
     'the',
     SearchMode.wholeWords,
     coldSamples: 12,
@@ -162,7 +162,7 @@ void _runBookSearchGroup() {
     group,
     'alice.epub',
     alice,
-    () => BookReader.parseBook(epubAlice.bytes),
+    () => Unseal.parse(epubAlice.bytes),
     'rabbit',
     SearchMode.wholeWords,
     coldSamples: 12,
@@ -171,7 +171,7 @@ void _runBookSearchGroup() {
     group,
     'alice.epub',
     alice,
-    () => BookReader.parseBook(epubAlice.bytes),
+    () => Unseal.parse(epubAlice.bytes),
     r'Al*c[ae]',
     SearchMode.regex,
     coldSamples: 12,
@@ -180,7 +180,7 @@ void _runBookSearchGroup() {
     group,
     'alice.epub',
     alice,
-    () => BookReader.parseBook(epubAlice.bytes),
+    () => Unseal.parse(epubAlice.bytes),
     'white rabbit',
     SearchMode.proximity,
     coldSamples: 12,
@@ -202,7 +202,7 @@ void _addRealCorpusSearchBenchmarks(final BenchmarkGroup group) {
     group,
     'shakespeare',
     book,
-    () => BookReader.parseBook(_shakespeareEpubBytes()!) as EpubBook,
+    () => Unseal.parse(_shakespeareEpubBytes()!) as EpubBook,
     'zephyr',
     SearchMode.contains,
     coldSamples: 6,
@@ -211,7 +211,7 @@ void _addRealCorpusSearchBenchmarks(final BenchmarkGroup group) {
     group,
     'shakespeare',
     book,
-    () => BookReader.parseBook(_shakespeareEpubBytes()!) as EpubBook,
+    () => Unseal.parse(_shakespeareEpubBytes()!) as EpubBook,
     'moiety',
     SearchMode.wholeWords,
     coldSamples: 6,
@@ -220,7 +220,7 @@ void _addRealCorpusSearchBenchmarks(final BenchmarkGroup group) {
     group,
     'shakespeare',
     book,
-    () => BookReader.parseBook(_shakespeareEpubBytes()!) as EpubBook,
+    () => Unseal.parse(_shakespeareEpubBytes()!) as EpubBook,
     r'Zeph[a-z]+',
     SearchMode.regex,
     coldSamples: 6,
@@ -229,7 +229,7 @@ void _addRealCorpusSearchBenchmarks(final BenchmarkGroup group) {
     group,
     'shakespeare',
     book,
-    () => BookReader.parseBook(_shakespeareEpubBytes()!) as EpubBook,
+    () => Unseal.parse(_shakespeareEpubBytes()!) as EpubBook,
     'moiety dowry',
     SearchMode.proximity,
     coldSamples: 6,
@@ -281,7 +281,7 @@ EpubBook? _shakespeareEpub() {
   if (book != null) {
     try {
       _shakespeareBytes = book.read();
-      _shakespeareBook = BookReader.parseBook(_shakespeareBytes!) as EpubBook;
+      _shakespeareBook = Unseal.parse(_shakespeareBytes!) as EpubBook;
     } on Object catch (error) {
       stdout.writeln('[${book.name}] skipped — parsing failed: $error');
     }

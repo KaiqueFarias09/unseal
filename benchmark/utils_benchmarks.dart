@@ -6,7 +6,7 @@ import 'dart:typed_data';
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';

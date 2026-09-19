@@ -1,5 +1,5 @@
 {
-  "name": "e-livre-pdfjs-reference",
+  "name": "unseal-pdfjs-reference",
   "version": "1.0.0",
   "private": true,
   "description": "Node oracle dependencies for tool/pdf_parity.dart --image (pdf.js v3.11.174).",

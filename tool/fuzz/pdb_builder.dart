@@ -125,7 +125,7 @@ Uint8List buildPdb(final PdbSpec spec) {
 }
 
 /// MOBI record 0 following the field offsets the PalmDOC/MOBI community
-/// documents (and eLivre's parser reads): PalmDOC part, `MOBI` magic at
+/// documents (and unseal's parser reads): PalmDOC part, `MOBI` magic at
 /// 16, MOBI header at 20, EXTH at `16 + headerLength`, full name tail.
 Uint8List _buildMobiRecord0(final PdbSpec spec) {
   const headerLength = 232; // canonical MOBI6 length (0xE8)

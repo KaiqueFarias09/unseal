@@ -1,4 +1,4 @@
-// Timing harness for the public eLivre benchmarks.
+// Timing harness for the public unseal benchmarks.
 //
 // Every benchmark runs with an auto-calibrated iteration count so the
 // whole suite stays fast: cheap operations are batched (one batch is
@@ -384,13 +384,13 @@ void printBanner() {
     return;
   }
   stdout
-    ..writeln('eLivre public API benchmarks')
+    ..writeln('unseal public API benchmarks')
     ..writeln(
       'Dart ${Platform.version.split(' ').first} · '
       '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
     )
     ..writeln(
-      'Usage: dart run benchmark/e_livre_benchmarks.dart '
+      'Usage: dart run benchmark/unseal_benchmarks.dart '
       '[--filter=<text>] [--quick] [--json[=<path>]]',
     );
 }

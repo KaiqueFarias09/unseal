@@ -3,7 +3,7 @@
 // Unlike every other group — which measures one fixture book at a
 // time — these scan the entire configured library in a single
 // pass, exercising mixed formats at library scale. The corpus root
-// comes from `ELIVRE_BENCH_LIBRARY` (see `library_fixtures.dart`);
+// comes from `UNSEAL_BENCH_LIBRARY` (see `library_fixtures.dart`);
 // the whole group skips gracefully when it is unset.
 //
 // Giant singles pin the two largest books of a real library (a 98 MB
@@ -13,7 +13,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 import 'library_fixtures.dart';
@@ -37,14 +37,14 @@ Future<void> runLibraryCorpusBenchmarks() async {
   final books = libraryBooks;
   final totalBytes = books.fold<int>(0, (final sum, final book) => sum + book.size);
   group.add(
-    'parseBook — whole library, single pass (${books.length} books)',
-    () => _runLibraryPass(books, totalBytes, BookReader.parseBook, _parsePassTable),
+    'Unseal.parse — whole library, single pass (${books.length} books)',
+    () => _runLibraryPass(books, totalBytes, Unseal.parse, _parsePassTable),
     inputBytes: totalBytes,
     note: '${books.length} books, single pass',
   );
   group.add(
     'readMetadataSync — whole library, single pass (${books.length} books)',
-    () => _runLibraryPass(books, totalBytes, BookReader.readMetadataSync, _metadataPassTable),
+    () => _runLibraryPass(books, totalBytes, Unseal.readMetadataSync, _metadataPassTable),
     inputBytes: totalBytes,
     note: '${books.length} books, single pass',
   );
@@ -58,7 +58,7 @@ Future<void> runLibraryCorpusBenchmarks() async {
   await _addGiantBookBenchmarks(group, findLibraryBook(_familiaRomanaAzw3), 'Familia Romana azw3');
 }
 
-final _FirstPassTable _parsePassTable = _FirstPassTable('parseBook');
+final _FirstPassTable _parsePassTable = _FirstPassTable('Unseal.parse');
 final _FirstPassTable _metadataPassTable = _FirstPassTable('readMetadataSync');
 
 /// Runs [operation] once per book in a single library pass, folding a
@@ -117,11 +117,11 @@ Future<void> _addGiantBookBenchmarks(
   final bytes = book.read();
 
   group.add(
-    'BookReader.parseBook — $label',
-    () => BookReader.parseBook(bytes),
+    'Unseal.parse — $label',
+    () => Unseal.parse(bytes),
     inputBytes: bytes.length,
   );
-  group.add('BookReader.readMetadataSync — $label', () => BookReader.readMetadataSync(bytes));
+  group.add('Unseal.readMetadataSync — $label', () => Unseal.readMetadataSync(bytes));
   if (withOpenFromBytes) {
     await _addOpenFromBytesBenchmark(group, bytes, label);
   }
@@ -132,13 +132,13 @@ Future<void> _addOpenFromBytesBenchmark(
   final Uint8List bytes,
   final String label,
 ) async {
-  final name = 'BookReader.openFromBytes — $label';
+  final name = 'Unseal.read — $label';
   if (!matchesFilter('${group.title} — $name')) return;
 
   try {
     // Trial run first: on constrained machines the doubled peak memory
     // can fail; omit the benchmark rather than break the suite.
-    await BookReader.openFromBytes(bytes).timeout(const Duration(minutes: 5));
+    await Unseal.read(bytes).timeout(const Duration(minutes: 5));
   } on Object catch (error) {
     stdout.writeln('[Real library corpus] $name probe failed — omitted ($error).');
 
@@ -147,7 +147,7 @@ Future<void> _addOpenFromBytesBenchmark(
 
   await group.addAsync(
     name,
-    () => BookReader.openFromBytes(bytes),
+    () => Unseal.read(bytes),
     inputBytes: bytes.length,
     note: 'isolate spawn + byte copy included',
   );
@@ -158,7 +158,7 @@ Future<void> _addOpenFromBytesBenchmark(
 final class _FirstPassTable {
   _FirstPassTable(this.operation);
 
-  /// The operation the table times, e.g. `parseBook`.
+  /// The operation the table times, e.g. `Unseal.parse`.
   final String operation;
 
   bool _printed = false;

@@ -1,9 +1,9 @@
-/// PDF parity harness: compares eLivre's pure-Dart PDF processing with external reference tools.
+/// PDF parity harness: compares unseal's pure-Dart PDF processing with external reference tools.
 /// It is report-only; the numbers do not gate the build.
 ///
 /// Levels:
 ///
-/// 1. Extraction (default): for every page, compare eLivre's canonical
+/// 1. Extraction (default): for every page, compare unseal's canonical
 ///    page text (`parsePdfBook(...).pageTexts[N].text`) against
 ///    `pdftotext -enc UTF-8 -f N -l N -raw <pdf> -`. Scores per page:
 ///    Dice coefficient over character bigrams of the two normalized
@@ -15,7 +15,7 @@
 ///    `ebook-convert <pdf> <tmp>/out.epub`, unpacks the EPUB with
 ///    package:archive, concatenates `documentText` of the content
 ///    HTML files in numeric filename order and scores the whole book
-///    against the concatenation of eLivre's canonical page texts.
+///    against the concatenation of unseal's canonical page texts.
 ///
 /// Reference binaries are resolved from the reference bundle path defined by the tool. When the
 /// bundle is absent, the harness prints a note and exits 0 (skipped).
@@ -35,13 +35,13 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/pdf/codec/pdf_stream_decoder.dart';
-import 'package:e_livre/src/features/pdf/header/pdf_document.dart';
-import 'package:e_livre/src/features/pdf/header/pdf_object.dart';
-import 'package:e_livre/src/features/pdf/image/pdf_bitmap.dart';
-import 'package:e_livre/src/features/pdf/reader/pdf_page_tree.dart';
 import 'package:path/path.dart' as p;
+import 'package:unseal/src/features/pdf/codec/pdf_stream_decoder.dart';
+import 'package:unseal/src/features/pdf/header/pdf_document.dart';
+import 'package:unseal/src/features/pdf/header/pdf_object.dart';
+import 'package:unseal/src/features/pdf/image/pdf_bitmap.dart';
+import 'package:unseal/src/features/pdf/reader/pdf_page_tree.dart';
+import 'package:unseal/unseal.dart';
 
 /// Directory scanned when no positional argument is given.
 const String _defaultDirectory = 'test/resources/pdf';
@@ -222,13 +222,13 @@ class _PageMetric {
   /// Normalized reference length in characters.
   final int referenceChars;
 
-  /// Normalized eLivre length in characters.
+  /// Normalized unseal length in characters.
   final int ourChars;
 
   /// Head of the normalized reference text (for divergent pages).
   final String referenceSnippet;
 
-  /// Head of the normalized eLivre text (for divergent pages).
+  /// Head of the normalized unseal text (for divergent pages).
   final String ourSnippet;
 
   /// Whether the page sits at or below the divergence threshold.
@@ -238,7 +238,7 @@ class _PageMetric {
 /// Result of one metadata field comparison.
 class _MetadataField {
   /// Creates the field comparison.
-  const _MetadataField(this.field, this.status, this.pdfinfoValue, this.eLivreValue);
+  const _MetadataField(this.field, this.status, this.pdfinfoValue, this.unsealValue);
 
   /// Field name (`Title`, `Author` or `Pages`).
   final String field;
@@ -249,8 +249,8 @@ class _MetadataField {
   /// Value reported by pdfinfo (null when absent).
   final String? pdfinfoValue;
 
-  /// Value extracted by eLivre (null when absent).
-  final String? eLivreValue;
+  /// Value extracted by unseal (null when absent).
+  final String? unsealValue;
 }
 
 /// Metadata level result for one book.
@@ -328,7 +328,7 @@ class _ReflowReport {
   /// Normalized reference EPUB text length, or null on failure.
   final int? referenceChars;
 
-  /// Normalized eLivre canonical text length, or null on failure.
+  /// Normalized unseal canonical text length, or null on failure.
   final int? ourChars;
 }
 
@@ -347,7 +347,7 @@ class _BookReport {
   /// Path as shown in the console table.
   final String displayPath;
 
-  /// Number of document pages eLivre found.
+  /// Number of document pages unseal found.
   final int pageCount;
 
   /// One metric per successfully compared page.
@@ -429,7 +429,7 @@ Future<_ProcessOutput?> _runCommand(
 ///    ASCII shapes for the same reason.
 /// 4. Collapse whitespace runs (newlines included) to one space and
 ///    trim: line-break policy differences between raw-mode Poppler
-///    output and eLivre's canonical line list must not dominate the
+///    output and unseal's canonical line list must not dominate the
 ///    metric. ECMAScript `\s` already eats NBSP and friends.
 /// 5. Casefold only when [caseInsensitive] is set.
 ///
@@ -598,7 +598,7 @@ List<File> _collectPdfs(final Directory root) {
 }
 
 /// Runs the extraction level for one book: one `pdftotext` call per
-/// page against eLivre's canonical page text.
+/// page against unseal's canonical page text.
 Future<List<_PageMetric>> _compareExtraction({
   required final PdfBook book,
   required final File pdf,
@@ -708,28 +708,28 @@ Future<_MetadataReport> _compareMetadata({
 _MetadataField _compareTextualField(
   final String field,
   final String? pdfinfoValue,
-  final String? eLivreValue,
+  final String? unsealValue,
   final bool caseInsensitive,
 ) {
   final referenceEmpty = pdfinfoValue == null || pdfinfoValue.isEmpty;
-  final oursEmpty = eLivreValue == null || eLivreValue.isEmpty;
+  final oursEmpty = unsealValue == null || unsealValue.isEmpty;
   if (referenceEmpty) {
     return oursEmpty
         ? _MetadataField(field, 'match', null, null)
-        : _MetadataField(field, 'missing', null, eLivreValue);
+        : _MetadataField(field, 'missing', null, unsealValue);
   }
   if (oursEmpty) {
     return _MetadataField(field, 'missing', pdfinfoValue, null);
   }
   final matches =
       _normalizeText(pdfinfoValue, caseInsensitive: caseInsensitive) ==
-      _normalizeText(eLivreValue, caseInsensitive: caseInsensitive);
+      _normalizeText(unsealValue, caseInsensitive: caseInsensitive);
 
-  return _MetadataField(field, matches ? 'match' : 'diff', pdfinfoValue, eLivreValue);
+  return _MetadataField(field, matches ? 'match' : 'diff', pdfinfoValue, unsealValue);
 }
 
 /// Compares the author field as sets of names: pdfinfo joins authors
-/// with `, ` or ` and `; eLivre keeps a list.
+/// with `, ` or ` and `; unseal keeps a list.
 _MetadataField _compareAuthorField(
   final String? pdfinfoValue,
   final List<String> authors,
@@ -754,7 +754,7 @@ _MetadataField _compareAuthorField(
   return _MetadataField('Author', matches ? 'match' : 'diff', pdfinfoValue, authors.join(', '));
 }
 
-/// Compares the page count reported by pdfinfo against eLivre's.
+/// Compares the page count reported by pdfinfo against unseal's.
 _MetadataField _comparePageField(final String? pdfinfoValue, final int pageCount) {
   final parsed = pdfinfoValue == null ? null : int.tryParse(pdfinfoValue.trim());
   if (parsed == null) {
@@ -769,7 +769,7 @@ _MetadataField _comparePageField(final String? pdfinfoValue, final int pageCount
 String _naturalKey(final String name) =>
     name.replaceAllMapped(RegExp(r'(\d+)'), (final match) => match[1]!.padLeft(8, '0'));
 
-/// Concatenation of eLivre's canonical page texts: the page line lists
+/// Concatenation of unseal's canonical page texts: the page line lists
 /// joined with `\n`, the same space `documentText` reads in the HTML.
 String _canonicalBookText(final PdfBook book) =>
     book.pageTexts.map((final page) => page.text).join('\n');
@@ -777,7 +777,7 @@ String _canonicalBookText(final PdfBook book) =>
 /// Runs the reflow level for one book: converts to EPUB with the reference driver,
 /// unpacks it and scores the concatenated `documentText` of the
 /// content HTML files (numeric filename order) against the
-/// concatenation of eLivre's canonical page texts.
+/// concatenation of unseal's canonical page texts.
 Future<_ReflowReport> _compareReflow({
   required final PdfBook book,
   required final File pdf,
@@ -981,7 +981,7 @@ void _printBookDiagnostics(final List<_BookReport> books, final _Options options
       }
       stdout.writeln(
         '  metadata ${book.displayPath} ${field.field} ${field.status}: '
-        'pdfinfo=${field.pdfinfoValue ?? '<absent>'} | e_livre=${field.eLivreValue ?? '<absent>'}',
+        'pdfinfo=${field.pdfinfoValue ?? '<absent>'} | unseal=${field.unsealValue ?? '<absent>'}',
       );
     }
     if (options.runMetadata && book.metadata.error != null) {
@@ -1105,7 +1105,7 @@ Map<String, Object?> _bookToJson(final _BookReport book, final _Options options)
               'field': field.field,
               'status': field.status,
               'pdfinfo': field.pdfinfoValue,
-              'eLivre': field.eLivreValue,
+              'unseal': field.unsealValue,
             },
         ],
       },
@@ -1221,7 +1221,7 @@ Future<void> _runImageParity(final _Options options) async {
   }
 
   stdout.writeln(
-    'eLivre PDF image parity | ${pdfs.length} file(s) | '
+    'unseal PDF image parity | ${pdfs.length} file(s) | '
     'oracle pdf.js 3.11.174 ${oracleReady ? 'live' : 'goldens only'}',
   );
 
@@ -1389,7 +1389,7 @@ Future<_ReferenceRaster> _loadReferenceRaster({
   if (options.updateGoldens || oracleReady) {
     final rasterFile = File(
       '${Directory.systemTemp.path}/'
-      'elivre-parity-${DateTime.now().microsecondsSinceEpoch}.pgm',
+      'unseal-parity-${DateTime.now().microsecondsSinceEpoch}.pgm',
     );
     final result = await Process.run('node', <String>[
       _oracleScript,
@@ -1523,7 +1523,7 @@ Future<void> main(final List<String> arguments) async {
   }
 
   stdout.writeln(
-    'eLivre PDF parity harness | ${pdfs.length} file(s) | '
+    'unseal PDF parity harness | ${pdfs.length} file(s) | '
     'pdftotext ${tools.pdftotext != null ? 'ok' : 'MISSING'} | '
     'pdfinfo ${tools.pdfinfo != null ? 'ok' : 'MISSING'} | '
     'ebook-convert ${tools.ebookConvert != null ? 'ok' : 'MISSING'}',

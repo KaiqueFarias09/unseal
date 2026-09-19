@@ -1,6 +1,6 @@
 // Real-corpus fixtures loaded from the user's configured library.
 //
-// The library root comes from the `ELIVRE_BENCH_LIBRARY` environment
+// The library root comes from the `UNSEAL_BENCH_LIBRARY` environment
 // variable (for example, `/Users/example/Library`). Book files
 // stay outside the repository and load by path at runtime; groups
 // built on this loader skip gracefully — with a printed note — when
@@ -44,13 +44,13 @@ final String? _libraryRoot = _resolveRoot();
 List<LibraryBook>? _books;
 
 String? _resolveRoot() {
-  final value = Platform.environment['ELIVRE_BENCH_LIBRARY'];
+  final value = Platform.environment['UNSEAL_BENCH_LIBRARY'];
   if (value == null || !Directory(value).existsSync()) return null;
 
   return value;
 }
 
-/// The configured library root, or `null` when `ELIVRE_BENCH_LIBRARY`
+/// The configured library root, or `null` when `UNSEAL_BENCH_LIBRARY`
 /// is unset or does not point at a directory.
 String? get libraryRoot => _libraryRoot;
 
@@ -60,7 +60,7 @@ void skipLibraryGroup(final String groupLabel) {
     return;
   }
   stdout.writeln(
-    '[$groupLabel] skipped — set ELIVRE_BENCH_LIBRARY to a Calibre '
+    '[$groupLabel] skipped — set UNSEAL_BENCH_LIBRARY to a Calibre '
     'library root to enable the real-corpus benchmarks.',
   );
 }

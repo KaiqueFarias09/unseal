@@ -2,8 +2,8 @@
 // Calibre library, run entirely READ-ONLY and strictly opt-in.
 //
 // Nothing runs implicitly: the library root must be supplied through
-// `--library=<path>` (or the `ELIVRE_CALIBRE_LIBRARY` /
-// `ELIVRE_BENCH_LIBRARY` environment variables), and the tracked
+// `--library=<path>` (or the `UNSEAL_CALIBRE_LIBRARY` /
+// `UNSEAL_BENCH_LIBRARY` environment variables), and the tracked
 // benchmark suites never invoke this tool. The library is never
 // written to.
 //
@@ -46,7 +46,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'json_report.dart' as contract;
 
@@ -62,7 +62,7 @@ Future<void> main(final List<String> arguments) async {
   if (root == null) {
     stderr.writeln(
       'No library root: pass --library=<path> or set '
-      'ELIVRE_CALIBRE_LIBRARY / ELIVRE_BENCH_LIBRARY. The private corpus '
+      'UNSEAL_CALIBRE_LIBRARY / UNSEAL_BENCH_LIBRARY. The private corpus '
       'is strictly opt-in; nothing is discovered implicitly.',
     );
     exitCode = 64;
@@ -139,8 +139,8 @@ _Options _parseOptions(final Iterable<String> arguments) {
 String? _resolveRoot(final _Options options) {
   final candidate =
       options.library ??
-      Platform.environment['ELIVRE_CALIBRE_LIBRARY'] ??
-      Platform.environment['ELIVRE_BENCH_LIBRARY'];
+      Platform.environment['UNSEAL_CALIBRE_LIBRARY'] ??
+      Platform.environment['UNSEAL_BENCH_LIBRARY'];
   if (candidate == null) {
     return null;
   }
@@ -537,7 +537,7 @@ final class _ParseJob {
 /// down any nested reader isolate it spawned.
 Future<void> _parseJob(final _ParseJob job) async {
   try {
-    final book = await BookReader.openFromBytes(job.bytes);
+    final book = await Unseal.read(job.bytes);
     job.sendPort.send({'status': 'book', 'bookFormat': book.format.name});
   } on Object catch (error) {
     job.sendPort.send(_classifyParseError(error));
@@ -620,8 +620,8 @@ Future<void> _runSample(final String root, final _Options options) async {
         : samples[((samples.length - 1) * 0.95).round().clamp(0, samples.length - 1)];
     final ok = error == null;
     contract.recordResult(
-      suite: 'e_livre',
-      scenario: 'library sample — openFromBytes ${entry.extension} $bucket',
+      suite: 'unseal',
+      scenario: 'library sample — Unseal.read ${entry.extension} $bucket',
       iterations: samples.length,
       warmup: ok ? 1 : 0,
       medianMicros: median,
@@ -647,7 +647,7 @@ Future<void> _runSample(final String root, final _Options options) async {
 
   final report = <String, Object?>{
     'schemaVersion': 1,
-    'suite': 'e_livre',
+    'suite': 'unseal',
     'generatedAt': DateTime.now().toUtc().toIso8601String(),
     'platform': contract.platformId,
     'sdk': contract.sdkVersion,

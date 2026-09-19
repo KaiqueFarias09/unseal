@@ -197,9 +197,9 @@ bool _runSide(final String round, final String side, final String command, final
     environment: {
       'BENCH_OUT': out,
       'JSON_OUT': out,
-      'ELIVRE_BENCH_JSON': out,
-      'ELIVRE_VIEWER_BENCH_JSON': out,
-      'ELIVRE_NARRATION_BENCH_JSON': out,
+      'UNSEAL_BENCH_JSON': out,
+      'GRIMOIRE_BENCH_JSON': out,
+      'UNSEAL_NARRATION_BENCH_JSON': out,
     },
   );
   if (result.exitCode != 0 || !File(out).existsSync()) {

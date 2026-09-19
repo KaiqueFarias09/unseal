@@ -25,7 +25,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'fuzz/parse_probe.dart';
 import 'fuzz/structure_offsets.dart';
@@ -86,7 +86,7 @@ Future<void> main(final List<String> arguments) async {
       // CB7/CBC parse asynchronously, so the probe uses the async facade.
       final result = await probeParse(
         bytes,
-        (final data) async => BookReader.openFromBytes(data),
+        (final data) async => Unseal.read(data),
         timeout: Duration(seconds: options.timeoutSeconds),
       );
       // A graceful typed rejection (encrypted PDF, unsupported shape) is
@@ -181,7 +181,7 @@ Future<void> main(final List<String> arguments) async {
   }
 }
 
-/// True when the fixture family goes through [BookReader.parseBook].
+/// True when the fixture family goes through [Unseal.parse].
 bool _isBookShaped(final String family) =>
     !const {'image', 'manifest', 'license', 'resource'}.contains(family);
 

@@ -15,7 +15,7 @@
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';
@@ -25,7 +25,7 @@ const String _w3cExample = 'epubcfi(/6/4[chap01ref]!/4[body01]/10[para05]/3:10)'
 
 /// Runs the CFI parse / resolve / build / round-trip benchmarks.
 void runCfiBenchmarks() {
-  final book = BookReader.parseBook(epubAlice.bytes) as EpubBook;
+  final book = Unseal.parse(epubAlice.bytes) as EpubBook;
   final documents = _SectionDocuments(book);
   final group = BenchmarkGroup('CFI');
 

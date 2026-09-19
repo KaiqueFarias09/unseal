@@ -1,12 +1,12 @@
 // Benchmarks for the public metadata-only reads: the synchronous
-// fast path [BookReader.readMetadataSync] and the isolate-based
-// [BookReader.readMetadataFromBytes] / [BookReader.readMetadataFromPath]
+// fast path [Unseal.readMetadataSync] and the isolate-based
+// [Unseal.readMetadata] / [Unseal.readMetadataFile]
 // (the latter includes the sidecar metadata merge).
 
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';
@@ -16,33 +16,33 @@ Future<void> runMetadataBenchmarks() async {
   final group = BenchmarkGroup('Metadata-only read');
   for (final fixture in parsingFixtures) {
     group.add(
-      'BookReader.readMetadataSync — ${fixture.label}',
-      () => BookReader.readMetadataSync(fixture.bytes),
+      'Unseal.readMetadataSync — ${fixture.label}',
+      () => Unseal.readMetadataSync(fixture.bytes),
       fixtureId: fixture.fixtureId,
     );
   }
   for (final fixture in asyncParsingFixtures) {
     await group.addAsync(
-      'BookReader.readMetadataFromBytes — ${fixture.label}',
-      () => BookReader.readMetadataFromBytes(fixture.bytes),
+      'Unseal.readMetadata — ${fixture.label}',
+      () => Unseal.readMetadata(fixture.bytes),
       fixtureId: fixture.fixtureId,
       note: 'async-only format · isolate spawn + byte copy included',
     );
   }
 
   await group.addAsync(
-    'BookReader.readMetadataFromBytes — ${epubSmall.label}',
-    () => BookReader.readMetadataFromBytes(epubSmall.bytes),
+    'Unseal.readMetadata — ${epubSmall.label}',
+    () => Unseal.readMetadata(epubSmall.bytes),
     note: 'isolate spawn + byte copy included',
   );
   await group.addAsync(
-    'BookReader.readMetadataFromBytes — ${mobi8Alice.label}',
-    () => BookReader.readMetadataFromBytes(mobi8Alice.bytes),
+    'Unseal.readMetadata — ${mobi8Alice.label}',
+    () => Unseal.readMetadata(mobi8Alice.bytes),
     note: 'isolate spawn + byte copy included',
   );
   await group.addAsync(
-    'BookReader.readMetadataFromPath — ${epubWithSidecar.label}',
-    () => BookReader.readMetadataFromPath(epubWithSidecar.path),
+    'Unseal.readMetadataFile — ${epubWithSidecar.label}',
+    () => Unseal.readMetadataFile(epubWithSidecar.path),
     note: 'disk read + isolate + OPF sidecar merge',
   );
 }

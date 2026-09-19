@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 /// How a parse attempt ended.
 enum ProbeStatus {
@@ -35,7 +35,7 @@ final class ProbeResult {
   /// Wall time of the probe in milliseconds.
   final int durationMs;
 
-  /// Whether a `threw` outcome was a typed [ELivreException] — the
+  /// Whether a `threw` outcome was a typed [UnsealException] — the
   /// library's own graceful rejection — rather than a foreign crash.
   final bool graceful;
 
@@ -126,7 +126,7 @@ Future<void> _probeEntry(final _ProbeJob job) async {
   try {
     await job.parse(job.bytes);
     job.sendPort.send({'status': ProbeStatus.ok.name});
-  } on ELivreException catch (error) {
+  } on UnsealException catch (error) {
     job.sendPort.send({
       'status': ProbeStatus.threw.name,
       'detail': error.runtimeType.toString(),

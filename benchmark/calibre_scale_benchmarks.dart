@@ -2,7 +2,7 @@
 /// computation over real, fixture, and synthetic book collections.
 ///
 /// The metadata database group parses the real `metadata.db` of
-/// the library pointed at by `ELIVRE_BENCH_LIBRARY` — sqlite-master
+/// the library pointed at by `UNSEAL_BENCH_LIBRARY` — sqlite-master
 /// schema discovery, whole-table b-tree scans and the book / author /
 /// series / tag / identifier / format joins — and compares it against
 /// the reduced-schema fixture under `test/resources` (48 KB, 3 books)
@@ -22,7 +22,7 @@ library;
 
 import 'dart:io';
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';
@@ -135,7 +135,7 @@ List<_CorpusBook> _collectCorpus() {
   var untitled = 0;
   for (final book in libraryBooks) {
     try {
-      final metadata = BookReader.readMetadataSync(book.read());
+      final metadata = Unseal.readMetadataSync(book.read());
       final title = metadata.title;
       if (title == null || title.isEmpty) {
         untitled++;
@@ -167,7 +167,7 @@ List<_CorpusBook> _fixtureCorpus() {
     mobi8Alice,
     fb2Alice,
   ]) {
-    final metadata = BookReader.readMetadataSync(fixture.bytes);
+    final metadata = Unseal.readMetadataSync(fixture.bytes);
     final title = metadata.title;
     if (title == null || title.isEmpty) continue;
 

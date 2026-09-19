@@ -1,4 +1,4 @@
-/// Fuzz campaign runner for the eLivre robustness suite.
+/// Fuzz campaign runner for the unseal robustness suite.
 ///
 /// Drives bounded fuzzing campaigns over deterministic generated
 /// inputs (and, when present, the tracked corpus at
@@ -182,7 +182,7 @@ Future<void> _campaign(final _Options options) async {
   final report = <String, Object?>{
     'schemaVersion': 1,
     'kind': 'fuzz-campaign',
-    'suite': 'e_livre-fuzz',
+    'suite': 'unseal-fuzz',
     'generatedAt': DateTime.now().toUtc().toIso8601String(),
     'platform': _platformId,
     'sdk': _sdkVersion,
@@ -245,7 +245,7 @@ Map<String, Object?> _record(
   final FuzzVerdict? verdict,
 }) => <String, Object?>{
   'schemaVersion': 1,
-  'suite': 'e_livre-fuzz',
+  'suite': 'unseal-fuzz',
   'scenario': item.scenario,
   'fixtureId': item.input.fixtureId,
   'status': status,

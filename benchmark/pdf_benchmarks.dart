@@ -8,14 +8,14 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 
 const String _realFixture = 'test/resources/pdf/dickens-sample.pdf';
 
 /// Runs the PDF benchmarks: the in-repo real-writer fixture plus
-/// every PDF under `ELIVRE_BENCH_PDF_DIR` when configured.
+/// every PDF under `UNSEAL_BENCH_PDF_DIR` when configured.
 Future<void> runPdfBenchmarks() async {
   final group = BenchmarkGroup('PDF');
   final realFile = File(_realFixture);
@@ -36,7 +36,7 @@ Future<void> runPdfBenchmarks() async {
     _addSearchBenchmark(group, 'search — real writer fixture', bytes);
   }
 
-  final corpusRoot = Platform.environment['ELIVRE_BENCH_PDF_DIR'];
+  final corpusRoot = Platform.environment['UNSEAL_BENCH_PDF_DIR'];
   if (corpusRoot == null) return;
 
   final corpus = Directory(corpusRoot);

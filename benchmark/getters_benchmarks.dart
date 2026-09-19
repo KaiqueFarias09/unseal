@@ -6,19 +6,19 @@
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';
 
 /// Runs the parsed-book getter benchmarks.
 void runGetterBenchmarks() {
-  final epub = BookReader.parseBook(epubSmall.bytes) as EpubBook;
-  final aliceEpub = BookReader.parseBook(epubAlice.bytes) as EpubBook;
-  final mobi6 = BookReader.parseBook(mobi6Alice.bytes) as MobiBook;
-  final mobi8 = BookReader.parseBook(mobi8Alice.bytes) as MobiBook;
-  final fb2 = BookReader.parseBook(fb2Alice.bytes) as Fb2Book;
-  final comic = BookReader.parseBook(comicSample.bytes) as ComicBook;
+  final epub = Unseal.parse(epubSmall.bytes) as EpubBook;
+  final aliceEpub = Unseal.parse(epubAlice.bytes) as EpubBook;
+  final mobi6 = Unseal.parse(mobi6Alice.bytes) as MobiBook;
+  final mobi8 = Unseal.parse(mobi8Alice.bytes) as MobiBook;
+  final fb2 = Unseal.parse(fb2Alice.bytes) as Fb2Book;
+  final comic = Unseal.parse(comicSample.bytes) as ComicBook;
 
   final group = BenchmarkGroup('Parsed book getters');
   group.add(
@@ -43,7 +43,7 @@ void runGetterBenchmarks() {
   group.addFirstAccess<Book>(
     'statistics — first access (${epubSmall.shortLabel})',
     24,
-    () => BookReader.parseBook(epubSmall.bytes),
+    () => Unseal.parse(epubSmall.bytes),
     (final book) => book.statistics,
     note: 'parse before each access untimed',
   );
@@ -79,7 +79,7 @@ void runGetterBenchmarks() {
   group.addFirstAccess<MobiBook>(
     'chapters — first access (${mobi6Alice.shortLabel})',
     12,
-    () => BookReader.parseBook(mobi6Alice.bytes) as MobiBook,
+    () => Unseal.parse(mobi6Alice.bytes) as MobiBook,
     (final book) => book.chapters,
     note: 'parse before each access untimed',
   );

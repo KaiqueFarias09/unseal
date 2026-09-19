@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://e-livre.dev/schemas/benchmark-report.schema.json",
-  "title": "eLivre benchmark report (schemaVersion 1)",
-  "description": "Envelope emitted by every eLivre benchmark suite (dart run benchmark/*_benchmarks.dart --json[=path], ELIVRE_*_BENCH_JSON, viewer.js JSON_OUT, library_sweep sample). The `results` records share one stable field contract across all suites.",
+  "$id": "https://github.com/KaiqueFarias09/unseal/blob/main/benchmark/benchmark_report.schema.json",
+  "title": "unseal benchmark report (schemaVersion 1)",
+  "description": "Envelope emitted by every unseal benchmark suite (dart run benchmark/*_benchmarks.dart --json[=path], UNSEAL_*_BENCH_JSON, viewer.js JSON_OUT, library_sweep sample). The `results` records share one stable field contract across all suites.",
   "type": "object",
   "required": ["schemaVersion", "suite", "platform", "sdk", "commit", "status", "results"],
   "properties": {

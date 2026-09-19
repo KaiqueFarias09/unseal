@@ -1,5 +1,5 @@
 // Benchmarks for the web worker wire codec
-// (package:e_livre/src/platform/web/book_wire.dart).
+// (package:unseal/src/platform/web/book_wire.dart).
 //
 // The codec is what a parsed book crosses the worker -> main
 // thread boundary with: [encodeBookWire] flattens a parsed [Book]
@@ -20,9 +20,9 @@
 import 'dart:convert' as convert;
 import 'dart:typed_data';
 
-import 'package:e_livre/e_livre.dart';
-import 'package:e_livre/src/features/mobi/header/pdb_header.dart';
-import 'package:e_livre/src/platform/web/book_wire.dart';
+import 'package:unseal/src/features/mobi/header/pdb_header.dart';
+import 'package:unseal/src/platform/web/book_wire.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';
@@ -40,7 +40,7 @@ void runBookWireBenchmarks() {
 /// Times encode / decode for a book whose whole object graph crosses
 /// the wire: the [EpubBook] package graph, or comic pages as blobs.
 void _addGraphWire(final BenchmarkGroup group, final BookFixture fixture) {
-  final book = BookReader.parseBook(fixture.bytes);
+  final book = Unseal.parse(fixture.bytes);
   final (json, blobs) = encodeBookWire(book);
   final note = _wireNote(json, blobs, fixture.bytes.length);
 
@@ -72,7 +72,7 @@ void _addGraphWire(final BenchmarkGroup group, final BookFixture fixture) {
 /// the worker crosses, the decode-side header re-parse, and the full
 /// roundtrip.
 void _addMobiWire(final BenchmarkGroup group, final BookFixture fixture) {
-  final book = BookReader.parseBook(fixture.bytes) as MobiBook;
+  final book = Unseal.parse(fixture.bytes) as MobiBook;
   final record0 = mobiWireRecord0(fixture.bytes);
   final ident = PdbHeader.parse(fixture.bytes).ident;
   final (json, blobs) = encodeBookWire(book, mobiRecord0: record0, mobiIdent: ident);

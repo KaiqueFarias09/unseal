@@ -1,17 +1,17 @@
 // Benchmarks for the public full-parse entry points: the synchronous
-// dispatcher [BookReader.parseBook], the module-level [EpubBook.fromBytes]
-// and the isolate-based [BookReader.openFromBytes] / [BookReader.openFromPath].
+// dispatcher [Unseal.parse], the module-level [EpubBook.fromBytes]
+// and the isolate-based [Unseal.read] / [Unseal.readFile].
 //
 // The sync loop covers every synchronously-parseable format; the 7-Zip
 // formats (CB7, CBC) are async-only at the public API and are measured
-// through their own [BookReader.openFromBytes] rows. A coverage check
+// through their own [Unseal.read] rows. A coverage check
 // (untimed, once per run) fails the suite when a [BookFormat] loses
 // its fixture.
 
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
 
-import 'package:e_livre/e_livre.dart';
+import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';
 import 'fixtures.dart';
@@ -22,16 +22,16 @@ Future<void> runParsingBenchmarks() async {
   final group = BenchmarkGroup('Full parse');
   for (final fixture in parsingFixtures) {
     group.add(
-      'BookReader.parseBook — ${fixture.label}',
-      () => BookReader.parseBook(fixture.bytes),
+      'Unseal.parse — ${fixture.label}',
+      () => Unseal.parse(fixture.bytes),
       inputBytes: fixture.bytes.length,
       fixtureId: fixture.fixtureId,
     );
   }
   for (final fixture in asyncParsingFixtures) {
     await group.addAsync(
-      'BookReader.openFromBytes — ${fixture.label}',
-      () => BookReader.openFromBytes(fixture.bytes),
+      'Unseal.read — ${fixture.label}',
+      () => Unseal.read(fixture.bytes),
       inputBytes: fixture.bytes.length,
       fixtureId: fixture.fixtureId,
       note: 'async-only format · isolate spawn + byte copy included',
@@ -51,20 +51,20 @@ Future<void> runParsingBenchmarks() async {
   );
 
   await group.addAsync(
-    'BookReader.openFromBytes — ${epubSmall.label}',
-    () => BookReader.openFromBytes(epubSmall.bytes),
+    'Unseal.read — ${epubSmall.label}',
+    () => Unseal.read(epubSmall.bytes),
     inputBytes: epubSmall.bytes.length,
     note: 'isolate spawn + byte copy included',
   );
   await group.addAsync(
-    'BookReader.openFromBytes — ${mobi6Alice.label}',
-    () => BookReader.openFromBytes(mobi6Alice.bytes),
+    'Unseal.read — ${mobi6Alice.label}',
+    () => Unseal.read(mobi6Alice.bytes),
     inputBytes: mobi6Alice.bytes.length,
     note: 'isolate spawn + byte copy included',
   );
   await group.addAsync(
-    'BookReader.openFromPath — ${epubAlice.label}',
-    () => BookReader.openFromPath(epubAlice.path),
+    'Unseal.readFile — ${epubAlice.label}',
+    () => Unseal.readFile(epubAlice.path),
     note: 'disk read + isolate',
   );
 }
@@ -74,10 +74,10 @@ Future<void> runParsingBenchmarks() async {
 /// fixture, so benchmark coverage can never silently shrink.
 Future<void> _verifyParseFormatCoverage() async {
   final formats = <BookFormat>{
-    for (final fixture in parsingFixtures) BookReader.parseBook(fixture.bytes).format,
+    for (final fixture in parsingFixtures) Unseal.parse(fixture.bytes).format,
   };
   for (final fixture in asyncParsingFixtures) {
-    formats.add((await BookReader.openFromBytes(fixture.bytes)).format);
+    formats.add((await Unseal.read(fixture.bytes)).format);
   }
   if (formats.length != BookFormat.values.length) {
     final missing = BookFormat.values.toSet().difference(formats);
