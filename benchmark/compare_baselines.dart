@@ -199,7 +199,7 @@ bool _runSide(final String round, final String side, final String command, final
       'JSON_OUT': out,
       'UNSEAL_BENCH_JSON': out,
       'GRIMOIRE_BENCH_JSON': out,
-      'UNSEAL_NARRATION_BENCH_JSON': out,
+      'GRIMOIRE_NARRATION_BENCH_JSON': out,
     },
   );
   if (result.exitCode != 0 || !File(out).existsSync()) {
