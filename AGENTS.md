@@ -79,6 +79,10 @@ suite when changing one parser.
 
 - Stage explicit paths. Do not use broad staging in a dirty worktree.
 - Keep generated docs, caches, reports, and local corpus output out of commits.
+- Use `make release-check VERSION=x.y.z` before releasing. After pushing `main`
+  and waiting for green CI, run `make release-github VERSION=x.y.z`, followed
+  by `make publish VERSION=x.y.z`. The mutation targets re-run the release gate
+  and are safe to retry after partial completion.
 - Grimoire and Grimoire Narration are separate packages and are not required
   to publish Unseal. If publishing the whole package family, use the order
   Unseal, Grimoire, then Grimoire Narration.
