@@ -10,6 +10,7 @@ release_version=${VERSION:-}
 release_package=unseal
 release_tag="v$release_version"
 release_dart_bin=
+release_dart_version_file=.dart-version
 release_notes_file=
 
 cleanup() {
@@ -36,6 +37,14 @@ resolve_dart() {
     return
   fi
 
+  if [ -f .fvmrc ]; then
+    if [ ! -x .fvm/flutter_sdk/bin/dart ]; then
+      fail 'the project FVM SDK is unavailable; run fvm install before releasing.'
+    fi
+    release_dart_bin=.fvm/flutter_sdk/bin/dart
+    return
+  fi
+
   if command -v dart >/dev/null 2>&1; then
     release_dart_bin=$(command -v dart)
     return
@@ -47,6 +56,21 @@ resolve_dart() {
   fi
 
   fail 'Dart was not found. Install Dart or run make with DART_BIN=/path/to/dart.'
+}
+
+require_dart_version() {
+  [ -f "$release_dart_version_file" ] ||
+    fail "$release_dart_version_file is missing"
+
+  release_expected_dart_version=$(tr -d '[:space:]' <"$release_dart_version_file")
+  [ -n "$release_expected_dart_version" ] ||
+    fail "$release_dart_version_file is empty"
+
+  release_actual_dart_version=$(
+    "$release_dart_bin" --version 2>&1 | awk '{ print $4; exit }'
+  )
+  [ "$release_actual_dart_version" = "$release_expected_dart_version" ] ||
+    fail "Dart $release_actual_dart_version is active; expected $release_expected_dart_version. Run fvm install."
 }
 
 require_version_metadata() {
@@ -107,6 +131,7 @@ run_release_gate() {
   require_version_metadata
   require_clean_main
   resolve_dart
+  require_dart_version
 
   printf 'release-check: validating unseal %s\n' "$release_version"
   "$release_dart_bin" format --output=none --set-exit-if-changed .

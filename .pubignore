@@ -29,3 +29,5 @@ dart_test.yaml
 docs/
 test/
 tool/
+.dart-version
+.fvmrc

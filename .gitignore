@@ -34,3 +34,6 @@ steward.yaml
 
 # Node oracle dependencies (reproducible via package.json + package-lock.json)
 tool/reference/node_modules/
+
+# FVM Version Cache
+.fvm/

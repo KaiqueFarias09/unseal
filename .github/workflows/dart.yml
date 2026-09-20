@@ -22,11 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Note: This workflow uses the latest stable version of the Dart SDK.
-      # You can specify other versions if desired, see documentation here:
-      # https://github.com/dart-lang/setup-dart/blob/main/README.md
-      # - uses: dart-lang/setup-dart@v1
+      - name: Read pinned Dart SDK version
+        id: dart-sdk
+        run: echo "version=$(cat .dart-version)" >> "$GITHUB_OUTPUT"
+
       - uses: dart-lang/setup-dart@9a04e6d73cca37bd455e0608d7e5092f881fd603
+        with:
+          sdk: ${{ steps.dart-sdk.outputs.version }}
 
       - name: Install dependencies
         run: dart pub get --no-example
@@ -49,7 +51,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Read pinned Dart SDK version
+        id: dart-sdk
+        run: echo "version=$(cat .dart-version)" >> "$GITHUB_OUTPUT"
+
       - uses: dart-lang/setup-dart@9a04e6d73cca37bd455e0608d7e5092f881fd603
+        with:
+          sdk: ${{ steps.dart-sdk.outputs.version }}
 
       - name: Install dependencies
         run: dart pub get --no-example
