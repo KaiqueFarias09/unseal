@@ -21,6 +21,7 @@ import '../mobi/parse_mobi_book.dart';
 import '../odt/parse_odt_book.dart';
 import '../palmdoc/parse_palmdoc_book.dart';
 import '../pdf/parse_pdf_book.dart';
+import '../plucker/parse_plucker_book.dart';
 import '../rtf/parse_rtf_book.dart';
 import '../txt/parse_txt_book.dart';
 
@@ -65,6 +66,8 @@ abstract final class BookDispatch {
         return parsePalmdocBook(bytes);
       case DetectedFormat.ereader:
         return parseEreaderBook(bytes);
+      case DetectedFormat.plucker:
+        return parsePluckerBook(bytes);
       case DetectedFormat.html:
         return parseHtmlBook(bytes);
       case DetectedFormat.azw4:
@@ -128,6 +131,8 @@ abstract final class BookDispatch {
         return readPalmdocMetadata(bytes);
       case DetectedFormat.ereader:
         return readEreaderMetadata(bytes);
+      case DetectedFormat.plucker:
+        return readPluckerMetadata(bytes);
       case DetectedFormat.html:
         return readHtmlMetadata(bytes);
       case DetectedFormat.azw4:

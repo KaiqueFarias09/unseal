@@ -15,7 +15,7 @@ Unseal is a pure-Dart book parser and reading-data library. Give it bytes or a
 filesystem path and receive one format-neutral `Book` model with metadata,
 cover data, files, reading order, navigation, and statistics.
 
-It supports EPUB, MOBI, AZW3, PalmDOC, eReader PDB, RTF, Markdown, FB2, TXT, HTML, DOCX, ODT, AZW4, comic
+It supports EPUB, MOBI, AZW3, PalmDOC, eReader and Plucker PDB, RTF, Markdown, FB2, TXT, HTML, DOCX, ODT, AZW4, comic
 archives, and PDF without a native executable, FFI bridge, or Flutter
 dependency in the library itself.
 
@@ -42,6 +42,7 @@ document renderer.
 | MOBI 6 | PalmDOC and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts, and navigation | DRM-protected books are rejected. |
 | PalmDOC PDB | Uncompressed or PalmDOC-compressed `TEXt/REAd` records, title, and plain reading text | Other PDB ebook families use separate parsers. |
 | eReader PDB | Unencrypted `PNRd/PPrs` text records with PalmDOC or zlib compression and title/author metadata | PML is reduced to reading text; images, footnotes, sidebars, links, and page layout are not converted. |
+| Plucker PDB | `Data/Plkr` text pages with PalmDOC or zlib compression and database title | Inline formatting and links are flattened to text; images, bookmarks, and owner-keyed documents are not converted. |
 | AZW3 / KF8 | Skeleton and `div` reassembly, FDST flows, CSS/SVG, images, NCX navigation, and joint MOBI/KF8 files | DRM-protected books are rejected. |
 | FB2 / FBZ | Metadata, covers, declared encodings, notes, links, styles, and section navigation | The result is a reflowable HTML representation. |
 | TXT / TXTZ | UTF-8/UTF-16 decoding, paragraph-preserving XHTML, archive resources, and basic Markdown/Textile | Not a full Markdown or Textile implementation. Plain TXT metadata is limited. |
@@ -375,6 +376,8 @@ its own facsimile renderer.
   4096 decoded bytes. Unsupported Palm database ebook subtypes are rejected.
 - eReader PDB input is limited to 64 MiB, 8192 records, 8192 compressed bytes
   and 65535 decoded bytes per text record. DRM-protected books are rejected.
+- Plucker PDB input is limited to 64 MiB, 8192 records, 8192 compressed bytes
+  and 32768 decoded bytes per text record. Text-only projection omits images.
 - EPUB navigation is optional. A damaged or missing table of contents can
   produce an empty navigation model while readable spine content remains
   available.

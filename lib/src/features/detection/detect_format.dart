@@ -14,6 +14,7 @@ const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
 /// * `BOOKMOBI` / MOBI-flavored `TEXTREAD` → [DetectedFormat.mobiFamily]
 /// * plain `TEXTREAD` Palm Database → [DetectedFormat.palmdoc]
 /// * `PNRdPPrs` Palm Database → [DetectedFormat.ereader]
+/// * `DataPlkr` Palm Database → [DetectedFormat.plucker]
 /// * `{\\rtf` header → [DetectedFormat.rtf]
 /// * `<?xml` / `<FictionBook` prologue → [DetectedFormat.fb2]
 /// * an allowed short preamble followed by `%PDF` → [DetectedFormat.pdf]
@@ -55,6 +56,10 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (bytes.length >= 68 &&
       String.fromCharCodes(bytes.sublist(60, 68)).toUpperCase() == 'PNRDPPRS') {
     return DetectedFormat.ereader;
+  }
+  if (bytes.length >= 68 &&
+      String.fromCharCodes(bytes.sublist(60, 68)).toUpperCase() == 'DATAPLKR') {
+    return DetectedFormat.plucker;
   }
   if (_isPalmdoc(bytes)) return DetectedFormat.palmdoc;
   if (_isMobiFamily(bytes)) {

@@ -114,6 +114,7 @@ You only need a small set of format terms to understand most of the repository.
 | MOBI 6 | A Palm Database container with compressed legacy Kindle markup. | `MobiBook` with reconstructed HTML, resources, metadata, and navigation. |
 | PalmDOC PDB | A `TEXt/REAd` Palm Database with plain text in 4096-byte records. | `DocumentBook` tagged as `BookFormat.palmdoc`. |
 | eReader PDB | A `PNRd/PPrs` Palm Database containing compressed PML text and optional metadata. | `DocumentBook` tagged as `BookFormat.ereader`, with readable text and title/author; complex PML layout and resources remain unsupported. |
+| Plucker PDB | A `Data/Plkr` Palm Database containing compressed HTML-like pages. | `DocumentBook` tagged as `BookFormat.plucker`, with readable paragraphs and database title; links and resources are not reconstructed. |
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
@@ -153,6 +154,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 | `lib/rtf.dart` | RTF parsing and metadata reading. |
 | `lib/palmdoc.dart` | PalmDOC PDB parsing and metadata reading. |
 | `lib/ereader.dart` | Unencrypted eReader PDB text and metadata reading. |
+| `lib/plucker.dart` | Plucker PDB text and metadata reading. |
 | `lib/comic.dart` | CBZ and CBR parsing, comic entities and exceptions. |
 | `lib/comic7.dart` | CB7 and CBC parsing while reusing the common `ComicBook` model. |
 
@@ -285,6 +287,7 @@ identified by a `TEXt/REAd` Palm Database without a MOBI header.
 | `features/rtf/parse_rtf_book.dart` | Reads bounded RTF groups and control words, skips non-reading destinations, decodes text and metadata, and emits paragraphs with basic character emphasis. |
 | `features/palmdoc/parse_palmdoc_book.dart` | Validates PalmDOC record zero, decompresses bounded independent text records, and reuses the TXT converter for plain reading text. |
 | `features/ereader/parse_ereader_book.dart` | Recognizes eReader record-zero variants, rejects DRM, expands bounded text records, removes PML controls, and reads metadata. |
+| `features/plucker/parse_plucker_book.dart` | Validates the Plucker index and paragraph tables, expands bounded DOC or zlib text records, and removes inline function codes. |
 
 ## HTML and HTMLZ: preserve an existing document
 
@@ -512,7 +515,7 @@ The flow is:
 | `features/mobi/parse_mobi_book.dart` | Coordinates the entire format family. It parses headers, rejects DRM, finds standalone or joint KF8 layouts, chooses the MOBI 6 or KF8 reader, and builds metadata and `MobiBook`. |
 | `features/mobi/entities/mobi_book.dart` | Defines the MOBI result, chapter representation, resources, navigation, and reading order. |
 | `features/mobi/entities/entities.dart` | Re-exports the public MOBI entity types. |
-| `features/mobi/header/pdb_header.dart` | Parses the Palm Database header and record table for MOBI, PalmDOC, and eReader, then provides bounded access to numbered records. |
+| `features/mobi/header/pdb_header.dart` | Parses the Palm Database header and record table for MOBI, PalmDOC, eReader, and Plucker, then provides bounded access to numbered records. |
 | `features/mobi/header/mobi_header.dart` | Parses PalmDOC and MOBI header fields that control compression, encoding, record counts, resources, indexes, and format version. |
 | `features/mobi/header/exth_header.dart` | Parses optional EXTH metadata records used by Kindle for authors, identifiers, covers, KF8 boundaries, and other fields. |
 | `features/mobi/codec/mobi_text_codec.dart` | Decodes MOBI text with the format's character encodings. |

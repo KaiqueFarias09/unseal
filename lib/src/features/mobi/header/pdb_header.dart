@@ -20,7 +20,7 @@ class PdbHeader implements PdbRecordAccess {
     }
     name = nameBuffer.toString();
     final ident = String.fromCharCodes(bytes.sublist(60, 68)).toUpperCase();
-    if (ident != 'BOOKMOBI' && ident != 'TEXTREAD' && ident != 'PNRDPPRS') {
+    if (ident != 'BOOKMOBI' && ident != 'TEXTREAD' && ident != 'PNRDPPRS' && ident != 'DATAPLKR') {
       throw InvalidBookException('Unknown book type: $ident');
     }
 

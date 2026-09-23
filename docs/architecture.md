@@ -117,7 +117,7 @@ Input is untrusted. The following rules are architectural, not parser details:
 - Preserve HTML as data. A consuming renderer must sanitize or isolate it.
 - Reject unsupported DRM. Do not attempt to bypass access controls.
 
-RTF bounds group nesting and generated HTML, while PalmDOC and eReader bound
+RTF bounds group nesting and generated HTML, while PalmDOC, eReader, and Plucker bound
 each compressed and decompressed text record. Format-specific limits may differ
 because the formats have different cost models. The public README records the
 user-visible limits and exclusions.

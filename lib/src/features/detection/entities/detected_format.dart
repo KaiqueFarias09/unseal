@@ -32,6 +32,9 @@ enum DetectedFormat {
   /// Unencrypted eReader PDB publication.
   ereader,
 
+  /// Plucker pages stored in a Palm Database.
+  plucker,
+
   /// Standalone HTML document.
   html,
 

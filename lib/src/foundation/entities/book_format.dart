@@ -36,6 +36,9 @@ enum BookFormat {
   /// Unencrypted eReader PDB publication.
   ereader,
 
+  /// Plucker Palm Database publication (text content).
+  plucker,
+
   /// ZIP-wrapped plain text document.
   txtz,
 

@@ -390,6 +390,19 @@
       "focus": ["ereader", "pdb", "zlib", "metadata", "pml"]
     },
     {
+      "id": "FORMAT-PLUCKER-ZLIB",
+      "file": "format_expansion/plucker-sample.pdb",
+      "format": "plucker",
+      "title": "Plucker Sample",
+      "language": null,
+      "source": "PyPlucker 3.7 from original HTML; see format_expansion/PROVENANCE.md",
+      "license": "MIT; original test prose",
+      "license_file": "../../../LICENSE",
+      "bytes": 296,
+      "sha256": "df734eda0d1cb568ebe518c521e4d8aa9442fdb321906e2e08a7498e37361174",
+      "focus": ["plucker", "pdb", "zlib", "text"]
+    },
+    {
       "id": "FORMAT-HTML",
       "file": "html/synthetic.html",
       "format": "html",

@@ -3,7 +3,7 @@ version: 1.1.0
 repository: https://github.com/KaiqueFarias09/unseal
 description: >-
   Pure Dart book parsing: extract metadata, covers, content, styles,
-  fonts and navigation from EPUB, MOBI, AZW3, PalmDOC, eReader PDB, RTF,
+  fonts and navigation from EPUB, MOBI, AZW3, PalmDOC, eReader/Plucker PDB, RTF,
   Markdown, FB2, DOCX, ODT, CBZ/CBR and PDF.
 
 environment:

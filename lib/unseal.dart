@@ -14,6 +14,7 @@ export 'mobi.dart';
 export 'odt.dart';
 export 'palmdoc.dart';
 export 'pdf.dart';
+export 'plucker.dart';
 export 'rtf.dart';
 export 'src/features/annotations/annotation_codec.dart';
 export 'src/features/annotations/bookmark_merge.dart';
