@@ -18,6 +18,7 @@ them implicitly during tests.
 | `plucker-sample-doc.pdb` | Same original HTML and PyPlucker 3.7 process, with `--compression=doc` and document name `Plucker Sample DOC`. | `e80626bf181bcd4270daedeea78f72b6dc7fa4c6ea5b5081ed055c88b73bac95` |
 | `plucker-rich-source.html` | Original HTML test source created for Unseal on 2026-09-23 under the project MIT license. It includes local navigation, bold/italic text, and the CC0 `ereader-swatch.png` image. | `baca09a1bd6f44972254ec296c24742e78a72e550599e2a3b3c82fa87c1b69cb` |
 | `plucker-rich.pdb` | Generated from `plucker-rich-source.html` by PyPlucker 3.7 using Python 3.11 and temporary Pillow 12.3.0: `plucker-build -N 'Plucker Rich' -f plucker-rich --no-urlinfo --maxdepth=1 --compression=zlib --bpp=1 file:///absolute/path/to/plucker-rich-source.html`. `--no-urlinfo` removes the source URL. The original content is MIT/CC0; no GPL generator source is copied into Unseal. | `2c7215a11a5e5a8ab446f16d83daae592218176b75de7f315942b2c0faae59cf` |
+| `plucker-rich-color.pdb` | Generated from the same original source and PyPlucker 3.7 process with `--bpp=8`, document name `Plucker Rich Color`, and `--no-urlinfo`. It exercises the Palm OS standard 8-bit system palette. PNG output was independently decoded by Pillow and matched the source swatch's red, green, blue, and yellow pixels. | `d699db2e92d2259f1980648c884f4218197737524e0d3e8752352839dab520dd` |
 
 References:
 

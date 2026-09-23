@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:test/test.dart';
 import 'package:unseal/unseal.dart';
 
@@ -81,6 +82,19 @@ void main() {
       break;
     }
     expect(() => parsePluckerBook(bytes), throwsA(isA<InvalidBookException>()));
+  });
+
+  test('Plucker preserves the Palm 8-bit system palette in RGB PNG output', () {
+    final bytes = Uint8List.fromList(
+      File('test/resources/books/format_expansion/plucker-rich-color.pdb').readAsBytesSync(),
+    );
+    final book = parsePluckerBook(bytes);
+    expect(book.files.images, hasLength(1));
+    final png = book.files.images.single.content;
+    expect(png[25], 2); // PNG truecolor, eight bits per RGB channel.
+    final idatLength = ByteData.sublistView(png).getUint32(33);
+    final rgbRows = const ZLibDecoder().decodeBytes(png.sublist(41, 41 + idatLength));
+    expect(rgbRows, <int>[0, 255, 0, 0, 0, 255, 0, 0, 0, 0, 255, 255, 255, 0]);
   });
 
   test('rejects a Plucker continuation without a matching next record', () {
