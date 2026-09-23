@@ -29,6 +29,9 @@ enum DetectedFormat {
   /// PalmDOC text in a Palm Database.
   palmdoc,
 
+  /// Unencrypted eReader PDB publication.
+  ereader,
+
   /// Standalone HTML document.
   html,
 

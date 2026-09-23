@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:test/test.dart';
+import 'package:unseal/ereader.dart' as ereader;
 import 'package:unseal/markdown.dart' as markdown;
 import 'package:unseal/palmdoc.dart' as palmdoc;
 import 'package:unseal/rtf.dart' as rtf;
@@ -11,16 +12,20 @@ void main() {
     final mdBytes = File('$root/garden.md').readAsBytesSync();
     final rtfBytes = File('$root/garden.rtf').readAsBytesSync();
     final pdbBytes = File('$root/garden.pdb').readAsBytesSync();
+    final ereaderBytes = File('$root/ereader-sample.pdb').readAsBytesSync();
 
     final markdown.DocumentBook md = markdown.parseMarkdownBook(mdBytes);
     final rtf.DocumentBook rich = rtf.parseRtfBook(rtfBytes);
     final palmdoc.DocumentBook palm = palmdoc.parsePalmdocBook(pdbBytes);
+    final ereader.DocumentBook reader = ereader.parseEreaderBook(ereaderBytes);
 
     expect(md.format, markdown.BookFormat.markdown);
     expect(rich.format, rtf.BookFormat.rtf);
     expect(palm.format, palmdoc.BookFormat.palmdoc);
+    expect(reader.format, ereader.BookFormat.ereader);
     expect(markdown.readMarkdownMetadata(mdBytes).title, md.metadata.title);
     expect(rtf.readRtfMetadata(rtfBytes).title, rich.metadata.title);
     expect(palmdoc.readPalmdocMetadata(pdbBytes).title, palm.metadata.title);
+    expect(ereader.readEreaderMetadata(ereaderBytes).title, reader.metadata.title);
   });
 }

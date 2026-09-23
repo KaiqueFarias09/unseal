@@ -6,6 +6,7 @@ export 'comic.dart';
 export 'comic7.dart';
 export 'docx.dart';
 export 'epub.dart';
+export 'ereader.dart';
 export 'fb2.dart';
 export 'html.dart';
 export 'markdown.dart';

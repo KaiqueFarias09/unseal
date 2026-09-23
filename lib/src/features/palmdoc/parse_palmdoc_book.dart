@@ -4,6 +4,7 @@ import '../../foundation/entities/entities.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
 import '../mobi/header/pdb_header.dart';
 import '../txt/parse_txt_book.dart';
+import 'palmdoc_compression.dart';
 
 const _maxPalmdocBytes = 64 * 1024 * 1024;
 const _maxRecordInputBytes = 8192;
@@ -19,7 +20,9 @@ DocumentBook parsePalmdocBook(final Uint8List bytes) {
     if (record.length > _maxRecordInputBytes) {
       throw const InvalidBookException('PalmDOC text record exceeds the input limit.');
     }
-    final decoded = source.compression == 1 ? record : _decompressRecord(record);
+    final decoded = source.compression == 1
+        ? record
+        : decompressPalmdocRecord(record, maxOutputBytes: _recordTextBytes);
     if (decoded.length > _recordTextBytes) {
       throw const InvalidBookException('PalmDOC text record exceeds 4096 bytes.');
     }
@@ -118,47 +121,4 @@ final class _PalmdocSource {
       textRecords: textRecords,
     );
   }
-}
-
-Uint8List _decompressRecord(final Uint8List data) {
-  final bytes = <int>[];
-  var offset = 0;
-
-  void append(final int value) {
-    if (bytes.length >= _recordTextBytes) {
-      throw const InvalidBookException('PalmDOC decompression limit exceeded.');
-    }
-    bytes.add(value);
-  }
-
-  while (offset < data.length) {
-    final first = data[offset++];
-    if (first >= 1 && first <= 8) {
-      if (offset + first > data.length) {
-        throw const InvalidBookException('Truncated PalmDOC literal run.');
-      }
-      for (var i = 0; i < first; i++) {
-        append(data[offset++]);
-      }
-    } else if (first <= 0x7F) {
-      append(first);
-    } else if (first >= 0xC0) {
-      append(0x20);
-      append(first ^ 0x80);
-    } else {
-      if (offset >= data.length) {
-        throw const InvalidBookException('Truncated PalmDOC back reference.');
-      }
-      final pair = (first << 8) | data[offset++];
-      final distance = (pair & 0x3FFF) >> 3;
-      final length = (pair & 7) + 3;
-      if (distance == 0 || distance > bytes.length) {
-        throw const InvalidBookException('Invalid PalmDOC back reference.');
-      }
-      for (var i = 0; i < length; i++) {
-        append(bytes[bytes.length - distance]);
-      }
-    }
-  }
-  return Uint8List.fromList(bytes);
 }

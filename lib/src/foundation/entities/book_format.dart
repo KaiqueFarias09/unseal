@@ -33,6 +33,9 @@ enum BookFormat {
   /// PalmDOC text stored in a TEXt/REAd Palm Database.
   palmdoc,
 
+  /// Unencrypted eReader PDB publication.
+  ereader,
+
   /// ZIP-wrapped plain text document.
   txtz,
 

@@ -13,6 +13,7 @@ const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
 /// * `PK` zip container → [DetectedFormat.epub]
 /// * `BOOKMOBI` / MOBI-flavored `TEXTREAD` → [DetectedFormat.mobiFamily]
 /// * plain `TEXTREAD` Palm Database → [DetectedFormat.palmdoc]
+/// * `PNRdPPrs` Palm Database → [DetectedFormat.ereader]
 /// * `{\\rtf` header → [DetectedFormat.rtf]
 /// * `<?xml` / `<FictionBook` prologue → [DetectedFormat.fb2]
 /// * an allowed short preamble followed by `%PDF` → [DetectedFormat.pdf]
@@ -51,6 +52,10 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (_hasPrefix(bytes, sevenZipMagic)) return DetectedFormat.comic7;
   if (_isRar(bytes)) return DetectedFormat.comic;
 
+  if (bytes.length >= 68 &&
+      String.fromCharCodes(bytes.sublist(60, 68)).toUpperCase() == 'PNRDPPRS') {
+    return DetectedFormat.ereader;
+  }
   if (_isPalmdoc(bytes)) return DetectedFormat.palmdoc;
   if (_isMobiFamily(bytes)) {
     return _isAzw4(bytes) ? DetectedFormat.azw4 : DetectedFormat.mobiFamily;

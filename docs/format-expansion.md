@@ -1,6 +1,6 @@
 # Format expansion: evidence and scope
 
-This branch adds RTF, standalone Markdown, and PalmDOC PDB parsing. It also
+This release adds RTF, standalone Markdown, PalmDOC PDB, and eReader PDB parsing. It also
 validates that a Kepubify-generated KEPUB opens through the existing EPUB
 parser. The new fixtures and their hashes are recorded in
 `test/resources/books/format_expansion/PROVENANCE.md`.
@@ -10,6 +10,7 @@ parser. The new fixtures and their hashes are recorded in
 | RTF | [Microsoft RTF 1.9.1](https://officeprotocoldoc.z19.web.core.windows.net/files/Archive_References/%5BMSFT-RTF%5D.pdf) | Hand-authored control-word fixture and Calibre's real `LICENSE.rtf` | Text, title, author, Unicode, codepages, paragraphs, and basic character emphasis. Non-reading groups and embedded binary data are skipped. |
 | Markdown | [CommonMark 0.31.2](https://spec.commonmark.org/0.31.2/) and the [Dart Markdown parser](https://pub.dev/packages/markdown) | Hand-authored front matter and document fixture, plus browser test | Standalone files and explicit byte API, generated HTML, nested heading navigation, and simple metadata. |
 | PalmDOC PDB | [Calibre PalmDOC header](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/palmdoc.txt) and [compression format](https://github.com/kovidgoyal/calibre/blob/master/format_docs/compression/palmdoc.txt) | Generated `TEXt/REAd` file plus tests for raw records, byte pairs, back references, and corrupt data | Plain text PalmDOC with compression 1 or 2. Other PDB ebook families have different record contracts. |
+| eReader PDB | [Calibre eReader format notes](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/ereader.txt) | Calibre 9.4.0-generated `PNRd/PPrs` fixture with original source text, plus Chrome and malformed-record tests | Unencrypted 132-byte and legacy header recognition; PalmDOC or zlib text; title and author. PML controls are stripped, while images, footnotes, sidebars, links, and page layout are not converted. |
 | KEPUB | [Kepubify](https://github.com/pgaskin/kepubify) | Kepubify-generated derivative of a [W3C EPUB sample](https://github.com/IDPF/epub3-samples) | Opens as EPUB, retaining Kobo spans and EPUB metadata. There is no separate byte-level KEPUB identity. |
 
 CHM, DjVu, and LRF remain outside this branch. There are [CHM container

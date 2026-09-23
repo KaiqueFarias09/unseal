@@ -377,6 +377,19 @@
       "focus": ["palmdoc", "pdb", "compression", "plain-text"]
     },
     {
+      "id": "FORMAT-EREADER",
+      "file": "format_expansion/ereader-sample.pdb",
+      "format": "ereader",
+      "title": "Unseal eReader Fixture",
+      "language": null,
+      "source": "Calibre 9.4.0 conversion from original text; see format_expansion/PROVENANCE.md",
+      "license": "MIT; original test prose",
+      "license_file": "../../../LICENSE",
+      "bytes": 401,
+      "sha256": "0685dccfea126b3cfe6f57d84ac1973a3b56251912112d159aa2f8f4e579518d",
+      "focus": ["ereader", "pdb", "zlib", "metadata", "pml"]
+    },
+    {
       "id": "FORMAT-HTML",
       "file": "html/synthetic.html",
       "format": "html",
