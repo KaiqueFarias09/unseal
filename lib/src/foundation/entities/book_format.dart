@@ -24,6 +24,15 @@ enum BookFormat {
   /// Plain UTF text document.
   txt,
 
+  /// Standalone CommonMark document.
+  markdown,
+
+  /// Rich Text Format document.
+  rtf,
+
+  /// PalmDOC text stored in a TEXt/REAd Palm Database.
+  palmdoc,
+
   /// ZIP-wrapped plain text document.
   txtz,
 

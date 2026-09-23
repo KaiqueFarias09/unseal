@@ -66,7 +66,7 @@ List<Uint8List> degenerateInputs() => <Uint8List>[
   Uint8List.fromList(<int>[0x37, 0x7A, 0xBC, 0xAF]), // 7z magic head
   Uint8List.fromList(<int>[0x52, 0x61, 0x72, 0x21]), // 'Rar!'
   Uint8List.fromList('BOOKMOBI'.codeUnits),
-  Uint8List.fromList('{\\rtf1'.codeUnits), // RTF (unsupported, typed)
+  Uint8List.fromList('{\\rtf1'.codeUnits), // truncated RTF (typed failure)
   Uint8List.fromList('<?xml version="1.0"?>'.codeUnits),
   Uint8List.fromList(List<int>.filled(4096, 0xFF)),
 ];

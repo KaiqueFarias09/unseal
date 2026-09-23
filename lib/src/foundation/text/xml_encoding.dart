@@ -285,7 +285,7 @@ XmlEncoding _detectLegacySingleByte(final Uint8List bytes) {
 }
 
 String _decodeAscii(final Uint8List bytes) {
-  final out = StringBuffer(bytes.length);
+  final out = StringBuffer();
   for (final byte in bytes) {
     out.writeCharCode(byte <= 0x7F ? byte : _replacementRune);
   }
@@ -294,7 +294,7 @@ String _decodeAscii(final Uint8List bytes) {
 }
 
 String _decodeSingleByte(final Uint8List bytes, final List<int> runes) {
-  final out = StringBuffer(bytes.length);
+  final out = StringBuffer();
   for (final byte in bytes) {
     out.writeCharCode(byte < 0x80 ? byte : runes[byte - 0x80]);
   }

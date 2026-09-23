@@ -54,6 +54,9 @@ localization, reading-direction, accessibility, and media-overlay testing.
 | `FORMAT-CBR` | RAR 4 stored/compressed entries and natural page ordering |
 | `FORMAT-PDF` | Real-writer PDF text extraction, reflow and search |
 | `FORMAT-TXT` / `FORMAT-TXTZ` | Text decoding, Calibre-style metadata, OPF sidecar, Markdown and resources |
+| `FORMAT-MARKDOWN` | Standalone CommonMark, front matter, headings, and relative references |
+| `FORMAT-RTF` | RTF groups, text, Unicode, metadata, and character emphasis |
+| `FORMAT-PALMDOC` | PalmDOC PDB text records and compression |
 | `FORMAT-HTML` / `FORMAT-HTMLZ` | HTML metadata/navigation, top-level index and OPF sidecar |
 | `FORMAT-DOCX` | Open XML document, styles, metadata and resource contract |
 | `FORMAT-AZW4` | PalmDB wrapper and embedded PDF delegation |

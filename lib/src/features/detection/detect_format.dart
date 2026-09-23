@@ -11,14 +11,16 @@ const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
 /// Only a bounded prefix of the file is inspected:
 ///
 /// * `PK` zip container → [DetectedFormat.epub]
-/// * `BOOKMOBI` / `TEXTREAD` at offset 60 → [DetectedFormat.mobiFamily]
+/// * `BOOKMOBI` / MOBI-flavored `TEXTREAD` → [DetectedFormat.mobiFamily]
+/// * plain `TEXTREAD` Palm Database → [DetectedFormat.palmdoc]
+/// * `{\\rtf` header → [DetectedFormat.rtf]
 /// * `<?xml` / `<FictionBook` prologue → [DetectedFormat.fb2]
 /// * an allowed short preamble followed by `%PDF` → [DetectedFormat.pdf]
 /// * 7-Zip signature → [DetectedFormat.comic7]
 /// * HTML prologue → [DetectedFormat.html]
 /// * printable text → [DetectedFormat.txt]
 ///
-/// Throws [FormatNotSupportedException] for known-but-unsupported formats (Topaz, KFX, RTF) and for
+/// Throws [FormatNotSupportedException] for known-but-unsupported formats (Topaz, KFX) and for
 /// unrecognized data.
 DetectedFormat detectFormat(final Uint8List bytes) {
   const tpzMagic = <int>[0x54, 0x50, 0x5A];
@@ -40,7 +42,7 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (_pdfHeaderOffset(bytes) != null) return DetectedFormat.pdf;
 
   if (_hasPrefix(bytes, rtfMagic)) {
-    throw const FormatNotSupportedException('RTF books are not supported.');
+    return DetectedFormat.rtf;
   }
 
   // Zip container. EPUB, zipped FB2 and CBZ are the supported zip books; the dispatcher refines by
@@ -49,6 +51,7 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   if (_hasPrefix(bytes, sevenZipMagic)) return DetectedFormat.comic7;
   if (_isRar(bytes)) return DetectedFormat.comic;
 
+  if (_isPalmdoc(bytes)) return DetectedFormat.palmdoc;
   if (_isMobiFamily(bytes)) {
     return _isAzw4(bytes) ? DetectedFormat.azw4 : DetectedFormat.mobiFamily;
   }
@@ -267,4 +270,20 @@ bool _isMobiFamily(final Uint8List bytes) {
   final ident = String.fromCharCodes(bytes.sublist(60, 68)).toUpperCase();
 
   return ident == 'BOOKMOBI' || ident == 'TEXTREAD';
+}
+
+bool _isPalmdoc(final Uint8List bytes) {
+  if (bytes.length < 94 ||
+      String.fromCharCodes(bytes.sublist(60, 68)).toUpperCase() != 'TEXTREAD') {
+    return false;
+  }
+  final view = ByteData.sublistView(bytes);
+  final records = view.getUint16(76);
+  if (records < 2 || 78 + records * 8 > bytes.length) return true;
+  final first = view.getUint32(78);
+  final next = view.getUint32(86);
+  if (first > next || next > bytes.length || first + 16 > next) return true;
+  final mobiMarker =
+      first + 20 <= next && String.fromCharCodes(bytes.sublist(first + 16, first + 20)) == 'MOBI';
+  return !mobiMarker;
 }

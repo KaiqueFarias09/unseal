@@ -2,11 +2,13 @@ import 'dart:typed_data';
 
 import '../../../foundation/exceptions/unseal_exception.dart';
 
-/// The PalmDB (PDB) header of a MOBI file plus zero-copy record access.
+/// The PalmDB (PDB) header shared by MOBI and PalmDOC plus zero-copy record access.
 class PdbHeader implements PdbRecordAccess {
   /// Parses the PDB header of [bytes].
   PdbHeader.parse(final Uint8List bytes) {
-    if (bytes.length < 78) throw const InvalidBookException('File is too small to be a MOBI book.');
+    if (bytes.length < 78) {
+      throw const InvalidBookException('File is too small to be a Palm database.');
+    }
 
     _bytes = bytes;
     final nameBytes = bytes.sublist(0, 32);
@@ -84,7 +86,7 @@ class PdbHeader implements PdbRecordAccess {
   }
 }
 
-/// Random access to the records of a MOBI book.
+/// Random access to Palm Database records.
 abstract class PdbRecordAccess {
   /// Number of available records.
   int get count;

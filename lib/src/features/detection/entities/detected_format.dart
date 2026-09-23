@@ -23,6 +23,12 @@ enum DetectedFormat {
   /// Plain text document.
   txt,
 
+  /// Rich Text Format document.
+  rtf,
+
+  /// PalmDOC text in a Palm Database.
+  palmdoc,
+
   /// Standalone HTML document.
   html,
 

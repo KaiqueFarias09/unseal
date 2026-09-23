@@ -252,6 +252,35 @@ void main() {
       expect((cb7 as ComicBook).pageCount, 1);
       expect((cbc as ComicBook).pageCount, 2);
     });
+
+    test('opens RTF, PalmDOC, and explicit Markdown on the browser', () async {
+      final rtf = await Unseal.read(_utf8(r'{\rtf1{\info{\title Web RTF}}Browser \b text\b0.}'));
+      final record0 = ByteData(16)
+        ..setUint16(0, 2)
+        ..setUint32(4, 12)
+        ..setUint16(8, 1)
+        ..setUint16(10, 4096);
+      final pdb = buildPdb('Web Palm', <Uint8List>[
+        record0.buffer.asUint8List(),
+        Uint8List.fromList(<int>[..._utf8('Browser'), 0xC2, ..._utf8('ook')]),
+      ])..setRange(60, 68, 'TEXtREAd'.codeUnits);
+      final palm = await Unseal.read(pdb);
+      final markdown = parseMarkdownBook(_utf8('# Web Markdown\n\nA **chapter**.'));
+
+      expect(rtf.format, BookFormat.rtf);
+      expect(rtf.metadata.title, 'Web RTF');
+      expect(palm.format, BookFormat.palmdoc);
+      expect(palm.files.html.single.content, contains('Browser Book'));
+      expect(markdown.format, BookFormat.markdown);
+      expect(markdown.navigation.navPoints.single.label, 'Web Markdown');
+
+      for (final book in <Book>[rtf, palm, markdown]) {
+        final (json, blobs) = encodeBookWire(book);
+        final restored = decodeBookWire(decodeJson(encodeJson(json)), blobs);
+        expect(restored.format, book.format);
+        expect(restored.files.html.single.content, book.files.html.single.content);
+      }
+    });
   });
 
   group('worker wire codec on the browser', () {

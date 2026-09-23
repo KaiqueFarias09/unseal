@@ -1,0 +1,19 @@
+# Format expansion fixtures
+
+The following small files are included as test source data. Do not regenerate
+them implicitly during tests.
+
+| File | Origin and purpose | SHA-256 |
+| --- | --- | --- |
+| `garden.rtf` | Hand-authored RTF 1.x fixture following Microsoft's RTF 1.9.1 control-word rules. It covers `info`, ANSI escapes, Unicode fallback, emphasis, paragraphs, and an ignored picture group. Text is original to this repository. | `0947e56ce8951c565cb5fa04ebc2a5c2fe0b161d1a09dd18d9a299d35316dba9` |
+| `calibre-license.rtf` | Byte-for-byte copy of `LICENSE.rtf` in the [Calibre repository](https://github.com/kovidgoyal/calibre/blob/master/LICENSE.rtf). It is the GNU GPL version 3 license text in a real RTF document. Included as a larger, independently authored RTF parsing fixture; no Calibre source code is copied into the parser. | `a348e35edada9240ed21b1249e79be20ddac0184714773c7d0b02b7156fc642c` |
+| `garden.md` | Hand-authored CommonMark plus the parser's documented simple front matter subset. Text is original to this repository. | `66538040b07e5876cb242a75d44ff434725da99868907c23e0d1e24848a1e296` |
+| `garden.pdb` | Generated PalmDOC `TEXt/REAd` database from original text `Hello World\nSecond paragraph\n`. Record 0 declares PalmDOC compression 2, one 4096-byte text record, and the text length. The text record uses byte-pair codes `D7` and `D3` for “ W” and “ S”. Header and record layout follow Calibre's PalmDOC format notes. | `96613a923886c0b1aaa6942ec4c069d5c7eb7ebad28f8fb79ab06dcae7ca530a` |
+| `hefty-water.kepub.epub` | Derived from the existing W3C EPUB 3 sample `../epub/hefty-water.epub` using Kepubify v4.0.4 (`github.com/pgaskin/kepubify/v4/cmd/kepubify`): `kepubify --output hefty-water.kepub.epub hefty-water.epub`. The source sample is CC-BY-SA-3.0; see `../manifest.json` and `../licenses/LICENSE-CC-BY-SA-3.0.txt`. | `d24e52856e64a1b45deba9f3a0b35104dad7b44ae88af6bf6e2c116ab29894df` |
+
+References:
+
+- [Microsoft RTF specification](https://officeprotocoldoc.z19.web.core.windows.net/files/Archive_References/%5BMSFT-RTF%5D.pdf)
+- [CommonMark specification and examples](https://spec.commonmark.org/0.31.2/)
+- [Calibre PalmDOC header](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/palmdoc.txt) and [compression notes](https://github.com/kovidgoyal/calibre/blob/master/format_docs/compression/palmdoc.txt)
+- [Kepubify source](https://github.com/pgaskin/kepubify) and [W3C EPUB samples](https://github.com/IDPF/epub3-samples)

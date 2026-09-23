@@ -18,7 +18,9 @@ import '../fb2/parse_fb2_book.dart';
 import '../html/parse_html_book.dart';
 import '../mobi/parse_mobi_book.dart';
 import '../odt/parse_odt_book.dart';
+import '../palmdoc/parse_palmdoc_book.dart';
 import '../pdf/parse_pdf_book.dart';
+import '../rtf/parse_rtf_book.dart';
 import '../txt/parse_txt_book.dart';
 
 /// Owns platform-neutral format detection and parse/read dispatch.
@@ -56,6 +58,10 @@ abstract final class BookDispatch {
         return parsePdfBook(bytes, password: password);
       case DetectedFormat.txt:
         return parseTxtBook(bytes);
+      case DetectedFormat.rtf:
+        return parseRtfBook(bytes);
+      case DetectedFormat.palmdoc:
+        return parsePalmdocBook(bytes);
       case DetectedFormat.html:
         return parseHtmlBook(bytes);
       case DetectedFormat.azw4:
@@ -113,6 +119,10 @@ abstract final class BookDispatch {
         return readPdfMetadata(bytes, password: password);
       case DetectedFormat.txt:
         return readTxtMetadata(bytes);
+      case DetectedFormat.rtf:
+        return readRtfMetadata(bytes);
+      case DetectedFormat.palmdoc:
+        return readPalmdocMetadata(bytes);
       case DetectedFormat.html:
         return readHtmlMetadata(bytes);
       case DetectedFormat.azw4:

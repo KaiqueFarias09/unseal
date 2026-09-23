@@ -90,11 +90,8 @@ void main() {
       );
     });
 
-    test('rejects RTF books', () {
-      expect(
-        () => detectFormat(Uint8List.fromList(r'{\rtf1}'.codeUnits)),
-        throwsA(isA<FormatNotSupportedException>()),
-      );
+    test('detects RTF books', () {
+      expect(detectFormat(Uint8List.fromList(r'{\rtf1}'.codeUnits)), DetectedFormat.rtf);
     });
 
     test('rejects empty bytes', () {

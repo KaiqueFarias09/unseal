@@ -3,8 +3,8 @@ version: 1.1.0
 repository: https://github.com/KaiqueFarias09/unseal
 description: >-
   Pure Dart book parsing: extract metadata, covers, content, styles,
-  fonts and navigation from EPUB, MOBI, AZW3, FB2, DOCX, ODT,
-  CBZ/CBR and PDF.
+  fonts and navigation from EPUB, MOBI, AZW3, PalmDOC, RTF,
+  Markdown, FB2, DOCX, ODT, CBZ/CBR and PDF.
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
@@ -32,6 +32,8 @@ dependencies:
   collection: ^1.15.0
   html: ^0.15.7
   koni_archive: ^0.9.0
+  # 7.3.1 requires Dart 3.9; unseal still supports Dart 3.8.
+  markdown: '>=7.3.0 <7.3.1'
   path: ^1.8.1
   pointycastle: ^4.0.0
   web: ^1.1.0

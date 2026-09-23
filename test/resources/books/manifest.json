@@ -338,6 +338,45 @@
       "focus": ["txtz", "zip", "opf-metadata", "markdown", "cover", "natural-order"]
     },
     {
+      "id": "FORMAT-MARKDOWN",
+      "file": "format_expansion/garden.md",
+      "format": "markdown",
+      "title": "Jardim Secreto",
+      "language": "pt-BR",
+      "source": "Hand-authored; see format_expansion/PROVENANCE.md",
+      "license": "MIT; original test prose",
+      "license_file": "../../../LICENSE",
+      "bytes": 231,
+      "sha256": "66538040b07e5876cb242a75d44ff434725da99868907c23e0d1e24848a1e296",
+      "focus": ["markdown", "front-matter", "headings", "links"]
+    },
+    {
+      "id": "FORMAT-RTF",
+      "file": "format_expansion/garden.rtf",
+      "format": "rtf",
+      "title": "Jardim Secreto",
+      "language": null,
+      "source": "Hand-authored; see format_expansion/PROVENANCE.md",
+      "license": "MIT; original test prose",
+      "license_file": "../../../LICENSE",
+      "bytes": 202,
+      "sha256": "0947e56ce8951c565cb5fa04ebc2a5c2fe0b161d1a09dd18d9a299d35316dba9",
+      "focus": ["rtf", "unicode", "ansi", "metadata", "emphasis"]
+    },
+    {
+      "id": "FORMAT-PALMDOC",
+      "file": "format_expansion/garden.pdb",
+      "format": "palmdoc",
+      "title": "Palm Garden",
+      "language": null,
+      "source": "Generated from PalmDOC format notes; see format_expansion/PROVENANCE.md",
+      "license": "MIT; original test prose",
+      "license_file": "../../../LICENSE",
+      "bytes": 138,
+      "sha256": "96613a923886c0b1aaa6942ec4c069d5c7eb7ebad28f8fb79ab06dcae7ca530a",
+      "focus": ["palmdoc", "pdb", "compression", "plain-text"]
+    },
+    {
       "id": "FORMAT-HTML",
       "file": "html/synthetic.html",
       "format": "html",

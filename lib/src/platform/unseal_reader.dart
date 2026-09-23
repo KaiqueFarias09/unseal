@@ -4,6 +4,7 @@ import '../features/detection/detect_format.dart';
 import '../features/detection/entities/detected_format.dart';
 import '../features/epub/metadata/epub_metadata.dart';
 import '../features/epub/package/parse_epub_package.dart';
+import '../features/markdown/parse_markdown_book.dart';
 import '../features/reading/book_dispatch.dart';
 import '../features/reading/book_inspection.dart';
 import '../foundation/entities/entities.dart';
@@ -51,7 +52,12 @@ abstract final class Unseal {
 
   /// Reads a book from the file at [path], opening encrypted PDFs with [password].
   static Future<Book> readFile(final String path, {final String password = ''}) {
-    return withBookPath(path, (final bytes, final _) => read(bytes, password: password));
+    return withBookPath(path, (final bytes, final sourcePath) {
+      if (_isMarkdownPath(sourcePath)) {
+        return parseBookInBackground(() => parseMarkdownBook(bytes, sourceName: sourcePath), bytes);
+      }
+      return read(bytes, password: password);
+    });
   }
 
   /// Synchronously parses [bytes] with the matching format adapter.
@@ -73,7 +79,12 @@ abstract final class Unseal {
   /// Reads only metadata from the file at [path], including a neighboring OPF sidecar.
   static Future<BookMetadata> readMetadataFile(final String path, {final String password = ''}) {
     return withBookPath(path, (final bytes, final sourcePath) async {
-      final metadata = await readMetadata(bytes, password: password);
+      final metadata = _isMarkdownPath(sourcePath)
+          ? await readMetadataInBackground(
+              () => readMarkdownMetadata(bytes, sourceName: sourcePath),
+              bytes,
+            )
+          : await readMetadata(bytes, password: password);
       final sidecar = await readBookSidecar(
         sourcePath,
         (final content) => epubBookMetadata(parsePackage(content)),
@@ -90,4 +101,9 @@ abstract final class Unseal {
   static BookMetadata readMetadataSync(final Uint8List bytes, {final String password = ''}) {
     return BookDispatch.readMetadataSync(bytes, password: password);
   }
+}
+
+bool _isMarkdownPath(final String path) {
+  final lower = path.toLowerCase();
+  return lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.mdown');
 }
