@@ -113,7 +113,7 @@ You only need a small set of format terms to understand most of the repository.
 | KEPUB | A Kobo-modified EPUB package. | `EpubBook` tagged as `BookFormat.epub`; Kobo spans in XHTML remain available. |
 | MOBI 6 | A Palm Database container with compressed legacy Kindle markup. | `MobiBook` with reconstructed HTML, resources, metadata, and navigation. |
 | PalmDOC PDB | A `TEXt/REAd` Palm Database with plain text in 4096-byte records. | `DocumentBook` tagged as `BookFormat.palmdoc`. |
-| eReader PDB | A `PNRd/PPrs` Palm Database containing compressed PML text and optional metadata. | `DocumentBook` tagged as `BookFormat.ereader`, with readable text and title/author; complex PML layout and resources remain unsupported. |
+| eReader PDB | A `PNRd/PPrs` Palm Database containing compressed PML text, image and note records, and optional metadata. | `DocumentBook` tagged as `BookFormat.ereader`, with reading-oriented HTML, basic styles, local links, PNG images, footnotes, sidebars, and title/author. Exact PML layout is not reconstructed. |
 | Plucker PDB | A `Data/Plkr` Palm Database containing compressed HTML-like pages. | `DocumentBook` tagged as `BookFormat.plucker`, with readable paragraphs and database title; links and resources are not reconstructed. |
 | Sony LRF | A BBeB binary container with indexed objects, page streams, metadata XML, and image streams. | `DocumentBook` tagged as `BookFormat.lrf`, with ordered reflowed pages and extracted images for versions 1–800 and 801+. |
 | Sony LRX | Calibre recognizes legacy `LRX` and `ftypLRX2` markers; Sony's public references describe OpenMG-protected BBeB and separately identify Marlin-protected Reader content, but do not specify the LRX wrapper. | `readLrxMetadata` reads a plaintext metadata stream from a nested LRX2 `bbeb` box; full book parsing throws `DrmProtectedException`. The box path is oracle-derived and tested with synthetic bytes. |
@@ -294,7 +294,7 @@ identified by a `TEXt/REAd` Palm Database without a MOBI header.
 | `features/markdown/parse_markdown_book.dart` | Converts CommonMark to HTML, reads bounded simple front matter, assigns heading targets, and builds navigation. Relative resources remain references because byte input cannot access neighboring files. |
 | `features/rtf/parse_rtf_book.dart` | Reads bounded RTF groups and control words, skips non-reading destinations, decodes text and metadata, and emits paragraphs with basic character emphasis. |
 | `features/palmdoc/parse_palmdoc_book.dart` | Validates PalmDOC record zero, decompresses bounded independent text records, and reuses the TXT converter for plain reading text. |
-| `features/ereader/parse_ereader_book.dart` | Recognizes eReader record-zero variants, rejects DRM, expands bounded text records, removes PML controls, and reads metadata. |
+| `features/ereader/parse_ereader_book.dart` | Recognizes eReader record-zero variants, rejects DRM, expands bounded text and resource records, converts supported PML into reading-oriented HTML, and reads metadata. |
 | `features/plucker/parse_plucker_book.dart` | Validates the Plucker index and paragraph tables, expands bounded DOC or zlib text records, joins continued fragments, and removes inline function codes. |
 | `features/lrf/parse_lrf_book.dart` | Reads BBeB object indexes, expands bounded streams, converts ordered text objects, and exposes metadata, navigation, and images. |
 

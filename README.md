@@ -42,7 +42,7 @@ document renderer.
 | KEPUB | Kobo EPUB packages are read through the EPUB parser, preserving Kobo spans and EPUB content. | Reported as `BookFormat.epub`; a Kobo-specific format type is not inferred from ZIP bytes. |
 | MOBI 6 | PalmDOC and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts, and navigation | DRM-protected books are rejected. |
 | PalmDOC PDB | Uncompressed or PalmDOC-compressed `TEXt/REAd` records, title, and plain reading text | Other PDB ebook families use separate parsers. |
-| eReader PDB | Unencrypted `PNRd/PPrs` text records with PalmDOC or zlib compression and title/author metadata | PML is reduced to reading text; images, footnotes, sidebars, links, and page layout are not converted. |
+| eReader PDB | Unencrypted `PNRd/PPrs` records with PML emphasis, headings, local links, PNG images, footnotes, sidebars, and title/author metadata | Reading-oriented HTML does not reproduce page layout or every PML control; protected books are rejected. |
 | Plucker PDB | `Data/Plkr` text pages with PalmDOC or zlib compression, continued records, and database title | Inline formatting and links are flattened to text; images, bookmarks, and owner-keyed documents are not converted. |
 | Sony LRF | BBeB metadata, ordered text pages, table of contents, and embedded JPEG/PNG/BMP/GIF images for versions 1–800 and 801+ | Reflowed content rather than Sony's fixed layout. Exact typography, ruby styling, and complex canvas layouts are outside this contract. |
 | Sony LRX | Plaintext metadata from the LRX2 BBeB wrapper | Protected book content is rejected with `DrmProtectedException`; metadata-only support does not decrypt or render it. |

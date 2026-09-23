@@ -13,7 +13,10 @@
   navigation, and embedded images.
 - Direct-JPEG DjVu visual pages, dimensions, and optional uncompressed OCR.
   Common JB2/IW44 image layers return a typed unsupported-format failure.
-- KEPUB fixture validation through the existing EPUB parser.
+- KEPUB fixture validation through the existing EPUB parser, including an
+  independently produced Standard Ebooks Kobo edition.
+- eReader PML emphasis, headings, local links, PNG images, footnotes, and
+  sidebars; Plucker inline formatting, links, headings, and bitmap resources.
 
 ### Reliability and scope
 
