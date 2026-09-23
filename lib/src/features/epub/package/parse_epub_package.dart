@@ -59,6 +59,7 @@ EpubPackage parsePackage(final String xml) {
     spine: spine,
     guide: guide,
     tocId: navigationItem?.getAttribute('id') ?? spine.tocId,
+    renditionSettings: _readRendition(metadataElement, spineElement),
   );
 }
 
@@ -326,6 +327,9 @@ Epub3Metadata _buildEpub3Metadata(
     educationalRole: details.educationalRole,
     typicalAgeRange: details.typicalAgeRange,
     accessibilityFeatures: details.accessibilityFeatures,
+    accessModes: details.accessModes,
+    sufficientAccessModes: details.sufficientAccessModes,
+    accessibilityHazards: details.accessibilityHazards,
     uniqueIdentifierValue: common.uniqueIdentifierValue,
     modified: details.modified,
     rendition: details.rendition,
@@ -349,6 +353,9 @@ final class _Epub3Details {
     required this.educationalRole,
     required this.typicalAgeRange,
     required this.accessibilityFeatures,
+    required this.accessModes,
+    required this.sufficientAccessModes,
+    required this.accessibilityHazards,
     required this.modified,
     required this.rendition,
     required this.belongsToCollection,
@@ -361,6 +368,9 @@ final class _Epub3Details {
   final String educationalRole;
   final String typicalAgeRange;
   final List<String> accessibilityFeatures;
+  final List<String> accessModes;
+  final List<List<String>> sufficientAccessModes;
+  final List<String> accessibilityHazards;
   final String modified;
   final String rendition;
   final String belongsToCollection;
@@ -371,10 +381,25 @@ final class _Epub3Details {
 _Epub3Details _readEpub3Details(final XmlElement metadataElement) {
   return _Epub3Details(
     schemaOrgs: _propertyTexts(metadataElement, 'schema:org'),
-    accessibilitySummaries: _propertyTexts(metadataElement, 'a11y:summary'),
+    accessibilitySummaries: <String>[
+      ..._propertyTexts(metadataElement, 'schema:accessibilitySummary'),
+      ..._propertyTexts(metadataElement, 'a11y:summary'),
+    ],
     educationalRole: _propertyText(metadataElement, 'schema:educationalRole'),
     typicalAgeRange: _propertyText(metadataElement, 'schema:typicalAgeRange'),
     accessibilityFeatures: _propertyTexts(metadataElement, 'schema:accessibilityFeature'),
+    accessModes: _propertyTexts(metadataElement, 'schema:accessMode'),
+    sufficientAccessModes: _propertyTexts(metadataElement, 'schema:accessModeSufficient')
+        .map(
+          (final modes) => modes
+              .split(',')
+              .map((final mode) => mode.trim())
+              .where((final mode) => mode.isNotEmpty)
+              .toList(),
+        )
+        .where((final modes) => modes.isNotEmpty)
+        .toList(),
+    accessibilityHazards: _propertyTexts(metadataElement, 'schema:accessibilityHazard'),
     modified: _propertyText(metadataElement, 'dcterms:modified'),
     rendition: _propertyText(metadataElement, 'rendition'),
     belongsToCollection: _propertyText(metadataElement, 'belongs-to-collection'),
@@ -404,7 +429,107 @@ List<String> _propertyTexts(final XmlElement metadataElement, final String prope
       .findElements('meta')
       .where((final element) => element.getAttribute('property') == property)
       .map((final element) => element.innerText.trim())
+      .where((final value) => value.isNotEmpty)
       .toList();
+}
+
+EpubRendition _readRendition(final XmlElement metadataElement, final XmlElement spineElement) {
+  String global(final String property) =>
+      metadataElement
+          .findElements('meta')
+          .firstWhereOrNull(
+            (final meta) =>
+                meta.getAttribute('property') == property && meta.getAttribute('refines') == null,
+          )
+          ?.innerText
+          .trim() ??
+      '';
+
+  final spineItems = <String, EpubSpineRendition>{};
+  for (final item in spineElement.findElements('itemref')) {
+    final idref = item.getAttribute('idref');
+    if (idref == null || idref.isEmpty) continue;
+    final properties = _propertiesOf(item);
+    final layout = properties.contains('rendition:layout-pre-paginated')
+        ? EpubLayout.prePaginated
+        : properties.contains('rendition:layout-reflowable')
+        ? EpubLayout.reflowable
+        : null;
+    final orientation = properties.contains('rendition:orientation-landscape')
+        ? EpubOrientation.landscape
+        : properties.contains('rendition:orientation-portrait')
+        ? EpubOrientation.portrait
+        : properties.contains('rendition:orientation-auto')
+        ? EpubOrientation.auto
+        : null;
+    final spread = properties.contains('rendition:spread-none')
+        ? EpubSpread.none
+        : properties.contains('rendition:spread-both')
+        ? EpubSpread.both
+        : properties.contains('rendition:spread-landscape')
+        ? EpubSpread.landscape
+        : properties.contains('rendition:spread-portrait')
+        ? EpubSpread.portrait
+        : properties.contains('rendition:spread-auto')
+        ? EpubSpread.auto
+        : null;
+    final flow = properties.contains('rendition:flow-paginated')
+        ? EpubFlow.paginated
+        : properties.contains('rendition:flow-scrolled-doc')
+        ? EpubFlow.scrolledDoc
+        : properties.contains('rendition:flow-scrolled-continuous')
+        ? EpubFlow.scrolledContinuous
+        : properties.contains('rendition:flow-auto')
+        ? EpubFlow.auto
+        : null;
+    final pageSpread =
+        properties.contains('rendition:page-spread-left') || properties.contains('page-spread-left')
+        ? EpubPageSpread.left
+        : properties.contains('rendition:page-spread-right') ||
+              properties.contains('page-spread-right')
+        ? EpubPageSpread.right
+        : properties.contains('rendition:page-spread-center')
+        ? EpubPageSpread.center
+        : null;
+    if (layout != null ||
+        orientation != null ||
+        spread != null ||
+        flow != null ||
+        pageSpread != null) {
+      spineItems[idref] = EpubSpineRendition(
+        layout: layout,
+        orientation: orientation,
+        spread: spread,
+        flow: flow,
+        pageSpread: pageSpread,
+      );
+    }
+  }
+
+  return EpubRendition(
+    layout: global('rendition:layout') == 'pre-paginated'
+        ? EpubLayout.prePaginated
+        : EpubLayout.reflowable,
+    orientation: switch (global('rendition:orientation')) {
+      'landscape' => EpubOrientation.landscape,
+      'portrait' => EpubOrientation.portrait,
+      _ => EpubOrientation.auto,
+    },
+    spread: switch (global('rendition:spread')) {
+      'none' => EpubSpread.none,
+      'both' => EpubSpread.both,
+      'landscape' => EpubSpread.landscape,
+      'portrait' => EpubSpread.portrait,
+      _ => EpubSpread.auto,
+    },
+    flow: switch (global('rendition:flow')) {
+      'paginated' => EpubFlow.paginated,
+      'scrolled-doc' => EpubFlow.scrolledDoc,
+      'scrolled-continuous' => EpubFlow.scrolledContinuous,
+      _ => EpubFlow.auto,
+    },
+    spineItems: spineItems,
+  );
 }
 
 List<ManifestItem> _parseManifestItems(

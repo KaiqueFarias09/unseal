@@ -1,6 +1,7 @@
 import '../../../features/epub/entities/package/epub_2_package.dart';
 import '../../../features/epub/entities/package/epub_3_package.dart';
 import '../../../features/epub/entities/package/epub_package.dart';
+import '../../../features/epub/entities/package/epub_rendition.dart';
 import '../../../features/epub/entities/package/page_progression_direction.dart';
 
 /// Encodes an EPUB package and its nested manifest, spine, guide, and metadata.
@@ -11,6 +12,7 @@ Map<String, Object?> encodeEpubPackageWireValue(final EpubPackage package) {
     'xmlns': package.xmlns,
     'uniqueIdentifier': package.uniqueIdentifier,
     'tocId': package is Epub3Package ? package.tocId : null,
+    if (package is Epub3Package) 'renditionSettings': _encodeRendition(package.renditionSettings),
     'metadata': _encodePackageMetadata(package),
     'manifest': <String, Object?>{
       'items': <Object?>[
@@ -70,6 +72,11 @@ Map<String, Object?> _encodePackageMetadata(final EpubPackage package) {
       'schemaOrgs': List<String>.of(metadata.schemaOrgs),
       'accessibilitySummaries': List<String>.of(metadata.accessibilitySummaries),
       'accessibilityFeatures': List<String>.of(metadata.accessibilityFeatures),
+      'accessModes': List<String>.of(metadata.accessModes),
+      'sufficientAccessModes': <Object?>[
+        for (final modes in metadata.sufficientAccessModes) List<String>.of(modes),
+      ],
+      'accessibilityHazards': List<String>.of(metadata.accessibilityHazards),
       'educationalRole': metadata.educationalRole,
       'typicalAgeRange': metadata.typicalAgeRange,
       'modified': metadata.modified,
@@ -114,6 +121,7 @@ EpubPackage decodeEpubPackageWireValue(final Map<String, Object?> json) {
           manifest: manifest,
           spine: _decodeSpine(spineJson),
           tocId: json['tocId'] as String?,
+          renditionSettings: _decodeRendition(json['renditionSettings'] as Map<String, Object?>?),
           guide: guide,
         )
       : Epub2Package(
@@ -205,6 +213,13 @@ Epub3Metadata _decodeEpub3Metadata(final Map<String, Object?> json) {
         (json['accessibilitySummaries'] as List<Object?>?)?.cast<String>() ?? const <String>[],
     accessibilityFeatures:
         (json['accessibilityFeatures'] as List<Object?>?)?.cast<String>() ?? const <String>[],
+    accessModes: (json['accessModes'] as List<Object?>?)?.cast<String>() ?? const <String>[],
+    sufficientAccessModes: <List<String>>[
+      for (final modes in (json['sufficientAccessModes'] as List<Object?>?) ?? const <Object?>[])
+        (modes as List<Object?>).cast<String>(),
+    ],
+    accessibilityHazards:
+        (json['accessibilityHazards'] as List<Object?>?)?.cast<String>() ?? const <String>[],
     educationalRole: (json['educationalRole'] as String?) ?? '',
     typicalAgeRange: (json['typicalAgeRange'] as String?) ?? '',
     modified: (json['modified'] as String?) ?? '',
@@ -218,3 +233,47 @@ Epub3Metadata _decodeEpub3Metadata(final Map<String, Object?> json) {
     narrator: (json['narrator'] as String?) ?? '',
   );
 }
+
+Map<String, Object?> _encodeRendition(final EpubRendition rendition) => <String, Object?>{
+  'layout': rendition.layout.name,
+  'orientation': rendition.orientation.name,
+  'spread': rendition.spread.name,
+  'flow': rendition.flow.name,
+  'spineItems': <String, Object?>{
+    for (final entry in rendition.spineItems.entries)
+      entry.key: <String, Object?>{
+        'layout': entry.value.layout?.name,
+        'orientation': entry.value.orientation?.name,
+        'spread': entry.value.spread?.name,
+        'flow': entry.value.flow?.name,
+        'pageSpread': entry.value.pageSpread?.name,
+      },
+  },
+};
+
+EpubRendition _decodeRendition(final Map<String, Object?>? json) {
+  if (json == null) return const EpubRendition();
+  final spineJson = json['spineItems'] as Map<String, Object?>? ?? const <String, Object?>{};
+  return EpubRendition(
+    layout: EpubLayout.values.byName(json['layout'] as String),
+    orientation: EpubOrientation.values.byName(json['orientation'] as String),
+    spread: EpubSpread.values.byName(json['spread'] as String),
+    flow: EpubFlow.values.byName(json['flow'] as String),
+    spineItems: <String, EpubSpineRendition>{
+      for (final entry in spineJson.entries)
+        entry.key: _decodeSpineRendition(entry.value as Map<String, Object?>),
+    },
+  );
+}
+
+EpubSpineRendition _decodeSpineRendition(final Map<String, Object?> json) => EpubSpineRendition(
+  layout: json['layout'] == null ? null : EpubLayout.values.byName(json['layout'] as String),
+  orientation: json['orientation'] == null
+      ? null
+      : EpubOrientation.values.byName(json['orientation'] as String),
+  spread: json['spread'] == null ? null : EpubSpread.values.byName(json['spread'] as String),
+  flow: json['flow'] == null ? null : EpubFlow.values.byName(json['flow'] as String),
+  pageSpread: json['pageSpread'] == null
+      ? null
+      : EpubPageSpread.values.byName(json['pageSpread'] as String),
+);

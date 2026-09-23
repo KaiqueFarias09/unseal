@@ -40,7 +40,9 @@ void main() {
       final book = parseEpubBook(structureBytes);
       final points = book.navigation.navPoints;
 
-      final halftitle = book.navTargetOf(points[1]);
+      final halftitle = book.navTargetOf(
+        points.firstWhere((final point) => point.label == 'Half Titlepage Title'),
+      );
       expect(halftitle, isNotNull);
       expect(halftitle!.sectionIndex, 2);
       expect(halftitle.anchorId, 'd6e189');
@@ -52,7 +54,9 @@ void main() {
       final text = documentTextOf(file);
       expect(text.substring(halftitle.charOffset!), startsWith('Half Titlepage Title'));
 
-      final preface = book.navTargetOf(points[4]);
+      final preface = book.navTargetOf(
+        points.firstWhere((final point) => point.label == 'Preface'),
+      );
       expect(preface!.sectionIndex, 7);
       expect(preface.charOffset, isNotNull);
       expect(preface.charOffset, lessThan(documentTextOf(_htmlOf(book, 7)).length));

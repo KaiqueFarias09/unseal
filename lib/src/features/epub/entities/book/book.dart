@@ -8,6 +8,7 @@ import '../../metadata/epub_metadata.dart';
 import '../../parse_epub_book.dart';
 import '../package/epub_package.dart';
 import '../package/page_progression_direction.dart';
+import 'epub_landmark.dart';
 
 /// A parsed EPUB 2.0 / 3.0 book.
 final class EpubBook extends Book implements EpubDocument {
@@ -17,6 +18,8 @@ final class EpubBook extends Book implements EpubDocument {
     required this.files,
     required this.cover,
     required this.package,
+    this.pageList,
+    this.landmarks = const <EpubLandmark>[],
     this.spinePaths,
     this.archiveEntries = const <ArchiveEntry>[],
   }) : super(format: BookFormat.epub);
@@ -24,6 +27,14 @@ final class EpubBook extends Book implements EpubDocument {
   /// The navigation (table of contents) of the book.
   @override
   final Navigation navigation;
+
+  /// EPUB 3 page labels and destinations, when the nav document declares a page list.
+  @override
+  final Navigation? pageList;
+
+  /// EPUB 3 structural destinations, with their semantic `epub:type` values.
+  @override
+  final List<EpubLandmark> landmarks;
 
   /// The files extracted from the book.
   @override

@@ -109,7 +109,7 @@ You only need a small set of format terms to understand most of the repository.
 
 | Format | What it contains | What unseal produces |
 | --- | --- | --- |
-| EPUB 2 and EPUB 3 | A ZIP package with metadata, HTML chapters, resources, and navigation. | `EpubBook` with its package model, reading spine, resources, navigation, and links to optional SMIL media overlays. Consumers parse those SMIL files separately. |
+| EPUB 2 and EPUB 3 | A ZIP package with metadata, HTML chapters, resources, and navigation. | `EpubBook` with its package model, reading spine, resources, and navigation. EPUB 3 also exposes page-list, landmarks, rendition, and accessibility metadata. Consumers parse optional SMIL files separately. |
 | MOBI 6 | A Palm Database container with compressed legacy Kindle markup. | `MobiBook` with reconstructed HTML, resources, metadata, and navigation. |
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
@@ -353,14 +353,17 @@ The flow is:
 | File | What it does and why it exists |
 | --- | --- |
 | `features/epub/parse_epub_book.dart` | Coordinates the complete EPUB parse. It locates and parses the OPF, reads navigation and encryption metadata, extracts files, finds the cover, calculates spine paths, and builds `EpubBook`. |
-| `features/epub/epub_document.dart` | Defines the EPUB-specific document contract used by `EpubBook`, including its package and spine paths. |
-| `features/epub/entities/book/book.dart` | Implements `EpubBook` with the common `Book` values plus the parsed package, explicit spine, and archive inventory. |
+| `features/epub/epub_document.dart` | Defines the EPUB-specific document contract used by `EpubBook`, including its package, spine paths, page list, and landmarks. |
+| `features/epub/entities/book/book.dart` | Implements `EpubBook` with the common `Book` values plus the parsed package, explicit spine, navigation sections, and archive inventory. |
+| `features/epub/entities/book/epub_landmark.dart` | Preserves a landmark's label, destination, and semantic `epub:type` tokens. |
 | `features/epub/entities/entities.dart` | Re-exports the public EPUB entity files. |
 | `features/epub/container/epub_root_file.dart` | Reads `container.xml` to find the OPF path and provides a recovery scan for real books with missing or broken container metadata. |
 | `features/epub/package/parse_epub_package.dart` | Parses OPF XML into an EPUB 2 or EPUB 3 package model, including metadata, manifest, spine, guide, and refinements. |
 | `features/epub/entities/package/epub_package.dart` | Defines the shared package data: metadata, manifest items, spine references, and guide references. |
 | `features/epub/entities/package/epub_2_package.dart` | Stores EPUB 2 metadata and adapts its older OPF rules to the shared package interface. |
-| `features/epub/entities/package/epub_3_package.dart` | Stores EPUB 3 metadata and refinements under the shared package interface. |
+| `features/epub/entities/package/epub_3_package.dart` | Stores EPUB 3 metadata, refinements, and typed rendition and accessibility views under the shared package interface. |
+| `features/epub/entities/package/epub_rendition.dart` | Models publication-wide display preferences and per-spine-item overrides from the OPF. It does not read page dimensions from XHTML or SVG. |
+| `features/epub/entities/package/epub_accessibility.dart` | Groups publisher-declared access modes, sufficient alternatives, features, hazards, and summaries for discovery. It does not certify accessibility. |
 | `features/epub/entities/package/page_progression_direction.dart` | Represents left-to-right, right-to-left, and `unspecified` page progression. A missing, invalid, or OPF `default` value becomes `unspecified`. |
 
 ### Content, metadata, and navigation
@@ -371,7 +374,7 @@ The flow is:
 | `features/epub/metadata/epub_metadata.dart` | Maps the version-specific package metadata and optional cover into `BookMetadata`. |
 | `features/epub/metadata/epub_cover.dart` | Applies EPUB 2 and EPUB 3 cover conventions, resolves the chosen manifest item, and reads its image bytes. |
 | `features/epub/metadata/epub_metadata_writer.dart` | Updates selected metadata fields inside an existing EPUB and writes a new ZIP while preserving unrelated entries. |
-| `features/epub/navigation/epub_navigation.dart` | Converts NCX or EPUB 3 navigation HTML into common `Navigation` values. It first tries the spine's declared `toc` candidate, commonly NCX, then the EPUB 3 nav document and other candidates. |
+| `features/epub/navigation/epub_navigation.dart` | Converts EPUB 3 navigation HTML or NCX into common `Navigation` values. EPUB 3 prefers its nav document for the table of contents and falls back to NCX; EPUB 2 continues to prefer NCX. Page lists and landmarks remain separate from the table of contents. |
 | `features/epub/codec/epub_xml.dart` | Uses the EPUB-specific decoder for UTF-8 or UTF-16, rejects UTF-32, and parses the result into XML nodes. It does not use the broader foundation XML decoder. |
 
 ### Encryption and media overlays
@@ -386,7 +389,7 @@ The flow is:
 | `features/epub/exceptions/empty_bytes_exception.dart` | Gives `EpubBook.fromBytes` a clear empty-input failure. `BookDispatch` performs its own empty check; the lower-level `parseEpubBook` function calls the ZIP decoder directly. |
 | `features/epub/exceptions/exceptions.dart` | Re-exports the public EPUB exception types. |
 
-The package model preserves manifest, spine, guide, and EPUB metadata that do not fit in `BookMetadata`. File extraction, navigation, cover selection, and encryption can therefore share one interpretation of the OPF. `updateEpubMetadata` is a separate writer that reopens the ZIP and edits OPF XML directly. Media-overlay links stay in the package model, while `parseMediaOverlay` interprets an individual SMIL document. The narration package owns playback.
+The package model preserves manifest, spine, guide, and EPUB metadata that do not fit in `BookMetadata`. File extraction, navigation, cover selection, and encryption can therefore share one interpretation of the OPF. EPUB 3 rendition preferences come from OPF metadata and spine properties; accessibility values are publisher declarations. `updateEpubMetadata` is a separate writer that reopens the ZIP and edits OPF XML directly. Media-overlay links stay in the package model, while `parseMediaOverlay` interprets an individual SMIL document. The narration package owns playback.
 
 ## Why metadata-only APIs are separate
 

@@ -30,7 +30,7 @@ EpubBook parseEpubBook(final Uint8List bytes) {
 /// selected a package can pass its archive-relative path explicitly.
 EpubBook parseEpubArchive(final Archive archive, {final String? rootFilePath}) {
   final (path: selectedRootFilePath, package: package) = _readPackage(archive, rootFilePath);
-  final navigation = getEpubNavigation(package, archive, selectedRootFilePath);
+  final navigationSections = getEpubNavigationSections(package, archive, selectedRootFilePath);
   final encryption = EpubEncryption.fromArchive(archive, package);
   final files = extractFiles(
     archive.files,
@@ -41,7 +41,9 @@ EpubBook parseEpubArchive(final Archive archive, {final String? rootFilePath}) {
   final cover = getBookCover(package, archive, files.images, selectedRootFilePath);
 
   return EpubBook(
-    navigation: navigation,
+    navigation: navigationSections.toc,
+    pageList: navigationSections.pageList,
+    landmarks: navigationSections.landmarks,
     files: files,
     cover: cover,
     package: package,

@@ -1,4 +1,5 @@
 import '../../foundation/entities/entities.dart';
+import 'entities/book/epub_landmark.dart';
 import 'entities/package/epub_package.dart';
 
 /// Domain contract for a parsed EPUB document.
@@ -19,6 +20,12 @@ abstract interface class EpubDocument implements Book {
   /// Explicitly exposes the inherited EPUB content contracts.
   @override
   Navigation get navigation;
+
+  /// Page labels and destinations declared by an EPUB 3 nav document.
+  Navigation? get pageList;
+
+  /// Structural destinations declared by an EPUB 3 nav document.
+  List<EpubLandmark> get landmarks;
 
   /// The format-specific EPUB package metadata.
   EpubPackage get package;

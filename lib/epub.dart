@@ -10,3 +10,4 @@ export 'src/features/epub/media_overlays/parse_smil_clock.dart';
 export 'src/features/epub/metadata/epub_metadata_writer.dart';
 export 'src/features/epub/parse_epub_book.dart';
 export 'src/foundation/entities/entities.dart';
+export 'src/foundation/exceptions/unseal_exception.dart';

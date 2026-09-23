@@ -1,5 +1,8 @@
 export 'book/book.dart';
+export 'book/epub_landmark.dart';
 export 'package/epub_2_package.dart';
 export 'package/epub_3_package.dart';
+export 'package/epub_accessibility.dart';
 export 'package/epub_package.dart';
+export 'package/epub_rendition.dart';
 export 'package/page_progression_direction.dart';

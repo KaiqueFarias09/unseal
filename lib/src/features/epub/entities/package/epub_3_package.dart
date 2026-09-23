@@ -1,4 +1,6 @@
+import 'epub_accessibility.dart';
 import 'epub_package.dart';
+import 'epub_rendition.dart';
 
 /// EPUB 3 package document and its parsed components.
 final class Epub3Package extends EpubPackage {
@@ -11,12 +13,16 @@ final class Epub3Package extends EpubPackage {
     required super.uniqueIdentifier,
     required super.xmlns,
     required this.tocId,
+    this.renditionSettings = const EpubRendition(),
     super.guide,
   });
 
   /// On some EPUB 3.0 files the table of contents is declared on the manifest
   /// element; in others it is defined in the spine element.
   final String? tocId;
+
+  /// Publication and spine-item display preferences.
+  final EpubRendition renditionSettings;
 }
 
 /// EPUB 3 metadata, including accessibility and media-overlay fields.
@@ -39,6 +45,9 @@ final class Epub3Metadata extends Metadata {
     required this.educationalRole,
     required this.typicalAgeRange,
     required this.accessibilityFeatures,
+    this.accessModes = const <String>[],
+    this.sufficientAccessModes = const <List<String>>[],
+    this.accessibilityHazards = const <String>[],
     required this.modified,
     required this.rendition,
     required this.belongsToCollection,
@@ -64,6 +73,24 @@ final class Epub3Metadata extends Metadata {
 
   /// Accessibility features declared for the publication.
   final List<String> accessibilityFeatures;
+
+  /// Sensory modes needed to perceive the publication.
+  final List<String> accessModes;
+
+  /// Alternative combinations of modes sufficient to consume the book.
+  final List<List<String>> sufficientAccessModes;
+
+  /// Hazards declared by the publisher, such as flashing content.
+  final List<String> accessibilityHazards;
+
+  /// Accessibility metadata grouped for discovery by reading applications.
+  EpubAccessibility get accessibility => EpubAccessibility(
+    accessModes: accessModes,
+    sufficientAccessModes: sufficientAccessModes,
+    features: accessibilityFeatures,
+    hazards: accessibilityHazards,
+    summaries: accessibilitySummaries,
+  );
 
   /// Educational role assigned to the publication.
   final String educationalRole;

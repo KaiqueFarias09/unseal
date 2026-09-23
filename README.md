@@ -37,7 +37,7 @@ document renderer.
 
 | Format | Main capabilities | Important boundary |
 | --- | --- | --- |
-| EPUB 2/3 | OPF metadata, spine, XHTML, CSS, images, fonts, media overlays, navigation, and CFI | Font obfuscation is limited to the standard IDPF and Adobe algorithms. |
+| EPUB 2/3 | OPF metadata, spine, XHTML, CSS, images, fonts, media overlays, navigation, and CFI; EPUB 3 page list, landmarks, rendition, and accessibility metadata | Font obfuscation is limited to the standard IDPF and Adobe algorithms. |
 | MOBI 6 | PalmDOC and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts, and navigation | DRM-protected books are rejected. |
 | AZW3 / KF8 | Skeleton and `div` reassembly, FDST flows, CSS/SVG, images, NCX navigation, and joint MOBI/KF8 files | DRM-protected books are rejected. |
 | FB2 / FBZ | Metadata, covers, declared encodings, notes, links, styles, and section navigation | The result is a reflowable HTML representation. |

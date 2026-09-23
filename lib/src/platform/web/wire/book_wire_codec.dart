@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../../features/comic/entities/comic_book.dart';
 import '../../../features/epub/entities/book/book.dart';
+import '../../../features/epub/entities/book/epub_landmark.dart';
 import '../../../features/fb2/entities/fb2_book.dart';
 import '../../../features/mobi/entities/mobi_book.dart';
 import '../../../features/mobi/header/mobi_header.dart';
@@ -48,6 +49,15 @@ import 'metadata_wire.dart';
     json['epub'] = <String, Object?>{
       'spinePaths': epub.spinePaths,
       'package': encodeEpubPackageWireValue(epub.package),
+      'pageList': epub.pageList == null ? null : encodeNavigationWireValue(epub.pageList!),
+      'landmarks': <Object?>[
+        for (final landmark in epub.landmarks)
+          <String, Object?>{
+            'label': landmark.label,
+            'href': landmark.href,
+            'types': List<String>.of(landmark.types),
+          },
+      ],
     };
 
     return (json, blobs);
@@ -140,6 +150,17 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
       files: files,
       cover: cover,
       package: decodeEpubPackageWireValue(epub['package'] as Map<String, Object?>),
+      pageList: epub['pageList'] == null
+          ? null
+          : decodeNavigationWireValue(epub['pageList'] as Map<String, Object?>),
+      landmarks: <EpubLandmark>[
+        for (final item in epub['landmarks'] as List<Object?>? ?? const <Object?>[])
+          EpubLandmark(
+            label: (item as Map<String, Object?>)['label'] as String,
+            href: item['href'] as String,
+            types: (item['types'] as List<Object?>).cast<String>(),
+          ),
+      ],
       spinePaths: (epub['spinePaths'] as List<Object?>?)?.cast<String>(),
       archiveEntries: archiveEntries,
     );
