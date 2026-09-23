@@ -120,7 +120,7 @@ You only need a small set of format terms to understand most of the repository.
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
-| DjVu JPEG and bounded JB2 subset | An IFF document whose pages have INFO and direct BGjp JPEG or page-local Sjbz JB2 masks, in single-page or bundled files. | `DjvuBook` with JPEG or black-on-white 1-bit BMP page images, dimensions, rotation, optional TXTa text, and original bytes. IW44, mixed layers, shared dictionaries, and indirect files fail full opening. |
+| DjVu JPEG, JB2, and bounded IW44 subset | An IFF document whose pages have INFO plus direct BGjp JPEG, page-local Sjbz JB2 masks, or progressive BG44/FG44 IW44 layers in single-page or bundled files. | `DjvuBook` with JPEG, bilevel BMP, or composed color BMP page images, dimensions, rotation, optional TXTa text, and original bytes. Shared dictionaries, alternate visual codecs, and indirect files fail full opening. |
 | CHM | An ITSF compiled HTML Help archive with compressed topic streams. | `DocumentBook` with ordered HTML topics, resources, title, and hierarchical contents. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
 | Standalone Markdown | CommonMark text with optional small front matter. | `DocumentBook` with converted HTML, heading navigation, and selected metadata. |
@@ -149,7 +149,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 | `lib/mobi.dart` | MOBI and AZW3 parsing, MOBI entities and exceptions, and shared book entities. |
 | `lib/azw4.dart` | AZW4 extraction and parsing plus the `PdfBook` result type. |
 | `lib/pdf.dart` | PDF parsing, PDF entities and exceptions, and shared book entities. |
-| `lib/djvu.dart` | DjVu JPEG and bounded JB2 page parsing, page data, typed failures, and shared book entities. |
+| `lib/djvu.dart` | DjVu JPEG, bounded JB2, and bounded IW44 page parsing, page data, typed failures, and shared book entities. |
 | `lib/chm.dart` | CHM topic, resource, navigation, and metadata parsing. |
 | `lib/docx.dart` | DOCX parsing and DOCX exceptions. |
 | `lib/odt.dart` | ODT parsing and ODT exceptions. |
@@ -701,39 +701,45 @@ references cannot force unbounded decompression work.
 | `features/chm/chm_lzx.dart` | Expands bounded LZX blocks for compressed topics. |
 | `features/chm/parse_chm_book.dart` | Builds the document, metadata, resources, and contents navigation. |
 
-## DjVu: expose JPEG pages and bounded JB2 masks
+## DjVu: decode bounded JPEG, JB2, and IW44 pages
 
 DjVu wraps page chunks in an IFF container. A single page is `FORM:DJVU`; a
 bundled book is `FORM:DJVM` with a `DIRM` directory and embedded page FORMs.
 Each page starts with `INFO`, which supplies dimensions, resolution, and
-rotation. The adapter exposes a directly stored `BGjp` JPEG or decodes a
-page-local `Sjbz` JB2 mask in a single-page or bundled file into a black-on-white
-1-bit BMP. JB2 supports direct symbols, matched refinements, and local symbol
-copies. Optional uncompressed `TXTa` provides searchable text. IW44 color
-layers, mixed visual layers, external/shared dictionaries (`Djbz`/`INCL`),
-reset records, and indirect files fail full opening with
-`DjvuUnsupportedCodecException`; a
-successful `DjvuBook` always has a displayable image for every page. Across a
-document, decoded layers are capped at 256 million pixels and 128 MiB of
-materialized raster bytes, reserved before the next page allocation.
+rotation. The adapter exposes a directly stored `BGjp` JPEG, decodes a
+page-local `Sjbz` JB2 mask, and supports progressive IW44 v1.0 through v1.2
+`BG44`/`FG44` layers. IW44 photo pages with a full-size background become 24-bit
+BMPs; compound pages combine background and foreground color through an
+`Sjbz` selection mask. JB2 supports direct symbols, matched refinements, and
+local symbol copies. Optional uncompressed `TXTa` provides searchable text.
+External/shared dictionaries (`Djbz`/`INCL`), other image codecs, compressed
+text/navigation, and indirect files fail full opening with
+`DjvuUnsupportedCodecException`; a successful `DjvuBook` always has a
+displayable image for every page. Across a document, decoded layers are capped
+at 256 million pixels and 128 MiB of materialized raster bytes. IW44 also
+checks chunk, slice, and coefficient-work limits before allocating its planes.
 
 | File | What it does and why it exists |
 | --- | --- |
 | `lib/djvu.dart` | Exposes the narrow format API. |
-| `features/djvu/parse_djvu_book.dart` | Walks bounded IFF chunks, validates directory offsets and page INFO, extracts JPEG or a decoded JB2 BMP plus uncompressed OCR, and rejects unsupported visual layers. |
-| `features/djvu/jb2_decoder.dart` and `features/djvu/zp_tables.dart` | Decode the bounded local-symbol JB2 subset and encode the mask as a displayable BMP. |
+| `features/djvu/parse_djvu_book.dart` | Walks bounded IFF chunks, validates directory offsets and page INFO, extracts JPEG, decodes a JB2 BMP, or composes IW44 layers plus uncompressed OCR. |
+| `features/djvu/iw44_decoder.dart` and `features/djvu/iw44_inverse_wavelet.dart` | Decode progressive ZP-coded IW44 layers to bounded RGB rasters. |
+| `features/djvu/djvu_layer_compositor.dart` | Scales validated IW44 layers and composes them through a JB2 mask into a BMP. |
+| `features/djvu/jb2_decoder.dart`, `features/djvu/zp_decoder.dart`, and `features/djvu/zp_tables.dart` | Decode the bounded local-symbol JB2 subset and share the DjVu ZP arithmetic coder. |
 | `features/djvu/djvu_decode_budget.dart` | Reserves cumulative decoded pixel and raster-byte budgets before page allocations. |
 | `features/djvu/djvu_book.dart` | Keeps page geometry, JPEG/BMP resources, OCR, and original source bytes together. |
 | `features/djvu/djvu_exception.dart` | Distinguishes malformed documents from valid pages needing another image codec. |
 
 Metadata-only reads validate the container and page INFO without decoding
-image layers. The tests include a generated JPEG page, a real public-domain JB2
-Sjbz layer isolated from its source page in memory, real IW44 and compound
-pages that remain explicitly unsupported, and malformed JB2 input. The JB2
-format reference is the [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf);
-its ZP state tables were cross-checked with the independent MIT-licensed
-[djvu-rs implementation](https://github.com/matyushkin/djvu-rs). Fixture and
-reference provenance is recorded in the repository.
+image layers. Tests include a generated JPEG page, real public-domain JB2
+content, Unlicense grayscale and color IW44 pages, and color/grayscale compound
+pages. Chicken and boy match their upstream PNG RGB rasters exactly; the
+happy-birthday composite is checked at sample points and by a full-raster
+regression hash. Those binary PNG references remain outside the test corpus.
+The format reference is the [DjVu 3 specification](https://www.sndjvu.org/spec.html).
+The shared ZP tables and codec behavior are cross-checked with the
+independent MIT-licensed [djvu-rs implementation](https://github.com/matyushkin/djvu-rs).
+Fixture and reference provenance is recorded in the repository.
 
 ## Search: query the HTML-backed content of a parsed book
 

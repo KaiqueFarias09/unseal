@@ -24,7 +24,7 @@ Uint8List djvuUnsupportedPage() => Uint8List.fromList(<int>[
   ...ascii.encode('AT&T'),
   ..._form('DJVU', <int>[
     ..._chunk('INFO', <int>[0, 8, 0, 8, 26, 0, 44, 1, 22, 1]),
-    ..._chunk('BG44', <int>[0, 1, 2]),
+    ..._chunk('Smmr', <int>[0]),
   ]),
 ]);
 

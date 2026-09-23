@@ -4,7 +4,7 @@ repository: https://github.com/KaiqueFarias09/unseal
 description: >-
   Pure Dart book parsing: extract metadata, covers, content, styles,
   fonts and navigation from EPUB, MOBI, AZW3, PalmDOC, eReader/Plucker PDB,
-  LRF, RTF, Markdown, CHM, FB2, DOCX, ODT, CBZ/CBR, PDF and JPEG-backed DjVu.
+  LRF, RTF, Markdown, CHM, FB2, DOCX, ODT, CBZ/CBR, PDF and DjVu.
 
 environment:
   sdk: ">=3.8.0 <4.0.0"

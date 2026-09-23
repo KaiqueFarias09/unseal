@@ -7,6 +7,8 @@ import '../../foundation/images/image_type_sniffer.dart';
 import 'djvu_book.dart';
 import 'djvu_decode_budget.dart';
 import 'djvu_exception.dart';
+import 'djvu_layer_compositor.dart';
+import 'iw44_decoder.dart';
 import 'jb2_decoder.dart';
 
 const _maxInputBytes = 128 * 1024 * 1024;
@@ -16,11 +18,12 @@ const _maxJpegBytes = 32 * 1024 * 1024;
 const _maxTextBytes = 8 * 1024 * 1024;
 const _maxPagePixels = 100000000;
 
-/// Opens direct BGjp JPEG pages and page-local bilevel JB2 pages.
+/// Opens direct BGjp JPEG pages, page-local JB2 masks, and bounded IW44 layers.
 ///
 /// JB2 support covers page-local direct symbols, matched refinements, and local
-/// symbol copies. Pages that require IW44 layers or shared dictionaries fail
-/// with [DjvuUnsupportedCodecException].
+/// symbol copies. IW44 supports ordered BG44/FG44 chunks and composition with
+/// a page-local JB2 selection mask. Shared dictionaries still fail with
+/// [DjvuUnsupportedCodecException].
 DjvuBook parseDjvuBook(final Uint8List bytes) {
   final document = _DjvuDocument(bytes);
   final pages = <DjvuPage>[];
@@ -154,7 +157,9 @@ final class _DjvuDocument {
       5 => 90,
       2 => 180,
       6 => 270,
-      _ => throw const DjvuException('Invalid DjVu page rotation.'),
+      // DjVuLibre treats unrecognized orientation flags as upright; several
+      // independently produced pages use zero for this default orientation.
+      _ => 0,
     };
     if (width == 0 || height == 0 || dpi == 0) {
       throw const DjvuException('Invalid DjVu page dimensions or DPI.');
@@ -170,6 +175,8 @@ final class _DjvuDocument {
     _Chunk? jpeg;
     _Chunk? jb2;
     _Chunk? text;
+    final backgroundChunks = <_Chunk>[];
+    final foregroundChunks = <_Chunk>[];
     final unsupported = <String>[];
     for (final chunk in _children(page.data + 4, page.end).skip(1)) {
       switch (chunk.id) {
@@ -182,9 +189,11 @@ final class _DjvuDocument {
         case 'Sjbz':
           if (jb2 != null) throw const DjvuException('Duplicate DjVu Sjbz chunk.');
           jb2 = chunk;
-        case 'Djbz':
         case 'BG44':
+          backgroundChunks.add(chunk);
         case 'FG44':
+          foregroundChunks.add(chunk);
+        case 'Djbz':
         case 'FGjp':
         case 'FGbz':
         case 'Smmr':
@@ -192,14 +201,23 @@ final class _DjvuDocument {
           unsupported.add(chunk.id);
       }
     }
-    if (jpeg != null && jb2 != null) unsupported.add('multiple image layers');
+    if (jpeg != null &&
+        (jb2 != null || backgroundChunks.isNotEmpty || foregroundChunks.isNotEmpty)) {
+      unsupported.add('multiple image layers');
+    }
+    if (backgroundChunks.isNotEmpty && (foregroundChunks.isEmpty != (jb2 == null))) {
+      unsupported.add('incomplete IW44 compound layers');
+    }
+    if (foregroundChunks.isNotEmpty && backgroundChunks.isEmpty) {
+      unsupported.add('FG44 without BG44');
+    }
     if (unsupported.isNotEmpty) {
       final codecs = unsupported.toSet().join(', ');
       throw DjvuUnsupportedCodecException(
         'DjVu page $number needs an unsupported image layer: $codecs.',
       );
     }
-    if (jpeg == null && jb2 == null) {
+    if (jpeg == null && jb2 == null && backgroundChunks.isEmpty) {
       throw DjvuUnsupportedCodecException('DjVu page $number has no supported image layer.');
     }
 
@@ -226,6 +244,55 @@ final class _DjvuDocument {
         throw const DjvuException('DjVu JPEG dimensions exceed the page dimensions.');
       }
       extension = 'jpg';
+    } else if (backgroundChunks.isNotEmpty) {
+      final background = decodeDjvuIw44(
+        <Uint8List>[
+          for (final chunk in backgroundChunks) Uint8List.sublistView(bytes, chunk.data, chunk.end),
+        ],
+        pageWidth: info.width,
+        pageHeight: info.height,
+        budget: decodeBudget,
+      );
+      final foreground = foregroundChunks.isEmpty
+          ? null
+          : decodeDjvuIw44(
+              <Uint8List>[
+                for (final chunk in foregroundChunks)
+                  Uint8List.sublistView(bytes, chunk.data, chunk.end),
+              ],
+              pageWidth: info.width,
+              pageHeight: info.height,
+              budget: decodeBudget,
+            );
+      DjvuJb2Mask? mask;
+      if (jb2 != null) {
+        final pagePixels = info.width * info.height;
+        decodeBudget.reserve(pixels: pagePixels, rasterBytes: pagePixels);
+        mask = decodeDjvuJb2Mask(
+          Uint8List.sublistView(bytes, jb2.data, jb2.end),
+          expectedWidth: info.width,
+          expectedHeight: info.height,
+        );
+      }
+      imageBytes = composeDjvuLayersBmp(
+        background: DjvuRgbRaster(
+          width: background.width,
+          height: background.height,
+          rgb: background.rgb,
+        ),
+        foreground: foreground == null
+            ? null
+            : DjvuRgbRaster(
+                width: foreground.width,
+                height: foreground.height,
+                rgb: foreground.rgb,
+              ),
+        mask: mask,
+        pageWidth: info.width,
+        pageHeight: info.height,
+        budget: decodeBudget,
+      );
+      extension = 'bmp';
     } else {
       final rowStride = ((info.width + 31) ~/ 32) * 4;
       decodeBudget.reserve(

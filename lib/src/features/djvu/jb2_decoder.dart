@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'djvu_exception.dart';
-import 'zp_tables.dart';
+import 'zp_decoder.dart';
 
 const _maxJb2PagePixels = 16 * 1000 * 1000;
 const _maxJb2SymbolPixels = 4 * 1000 * 1000;
@@ -37,7 +37,7 @@ DjvuJb2Mask decodeDjvuJb2Mask(
   required final int expectedWidth,
   required final int expectedHeight,
 }) {
-  final zp = _ZpDecoder(encoded);
+  final zp = DjvuZpDecoder(encoded, truncatedMessage: 'Truncated DjVu JB2 arithmetic stream.');
   final nodeBudget = _ContextNodeBudget();
   final recordType = _NumberContext(nodeBudget);
   final imageSize = _NumberContext(nodeBudget);
@@ -280,7 +280,7 @@ Uint8List encodeDjvuJb2Bmp(final DjvuJb2Mask mask) {
 }
 
 _Jb2Symbol _decodeDirectSymbol(
-  final _ZpDecoder zp,
+  final DjvuZpDecoder zp,
   final Uint8List contexts,
   final _NumberContext widthContext,
   final _NumberContext heightContext,
@@ -328,7 +328,7 @@ _Jb2Symbol _decodeDirectSymbol(
 }
 
 _Jb2Symbol _decodeRefinedSymbol(
-  final _ZpDecoder zp,
+  final DjvuZpDecoder zp,
   final Uint8List contexts,
   final int width,
   final int height,
@@ -389,8 +389,11 @@ void _blit(
   final int pageHeight,
   final _Jb2Symbol symbol,
   final int x,
-  final int y,
+  final int bottomOriginY,
 ) {
+  // JB2 rows are numbered from the bottom of the page, while the decoded
+  // symbol bitmap and mask raster are stored top-down.
+  final y = pageHeight - bottomOriginY - symbol.height;
   final startX = x < 0 ? 0 : x;
   final startY = y < 0 ? 0 : y;
   final endX = x + symbol.width > pageWidth ? pageWidth : x + symbol.width;
@@ -441,7 +444,7 @@ _Jb2Symbol _cropSymbol(final _Jb2Symbol symbol) {
 }
 
 (int, int) _decodeSymbolCoordinates(
-  final _ZpDecoder zp,
+  final DjvuZpDecoder zp,
   final _CoordinateContexts contexts,
   final _Jb2Layout layout,
   final int symbolWidth,
@@ -470,7 +473,7 @@ _Jb2Symbol _cropSymbol(final _Jb2Symbol symbol) {
   return (x, y);
 }
 
-int _decodeNumber(final _ZpDecoder zp, final _NumberContext contexts, int low, int high) {
+int _decodeNumber(final DjvuZpDecoder zp, final _NumberContext contexts, int low, int high) {
   var negative = false;
   var cutoff = 0;
   var range = 0xFFFFFFFF;
@@ -622,79 +625,5 @@ final class _NumberContext {
       _right.add(0);
     }
     return _right[node];
-  }
-}
-
-final class _ZpDecoder {
-  _ZpDecoder(this._data) {
-    if (_data.length < 2) throw const DjvuException('Truncated DjVu JB2 arithmetic stream.');
-    _code = (_readByte() << 8) | _readByte();
-    _refill();
-    _fence = _code < 0x7FFF ? _code : 0x7FFF;
-  }
-
-  final Uint8List _data;
-  var _a = 0;
-  late int _code;
-  late int _fence;
-  var _bitBuffer = 0;
-  var _bitCount = 0;
-  var _position = 0;
-
-  int get syntheticBytes => _position > _data.length ? _position - _data.length : 0;
-
-  int _readByte() {
-    final byte = _position < _data.length ? _data[_position] : 0xFF;
-    _position++;
-    return byte;
-  }
-
-  void _refill() {
-    while (_bitCount <= 24) {
-      _bitBuffer = ((_bitBuffer << 8) | _readByte()) & 0xFFFFFFFF;
-      _bitCount += 8;
-    }
-  }
-
-  ({bool bit, int state}) decodeBit(final int state) {
-    final mps = state & 1;
-    final z = _a + zpProbability[state];
-    if (z <= _fence) {
-      _a = z;
-      return (bit: mps != 0, state: state);
-    }
-
-    final boundary = 0x6000 + ((_a + z) >> 2);
-    final clamped = z < boundary ? z : boundary;
-    if (clamped > _code) {
-      final complement = 0x10000 - clamped;
-      _a = (_a + complement) & 0xFFFF;
-      _code = (_code + complement) & 0xFFFF;
-      final next = zpLpsNext[state];
-      _renormalize();
-      return (bit: mps == 0, state: next);
-    }
-
-    var next = state;
-    if (_a >= zpThreshold[state]) next = zpMpsNext[state];
-    _bitCount--;
-    _a = (clamped << 1) & 0xFFFF;
-    _code = ((_code << 1) | ((_bitBuffer >> (_bitCount & 31)) & 1)) & 0xFFFF;
-    if (_bitCount < 16) _refill();
-    _fence = _code < 0x7FFF ? _code : 0x7FFF;
-    return (bit: mps != 0, state: next);
-  }
-
-  void _renormalize() {
-    var shift = 0;
-    while (shift < 16 && ((_a >> (15 - shift)) & 1) != 0) {
-      shift++;
-    }
-    _bitCount -= shift;
-    _a = (_a << shift) & 0xFFFF;
-    final mask = (1 << shift) - 1;
-    _code = ((_code << shift) | ((_bitBuffer >> (_bitCount & 31)) & mask)) & 0xFFFF;
-    if (_bitCount < 16) _refill();
-    _fence = _code < 0x7FFF ? _code : 0x7FFF;
   }
 }

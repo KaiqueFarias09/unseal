@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import '../../foundation/entities/entities.dart';
 
-/// One DjVu page whose extracted JPEG or bilevel BMP is usable by a reader.
+/// One DjVu page with a directly stored JPEG or decoded BMP image.
 class DjvuPage {
   /// Creates a decoded page description.
   const DjvuPage({
@@ -26,18 +26,18 @@ class DjvuPage {
   /// Clockwise rotation in degrees from the INFO flags.
   final int rotation;
 
-  /// Extracted, displayable JPEG page image or black-on-white JB2 mask.
+  /// Displayable JPEG, black-on-white JB2 BMP, or composed IW44 BMP image.
   final BinaryFile image;
 
   /// Uncompressed TXTa OCR text, when present.
   final String text;
 }
 
-/// A DjVu book with directly stored JPEG or decoded JB2 pages in reading order.
+/// A DjVu book with directly stored JPEG or decoded page images in reading order.
 ///
 /// The original bytes are retained for consumers that have a dedicated DjVu
-/// renderer. Each page also has a JPEG or BMP image in `files.images`, so a
-/// reader can display this supported subset without decoding DjVu itself.
+/// renderer. Each page also has a JPEG or BMP image in `files.images`, so a reader can
+/// display this supported subset without decoding DjVu itself.
 class DjvuBook extends Book {
   /// Creates a parsed DjVu book.
   DjvuBook({required this.bytes, required this.pages, required this.metadata})

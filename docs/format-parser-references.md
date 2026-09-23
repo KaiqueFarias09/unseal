@@ -74,10 +74,12 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
   esse manual com a licença PuTTY e o hash da versão testada no manifesto.
   — [amostra CHM](https://github.com/bjxpen/chmv/tree/main/test/fixtures),
   [chmcmd](https://gitlab.com/freepascal.org/fpc/source/-/blob/bce88f2e2bf76c3f979902aaa60598a0487f1509/packages/chm/src/chmcmd.lpr)
-- Para DjVu, o corpus inclui uma página JPEG gerada, uma camada Sjbz real de
-  obra federal dos EUA e um arquivo IW44 com licença Unlicense. O teste remove
-  as demais camadas em memória para verificar a máscara JB2; o documento
-  composto de origem continua rejeitado. — [especificação DjVu 3](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf),
+- Para DjVu, o corpus inclui uma página JPEG gerada, `Sjbz` de obra federal
+  dos EUA, `BG44` cinza e colorido e uma composição `Sjbz` + `BG44`/`FG44`.
+  PNGs Unlicense upstream verificam todos os pixels dos casos em escala de
+  cinza e do caso colorido;
+  hashes e métricas estão na proveniência. Páginas grandes continuam cobertas
+  por rejeição antes de alocação. — [especificação DjVu 3](https://www.sndjvu.org/spec.html),
   [djvu-rs](https://github.com/matyushkin/djvu-rs)
 - O Calibre documenta a conversão para eReader PDB e LRF, e oferece `lrf2lrs`
   como validador auxiliar. As amostras válidas do corpus foram geradas a partir
@@ -105,10 +107,11 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 
 ### 3.3 Escopo, licenças e segurança
 
-- O subset JB2 segue os registros e a codificação ZP da especificação DjVu 3;
-  suas tabelas de estado foram conferidas com a implementação independente
-  djvu-rs, sob licença MIT. A implementação em Dart não copia código GPL do
-  DjVuLibre. — [especificação DjVu 3](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf),
+- JB2 e IW44 seguem a especificação DjVu 3; as tabelas ZP e a reconstrução
+  wavelet foram conferidas com a implementação independente djvu-rs, sob
+  licença MIT. Coordenadas de linha JB2 mantêm a origem inferior até a
+  conversão para o raster que começa no topo. A implementação em Dart não copia código
+  GPL do DjVuLibre. — [especificação DjVu 3](https://www.sndjvu.org/spec.html),
   [djvu-rs](https://github.com/matyushkin/djvu-rs),
   [DjVuLibre](https://github.com/DjVuLibre/DjVuLibre)
 - O Calibre oferece documentação e leitores para eReader, Plucker e LRF, mas
@@ -137,7 +140,7 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 | Markdown | CommonMark + `package:markdown` | Suíte CommonMark e livro Markdown próprio | Delimitar HTML, front matter e imagens relativas |
 | RTF | Especificação Microsoft | `LICENSE.rtf` e casos gerados | Extrair texto, estilos e metadados antes de imagens complexas |
 | CHM | ITSF, MS-PATCH E8, CHMLib e IDs de codepage da Microsoft | Manual PuTTY licenciado e CHMs gerados em CP1251/1252/1256 | Implementado: HTML, recursos, sumário, E8 e codepages cobertas com limites; índice de busca e ajudas mescladas pendentes |
-| DjVu | Especificação DjVu 3 + tabelas ZP cross-checkadas com djvu-rs (MIT) | Página JPEG gerada; camada Sjbz real de fixture pública federal dos EUA; IW44 Unlicense para rejeição | JPEG direto e máscara JB2 page-local são exibidos; JB2 sai como BMP 1-bit. IW44, composição de camadas, dicionários compartilhados e indiretos permanecem rejeitados |
+| DjVu | Especificação DjVu 3 + ZP/IW44 cross-check com djvu-rs (MIT) | Página JPEG gerada; Sjbz federal dos EUA; fotos e páginas compostas IW44 Unlicense | BGjp, JB2 page-local e IW44 BG44/FG44 v1.0-v1.2; foto e composição Sjbz + FG44/BG44 para BMP 24-bit; dicionários compartilhados e indiretos rejeitados |
 | PDB | Especificação por subtipo no Calibre e PyPlucker | PalmDOC e eReader gerados; Plucker DOC/zlib gerado por ferramenta independente | PalmDOC, eReader e Plucker têm parsers distintos com contratos limitados |
 | LRF | Parser Calibre como oráculo; Sony para o contexto BBeB | LRF de texto/imagem gerados por Calibre 9.4.0 e variantes sintéticas; writer Eruditio Apache-2.0 avaliado e rejeitado por incompatibilidade | Versões até 800 são cobertas sinteticamente; segue faltando amostra redistribuível válida de outro produtor |
 | LRX | Sony sobre BBeB sem proteção/Marlin e OpenMG; Calibre como oráculo limitado de metadados | LRX2 sintético com região de metadados plaintext; nenhum livro protegido redistribuído | Metadados LRX2 apenas; conteúdo DRM é sempre rejeitado |
@@ -147,9 +150,9 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 KEPUB foi validado pelo caminho EPUB. Markdown, RTF, PalmDOC, eReader,
 Plucker, CHM e LRF têm parsers públicos com testes e limites documentados.
 LRX2 expõe apenas metadados plaintext; Unseal rejeita o conteúdo protegido.
-DjVu abre páginas JPEG diretas e máscaras JB2 page-local (símbolos diretos,
-refinamento e cópia local), geradas como BMP 1-bit. IW44 e páginas compostas
-continuam falhando de modo tipado. Cada documento também respeita limites
+DjVu abre JPEG diretos, máscaras JB2 page-local e páginas IW44 progressivas
+BG44/FG44, incluindo composição colorida através de Sjbz. Dicionários
+compartilhados e arquivos indiretos continuam falhando de modo tipado. Cada documento também respeita limites
 cumulativos de 256 milhões de pixels decodificados e 128 MiB de raster
 materializado. O detalhamento de cada contrato está em
 [format-expansion.md](format-expansion.md).
@@ -176,9 +179,8 @@ materializado. O detalhamento de cada contrato está em
   para gerar essa evidência. — [PuTTY fixture e hash](../test/resources/books/manifest.json),
   [fonte `paslzxcomp.pas` do Free Pascal](https://gitlab.com/freepascal.org/fpc/source/-/blob/dcb91d0b52/packages/chm/src/paslzxcomp.pas),
   [regra Microsoft MS-PATCH E8](https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-patch/e6c8366d-a8c3-4f34-aa5d-56f44f938a09).
-- Implementar IW44 e composição de camadas antes de ampliar a promessa de
-  leitura de páginas DjVu compostas; completar dicionários JB2 compartilhados,
-  reset, TXTz/NAVM e componentes de documentos indiretos.
+- Ampliar amostras reais DjVu de outros produtores e completar dicionários JB2
+  compartilhados, reset, TXTz/NAVM e componentes de documentos indiretos.
 
 ---
 **Próximo passo:** expandir os casos reais e os codecs pendentes sem retirar os

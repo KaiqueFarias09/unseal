@@ -13,7 +13,7 @@ localization, reading-direction, accessibility, and media-overlay testing.
 - `txt/`, `html/`, `docx/`, `odt/`: generated fixtures for the document adapters
 - `pdf/`: real-writer and externally published PDFs with redistributable content
 - `chm/`: licensed compiled HTML Help manual plus generated legacy-codepage samples
-- `djvu/`: generated JPEG-backed DjVu for public format coverage
+- `djvu/`: generated JPEG-backed DjVu for public format coverage; licensed real IW44 test pages are under `test/resources/djvu/`
 - `lrf/`: Calibre-generated Sony LRF text and image fixtures with original content
 - `format_expansion/`: original text formats and independently generated PalmDB fixtures
 - `licenses/`: license texts that are not already fully embedded in each publication

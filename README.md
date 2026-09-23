@@ -61,7 +61,7 @@ document renderer.
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
-| DjVu (JPEG and bilevel JB2 subset) | Direct `BGjp` JPEG pages and page-local `Sjbz` masks in single-page or bundled documents, INFO dimensions and rotation, and optional uncompressed `TXTa` OCR | JB2 masks become black-on-white 1-bit BMP images. IW44 and mixed layers, shared JB2 dictionaries, compressed `TXTz`/`NAVM`, and indirect documents are not decoded. |
+| DjVu (JPEG, JB2, and IW44 subset) | Direct `BGjp` JPEG pages, page-local `Sjbz` masks, progressive `BG44`/`FG44` layers, and INFO dimensions and rotation in single-page or bundled documents; optional uncompressed `TXTa` OCR | JB2 masks and composed IW44 pages become BMP images. Shared JB2 dictionaries, other visual codecs, compressed `TXTz`/`NAVM`, and indirect documents are not decoded. |
 
 `OPF` is not a standalone reading format. When unseal finds `metadata.opf`
 inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
@@ -261,15 +261,14 @@ an application that offers OCR; it does not prove that a page is a scan.
 `columnOrderApplied` indicates that Unseal reordered clearly separated,
 text-only columns for reflow and the canonical text stream.
 
-`DjvuBook.pages` exposes directly stored JPEG pages or decoded page-local JB2
-masks (in single-page and bundled files) as black-on-white 1-bit BMP images,
-with the original dimensions, DPI, rotation, and optional uncompressed OCR
-text. Its `readingOrder` points to
-per-page HTML that displays each image and keeps OCR searchable. The complete
-source stays in `DjvuBook.bytes` for applications with a dedicated DjVu
-renderer. JB2 support excludes shared dictionaries and pages that also need
-IW44 or other visual layers; full opening rejects those pages with a typed
-error.
+`DjvuBook.pages` exposes directly stored JPEG pages, decoded page-local JB2
+masks as black-on-white 1-bit BMP images, and bounded IW44 photo or composed
+pages as 24-bit BMP images. It preserves dimensions, DPI, rotation, and
+optional uncompressed OCR text. Its `readingOrder` points to per-page HTML
+that displays each image and keeps OCR searchable. The complete source stays
+in `DjvuBook.bytes` for applications with a dedicated DjVu renderer. Shared
+JB2 dictionaries, alternate image codecs, indirect documents, and unsupported
+text/navigation encodings still fail with typed errors.
 
 ```dart
 final pdf = parsePdfBook(pdfBytes);
@@ -362,14 +361,16 @@ annotations, and image codecs outside the supported extraction contract may be
 omitted. The original PDF bytes are retained for an application that provides
 its own facsimile renderer.
 
-DjVu visual reading covers direct JPEG pages and page-local JB2 masks encoded
-with direct symbols, matched refinements, and symbol copies. JB2 masks are
-emitted as black-on-white 1-bit BMP files. Pages with IW44 `BG44`/`FG44`,
-mixed visual layers, a shared `Djbz` dictionary or `INCL`, and other unsupported
-image encodings fail with `DjvuUnsupportedCodecException`. This boundary is
-intentional: a decoded mask alone does not reproduce a compound/color page.
-`readDjvuMetadata` validates the container and page INFO without decoding its
-image layer.
+DjVu visual reading covers direct JPEG pages, page-local JB2 masks encoded
+with direct symbols, matched refinements, and symbol copies, plus progressive
+IW44 `BG44` and `FG44` layers. IW44 supports v1.0 through v1.2, including
+photo pages and compound color pages selected by an `Sjbz` mask. Photo pages
+with a reduced BG44 layer are rejected because they cannot be expanded without
+a mask. Shared `Djbz` dictionaries, `INCL`, alternate image encodings,
+indirect files, compressed `TXTz`/`NAVM`, and DRM are outside the supported
+subset. Layer decoding is bounded by chunk, slice, coefficient-work,
+cumulative-pixel, and raster-byte limits. `readDjvuMetadata` validates the
+container and page INFO without decoding its image layer.
 
 ### Input and archive boundaries
 
