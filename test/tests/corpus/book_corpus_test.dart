@@ -17,8 +17,8 @@ void main() {
   group('multilingual and edge-case book corpus', () {
     test('manifest has unique IDs and files', () {
       expect(manifest['schema_version'], 3);
-      expect(books, hasLength(15));
-      expect(formatFixtures, hasLength(BookFormat.values.length - 1));
+      expect(books.length, greaterThanOrEqualTo(15));
+      expect(formatFixtures.map(_declaredFormat).toSet(), hasLength(BookFormat.values.length - 1));
       expect(realWorldFixtures, hasLength(4));
       final fixtures = [...books, ...formatFixtures, ...realWorldFixtures];
       expect(fixtures.map((final book) => book['id']).toSet(), hasLength(fixtures.length));

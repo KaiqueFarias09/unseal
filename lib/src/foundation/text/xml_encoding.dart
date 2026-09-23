@@ -106,13 +106,13 @@ enum XmlEncoding {
 ///
 /// See the library documentation for the policy. Never throws; the returned encoding always
 /// produces a replacement-decoded string via [decodeXmlTextAs].
-XmlEncoding sniffXmlEncoding(final List<int> bytes) {
+XmlEncoding sniffXmlEncoding(final List<int> bytes, {final XmlEncoding? defaultEncoding}) {
   final typed = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
   final bom = _bomEncoding(typed);
   if (bom != null) return bom;
 
   final declared = _declaredEncodingName(typed);
-  if (declared == null) return _sniffUndeclared(typed);
+  if (declared == null) return defaultEncoding ?? _sniffUndeclared(typed);
 
   final known = _declaredEncodings[_normalizeEncodingName(declared)];
   if (known != null) return known;
@@ -124,9 +124,14 @@ XmlEncoding sniffXmlEncoding(final List<int> bytes) {
 
 /// Decodes [bytes] with the encoding [sniffXmlEncoding] picks.
 ///
+/// [defaultEncoding] is used only when there is no byte-order mark and no
+/// encoding declaration. It is useful for containers that define a text
+/// encoding for their embedded files.
+///
 /// Never throws; malformed bytes become U+FFFD. A leading U+FEFF (byte order mark) is stripped from
 /// the result.
-String decodeXmlText(final List<int> bytes) => decodeXmlTextAs(bytes, sniffXmlEncoding(bytes));
+String decodeXmlText(final List<int> bytes, {final XmlEncoding? defaultEncoding}) =>
+    decodeXmlTextAs(bytes, sniffXmlEncoding(bytes, defaultEncoding: defaultEncoding));
 
 /// Decodes [bytes] as [encoding], never throwing.
 ///

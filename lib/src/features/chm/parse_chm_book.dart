@@ -21,7 +21,7 @@ DocumentBook parseChmBook(final Uint8List bytes) {
     throw const InvalidBookException('CHM has no readable HTML topics.');
   }
 
-  final toc = _readContents(archive, system.contentsPath);
+  final toc = _readContents(archive, system.contentsPath, system.encoding);
   final orderedPaths = <String>[];
   final seen = <String>{};
   void add(final String path) {
@@ -57,7 +57,7 @@ DocumentBook parseChmBook(final Uint8List bytes) {
         name: path.split('/').last,
         type: _extension(path),
         path: path,
-        content: decodeXmlText(archive.read(entry)),
+        content: decodeXmlText(archive.read(entry), defaultEncoding: system.encoding),
       ),
     );
   }
@@ -77,7 +77,7 @@ DocumentBook parseChmBook(final Uint8List bytes) {
           name: path.split('/').last,
           type: extension,
           path: path,
-          content: decodeXmlText(archive.read(entry)),
+          content: decodeXmlText(archive.read(entry), defaultEncoding: system.encoding),
         ),
       );
     } else {
@@ -119,7 +119,10 @@ BookMetadata readChmMetadata(final Uint8List bytes) {
 
 _ChmSystem _system(final ChmArchive archive) {
   final entry = archive.entry('/#SYSTEM');
-  if (entry == null || entry.section != 0 || entry.length < 4) return const _ChmSystem();
+  if (entry == null || entry.section != 0 || entry.length < 4) {
+    archive.applyTextEncoding(XmlEncoding.utf8);
+    return const _ChmSystem();
+  }
   final bytes = archive.read(entry);
   final view = ByteData.sublistView(bytes);
   var at = 4;
@@ -127,24 +130,77 @@ _ChmSystem _system(final ChmArchive archive) {
   String? home;
   String? title;
   String? generator;
+  final records = <(int kind, Uint8List data)>[];
   while (at + 4 <= bytes.length) {
     final kind = view.getUint16(at, Endian.little);
     final length = view.getUint16(at + 2, Endian.little);
     at += 4;
     if (at + length > bytes.length) break;
+    records.add((kind, Uint8List.sublistView(bytes, at, at + length)));
+    at += length;
+  }
+
+  final lcid = records
+      .where((final record) => record.$1 == 4 && record.$2.length >= 4)
+      .map((final record) => ByteData.sublistView(record.$2).getUint32(0, Endian.little))
+      .firstOrNull;
+  final encoding = lcid == null ? null : _encodingForChmLcid(lcid);
+  archive.applyTextEncoding(encoding ?? XmlEncoding.utf8);
+
+  for (final record in records) {
+    final kind = record.$1;
     if (kind == 0 || kind == 2 || kind == 3 || kind == 9) {
-      final source = decodeXmlText(bytes.sublist(at, at + length)).replaceAll('\u0000', '').trim();
+      final source = decodeXmlText(
+        record.$2,
+        defaultEncoding: encoding,
+      ).replaceAll('\u0000', '').trim();
       if (kind == 0) contents = _safePath(source);
       if (kind == 2) home = _safePath(source);
       if (kind == 3 && source.isNotEmpty) title = source;
       if (kind == 9 && source.isNotEmpty) generator = source;
     }
-    at += length;
   }
-  return _ChmSystem(contents, home, title, generator);
+  return _ChmSystem(contents, home, title, generator, encoding);
 }
 
-_ChmContents _readContents(final ChmArchive archive, final String? preferred) {
+/// Maps the Windows language IDs used by the CHM `#SYSTEM` LCID record to
+/// the legacy codepages Unseal can decode without platform APIs.
+///
+/// The mapping deliberately covers Western Windows, Cyrillic, and Arabic
+/// codepages. Other LCIDs continue through the shared encoding detector.
+XmlEncoding? _encodingForChmLcid(final int lcid) {
+  final language = lcid & 0x3ff;
+  return switch (language) {
+    // Arabic, Urdu, and Persian.
+    0x01 || 0x20 || 0x29 => XmlEncoding.cp1256,
+    // Bulgarian, Russian, Ukrainian, and Belarusian.
+    0x02 || 0x19 || 0x22 || 0x23 || 0x28 => XmlEncoding.cp1251,
+    // Western European locales that use Windows-1252.
+    0x06 ||
+    0x09 ||
+    0x07 ||
+    0x0a ||
+    0x0b ||
+    0x0c ||
+    0x0f ||
+    0x10 ||
+    0x13 ||
+    0x14 ||
+    0x16 ||
+    0x17 ||
+    0x1d ||
+    0x21 ||
+    0x36 ||
+    0x38 => XmlEncoding.cp1252,
+    _ => null,
+  };
+}
+
+_ChmContents _readContents(
+  final ChmArchive archive,
+  final String? preferred,
+  final XmlEncoding? encoding,
+) {
   ChmEntry? entry;
   if (preferred != null) entry = archive.entry('/$preferred');
   entry ??= archive.entries.values.cast<ChmEntry?>().firstWhere(
@@ -155,7 +211,7 @@ _ChmContents _readContents(final ChmArchive archive, final String? preferred) {
     orElse: () => null,
   );
   if (entry == null) return const _ChmContents([], []);
-  final document = html_parser.parse(decodeXmlText(archive.read(entry)));
+  final document = html_parser.parse(decodeXmlText(archive.read(entry), defaultEncoding: encoding));
   final body = document.body;
   if (body == null) return const _ChmContents([], []);
   final roots = body.children.where((final child) => child.localName == 'ul');
@@ -253,11 +309,12 @@ String? _htmlTitle(final String html) {
 }
 
 final class _ChmSystem {
-  const _ChmSystem([this.contentsPath, this.homePath, this.title, this.generator]);
+  const _ChmSystem([this.contentsPath, this.homePath, this.title, this.generator, this.encoding]);
   final String? contentsPath;
   final String? homePath;
   final String? title;
   final String? generator;
+  final XmlEncoding? encoding;
 }
 
 final class _ChmContents {

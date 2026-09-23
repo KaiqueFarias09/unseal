@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../foundation/exceptions/unseal_exception.dart';
+import '../../foundation/text/xml_encoding.dart';
 import 'chm_lzx.dart';
 
 const _maxChmBytes = 128 * 1024 * 1024;
@@ -49,6 +50,7 @@ final class ChmArchive {
     }
     final chunksStart = directoryOffset + itspLength;
     final seen = <int>{};
+    final seenRawNames = <String>{};
     var chunk = firstChunk;
     while (chunk != -1) {
       if (chunk < firstChunk || chunk > lastChunk || !seen.add(chunk)) {
@@ -71,10 +73,11 @@ final class ChmArchive {
         if (nameLength.$1 == 0 || nameLength.$1 > 4096 || cursor + nameLength.$1 > end) {
           throw const InvalidBookException('Invalid CHM directory name.');
         }
-        final name = utf8.decode(
-          bytes.sublist(cursor, cursor + nameLength.$1),
-          allowMalformed: true,
-        );
+        final rawName = Uint8List.fromList(bytes.sublist(cursor, cursor + nameLength.$1));
+        if (!seenRawNames.add(String.fromCharCodes(rawName))) {
+          throw const InvalidBookException('Duplicate CHM entry.');
+        }
+        final name = utf8.decode(rawName, allowMalformed: true);
         cursor += nameLength.$1;
         final section = _encInt(cursor, end);
         final position = _encInt(section.$2, end);
@@ -86,10 +89,12 @@ final class ChmArchive {
             (section.$1 == 0 && _dataOffset + position.$1 + length.$1 > bytes.length)) {
           throw const InvalidBookException('CHM entry exceeds supported bounds.');
         }
-        if (entries.length >= _maxEntries || entries.containsKey(name.toLowerCase())) {
-          throw const InvalidBookException('Too many or duplicate CHM entries.');
+        if (_allEntries.length >= _maxEntries) {
+          throw const InvalidBookException('Too many CHM entries.');
         }
-        entries[name.toLowerCase()] = ChmEntry(name, section.$1, position.$1, length.$1);
+        final entry = ChmEntry(name, section.$1, position.$1, length.$1, rawName);
+        _allEntries.add(entry);
+        entries[name.toLowerCase()] = entry;
       }
       if (cursor != end) throw const InvalidBookException('Malformed CHM PMGL entry.');
       chunk = next;
@@ -102,6 +107,7 @@ final class ChmArchive {
 
   /// Entries keyed by case-insensitive virtual path.
   final Map<String, ChmEntry> entries = <String, ChmEntry>{};
+  final List<ChmEntry> _allEntries = <ChmEntry>[];
   late final int _dataOffset;
   _ChmCompressed? _compressed;
 
@@ -112,6 +118,25 @@ final class ChmArchive {
 
   /// Finds a virtual entry by path.
   ChmEntry? entry(final String name) => entries[name.toLowerCase()];
+
+  /// Reindexes names with the container's known legacy text encoding.
+  void applyTextEncoding(final XmlEncoding encoding) {
+    final decoded = <ChmEntry>[];
+    final names = <String>{};
+    for (final entry in _allEntries) {
+      final name = decodeXmlTextAs(entry._rawName, encoding);
+      if (!names.add(name.toLowerCase())) {
+        throw const InvalidBookException('Duplicate CHM entry after codepage decoding.');
+      }
+      decoded.add(ChmEntry(name, entry.section, entry.offset, entry.length, entry._rawName));
+    }
+    _allEntries
+      ..clear()
+      ..addAll(decoded);
+    entries
+      ..clear()
+      ..addEntries(decoded.map((final entry) => MapEntry(entry.name.toLowerCase(), entry)));
+  }
 
   /// Reads a bounded entry from section 0 or LZX-compressed section 1.
   Uint8List read(final ChmEntry entry) {
@@ -171,7 +196,7 @@ final class ChmArchive {
 /// One CHM virtual directory entry.
 final class ChmEntry {
   /// Creates an entry from a validated PMGL record.
-  const ChmEntry(this.name, this.section, this.offset, this.length);
+  const ChmEntry(this.name, this.section, this.offset, this.length, this._rawName);
 
   /// Virtual path in the CHM directory.
   final String name;
@@ -184,6 +209,8 @@ final class ChmEntry {
 
   /// Uncompressed byte length.
   final int length;
+
+  final Uint8List _rawName;
 }
 
 final class _ChmCompressed {

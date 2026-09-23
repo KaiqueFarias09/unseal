@@ -12,7 +12,7 @@ localization, reading-direction, accessibility, and media-overlay testing.
 - `comic/`: generated archives plus externally published CBZ, CBR, CB7 and CBC samples
 - `txt/`, `html/`, `docx/`, `odt/`: generated fixtures for the document adapters
 - `pdf/`: real-writer and externally published PDFs with redistributable content
-- `chm/`: redistributable compiled HTML Help manual with LZX-compressed topics
+- `chm/`: licensed compiled HTML Help manual plus generated legacy-codepage samples
 - `djvu/`: generated JPEG-backed DjVu for public format coverage
 - `lrf/`: Calibre-generated Sony LRF text and image fixtures with original content
 - `format_expansion/`: original text formats and independently generated PalmDB fixtures
@@ -71,6 +71,7 @@ localization, reading-direction, accessibility, and media-overlay testing.
 | `FORMAT-ODT` | OpenDocument content XML and metadata |
 | `FORMAT-DJVU` | Direct JPEG page and uncompressed OCR in a DjVu container |
 | `FORMAT-CHM-PUTTY` | Licensed real CHM manual with LZX topics and table of contents |
+| `FORMAT-CHM-CP1251` / `FORMAT-CHM-CP1252` / `FORMAT-CHM-CP1256` | Generated CHM names, metadata, topics, and contents in legacy Windows codepages |
 | `REAL-FB2-WL-PL` | Unmodified Polish FB2 published by Wolne Lektury |
 | `REAL-CBZ-IA-1895` | Real 1895 scanned publication distributed as CBZ |
 | `REAL-CBR-IA-1909` | Real 1909 image collection using compressed RAR 4 pages |

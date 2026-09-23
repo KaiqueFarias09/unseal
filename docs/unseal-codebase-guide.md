@@ -684,9 +684,11 @@ The CHM adapter reads an ITSF container, its PMGL directory, and LZX-compressed
 content without a native tool. It assembles HTML topics and resources into a
 `DocumentBook`, reads the `#SYSTEM` title, and follows `.hhc` contents links
 for navigation. The real PuTTY manual fixture exercises compressed topics
-and nested navigation. The parser does not expose the CHM full-text index,
-merged help, or script execution; legacy codepages and Intel E8 transformed
-LZX blocks need more fixture coverage. Frames within the current reset
+and nested navigation. Generated CP1251, CP1252, and CP1256 fixture books
+exercise names, `#SYSTEM` metadata, topics, and contents under the locale's
+legacy codepage. The LZX decoder restores Intel E8 relative addresses and
+keeps the stream position across frames. It does not expose the CHM full-text
+index, merged help, or script execution. Frames within the current reset
 interval are cached and total frame expansions are capped, so repeated entry
 references cannot force unbounded decompression work.
 

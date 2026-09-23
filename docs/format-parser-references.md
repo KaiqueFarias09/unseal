@@ -40,10 +40,17 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 - RTF tem uma especificação publicada pela Microsoft que cobre grupos, palavras
   de controle, destinos e Unicode. Ela permite implementar um parser de leitura
   limitado sem depender de ferramentas nativas. — [RTF 1.9.1](https://officeprotocoldoc.z19.web.core.windows.net/files/Archive_References/%5BMSFT-RTF%5D.pdf)
-- CHM tem documentação do contêiner ITSF e um leitor em Java puro sob Apache 2.0;
-  ambos servem de base para estudar diretório, tópicos e dados comprimidos.
-  — [CHM ITSF](https://www.nongnu.org/chmspec/latest/ITSF.html),
-  [jchmlib](https://github.com/chimenchen/jchmlib)
+- CHM usa o contêiner ITSF e LZX. A tradução Intel E8 foi comparada com a
+  regra publicada pela Microsoft e com o leitor CHMLib; os testes também
+  cobrem LCIDs que selecionam Windows-1251, 1252 e 1256. A disposição de
+  registros `#SYSTEM` vem das notas de formato CHM; os IDs de idioma e as
+  páginas de código vêm das tabelas da Microsoft. —
+  [CHM ITSF](https://www.nongnu.org/chmspec/latest/ITSF.html),
+  [CHM #SYSTEM](https://www.nongnu.org/chmspec/latest/Internal.html),
+  [MS-PATCH E8](https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-patch/e6c8366d-a8c3-4f34-aa5d-56f44f938a09),
+  [MS-LCID](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-lcid/63d3d639-7fd2-4afb-abbe-0d5b5551eef8),
+  [code pages da Microsoft](https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers),
+  [CHMLib](https://github.com/jedwing/CHMLib/blob/master/src/lzx.c)
 - PDB é um contêiner com subformatos distintos. PalmDOC, eReader, Plucker e MOBI
   têm estruturas próprias; MOBI deve seguir o parser MOBI, enquanto eReader e
   Plucker exigem implementação separada. — [documentação PDB do Calibre](https://github.com/kovidgoyal/calibre/tree/master/format_docs/pdb)
@@ -109,7 +116,7 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 | KEPUB | Parser EPUB atual + diretrizes Kobo | KEPUB real da Standard Ebooks; EPUB convertido com Kepubify | Validar detecção, conteúdo, recursos e navegação antes de criar código específico |
 | Markdown | CommonMark + `package:markdown` | Suíte CommonMark e livro Markdown próprio | Delimitar HTML, front matter e imagens relativas |
 | RTF | Especificação Microsoft | `LICENSE.rtf` e casos gerados | Extrair texto, estilos e metadados antes de imagens complexas |
-| CHM | ITSF + jchmlib | Manual PuTTY licenciado e casos pequenos gerados | Implementado: HTML, recursos, sumário e LZX com limites; índice de busca e ajudas mescladas pendentes |
+| CHM | ITSF, MS-PATCH E8, CHMLib e IDs de codepage da Microsoft | Manual PuTTY licenciado e CHMs gerados em CP1251/1252/1256 | Implementado: HTML, recursos, sumário, E8 e codepages cobertas com limites; índice de busca e ajudas mescladas pendentes |
 | DjVu | Especificação DjVu 3 + DjVuLibre | Página JPEG gerada; dois arquivos reais licenciados com JB2/IW44 para testar rejeição | Páginas JPEG diretas funcionam; JB2/IW44 ainda exigem decodificadores visuais |
 | PDB | Especificação por subtipo no Calibre e PyPlucker | PalmDOC e eReader gerados; Plucker DOC/zlib gerado por ferramenta independente | PalmDOC, eReader e Plucker têm parsers distintos com contratos limitados |
 | LRF | Parser e ferramentas Calibre | LRF de texto e imagem gerados por Calibre 9.4.0 | Leitura pública limitada; falta amostra de outro produtor |
@@ -129,7 +136,8 @@ JB2/IW44. O detalhamento de cada contrato está em
 - Encontrar LRF e Plucker reais redistribuíveis de outros produtores;
   as amostras geradas estão identificadas com sua proveniência.
 - Implementar JB2/IW44 antes de ampliar a promessa de leitura visual DjVu.
-- Cobrir variantes CHM Intel E8 e codepages antigas com arquivos licenciados.
+- Encontrar amostras CHM redistribuíveis para codepages fora de 1251/1252/1256;
+  os casos existentes são gerados a partir de texto original.
 
 ---
 **Próximo passo:** expandir os casos reais e os codecs pendentes sem retirar os

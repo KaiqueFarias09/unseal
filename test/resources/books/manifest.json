@@ -538,6 +538,45 @@
       "focus": ["real-manual", "chm", "lzx", "html-topics", "contents", "resources"]
     },
     {
+      "id": "FORMAT-CHM-CP1251",
+      "file": "chm/legacy-cp1251.chm",
+      "format": "chm",
+      "title": "Русский CHM",
+      "source": "tool/generate_chm_legacy_fixtures.dart; see chm/PROVENANCE.md",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 4494,
+      "sha256": "9e2669b133aafad11855a2a863165bdff70bf838056fb622a0db2939d62fa67c",
+      "minimum_reading_order_items": 1,
+      "focus": ["generated", "chm", "windows-1251", "filename", "metadata", "contents"]
+    },
+    {
+      "id": "FORMAT-CHM-CP1252",
+      "file": "chm/legacy-cp1252.chm",
+      "format": "chm",
+      "title": "Café CHM",
+      "source": "tool/generate_chm_legacy_fixtures.dart; see chm/PROVENANCE.md",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 4489,
+      "sha256": "3e15ff2ddc20c924fcb53cd62535ce7c96561cbe4bf5684193f695091a1f5103",
+      "minimum_reading_order_items": 1,
+      "focus": ["generated", "chm", "windows-1252", "filename", "metadata", "contents"]
+    },
+    {
+      "id": "FORMAT-CHM-CP1256",
+      "file": "chm/legacy-cp1256.chm",
+      "format": "chm",
+      "title": "دليل CHM",
+      "source": "tool/generate_chm_legacy_fixtures.dart; see chm/PROVENANCE.md",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 4490,
+      "sha256": "8cbe7d39a71415dbff5ef379e9ffa797ed1d6b558ac44d43166947d27579f0bd",
+      "minimum_reading_order_items": 1,
+      "focus": ["generated", "chm", "windows-1256", "filename", "metadata", "contents"]
+    },
+    {
       "id": "FORMAT-DJVU",
       "file": "djvu/jpeg-only.djvu",
       "format": "djvu",

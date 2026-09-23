@@ -4,8 +4,9 @@ import '../../foundation/exceptions/unseal_exception.dart';
 
 /// LZX frames inside CHM, using one state until the next reset-table boundary.
 ///
-/// See Microsoft's [MS-PATCH] LZX description and Apache-2.0 jchmlib for the
-/// CHM frame protocol. This implementation is pure Dart and bounds each frame.
+/// The E8 postfilter follows Microsoft's [MS-PATCH 2.2.2](https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-patch/e6c8366d-a8c3-4f34-aa5d-56f44f938a09)
+/// translation rules, cross-checked against the independent [CHMLib decoder](https://github.com/jedwing/CHMLib/blob/master/src/lzx.c).
+/// The CHM frame protocol is cross-checked against Apache-2.0 [jchmlib](https://github.com/chimenchen/jchmlib).
 final class ChmLzxDecoder {
   /// Creates a decoder for a power-of-two history window between 32 KiB and 2 MiB.
   ChmLzxDecoder(this.windowBits)

@@ -51,7 +51,7 @@ document renderer.
 | Standalone Markdown | CommonMark blocks and inline formatting, headings, links, and simple front matter | Byte-only calls use `parseMarkdownBook`; `readFile` recognizes `.md`, `.markdown`, and `.mdown`. Relative resources are references, not extracted files. |
 | RTF | Text, title/author, paragraphs, Unicode, codepages 1251/1252/1256 and UTF-8, and basic emphasis | Tables, pictures, drawing objects, fields, and page layout are not converted. |
 | HTML / HTMLZ | Source-preserving HTML, head metadata, heading navigation, OPF manifests, and resources | HTML is preserved, not sanitized. |
-| CHM | ITSF directory, LZX-compressed HTML topics and resources, `#SYSTEM` title/home, and nested `.hhc` contents | Reading HTML and resources; no full-text index, merged help collection, or execution of embedded scripts. |
+| CHM | ITSF directory, LZX-compressed HTML topics and resources, `#SYSTEM` title/home, nested `.hhc` contents, Intel E8 restoration, and Windows-1251/1252/1256 text from the locale record | Other legacy codepages, full-text index, merged help collections, and embedded scripts are outside this contract. |
 | DOCX | Open XML document structure, styles, headings, lists, tables, links, properties, and images | Semantic conversion; not pixel-perfect Word layout. |
 | ODT | OpenDocument paragraphs, headings, styles, lists, tables, images, links, and metadata | Semantic conversion; not pixel-perfect LibreOffice layout. |
 | AZW4 | PalmDB/MOBI wrapper validation, PDF extraction, metadata, pages, and original PDF bytes | Requires a valid, unencrypted PDF payload. |
@@ -399,7 +399,9 @@ decode. `readDjvuMetadata` validates their container and page INFO structure;
   entries to 10,000, and total materialized content to 128 MiB. Unsupported
   LZX layouts and malformed directory/reset tables fail with typed errors.
   LZX work is capped at 8192 decoded frames, with frames reused within a
-  reset interval.
+  reset interval. Intel E8 addresses are restored per frame. Windows-1251,
+  Windows-1252, and Windows-1256 are selected from supported `#SYSTEM` locale
+  IDs; other encodings use the shared text detector.
 - DjVu input is limited to 128 MiB, 1024 pages, 65536 IFF chunks, 100 million
   pixels per page, 32 MiB per directly stored JPEG, and 8 MiB per
   uncompressed OCR chunk. Indirect DjVu

@@ -39,6 +39,32 @@ void main() {
       expect(book.archiveEntries.length, 474);
     });
 
+    test('decodes legacy Windows-1251, Windows-1252, and Windows-1256 codepages', () {
+      final cyrillic =
+          Unseal.parse(File('test/resources/books/chm/legacy-cp1251.chm').readAsBytesSync())
+              as DocumentBook;
+      expect(cyrillic.metadata.title, 'Русский CHM');
+      expect(cyrillic.files.html.single.path, 'chapter-глава.html');
+      expect(cyrillic.files.html.single.content, contains('Привет мир'));
+      expect(cyrillic.navigation.navPoints.single.label, 'Главная');
+
+      final western = parseChmBook(
+        File('test/resources/books/chm/legacy-cp1252.chm').readAsBytesSync(),
+      );
+      expect(western.metadata.title, 'Café CHM');
+      expect(western.files.html.single.path, 'chapter-café.html');
+      expect(western.files.html.single.content, contains('Très bien café'));
+      expect(western.navigation.navPoints.single.label, 'Été');
+
+      final arabic = parseChmBook(
+        File('test/resources/books/chm/legacy-cp1256.chm').readAsBytesSync(),
+      );
+      expect(arabic.metadata.title, 'دليل CHM');
+      expect(arabic.files.html.single.path, 'chapter-سلام.html');
+      expect(arabic.files.html.single.content, contains('سلام عليكم'));
+      expect(arabic.navigation.navPoints.single.label, 'الرئيسية');
+    });
+
     test('reuses decoded LZX frames for entries in the same reset interval', () {
       final archive = ChmArchive(File('test/resources/books/chm/putty.chm').readAsBytesSync());
       final entry = archive.entries.values.lastWhere(
@@ -70,6 +96,34 @@ void main() {
     test('decodes an LZX uncompressed block', () {
       const text = 'LZX raw block';
       expect(ChmLzxDecoder(15).decodeFrame(lzxRawFrame(text), text.length), text.codeUnits);
+    });
+
+    test('reverses Intel E8 addresses from the first LZX frame', () {
+      final transformed = Uint8List(64);
+      transformed[8] = 0xe8;
+      ByteData.sublistView(transformed).setInt32(9, 108, Endian.little);
+
+      final decoded = ChmLzxDecoder(
+        15,
+      ).decodeFrame(lzxRawFrameBytes(transformed, intelFileSize: 4096), transformed.length);
+
+      expect(decoded[8], 0xe8);
+      expect(ByteData.sublistView(decoded).getInt32(9, Endian.little), 100);
+    });
+
+    test('keeps the E8 position across frames and reverses negative transformed offsets', () {
+      final decoder = ChmLzxDecoder(15);
+      decoder.decodeFrame(lzxRawFrameBytes(List<int>.filled(1024, 0), intelFileSize: 1000), 1024);
+
+      final transformed = Uint8List(64);
+      transformed[8] = 0xe8;
+      ByteData.sublistView(transformed).setInt32(9, -950, Endian.little);
+      final decoded = decoder.decodeFrame(
+        lzxRawFrameBytes(transformed, includeIntelHeader: false),
+        transformed.length,
+      );
+
+      expect(ByteData.sublistView(decoded).getInt32(9, Endian.little), 50);
     });
   });
 }
