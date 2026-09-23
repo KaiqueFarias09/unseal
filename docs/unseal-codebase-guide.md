@@ -120,7 +120,7 @@ You only need a small set of format terms to understand most of the repository.
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
-| DjVu direct JPEG subset | An IFF document whose pages have INFO and directly stored BGjp JPEG images. | `DjvuBook` with JPEG page images, dimensions, rotation, optional TXTa text, and original bytes. Other image codecs fail full opening. |
+| DjVu JPEG and bounded JB2 subset | An IFF document whose pages have INFO and direct BGjp JPEG or page-local Sjbz JB2 masks, in single-page or bundled files. | `DjvuBook` with JPEG or black-on-white 1-bit BMP page images, dimensions, rotation, optional TXTa text, and original bytes. IW44, mixed layers, shared dictionaries, and indirect files fail full opening. |
 | CHM | An ITSF compiled HTML Help archive with compressed topic streams. | `DocumentBook` with ordered HTML topics, resources, title, and hierarchical contents. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
 | Standalone Markdown | CommonMark text with optional small front matter. | `DocumentBook` with converted HTML, heading navigation, and selected metadata. |
@@ -149,7 +149,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 | `lib/mobi.dart` | MOBI and AZW3 parsing, MOBI entities and exceptions, and shared book entities. |
 | `lib/azw4.dart` | AZW4 extraction and parsing plus the `PdfBook` result type. |
 | `lib/pdf.dart` | PDF parsing, PDF entities and exceptions, and shared book entities. |
-| `lib/djvu.dart` | DjVu JPEG page parsing, page data, typed failures, and shared book entities. |
+| `lib/djvu.dart` | DjVu JPEG and bounded JB2 page parsing, page data, typed failures, and shared book entities. |
 | `lib/chm.dart` | CHM topic, resource, navigation, and metadata parsing. |
 | `lib/docx.dart` | DOCX parsing and DOCX exceptions. |
 | `lib/odt.dart` | ODT parsing and ODT exceptions. |
@@ -700,30 +700,39 @@ references cannot force unbounded decompression work.
 | `features/chm/chm_lzx.dart` | Expands bounded LZX blocks for compressed topics. |
 | `features/chm/parse_chm_book.dart` | Builds the document, metadata, resources, and contents navigation. |
 
-## DjVu: extract directly stored JPEG page images
+## DjVu: expose JPEG pages and bounded JB2 masks
 
 DjVu wraps page chunks in an IFF container. A single page is `FORM:DJVU`; a
 bundled book is `FORM:DJVM` with a `DIRM` directory and embedded page FORMs.
 Each page starts with `INFO`, which supplies dimensions, resolution, and
-rotation. The current adapter can expose a page image when its sole image
-layer is `BGjp`, a directly stored JPEG. Optional uncompressed `TXTa` provides
-searchable text. A page with JB2 masks or IW44 color layers fails full opening
-with `DjvuUnsupportedCodecException`; a successful `DjvuBook` always has a
-displayable image for every page.
+rotation. The adapter exposes a directly stored `BGjp` JPEG or decodes a
+page-local `Sjbz` JB2 mask in a single-page or bundled file into a black-on-white
+1-bit BMP. JB2 supports direct symbols, matched refinements, and local symbol
+copies. Optional uncompressed `TXTa` provides searchable text. IW44 color
+layers, mixed visual layers, external/shared dictionaries (`Djbz`/`INCL`),
+reset records, and indirect files fail full opening with
+`DjvuUnsupportedCodecException`; a
+successful `DjvuBook` always has a displayable image for every page. Across a
+document, decoded layers are capped at 256 million pixels and 128 MiB of
+materialized raster bytes, reserved before the next page allocation.
 
 | File | What it does and why it exists |
 | --- | --- |
 | `lib/djvu.dart` | Exposes the narrow format API. |
-| `features/djvu/parse_djvu_book.dart` | Walks bounded IFF chunks, validates directory offsets and page INFO, extracts JPEG and uncompressed OCR, and rejects unsupported visual layers. |
-| `features/djvu/djvu_book.dart` | Keeps page geometry, JPEG resources, OCR, and original source bytes together. |
+| `features/djvu/parse_djvu_book.dart` | Walks bounded IFF chunks, validates directory offsets and page INFO, extracts JPEG or a decoded JB2 BMP plus uncompressed OCR, and rejects unsupported visual layers. |
+| `features/djvu/jb2_decoder.dart` and `features/djvu/zp_tables.dart` | Decode the bounded local-symbol JB2 subset and encode the mask as a displayable BMP. |
+| `features/djvu/djvu_decode_budget.dart` | Reserves cumulative decoded pixel and raster-byte budgets before page allocations. |
+| `features/djvu/djvu_book.dart` | Keeps page geometry, JPEG/BMP resources, OCR, and original source bytes together. |
 | `features/djvu/djvu_exception.dart` | Distinguishes malformed documents from valid pages needing another image codec. |
 
 Metadata-only reads validate the container and page INFO without decoding
-image layers. The test corpus includes a generated JPEG-backed page and
-in-memory malformed and multipage cases. It also contains real JB2 and IW44
-documents for format recognition and explicit unsupported-codec checks; their
-provenance is recorded beside the fixtures. The independent reference is
-the [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf).
+image layers. The tests include a generated JPEG page, a real public-domain JB2
+Sjbz layer isolated from its source page in memory, real IW44 and compound
+pages that remain explicitly unsupported, and malformed JB2 input. The JB2
+format reference is the [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf);
+its ZP state tables were cross-checked with the independent MIT-licensed
+[djvu-rs implementation](https://github.com/matyushkin/djvu-rs). Fixture and
+reference provenance is recorded in the repository.
 
 ## Search: query the HTML-backed content of a parsed book
 

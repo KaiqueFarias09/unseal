@@ -36,6 +36,49 @@ void main() {
     expect(book.pages.map((final page) => page.text), <String>['First', 'Second']);
   });
 
+  test('decodes a licensed standalone JB2 layer to a displayable bilevel page', () {
+    final cable = File('test/resources/djvu/cable-1973.djvu').readAsBytesSync();
+    final sjbz = _firstChunkData(cable, 'Sjbz');
+    final page = djvuJb2Page(sjbz, width: 2550, height: 3301);
+    final book = Unseal.parse(page) as DjvuBook;
+    final image = book.pages.single.image;
+
+    expect(image.type, 'bmp');
+    expect(image.content.take(2), <int>[0x42, 0x4D]);
+    expect(sniffImageType(image.content), ImageType.bmp);
+    expect(imageSize(image.content), const ImageSize(2550, 3301));
+    expect(book.metadata.cover?.type, ImageType.bmp);
+    expect(book.files.html.single.content, contains('../images/page-1.bmp'));
+    expect(book.bytes, page);
+    expect(image.content.skip(62).any((final byte) => byte != 0xFF), isTrue);
+  });
+
+  test('decodes page-local JB2 in a bundled DjVu document', () {
+    final cable = File('test/resources/djvu/cable-1973.djvu').readAsBytesSync();
+    final page = djvuJb2Page(_firstChunkData(cable, 'Sjbz'), width: 2550, height: 3301);
+    final book = Unseal.parse(djvuBundle(<Uint8List>[page])) as DjvuBook;
+
+    expect(book.pageCount, 1);
+    expect(book.pages.single.image.type, 'bmp');
+    expect(imageSize(book.pages.single.image.content), const ImageSize(2550, 3301));
+  });
+
+  test('reports a truncated JB2 arithmetic stream as a typed parse failure', () {
+    final cable = File('test/resources/djvu/cable-1973.djvu').readAsBytesSync();
+    final page = djvuJb2Page(
+      Uint8List.fromList(_firstChunkData(cable, 'Sjbz').take(1).toList()),
+      width: 2550,
+      height: 3301,
+    );
+    expect(() => Unseal.parse(page), throwsA(isA<DjvuException>()));
+  });
+
+  test('rejects an adversarial JB2 page declaration before output allocation', () {
+    final cable = File('test/resources/djvu/cable-1973.djvu').readAsBytesSync();
+    final page = djvuJb2Page(_firstChunkData(cable, 'Sjbz'), width: 20000, height: 6000);
+    expect(() => Unseal.parse(page), throwsA(isA<DjvuException>()));
+  });
+
   test('sizes a lower-resolution JPEG to the declared DjVu page', () {
     final book = parseDjvuBook(djvuJpegPage(jpeg, width: 16, height: 12));
     expect(book.pages.single.image.content, jpeg);
@@ -72,15 +115,23 @@ void main() {
     expect(() => Unseal.parse(broken), throwsA(isA<DjvuException>()));
   });
 
-  test('rejects non-JPEG image layers even beside a JPEG', () {
+  test('rejects invalid JB2 data instead of interpreting it as a JPEG', () {
     final bytes = djvuJpegPage(jpeg);
     // Replace BGjp with Sjbz while preserving the chunk's byte count.
     final marker = <int>[66, 71, 106, 112];
     final offset = _indexOf(bytes, marker);
     expect(offset, greaterThan(0));
     bytes.setRange(offset, offset + 4, <int>[83, 106, 98, 122]);
-    expect(() => Unseal.parse(bytes), throwsA(isA<DjvuUnsupportedCodecException>()));
+    expect(() => Unseal.parse(bytes), throwsA(isA<DjvuException>()));
   });
+}
+
+Uint8List _firstChunkData(final Uint8List bytes, final String id) {
+  final offset = _indexOf(bytes, id.codeUnits);
+  if (offset < 0 || offset + 8 > bytes.length) throw StateError('Missing $id fixture chunk.');
+  final length = ByteData.sublistView(bytes).getUint32(offset + 4);
+  if (length > bytes.length - offset - 8) throw StateError('Truncated $id fixture chunk.');
+  return Uint8List.sublistView(bytes, offset + 8, offset + 8 + length);
 }
 
 int _indexOf(final Uint8List bytes, final List<int> needle) {

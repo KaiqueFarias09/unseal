@@ -113,8 +113,9 @@ Input is untrusted. The following rules are architectural, not parser details:
 - Reject encrypted entries, symbolic links, unsupported compression methods,
   excessive expansion, and oversized output before materialization.
 - Bound PDF objects, page trees, content streams, and image decoding.
-- Bound DjVu IFF chunks, page count, direct JPEG payloads, and OCR text before
-  materializing page resources.
+- Bound DjVu IFF chunks, page count, direct JPEG payloads, OCR text, and JB2
+  masks, symbols, records, arithmetic contexts, blit work, and cumulative
+  decoded raster output before materializing page resources.
 - Bound XML depth and convert malformed or excessive structures to typed
   failures.
 - Preserve HTML as data. A consuming renderer must sanitize or isolate it.
@@ -151,8 +152,11 @@ bytes and provenance unless the change intentionally updates the fixture.
 - One common reading model takes priority over reproducing every source
   application's layout model.
 - PDF support targets reading and extraction. It is not a full PDF renderer.
-- DjVu full opening currently accepts directly stored JPEG pages. Other image
-  codecs fail explicitly until their visual decoders are implemented.
+- DjVu full opening accepts directly stored JPEG pages and page-local JB2
+  masks in single-page or bundled files (direct symbols, matched refinements,
+  and copies).
+  IW44, mixed visual layers, shared JB2 dictionaries, and indirect documents
+  remain unsupported and fail explicitly.
 - DOCX and ODT conversion preserves semantic reading structure, not exact page
   layout.
 - HTML remains unsanitized so parsing does not silently rewrite content.

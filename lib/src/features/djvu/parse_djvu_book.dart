@@ -5,7 +5,9 @@ import '../../foundation/entities/entities.dart';
 import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';
 import 'djvu_book.dart';
+import 'djvu_decode_budget.dart';
 import 'djvu_exception.dart';
+import 'jb2_decoder.dart';
 
 const _maxInputBytes = 128 * 1024 * 1024;
 const _maxPages = 1024;
@@ -14,39 +16,38 @@ const _maxJpegBytes = 32 * 1024 * 1024;
 const _maxTextBytes = 8 * 1024 * 1024;
 const _maxPagePixels = 100000000;
 
-/// Opens DjVu pages that use the specification's direct BGjp JPEG encoding.
+/// Opens direct BGjp JPEG pages and page-local bilevel JB2 pages.
 ///
-/// The common JB2 and IW44 image codecs are recognized but currently fail with
-/// [DjvuUnsupportedCodecException]. The parser never reports an invisible page
-/// as successfully opened.
+/// JB2 support covers page-local direct symbols, matched refinements, and local
+/// symbol copies. Pages that require IW44 layers or shared dictionaries fail
+/// with [DjvuUnsupportedCodecException].
 DjvuBook parseDjvuBook(final Uint8List bytes) {
   final document = _DjvuDocument(bytes);
   final pages = <DjvuPage>[];
+  final decodeBudget = DjvuDecodeBudget();
   for (final chunk in document.pages) {
-    pages.add(document.decodePage(chunk, pages.length + 1));
+    pages.add(document.decodePage(chunk, pages.length + 1, decodeBudget));
   }
 
   final firstImage = pages.first.image.content;
   final size = imageSize(firstImage);
+  final imageType = sniffImageType(firstImage);
+  if (size == null || imageType == null) {
+    throw const DjvuException('Decoded DjVu page image has an invalid image header.');
+  }
   return DjvuBook(
     bytes: bytes,
     pages: pages,
     metadata: BookMetadata(
       format: BookFormat.djvu,
-      cover: BookCover(
-        bytes: firstImage,
-        type: ImageType.jpeg,
-        width: size?.width,
-        height: size?.height,
-      ),
+      cover: BookCover(bytes: firstImage, type: imageType, width: size.width, height: size.height),
     ),
   );
 }
 
 /// Validates the container and reads DjVu metadata without decoding image data.
 ///
-/// This path also accepts valid pages whose JB2/IW44 image codecs are not yet
-/// supported by [parseDjvuBook].
+/// This path validates page metadata without decoding JPEG or JB2 image data.
 BookMetadata readDjvuMetadata(final Uint8List bytes) {
   _DjvuDocument(bytes);
   return const BookMetadata(format: BookFormat.djvu);
@@ -164,9 +165,10 @@ final class _DjvuDocument {
     return (width: width, height: height, dpi: dpi, rotation: rotation);
   }
 
-  DjvuPage decodePage(final _Chunk page, final int number) {
+  DjvuPage decodePage(final _Chunk page, final int number, final DjvuDecodeBudget decodeBudget) {
     final info = _pageInfo(page);
     _Chunk? jpeg;
+    _Chunk? jb2;
     _Chunk? text;
     final unsupported = <String>[];
     for (final chunk in _children(page.data + 4, page.end).skip(1)) {
@@ -178,6 +180,8 @@ final class _DjvuDocument {
           if (text != null) throw const DjvuException('Duplicate DjVu TXTa chunk.');
           text = chunk;
         case 'Sjbz':
+          if (jb2 != null) throw const DjvuException('Duplicate DjVu Sjbz chunk.');
+          jb2 = chunk;
         case 'Djbz':
         case 'BG44':
         case 'FG44':
@@ -188,36 +192,59 @@ final class _DjvuDocument {
           unsupported.add(chunk.id);
       }
     }
-    if (unsupported.isNotEmpty || jpeg == null) {
-      final codecs = unsupported.isEmpty ? 'no BGjp image' : unsupported.toSet().join(', ');
+    if (jpeg != null && jb2 != null) unsupported.add('multiple image layers');
+    if (unsupported.isNotEmpty) {
+      final codecs = unsupported.toSet().join(', ');
       throw DjvuUnsupportedCodecException(
         'DjVu page $number needs an unsupported image layer: $codecs.',
       );
     }
-    if (jpeg.length == 0 || jpeg.length > _maxJpegBytes) {
-      throw const DjvuException('DjVu JPEG page exceeds its size limit or is empty.');
+    if (jpeg == null && jb2 == null) {
+      throw DjvuUnsupportedCodecException('DjVu page $number has no supported image layer.');
     }
-    final imageBytes = Uint8List.sublistView(bytes, jpeg.data, jpeg.end);
-    final type = sniffImageType(imageBytes);
-    final dimensions = imageSize(imageBytes);
-    if (type?.fileExtension != 'jpg' ||
-        dimensions == null ||
-        imageBytes.length < 2 ||
-        imageBytes[imageBytes.length - 2] != 0xFF ||
-        imageBytes.last != 0xD9) {
-      throw const DjvuException('DjVu BGjp chunk does not contain a valid JPEG header.');
-    }
-    if (dimensions.width == 0 ||
-        dimensions.height == 0 ||
-        dimensions.width > info.width ||
-        dimensions.height > info.height) {
-      throw const DjvuException('DjVu JPEG dimensions exceed the page dimensions.');
+
+    late final Uint8List imageBytes;
+    late final String extension;
+    if (jpeg != null) {
+      if (jpeg.length == 0 || jpeg.length > _maxJpegBytes) {
+        throw const DjvuException('DjVu JPEG page exceeds its size limit or is empty.');
+      }
+      imageBytes = Uint8List.sublistView(bytes, jpeg.data, jpeg.end);
+      final type = sniffImageType(imageBytes);
+      final dimensions = imageSize(imageBytes);
+      if (type?.fileExtension != 'jpg' ||
+          dimensions == null ||
+          imageBytes.length < 2 ||
+          imageBytes[imageBytes.length - 2] != 0xFF ||
+          imageBytes.last != 0xD9) {
+        throw const DjvuException('DjVu BGjp chunk does not contain a valid JPEG header.');
+      }
+      if (dimensions.width == 0 ||
+          dimensions.height == 0 ||
+          dimensions.width > info.width ||
+          dimensions.height > info.height) {
+        throw const DjvuException('DjVu JPEG dimensions exceed the page dimensions.');
+      }
+      extension = 'jpg';
+    } else {
+      final rowStride = ((info.width + 31) ~/ 32) * 4;
+      decodeBudget.reserve(
+        pixels: info.width * info.height,
+        rasterBytes: 62 + rowStride * info.height,
+      );
+      final mask = decodeDjvuJb2Mask(
+        Uint8List.sublistView(bytes, jb2!.data, jb2.end),
+        expectedWidth: info.width,
+        expectedHeight: info.height,
+      );
+      imageBytes = encodeDjvuJb2Bmp(mask);
+      extension = 'bmp';
     }
     final image = BinaryFile(
       content: imageBytes,
-      name: 'page-$number.jpg',
-      type: 'jpg',
-      path: 'images/page-$number.jpg',
+      name: 'page-$number.$extension',
+      type: extension,
+      path: 'images/page-$number.$extension',
     );
     return DjvuPage(
       width: info.width,

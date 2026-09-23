@@ -1,11 +1,14 @@
 @TestOn('browser')
 library;
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:js_interop';
 
 import 'package:test/test.dart';
 import 'package:unseal/src/platform/web/book_wire.dart';
 import 'package:unseal/unseal.dart';
+import 'package:web/web.dart' as web;
 
 import '../support/djvu_fixture.dart';
 
@@ -32,5 +35,42 @@ void main() {
       decodeErrorWire('DjvuUnsupportedCodecException', 'codec'),
       isA<DjvuUnsupportedCodecException>(),
     );
+  });
+
+  test('browser displays a JB2 BMP mask and preserves it over worker wire', () async {
+    final bytes = licensedDjvuJb2Page();
+    final book = Unseal.parse(bytes) as DjvuBook;
+    expect(book.pages.single.width, 2550);
+    expect(book.pages.single.height, 3301);
+    expect(book.pages.single.image.type, 'bmp');
+    expect(sniffImageType(book.pages.single.image.content), ImageType.bmp);
+    expect(imageSize(book.pages.single.image.content), const ImageSize(2550, 3301));
+
+    final imageLoaded = Completer<void>();
+    final imageElement = web.document.createElement('img') as web.HTMLImageElement;
+    imageElement.addEventListener(
+      'load',
+      ((web.Event _) {
+        if (!imageLoaded.isCompleted) imageLoaded.complete();
+      }).toJS,
+    );
+    imageElement.addEventListener(
+      'error',
+      ((web.Event _) {
+        if (!imageLoaded.isCompleted) {
+          imageLoaded.completeError(StateError('Chrome could not decode the generated JB2 BMP.'));
+        }
+      }).toJS,
+    );
+    imageElement.src = 'data:image/bmp;base64,${base64Encode(book.pages.single.image.content)}';
+    await imageLoaded.future.timeout(const Duration(seconds: 10));
+    expect(imageElement.naturalWidth, 2550);
+    expect(imageElement.naturalHeight, 3301);
+
+    final (json, blobs) = encodeBookWire(book);
+    final decoded = decodeBookWire(json, blobs) as DjvuBook;
+    expect(decoded.pages.single.image.content, book.pages.single.image.content);
+    expect(decoded.bytes, bytes);
+    expect(decoded.files.html.single.content, contains('../images/page-1.bmp'));
   });
 }

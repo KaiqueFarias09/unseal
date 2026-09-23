@@ -74,11 +74,11 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
   esse manual com a licença PuTTY e o hash da versão testada no manifesto.
   — [amostra CHM](https://github.com/bjxpen/chmv/tree/main/test/fixtures),
   [chmcmd](https://gitlab.com/freepascal.org/fpc/source/-/blob/bce88f2e2bf76c3f979902aaa60598a0487f1509/packages/chm/src/chmcmd.lpr)
-- Para DjVu, as ferramentas DjVuLibre permitem gerar páginas com conteúdo
-  próprio e conferir texto, índices e imagens. O corpus inclui uma página JPEG
-  gerada e duas amostras reais com JB2/IW44 e licença registrada; estas últimas
-  verificam a rejeição tipada dos codecs ainda ausentes. — [djvumake](https://djvu.sourceforge.net/doc/man/djvumake.html),
-  [djvused](https://djvu.sourceforge.net/doc/man/djvused.html)
+- Para DjVu, o corpus inclui uma página JPEG gerada, uma camada Sjbz real de
+  obra federal dos EUA e um arquivo IW44 com licença Unlicense. O teste remove
+  as demais camadas em memória para verificar a máscara JB2; o documento
+  composto de origem continua rejeitado. — [especificação DjVu 3](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf),
+  [djvu-rs](https://github.com/matyushkin/djvu-rs)
 - O Calibre documenta a conversão para eReader PDB e LRF, e oferece `lrf2lrs`
   como validador auxiliar. As amostras foram geradas a partir de conteúdo
   próprio. As variantes LRF 1, 799 e 800 dos testes são sintetizadas a partir
@@ -99,9 +99,11 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 
 ### 3.3 Escopo, licenças e segurança
 
-- Suporte a DjVu com páginas visuais requer mais que extrair texto: a
-  especificação cobre camadas de imagem comprimidas, e o DjVuLibre é uma
-  implementação GPL que pode servir de oráculo de testes. — [especificação DjVu 3](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf),
+- O subset JB2 segue os registros e a codificação ZP da especificação DjVu 3;
+  suas tabelas de estado foram conferidas com a implementação independente
+  djvu-rs, sob licença MIT. A implementação em Dart não copia código GPL do
+  DjVuLibre. — [especificação DjVu 3](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf),
+  [djvu-rs](https://github.com/matyushkin/djvu-rs),
   [DjVuLibre](https://github.com/DjVuLibre/DjVuLibre)
 - O Calibre oferece documentação e leitores para eReader, Plucker e LRF, mas
   seu código é GPL-3.0. Usá-lo para comparar resultados não implica copiar sua
@@ -129,7 +131,7 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 | Markdown | CommonMark + `package:markdown` | Suíte CommonMark e livro Markdown próprio | Delimitar HTML, front matter e imagens relativas |
 | RTF | Especificação Microsoft | `LICENSE.rtf` e casos gerados | Extrair texto, estilos e metadados antes de imagens complexas |
 | CHM | ITSF, MS-PATCH E8, CHMLib e IDs de codepage da Microsoft | Manual PuTTY licenciado e CHMs gerados em CP1251/1252/1256 | Implementado: HTML, recursos, sumário, E8 e codepages cobertas com limites; índice de busca e ajudas mescladas pendentes |
-| DjVu | Especificação DjVu 3 + DjVuLibre | Página JPEG gerada; dois arquivos reais licenciados com JB2/IW44 para testar rejeição | Páginas JPEG diretas funcionam; JB2/IW44 ainda exigem decodificadores visuais |
+| DjVu | Especificação DjVu 3 + tabelas ZP cross-checkadas com djvu-rs (MIT) | Página JPEG gerada; camada Sjbz real de fixture pública federal dos EUA; IW44 Unlicense para rejeição | JPEG direto e máscara JB2 page-local são exibidos; JB2 sai como BMP 1-bit. IW44, composição de camadas, dicionários compartilhados e indiretos permanecem rejeitados |
 | PDB | Especificação por subtipo no Calibre e PyPlucker | PalmDOC e eReader gerados; Plucker DOC/zlib gerado por ferramenta independente | PalmDOC, eReader e Plucker têm parsers distintos com contratos limitados |
 | LRF | Parser Calibre como oráculo; Sony para o contexto BBeB | LRF de texto/imagem gerados por Calibre 9.4.0 e variantes sintéticas de cabeçalho antigo | Versões até 800 são cobertas sinteticamente; falta amostra redistribuível de outro produtor |
 | LRX | Sony sobre BBeB sem proteção/Marlin e OpenMG; Calibre como oráculo limitado de metadados | LRX2 sintético com região de metadados plaintext; nenhum livro protegido redistribuído | Metadados LRX2 apenas; conteúdo DRM é sempre rejeitado |
@@ -139,8 +141,11 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 KEPUB foi validado pelo caminho EPUB. Markdown, RTF, PalmDOC, eReader,
 Plucker, CHM e LRF têm parsers públicos com testes e limites documentados.
 LRX2 expõe apenas metadados plaintext; Unseal rejeita o conteúdo protegido.
-DjVu abre páginas com JPEG direto e falha de modo tipado para as camadas
-JB2/IW44. O detalhamento de cada contrato está em
+DjVu abre páginas JPEG diretas e máscaras JB2 page-local (símbolos diretos,
+refinamento e cópia local), geradas como BMP 1-bit. IW44 e páginas compostas
+continuam falhando de modo tipado. Cada documento também respeita limites
+cumulativos de 256 milhões de pixels decodificados e 128 MiB de raster
+materializado. O detalhamento de cada contrato está em
 [format-expansion.md](format-expansion.md).
 
 ## 6. Perguntas em Aberto / Fora do Escopo
@@ -153,9 +158,12 @@ JB2/IW44. O detalhamento de cada contrato está em
   em `test/resources/books/lrf/PROVENANCE.md`.
 - Encontrar Plucker real redistribuível de outro produtor; as amostras geradas
   atuais estão identificadas com sua proveniência.
-- Implementar JB2/IW44 antes de ampliar a promessa de leitura visual DjVu.
 - Encontrar amostras CHM redistribuíveis para codepages fora de 1251/1252/1256;
   os casos existentes são gerados a partir de texto original.
+- Implementar IW44 e composição de camadas antes de ampliar a promessa de
+  leitura de páginas DjVu compostas; completar dicionários JB2 compartilhados,
+  reset, TXTz/NAVM e componentes de documentos indiretos.
+- Cobrir Intel E8 com um CHM real licenciado, além dos testes de frame existentes.
 
 ---
 **Próximo passo:** expandir os casos reais e os codecs pendentes sem retirar os

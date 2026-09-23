@@ -17,8 +17,8 @@ cover data, files, reading order, navigation, and statistics.
 
 It supports EPUB, MOBI, AZW3, PalmDOC, eReader and Plucker PDB, RTF, Markdown,
 Sony LRF and LRX metadata, FB2, TXT, HTML, CHM, DOCX, ODT, AZW4, comic
-archives, PDF, and JPEG-backed DjVu pages without a native executable, FFI bridge, or Flutter
-dependency in the library itself.
+archives, PDF, and selected DjVu pages without a native executable, FFI bridge,
+or Flutter dependency in the library itself.
 
 Unseal is a parser and data layer, not a reader UI or a general-purpose
 document renderer.
@@ -61,7 +61,7 @@ document renderer.
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
-| DjVu (JPEG pages) | Single-page and bundled documents with direct `BGjp` JPEG page images, INFO dimensions and rotation, and optional uncompressed `TXTa` OCR | Common JB2/IW44 image layers, compressed `TXTz`/`NAVM`, and indirect documents are not decoded; full opening fails with a typed error rather than returning invisible pages. |
+| DjVu (JPEG and bilevel JB2 subset) | Direct `BGjp` JPEG pages and page-local `Sjbz` masks in single-page or bundled documents, INFO dimensions and rotation, and optional uncompressed `TXTa` OCR | JB2 masks become black-on-white 1-bit BMP images. IW44 and mixed layers, shared JB2 dictionaries, compressed `TXTz`/`NAVM`, and indirect documents are not decoded. |
 
 `OPF` is not a standalone reading format. When unseal finds `metadata.opf`
 inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
@@ -261,13 +261,15 @@ an application that offers OCR; it does not prove that a page is a scan.
 `columnOrderApplied` indicates that Unseal reordered clearly separated,
 text-only columns for reflow and the canonical text stream.
 
-`DjvuBook.pages` exposes directly stored JPEG pages with their original
-dimensions, DPI, rotation, and optional uncompressed OCR text. Its
-`readingOrder` points to per-page HTML that displays each image and keeps OCR
-searchable. The complete source stays in
-`DjvuBook.bytes` for applications with a dedicated DjVu renderer. Metadata
-scans can identify documents with other DjVu image codecs, but full opening
-rejects them until those decoders are available.
+`DjvuBook.pages` exposes directly stored JPEG pages or decoded page-local JB2
+masks (in single-page and bundled files) as black-on-white 1-bit BMP images,
+with the original dimensions, DPI, rotation, and optional uncompressed OCR
+text. Its `readingOrder` points to
+per-page HTML that displays each image and keeps OCR searchable. The complete
+source stays in `DjvuBook.bytes` for applications with a dedicated DjVu
+renderer. JB2 support excludes shared dictionaries and pages that also need
+IW44 or other visual layers; full opening rejects those pages with a typed
+error.
 
 ```dart
 final pdf = parsePdfBook(pdfBytes);
@@ -360,10 +362,14 @@ annotations, and image codecs outside the supported extraction contract may be
 omitted. The original PDF bytes are retained for an application that provides
 its own facsimile renderer.
 
-DjVu visual reading currently covers direct JPEG background pages only. Most
-scanned DjVu books use JB2 or IW44 compression, which this release does not
-decode. `readDjvuMetadata` validates their container and page INFO structure;
-`parseDjvuBook` reports `DjvuUnsupportedCodecException` for those pages.
+DjVu visual reading covers direct JPEG pages and page-local JB2 masks encoded
+with direct symbols, matched refinements, and symbol copies. JB2 masks are
+emitted as black-on-white 1-bit BMP files. Pages with IW44 `BG44`/`FG44`,
+mixed visual layers, a shared `Djbz` dictionary or `INCL`, and other unsupported
+image encodings fail with `DjvuUnsupportedCodecException`. This boundary is
+intentional: a decoded mask alone does not reproduce a compound/color page.
+`readDjvuMetadata` validates the container and page INFO without decoding its
+image layer.
 
 ### Input and archive boundaries
 
@@ -404,9 +410,16 @@ decode. `readDjvuMetadata` validates their container and page INFO structure;
   Windows-1252, and Windows-1256 are selected from supported `#SYSTEM` locale
   IDs; other encodings use the shared text detector.
 - DjVu input is limited to 128 MiB, 1024 pages, 65536 IFF chunks, 100 million
-  pixels per page, 32 MiB per directly stored JPEG, and 8 MiB per
-  uncompressed OCR chunk. Indirect DjVu
-  documents require external component files and are rejected.
+  declared pixels per page, 32 MiB per directly stored JPEG, and 8 MiB per
+  uncompressed OCR chunk. JB2 decoding further caps a mask at 16 megapixels,
+  one symbol at 4 megapixels, cumulative symbol decoding and blitting at 64
+  megapixels each, stored symbols at 16 megapixels total, records at 65536,
+  arithmetic-number context nodes at 1,048,576, and comments at 64 KiB. The
+  arithmetic decoder permits at most 16 synthetic end-of-stream bytes.
+  Across one document, decoded visual layers are limited to 256 million pixels
+  and 128 MiB of materialized raster bytes; each page reserves this budget
+  before its decoder allocates output. Indirect DjVu documents require
+  external component files and are rejected.
 - LRF input is limited to 128 MiB, 20,000 indexed objects, 10,000 pages,
   32 MiB per expanded stream, 64 MiB of total expanded content, 4 Mi code units
   of rendered HTML per page, and 64 Mi code units of rendered HTML per book.
@@ -491,8 +504,11 @@ Compatibility work draws on:
 - PDF.js and Poppler as independent references for PDF extraction and image
   behavior.
 - The [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf)
-  for IFF structure, page INFO, direct JPEG, and OCR chunks; no DjVuLibre GPL
-  code is copied into this parser.
+  for IFF structure, JB2 records, and ZP coding. JB2 ZP state-table constants
+  were cross-checked against the independent [MIT-licensed djvu-rs
+  implementation](https://github.com/matyushkin/djvu-rs/tree/main/crates/djvu-zp);
+  its notice is in `licenses/djvu-rs-MIT.txt`. No DjVuLibre GPL source is
+  copied into this parser.
 
 ## Development
 
