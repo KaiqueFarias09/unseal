@@ -20,8 +20,10 @@ const _maxCompressedRecordBytes = 8192;
 /// text projection. Owner-keyed compressed documents are not supported.
 DocumentBook parsePluckerBook(final Uint8List bytes) {
   final source = _PluckerSource.read(bytes);
-  final paragraphs = <String>[];
+  final paragraphs = <Uint8List>[];
   var totalTextBytes = 0;
+  Uint8List? continuedParagraph;
+  int? continuedType;
 
   for (var index = 1; index < source.pdb.count; index++) {
     final record = source.pdb.record(index);
@@ -29,6 +31,9 @@ DocumentBook parsePluckerBook(final Uint8List bytes) {
       throw const InvalidBookException('Truncated Plucker data record.');
     }
     final type = record[6];
+    if (continuedParagraph != null && type != continuedType) {
+      throw const InvalidBookException('Plucker text continuation has a different record type.');
+    }
     if (type != 0 && type != 1) continue;
     final count = ByteData.sublistView(record).getUint16(2);
     final size = ByteData.sublistView(record).getUint16(4);
@@ -60,22 +65,41 @@ DocumentBook parsePluckerBook(final Uint8List bytes) {
       compressed: type == 1,
       version: source.version,
     );
-    var offset = 0;
-    for (final length in lengths) {
-      paragraphs.add(_stripFunctions(text.sublist(offset, offset + length)));
-      offset += length;
-    }
     totalTextBytes += size;
     if (totalTextBytes > _maxBookBytes) {
       throw const InvalidBookException('Plucker text exceeds the 64 MiB limit.');
     }
+    var offset = 0;
+    for (var paragraph = 0; paragraph < lengths.length; paragraph++) {
+      final length = lengths[paragraph];
+      var part = Uint8List.sublistView(text, offset, offset + length);
+      offset += length;
+      if (paragraph == 0 && continuedParagraph != null) {
+        final joined = BytesBuilder(copy: false)
+          ..add(continuedParagraph)
+          ..add(part);
+        part = joined.takeBytes();
+        continuedParagraph = null;
+        continuedType = null;
+      }
+      if (paragraph == lengths.length - 1 && (record[7] & 0x01) != 0) {
+        continuedParagraph = part;
+        continuedType = type;
+      } else {
+        paragraphs.add(part);
+      }
+    }
+  }
+
+  if (continuedParagraph != null) {
+    throw const InvalidBookException('Plucker text continuation is missing its next record.');
   }
 
   if (paragraphs.isEmpty) {
     throw const FormatNotSupportedException('Plucker document has no readable text pages.');
   }
   final document = parseTxtBook(
-    Uint8List.fromList(utf8.encode(paragraphs.join('\n\n'))),
+    Uint8List.fromList(utf8.encode(paragraphs.map(_stripFunctions).join('\n\n'))),
     sourceName: source.pdb.name,
   );
   final metadata = source.metadata;

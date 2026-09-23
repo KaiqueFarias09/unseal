@@ -48,6 +48,7 @@ class DjvuBook extends Book {
             TextFile(
               content:
                   '<html><body><img src="../${pages[index].image.path}" '
+                  'width="${pages[index].width}" height="${pages[index].height}" '
                   'alt="DjVu page ${index + 1}">'
                   '${pages[index].text.isEmpty ? '' : '<span hidden>${_escape(pages[index].text)}</span>'}'
                   '</body></html>',

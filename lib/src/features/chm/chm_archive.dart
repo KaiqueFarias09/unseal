@@ -8,6 +8,7 @@ const _maxChmBytes = 128 * 1024 * 1024;
 const _maxEntries = 10000;
 const _maxEntryBytes = 16 * 1024 * 1024;
 const _maxExpandedBytes = 128 * 1024 * 1024;
+const _maxDecodedFrames = 8192;
 
 /// Bounded ITSF directory and stream reader. Names are the virtual CHM paths.
 final class ChmArchive {
@@ -103,6 +104,11 @@ final class ChmArchive {
   final Map<String, ChmEntry> entries = <String, ChmEntry>{};
   late final int _dataOffset;
   _ChmCompressed? _compressed;
+
+  /// Number of LZX frames expanded while reading this archive.
+  ///
+  /// Exposed from this internal adapter for resource-limit regression tests.
+  int get decodedLzxFrames => _compressed?.decodedFrames ?? 0;
 
   /// Finds a virtual entry by path.
   ChmEntry? entry(final String name) => entries[name.toLowerCase()];
@@ -256,6 +262,11 @@ final class _ChmCompressed {
   late final int _resetFrameCount;
   late final int _windowBits;
   late final List<int> _offsets;
+  ChmLzxDecoder? _decoder;
+  int _cachedResetStart = -1;
+  int _nextFrame = -1;
+  final List<Uint8List> _cachedFrames = <Uint8List>[];
+  int decodedFrames = 0;
 
   static int _bounded64(final ByteData view, final int offset) {
     if (view.getUint32(offset + 4, Endian.little) != 0) {
@@ -271,33 +282,46 @@ final class _ChmCompressed {
     final result = Uint8List(entry.length);
     var copied = 0;
     var frame = entry.offset ~/ 32768;
-    final decoder = ChmLzxDecoder(_windowBits);
-    var decodedFrame = frame - frame % _resetFrameCount;
     while (copied < entry.length) {
-      if (decodedFrame >= _offsets.length - 1) {
-        throw const InvalidBookException('Missing CHM LZX frame.');
+      final bytes = _frame(frame);
+      final skip = copied == 0 ? entry.offset % 32768 : 0;
+      final take = entry.length - copied < bytes.length - skip
+          ? entry.length - copied
+          : bytes.length - skip;
+      if (take <= 0) throw const InvalidBookException('Invalid CHM LZX file offset.');
+      result.setRange(copied, copied + take, bytes, skip);
+      copied += take;
+      frame++;
+    }
+    return result;
+  }
+
+  Uint8List _frame(final int frame) {
+    if (frame >= _offsets.length - 1) {
+      throw const InvalidBookException('Missing CHM LZX frame.');
+    }
+    final resetStart = frame - frame % _resetFrameCount;
+    if (resetStart != _cachedResetStart) {
+      _cachedResetStart = resetStart;
+      _nextFrame = resetStart;
+      _cachedFrames.clear();
+      _decoder = ChmLzxDecoder(_windowBits)..reset();
+    }
+    while (_nextFrame <= frame) {
+      if (decodedFrames >= _maxDecodedFrames) {
+        throw const InvalidBookException('CHM cumulative LZX work limit exceeded.');
       }
-      if (decodedFrame % _resetFrameCount == 0) decoder.reset();
-      final start = _content.offset + _offsets[decodedFrame];
-      final compressedLength = _offsets[decodedFrame + 1] - _offsets[decodedFrame];
+      final start = _content.offset + _offsets[_nextFrame];
+      final compressedLength = _offsets[_nextFrame + 1] - _offsets[_nextFrame];
       final raw = archive.bytes.sublist(
         archive._dataOffset + start,
         archive._dataOffset + start + compressedLength,
       );
-      final remaining = _expandedLength - decodedFrame * 32768;
-      final bytes = decoder.decodeFrame(raw, remaining < 32768 ? remaining : 32768);
-      if (decodedFrame == frame) {
-        final skip = copied == 0 ? entry.offset % 32768 : 0;
-        final take = entry.length - copied < bytes.length - skip
-            ? entry.length - copied
-            : bytes.length - skip;
-        if (take <= 0) throw const InvalidBookException('Invalid CHM LZX file offset.');
-        result.setRange(copied, copied + take, bytes, skip);
-        copied += take;
-        frame++;
-      }
-      decodedFrame++;
+      final remaining = _expandedLength - _nextFrame * 32768;
+      _cachedFrames.add(_decoder!.decodeFrame(raw, remaining < 32768 ? remaining : 32768));
+      decodedFrames++;
+      _nextFrame++;
     }
-    return result;
+    return _cachedFrames[frame - resetStart];
   }
 }

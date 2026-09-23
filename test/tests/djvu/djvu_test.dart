@@ -36,6 +36,14 @@ void main() {
     expect(book.pages.map((final page) => page.text), <String>['First', 'Second']);
   });
 
+  test('sizes a lower-resolution JPEG to the declared DjVu page', () {
+    final book = parseDjvuBook(djvuJpegPage(jpeg, width: 16, height: 12));
+    expect(book.pages.single.image.content, jpeg);
+    expect(book.pages.single.width, 16);
+    expect(book.pages.single.height, 12);
+    expect(book.files.html.single.content, contains('width="16" height="12"'));
+  });
+
   test('metadata accepts recognized codecs but full open rejects invisibility', () async {
     final bytes = djvuUnsupportedPage();
     expect(Unseal.readMetadataSync(bytes).format, BookFormat.djvu);

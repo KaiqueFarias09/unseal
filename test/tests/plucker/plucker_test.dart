@@ -38,4 +38,72 @@ void main() {
       expect(() => parsePluckerBook(badIndex), throwsA(isA<InvalidBookException>()));
     });
   }
+
+  test('joins continued Plucker text and a split inline function', () {
+    final book = parsePluckerBook(_continuedPlucker(<int>[65, 0], <int>[0x38, 66]));
+    expect(book.files.html.single.content, contains('<p>A B</p>'));
+
+    final word = parsePluckerBook(_continuedPlucker('Al'.codeUnits, 'pha'.codeUnits));
+    expect(word.files.html.single.content, contains('<p>Alpha</p>'));
+  });
+
+  test('rejects a Plucker continuation without a matching next record', () {
+    expect(
+      () => parsePluckerBook(_continuedPlucker(<int>[65], <int>[], missingNext: true)),
+      throwsA(isA<InvalidBookException>()),
+    );
+    expect(
+      () => parsePluckerBook(_continuedPlucker(<int>[65], <int>[66], wrongType: true)),
+      throwsA(isA<InvalidBookException>()),
+    );
+  });
 }
+
+Uint8List _continuedPlucker(
+  final List<int> first,
+  final List<int> second, {
+  final bool missingNext = false,
+  final bool wrongType = false,
+}) {
+  final records = <Uint8List>[
+    Uint8List.fromList(<int>[0, 1, 0, 1, 0, 0]),
+    _textRecord(2, first, flags: 1),
+    if (!missingNext) _textRecord(3, second, type: wrongType ? 10 : 0),
+  ];
+  final header = Uint8List(78 + records.length * 8);
+  header.setRange(0, 17, 'Continued Plucker'.codeUnits);
+  header.setRange(60, 68, 'DataPlkr'.codeUnits);
+  final view = ByteData.sublistView(header);
+  view.setUint16(76, records.length);
+  var offset = header.length;
+  for (var index = 0; index < records.length; index++) {
+    view.setUint32(78 + index * 8, offset);
+    offset += records[index].length;
+  }
+  final output = BytesBuilder(copy: false)..add(header);
+  for (final record in records) {
+    output.add(record);
+  }
+  return output.takeBytes();
+}
+
+Uint8List _textRecord(
+  final int id,
+  final List<int> text, {
+  final int type = 0,
+  final int flags = 0,
+}) => Uint8List.fromList(<int>[
+  id >> 8,
+  id & 0xff,
+  0,
+  1,
+  text.length >> 8,
+  text.length & 0xff,
+  type,
+  flags,
+  text.length >> 8,
+  text.length & 0xff,
+  0,
+  0,
+  ...text,
+]);

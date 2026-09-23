@@ -16,6 +16,8 @@ const _maxStreamBytes = 32 * 1024 * 1024;
 const _maxTotalOutputBytes = 64 * 1024 * 1024;
 const _maxInfoBytes = 1024 * 1024;
 const _maxPages = 10000;
+const _maxPageHtmlUnits = 4 * 1024 * 1024;
+const _maxTotalHtmlUnits = 64 * 1024 * 1024;
 
 /// Opens an unencrypted Sony BBeB/LRF book as ordered, reflowable page content.
 ///
@@ -191,14 +193,21 @@ final class _LrfReader {
     final imagePaths = <int, String>{};
     final html = <TextFile>[];
     final paths = <String>[];
+    var renderedHtmlUnits = 0;
     for (var index = 0; index < pages.length; index++) {
       final page = objects[pages[index]];
       if (page == null || page.type != 2) {
         throw const InvalidBookException('LRF page reference is invalid.');
       }
-      final content = _renderPage(_load(page), images, imagePaths);
+      final content = _renderPage(
+        _load(page),
+        images,
+        imagePaths,
+        _maxTotalHtmlUnits - renderedHtmlUnits,
+      );
+      renderedHtmlUnits += content.length;
       final path = 'lrf/page-${index + 1}.html';
-      html.add(textFile(path, '<!doctype html><html><body>$content</body></html>'));
+      html.add(textFile(path, content));
       paths.add(path);
     }
 
@@ -545,10 +554,14 @@ final class _LrfReader {
     final _LrfObject page,
     final List<BinaryFile> images,
     final Map<int, String> imagePaths,
+    final int remainingHtmlUnits,
   ) {
     final stream = page.stream;
     if (stream == null) throw const InvalidBookException('LRF page has no content stream.');
-    final html = StringBuffer();
+    final html = _BoundedHtml(
+      remainingHtmlUnits < _maxPageHtmlUnits ? remainingHtmlUnits : _maxPageHtmlUnits,
+    );
+    html.write('<!doctype html><html><body>');
     var cursor = 0;
     while (cursor < stream.length) {
       if (cursor + 2 > stream.length || stream[cursor + 1] != 0xf5) {
@@ -566,19 +579,21 @@ final class _LrfReader {
         if (block == null || block.type != 6) {
           throw const InvalidBookException('LRF page block reference is invalid.');
         }
-        html.write(_renderBlock(_load(block), images, imagePaths));
+        _renderBlock(_load(block), images, imagePaths, html);
       } else {
         final size = _streamTagSize(tag, stream, cursor);
         cursor += size;
       }
     }
+    html.write('</body></html>');
     return html.toString();
   }
 
-  String _renderBlock(
+  void _renderBlock(
     final _LrfObject block,
     final List<BinaryFile> images,
     final Map<int, String> imagePaths,
+    final _BoundedHtml html,
   ) {
     final stream = block.stream;
     if (stream == null || stream.length < 6 || stream[0] != 3 || stream[1] != 0xf5) {
@@ -588,10 +603,16 @@ final class _LrfReader {
     final content = objects[contentId];
     if (content == null) throw const InvalidBookException('LRF block content is missing.');
     if (content.type == 10 || content.type == 0x1d) {
-      return '<section>${_renderText(_load(content), images, imagePaths)}</section>';
+      html.write('<section>');
+      _renderText(_load(content), images, imagePaths, html);
+      html.write('</section>');
+      return;
     }
     if (content.type == 12) {
-      return '<figure>${_renderImage(contentId, images, imagePaths)}</figure>';
+      html.write('<figure>');
+      html.write(_renderImage(contentId, images, imagePaths));
+      html.write('</figure>');
+      return;
     }
     throw const FormatNotSupportedException('LRF block type is not supported.');
   }
@@ -626,17 +647,19 @@ final class _LrfReader {
       images.add(binaryFile(name, data));
       return name;
     });
-    return '<img src="$path" alt="">';
+    // Page HTML and images share the lrf/ directory. A resource path with the
+    // lrf/ prefix would resolve from a page as lrf/lrf/image-N.png.
+    return '<img src="${path.substring('lrf/'.length)}" alt="">';
   }
 
-  String _renderText(
+  void _renderText(
     final _LrfObject textObject,
     final List<BinaryFile> images,
     final Map<int, String> imagePaths,
+    final _BoundedHtml out,
   ) {
     final stream = textObject.stream;
     if (stream == null) throw const InvalidBookException('LRF text stream is missing.');
-    final out = StringBuffer();
     var cursor = 0;
     var paragraph = false;
     var italic = false;
@@ -654,7 +677,7 @@ final class _LrfReader {
           }
           cursor += 2;
         }
-        out.write(escapeHtml(_utf16(Uint8List.sublistView(stream, start, cursor))));
+        out.writeEscaped(_utf16(Uint8List.sublistView(stream, start, cursor)));
         continue;
       }
       cursor += 2;
@@ -667,7 +690,7 @@ final class _LrfReader {
         if (length.isOdd || cursor + length > stream.length) {
           throw const InvalidBookException('LRF text run length is invalid.');
         }
-        out.write(escapeHtml(_utf16(Uint8List.sublistView(stream, cursor, cursor + length))));
+        out.writeEscaped(_utf16(Uint8List.sublistView(stream, cursor, cursor + length)));
         cursor += length;
       } else if (tag == 0xa1) {
         cursor += _streamTagSize(tag, stream, cursor);
@@ -708,7 +731,6 @@ final class _LrfReader {
     if (paragraph) {
       out.write('</p>');
     }
-    return out.toString();
   }
 
   int _streamTagSize(final int tag, final Uint8List stream, final int at) {
@@ -799,6 +821,42 @@ final class _LrfReader {
     }
     return String.fromCharCodes(units).replaceAll('\u0000', '');
   }
+}
+
+final class _BoundedHtml {
+  _BoundedHtml(this.limit);
+
+  final int limit;
+  final StringBuffer _buffer = StringBuffer();
+  var length = 0;
+
+  void write(final String value) {
+    if (value.length > limit - length) {
+      throw const InvalidBookException('LRF rendered HTML exceeds the size limit.');
+    }
+    _buffer.write(value);
+    length += value.length;
+  }
+
+  void writeEscaped(final String value) {
+    // Escape in small pieces so a long run of '&' or '<' cannot create a
+    // second, unbounded intermediate string before the output check.
+    var at = 0;
+    while (at < value.length) {
+      var end = at + 4096;
+      if (end > value.length) end = value.length;
+      if (end < value.length &&
+          value.codeUnitAt(end - 1) >= 0xd800 &&
+          value.codeUnitAt(end - 1) <= 0xdbff) {
+        end++;
+      }
+      write(escapeHtml(value.substring(at, end)));
+      at = end;
+    }
+  }
+
+  @override
+  String toString() => _buffer.toString();
 }
 
 final class _LimitedOutput extends OutputMemoryStream {

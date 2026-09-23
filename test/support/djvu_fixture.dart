@@ -5,9 +5,14 @@ import 'dart:typed_data';
 ///
 /// The JPEG bytes come from the generated `tiny.jpg` fixture. These builders
 /// exercise structure, not interoperability with a third-party encoder.
-Uint8List djvuJpegPage(final Uint8List jpeg, {final String? text}) {
+Uint8List djvuJpegPage(
+  final Uint8List jpeg, {
+  final String? text,
+  final int width = 8,
+  final int height = 8,
+}) {
   final chunks = <int>[
-    ..._chunk('INFO', <int>[0, 8, 0, 8, 26, 0, 44, 1, 22, 1]),
+    ..._chunk('INFO', <int>[..._int16(width), ..._int16(height), 26, 0, 44, 1, 22, 1]),
     ..._chunk('BGjp', jpeg),
     if (text != null)
       ..._chunk('TXTa', <int>[..._int24(utf8.encode(text).length), ...utf8.encode(text), 1]),

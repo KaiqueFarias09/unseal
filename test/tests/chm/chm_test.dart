@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:unseal/chm.dart';
+import 'package:unseal/src/features/chm/chm_archive.dart';
 import 'package:unseal/src/features/chm/chm_lzx.dart';
 import 'package:unseal/unseal.dart' show DetectedFormat, InvalidBookException, Unseal, detectFormat;
 
@@ -36,6 +37,18 @@ void main() {
       expect(book.navigation.navPoints.first.label, 'PuTTY User Manual');
       expect(book.navigation.navPoints.first.content, 'index.html');
       expect(book.archiveEntries.length, 474);
+    });
+
+    test('reuses decoded LZX frames for entries in the same reset interval', () {
+      final archive = ChmArchive(File('test/resources/books/chm/putty.chm').readAsBytesSync());
+      final entry = archive.entries.values.lastWhere(
+        (final item) => item.section == 1 && item.length > 0,
+      );
+      final first = archive.read(entry);
+      final expandedAfterFirstRead = archive.decodedLzxFrames;
+      expect(expandedAfterFirstRead, greaterThan(0));
+      expect(archive.read(entry), first);
+      expect(archive.decodedLzxFrames, expandedAfterFirstRead);
     });
 
     test('rejects damaged headers, offsets and expansion claims with typed errors', () {

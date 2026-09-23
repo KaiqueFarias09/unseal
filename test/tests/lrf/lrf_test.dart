@@ -53,7 +53,13 @@ void main() {
     expect(book.metadata.title, 'Illustrated Café Fixture');
     expect(book.files.images, hasLength(1));
     expect(book.files.images.single.type, 'png');
-    expect(book.files.html.single.content, contains('src="${book.files.images.single.path}"'));
+    final imageSource = RegExp(
+      r'<img src="([^"]+)"',
+    ).firstMatch(book.files.html.single.content)!.group(1)!;
+    expect(
+      Uri.parse(book.files.html.single.path).resolve(imageSource).path,
+      book.files.images.single.path,
+    );
     expect(book.metadata.cover?.bytes, isNotEmpty);
   });
 
@@ -96,4 +102,112 @@ void main() {
     ByteData.sublistView(old).setUint16(8, 800, Endian.little);
     expect(() => parseLrfBook(old), throwsA(isA<FormatNotSupportedException>()));
   });
+
+  test('bounds HTML amplified by repeated page block references', () {
+    final oneBlock = Uint8List.fromList(<int>[3, 0xf5, 3, 0, 0, 0]);
+    final repeated = Uint8List(oneBlock.length * 300000);
+    for (var at = 0; at < repeated.length; at += oneBlock.length) {
+      repeated.setRange(at, at + oneBlock.length, oneBlock);
+    }
+    final amplified = _replaceObjectStream(fixture, 2, repeated);
+    expect(
+      () => parseLrfBook(amplified),
+      throwsA(
+        isA<InvalidBookException>().having(
+          (final error) => error.message,
+          'message',
+          contains('rendered HTML'),
+        ),
+      ),
+    );
+  });
+
+  test('bounds HTML amplified by escaped UTF-16 text', () {
+    final text = Uint8List(1100000 * 2);
+    for (var at = 0; at < text.length; at += 2) {
+      text[at] = '<'.codeUnitAt(0);
+    }
+    final compressed = ZLibCodec().encode(text);
+    final payload = Uint8List(4 + compressed.length);
+    ByteData.sublistView(payload).setUint32(0, text.length, Endian.little);
+    payload.setRange(4, payload.length, compressed);
+    final amplified = _replaceObjectStream(fixture, 10, payload);
+    expect(
+      () => parseLrfBook(amplified),
+      throwsA(
+        isA<InvalidBookException>().having(
+          (final error) => error.message,
+          'message',
+          contains('rendered HTML'),
+        ),
+      ),
+    );
+  });
+}
+
+Uint8List _replaceObjectStream(
+  final Uint8List source,
+  final int objectType,
+  final Uint8List stream,
+) {
+  final original = ByteData.sublistView(source);
+  final count = original.getUint32(0x10, Endian.little);
+  final originalIndex = original.getUint32(0x18, Endian.little);
+  var selectedEntry = -1;
+  var objectOffset = -1;
+  var objectSize = -1;
+  for (var entry = 0; entry < count; entry++) {
+    final at = originalIndex + entry * 16;
+    final offset = original.getUint32(at + 4, Endian.little);
+    if (original.getUint16(offset + 6, Endian.little) == objectType) {
+      selectedEntry = entry;
+      objectOffset = offset;
+      objectSize = original.getUint32(at + 8, Endian.little);
+      break;
+    }
+  }
+  expect(selectedEntry, isNonNegative);
+  final object = source.sublist(objectOffset, objectOffset + objectSize);
+  final sizeTag = _findTag(object, 4);
+  final streamTag = _findTag(object, 5);
+  final streamStart = streamTag + 2;
+  final oldStreamSize = ByteData.sublistView(object).getUint32(sizeTag + 2, Endian.little);
+  final rebuilt = Uint8List(object.length - oldStreamSize + stream.length);
+  rebuilt.setRange(0, streamStart, object);
+  rebuilt.setRange(streamStart, streamStart + stream.length, stream);
+  rebuilt.setRange(
+    streamStart + stream.length,
+    rebuilt.length,
+    object,
+    streamStart + oldStreamSize,
+  );
+  ByteData.sublistView(rebuilt).setUint32(sizeTag + 2, stream.length, Endian.little);
+
+  final delta = rebuilt.length - objectSize;
+  final changed = Uint8List(source.length + delta);
+  changed.setRange(0, objectOffset, source);
+  changed.setRange(objectOffset, objectOffset + rebuilt.length, rebuilt);
+  changed.setRange(
+    objectOffset + rebuilt.length,
+    changed.length,
+    source,
+    objectOffset + objectSize,
+  );
+  final data = ByteData.sublistView(changed);
+  final index = originalIndex + delta;
+  data.setUint32(0x18, index, Endian.little);
+  for (var entry = 0; entry < count; entry++) {
+    final at = index + entry * 16;
+    final oldOffset = original.getUint32(originalIndex + entry * 16 + 4, Endian.little);
+    if (oldOffset > objectOffset) data.setUint32(at + 4, oldOffset + delta, Endian.little);
+  }
+  data.setUint32(index + selectedEntry * 16 + 8, rebuilt.length, Endian.little);
+  return changed;
+}
+
+int _findTag(final Uint8List object, final int tag) {
+  for (var at = 8; at < object.length - 1; at++) {
+    if (object[at] == tag && object[at + 1] == 0xf5) return at;
+  }
+  throw StateError('Expected LRF tag $tag in fixture object.');
 }

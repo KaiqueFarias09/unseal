@@ -43,7 +43,7 @@ document renderer.
 | MOBI 6 | PalmDOC and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts, and navigation | DRM-protected books are rejected. |
 | PalmDOC PDB | Uncompressed or PalmDOC-compressed `TEXt/REAd` records, title, and plain reading text | Other PDB ebook families use separate parsers. |
 | eReader PDB | Unencrypted `PNRd/PPrs` text records with PalmDOC or zlib compression and title/author metadata | PML is reduced to reading text; images, footnotes, sidebars, links, and page layout are not converted. |
-| Plucker PDB | `Data/Plkr` text pages with PalmDOC or zlib compression and database title | Inline formatting and links are flattened to text; images, bookmarks, and owner-keyed documents are not converted. |
+| Plucker PDB | `Data/Plkr` text pages with PalmDOC or zlib compression, continued records, and database title | Inline formatting and links are flattened to text; images, bookmarks, and owner-keyed documents are not converted. |
 | Sony LRF | BBeB metadata, ordered text pages, table of contents, and embedded JPEG/PNG/BMP/GIF images | Reflowed content rather than Sony's fixed layout. LRX, LRF version 800 or older, exact typography, ruby styling, and complex canvas layouts are outside this contract. |
 | AZW3 / KF8 | Skeleton and `div` reassembly, FDST flows, CSS/SVG, images, NCX navigation, and joint MOBI/KF8 files | DRM-protected books are rejected. |
 | FB2 / FBZ | Metadata, covers, declared encodings, notes, links, styles, and section navigation | The result is a reflowable HTML representation. |
@@ -398,12 +398,15 @@ decode. `readDjvuMetadata` validates their container and page INFO structure;
 - CHM input is limited to 128 MiB, individual entries to 16 MiB, directory
   entries to 10,000, and total materialized content to 128 MiB. Unsupported
   LZX layouts and malformed directory/reset tables fail with typed errors.
+  LZX work is capped at 8192 decoded frames, with frames reused within a
+  reset interval.
 - DjVu input is limited to 128 MiB, 1024 pages, 65536 IFF chunks, 100 million
   pixels per page, 32 MiB per directly stored JPEG, and 8 MiB per
   uncompressed OCR chunk. Indirect DjVu
   documents require external component files and are rejected.
 - LRF input is limited to 128 MiB, 20,000 indexed objects, 10,000 pages,
-  32 MiB per expanded stream, and 64 MiB of total expanded content.
+  32 MiB per expanded stream, 64 MiB of total expanded content, 4 Mi code units
+  of rendered HTML per page, and 64 Mi code units of rendered HTML per book.
   Unsupported tags and stream flags fail with typed exceptions.
 - EPUB navigation is optional. A damaged or missing table of contents can
   produce an empty navigation model while readable spine content remains

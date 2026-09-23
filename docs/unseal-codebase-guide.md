@@ -293,7 +293,7 @@ identified by a `TEXt/REAd` Palm Database without a MOBI header.
 | `features/rtf/parse_rtf_book.dart` | Reads bounded RTF groups and control words, skips non-reading destinations, decodes text and metadata, and emits paragraphs with basic character emphasis. |
 | `features/palmdoc/parse_palmdoc_book.dart` | Validates PalmDOC record zero, decompresses bounded independent text records, and reuses the TXT converter for plain reading text. |
 | `features/ereader/parse_ereader_book.dart` | Recognizes eReader record-zero variants, rejects DRM, expands bounded text records, removes PML controls, and reads metadata. |
-| `features/plucker/parse_plucker_book.dart` | Validates the Plucker index and paragraph tables, expands bounded DOC or zlib text records, and removes inline function codes. |
+| `features/plucker/parse_plucker_book.dart` | Validates the Plucker index and paragraph tables, expands bounded DOC or zlib text records, joins continued fragments, and removes inline function codes. |
 | `features/lrf/parse_lrf_book.dart` | Reads BBeB object indexes, expands bounded streams, converts ordered text objects, and exposes metadata, navigation, and images. |
 
 ## HTML and HTMLZ: preserve an existing document
@@ -686,7 +686,9 @@ content without a native tool. It assembles HTML topics and resources into a
 for navigation. The real PuTTY manual fixture exercises compressed topics
 and nested navigation. The parser does not expose the CHM full-text index,
 merged help, or script execution; legacy codepages and Intel E8 transformed
-LZX blocks need more fixture coverage.
+LZX blocks need more fixture coverage. Frames within the current reset
+interval are cached and total frame expansions are capped, so repeated entry
+references cannot force unbounded decompression work.
 
 | File | What it does and why it exists |
 | --- | --- |
