@@ -105,6 +105,24 @@ print(metadata.title);
 print(metadata.authors);
 ```
 
+To report whether the full book can be opened, use `inspect`. It performs the
+same parse as `read` and keeps the opened book in the result, so the application
+does not need to parse it again:
+
+```dart
+final inspection = await Unseal.inspect(bytes);
+if (inspection.canOpen) {
+  final book = inspection.book!;
+  print(book.metadata.title);
+} else {
+  print(inspection.error); // Typed UnsealException.
+}
+```
+
+`detectedFormat` is only a signature-level family hint; `format` identifies the
+concrete format after a successful open. Inspecting is not a lightweight
+metadata scan; use `readMetadata` for that.
+
 On native platforms, filesystem paths are also supported:
 
 ```dart

@@ -52,6 +52,8 @@ types exported by the same public entry point. Consumers must not import
 The main operations are:
 
 - `Unseal.read` and `Unseal.readMetadata` for portable asynchronous reads;
+- `Unseal.inspect` for a full opening that returns either the parsed book or a
+  typed failure together with a format-family hint;
 - `Unseal.parse` and `Unseal.readMetadataSync` for synchronous formats;
 - `Unseal.readFile` and `Unseal.readMetadataFile` on filesystem platforms;
 - `UnsealWorker` for optional browser-worker execution.

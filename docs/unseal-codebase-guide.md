@@ -234,6 +234,7 @@ For ZIP, `BookDispatch` checks internal evidence in order: EPUB, CBC, FB2, DOCX,
 | File | What it does and why it exists |
 | --- | --- |
 | `features/reading/book_dispatch.dart` | Owns the central mapping from detected families to parsers. It also opens ZIP once and distinguishes EPUB, FB2, DOCX, ODT, HTMLZ, TXTZ, CBC, and CBZ by internal evidence. |
+| `features/reading/book_inspection.dart` | Holds the result of a full open: the parsed book on success or the original typed failure on rejection. Its detected family is only a signature hint. |
 | `features/reading/book_progression.dart` | Calculates section and whole-book fractions from a section and character position. It lets consumers express progress without knowing each format's storage. |
 | `features/reading/nav_resolution.dart` | Resolves `NavPoint.content` strings into typed targets aligned with a book's reading order. It handles paths, fragments, MOBI `filepos` targets, and malformed or missing destinations. It does not resolve comic or PDF page numbers. |
 
@@ -756,7 +757,7 @@ CB7 and CBC are exceptions. `BookDispatch.openFromBytes` detects them and calls 
 
 | File | What it does and why it exists |
 | --- | --- |
-| `platform/unseal_reader.dart` | Exposes the main `Unseal` API for reading bytes or filesystem paths and reading metadata. It delegates parsing to `BookDispatch` and combines embedded metadata, OPF sidecars, and filename fallback on path-based reads. |
+| `platform/unseal_reader.dart` | Exposes the main `Unseal` API for reading, inspecting a full open, or reading metadata. It delegates parsing to `BookDispatch` and combines embedded metadata, OPF sidecars, and filename fallback on path-based reads. |
 | `platform/unseal_worker.dart` | Configures the optional web worker and exposes search and CFI operations against the last book kept inside that worker through `UnsealWorker`. |
 | `platform/io/background_parse.dart` | Runs parsing and metadata work in `Isolate.run` on native Dart, with a controlled fallback when isolate execution is unavailable. |
 | `platform/io/book_path_reader.dart` | Reads local paths and looks for neighboring OPF sidecars such as `<book>.opf` or `metadata.opf`. |

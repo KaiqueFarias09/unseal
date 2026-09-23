@@ -1,9 +1,13 @@
 import 'dart:typed_data';
 
+import '../features/detection/detect_format.dart';
+import '../features/detection/entities/detected_format.dart';
 import '../features/epub/metadata/epub_metadata.dart';
 import '../features/epub/package/parse_epub_package.dart';
 import '../features/reading/book_dispatch.dart';
+import '../features/reading/book_inspection.dart';
 import '../foundation/entities/entities.dart';
+import '../foundation/exceptions/unseal_exception.dart';
 import '../foundation/metadata/book_metadata_operations.dart';
 import 'web/background_parse.dart' if (dart.library.io) 'io/background_parse.dart';
 import 'web/book_path_reader.dart' if (dart.library.io) 'io/book_path_reader.dart';
@@ -17,6 +21,27 @@ import 'web/book_path_reader.dart' if (dart.library.io) 'io/book_path_reader.dar
 // This public facade intentionally keeps the package-level namespace static.
 // ignore: avoid_classes_with_only_static_members
 abstract final class Unseal {
+  /// Opens [bytes] and reports whether the full parse succeeded.
+  ///
+  /// This has the same cost as [read]. On success, the result retains the
+  /// parsed book so it can be used without a second read. A detected format
+  /// family is only a signature-level hint and can be absent on failure.
+  static Future<BookInspection> inspect(final Uint8List bytes, {final String password = ''}) async {
+    try {
+      final book = await read(bytes, password: password);
+      return BookInspection.opened(book, detectFormat(bytes));
+    } on UnsealException catch (error) {
+      DetectedFormat? detectedFormat;
+      try {
+        detectedFormat = detectFormat(bytes);
+      } on FormatNotSupportedException {
+        // A known unsupported or unrecognized signature has no DetectedFormat.
+      }
+
+      return BookInspection.failed(error, detectedFormat);
+    }
+  }
+
   /// Reads a book from [bytes], opening encrypted PDFs with [password].
   static Future<Book> read(final Uint8List bytes, {final String password = ''}) {
     return Future<Book>.sync(

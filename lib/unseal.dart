@@ -28,6 +28,7 @@ export 'src/features/locators/fuzzy_relocation.dart';
 export 'src/features/locators/locator_codec.dart';
 export 'src/features/locators/search_locator.dart';
 export 'src/features/opds/opds_feed.dart';
+export 'src/features/reading/book_inspection.dart';
 export 'src/features/reading/book_progression.dart';
 export 'src/features/reading/nav_resolution.dart';
 export 'src/features/search/book_search.dart';
