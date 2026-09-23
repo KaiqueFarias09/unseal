@@ -6,8 +6,8 @@
     {
       "path": "test/resources/books/README.md",
       "format": "manifest",
-      "bytes": 7128,
-      "sha256": "b3428a170cdb17c042a3e941a87ed5d482f0653c2ca0409030dfcda217666bad",
+      "bytes": 7192,
+      "sha256": "dd70dc0f6a07541f2d30605096d61004b1cdc701081a58d64152adba6e93399f",
       "container": "unknown",
       "landmarks": 0
     },
@@ -347,6 +347,14 @@
       "landmarks": 13
     },
     {
+      "path": "test/resources/books/format_expansion/plucker-bitmap-color-variants.pdb",
+      "format": "plucker",
+      "bytes": 1353,
+      "sha256": "e1ce8e7937d22b534c6a7679d97e1d73694410ff2c9cc2306a0db21333a91487",
+      "container": "palmDb",
+      "landmarks": 6
+    },
+    {
       "path": "test/resources/books/format_expansion/plucker-bitmap-variants.pdb",
       "format": "plucker",
       "bytes": 238,
@@ -598,8 +606,8 @@
     {
       "path": "test/resources/djvu/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 2823,
-      "sha256": "fd5e43b6effaa1534fc779be8d81749efe179c9c082064285922f809a70cdb40",
+      "bytes": 5401,
+      "sha256": "9674f76759bf6be18fc8d2090b6d9c8a8f7016d51f8c24685490ea5bf992380a",
       "container": "unknown",
       "landmarks": 0
     },
@@ -612,10 +620,34 @@
       "landmarks": 0
     },
     {
+      "path": "test/resources/djvu/boy-iw44.djvu",
+      "format": "djvu",
+      "bytes": 4803,
+      "sha256": "8cde44879f3b961d0f3f317500fbfbf8a8f4fd07e030f39b04a0a472e5c17982",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/djvu/cable-1973.djvu",
       "format": "djvu",
       "bytes": 15486,
       "sha256": "ceaac0b3bf8b4ea665c09e26a6f00d5d1e95b00757a7d2b9613948f16610d96b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/chicken-iw44.djvu",
+      "format": "djvu",
+      "bytes": 12440,
+      "sha256": "4e0a0370e63776198dbfb32a191248fafe258d35b4d09758a6e0fabd513d2ad3",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/happy-birthday-iw44.djvu",
+      "format": "djvu",
+      "bytes": 3224,
+      "sha256": "cf56fb65a5c38d566f72e62032fffd07dabc361d01a03d642c423619ffc340cd",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1297,8 +1329,8 @@
     }
   ],
   "counts": {
-    "total": 156,
-    "totalBytes": 84685978,
+    "total": 160,
+    "totalBytes": 84710440,
     "byFormat": {
       "manifest": 12,
       "chm": 4,
@@ -1306,7 +1338,7 @@
       "cbz": 3,
       "cbc": 1,
       "cb7": 1,
-      "djvu": 3,
+      "djvu": 6,
       "docx": 1,
       "epub": 28,
       "fb2": 4,
@@ -1315,7 +1347,7 @@
       "ereader": 2,
       "image": 10,
       "palmdoc": 1,
-      "plucker": 5,
+      "plucker": 6,
       "htmlz": 1,
       "txt": 5,
       "lrf": 2,
