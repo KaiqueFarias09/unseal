@@ -42,6 +42,9 @@ enum BookFormat {
   /// Plucker Palm Database publication (text content).
   plucker,
 
+  /// Sony BBeB/LRF publication.
+  lrf,
+
   /// ZIP-wrapped plain text document.
   txtz,
 

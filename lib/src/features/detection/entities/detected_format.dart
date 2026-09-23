@@ -38,6 +38,9 @@ enum DetectedFormat {
   /// Plucker pages stored in a Palm Database.
   plucker,
 
+  /// Sony BBeB/LRF binary publication.
+  lrf,
+
   /// Standalone HTML document.
   html,
 

@@ -16,6 +16,7 @@ const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
 /// * `PNRdPPrs` Palm Database → [DetectedFormat.ereader]
 /// * `DataPlkr` Palm Database → [DetectedFormat.plucker]
 /// * `ITSF` header → [DetectedFormat.chm]
+/// * UTF-16LE `LRF` signature → [DetectedFormat.lrf]
 /// * `{\\rtf` header → [DetectedFormat.rtf]
 /// * `<?xml` / `<FictionBook` prologue → [DetectedFormat.fb2]
 /// * an allowed short preamble followed by `%PDF` → [DetectedFormat.pdf]
@@ -52,6 +53,10 @@ DetectedFormat detectFormat(final Uint8List bytes) {
 
   if (_hasPrefix(bytes, rtfMagic)) {
     return DetectedFormat.rtf;
+  }
+
+  if (_hasPrefix(bytes, const <int>[0x4c, 0, 0x52, 0, 0x46, 0, 0, 0])) {
+    return DetectedFormat.lrf;
   }
 
   // Zip container. EPUB, zipped FB2 and CBZ are the supported zip books; the dispatcher refines by

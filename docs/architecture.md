@@ -45,8 +45,8 @@ the common book model, reading services, typed exceptions, and stable
 format-specific contracts.
 
 Files such as `lib/epub.dart`, `lib/pdf.dart`, `lib/markdown.dart`,
-`lib/rtf.dart`, `lib/palmdoc.dart`, `lib/chm.dart`, `lib/djvu.dart`, and
-`lib/comic.dart` are narrow
+`lib/rtf.dart`, `lib/palmdoc.dart`, `lib/chm.dart`, `lib/djvu.dart`,
+`lib/lrf.dart`, and `lib/comic.dart` are narrow
 entry points for consumers that need one format. Public signatures must use
 types exported by the same public entry point. Consumers must not import
 `lib/src/`.
@@ -126,6 +126,8 @@ because the formats have different cost models. The public README records the
 user-visible limits and exclusions.
 CHM bounds its ITSF directory, LZX reset table, decompressed entries and total
 materialized content before allocating untrusted output.
+LRF bounds indexed objects, pages, and expanded zlib streams before exposing
+reflowed content.
 
 ## Testing strategy
 

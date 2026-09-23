@@ -19,6 +19,7 @@ import '../epub/parse_epub_book.dart';
 import '../ereader/parse_ereader_book.dart';
 import '../fb2/parse_fb2_book.dart';
 import '../html/parse_html_book.dart';
+import '../lrf/parse_lrf_book.dart';
 import '../mobi/parse_mobi_book.dart';
 import '../odt/parse_odt_book.dart';
 import '../palmdoc/parse_palmdoc_book.dart';
@@ -74,6 +75,8 @@ abstract final class BookDispatch {
         return parseEreaderBook(bytes);
       case DetectedFormat.plucker:
         return parsePluckerBook(bytes);
+      case DetectedFormat.lrf:
+        return parseLrfBook(bytes);
       case DetectedFormat.html:
         return parseHtmlBook(bytes);
       case DetectedFormat.azw4:
@@ -143,6 +146,8 @@ abstract final class BookDispatch {
         return readEreaderMetadata(bytes);
       case DetectedFormat.plucker:
         return readPluckerMetadata(bytes);
+      case DetectedFormat.lrf:
+        return readLrfMetadata(bytes);
       case DetectedFormat.html:
         return readHtmlMetadata(bytes);
       case DetectedFormat.azw4:

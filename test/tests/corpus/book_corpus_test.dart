@@ -183,6 +183,7 @@ BookFormat _declaredFormat(final Map<String, Object?> fixture) => switch (fixtur
   'palmdoc' => BookFormat.palmdoc,
   'ereader' => BookFormat.ereader,
   'plucker' => BookFormat.plucker,
+  'lrf' => BookFormat.lrf,
   'txtz' => BookFormat.txtz,
   'html' => BookFormat.html,
   'htmlz' => BookFormat.htmlz,

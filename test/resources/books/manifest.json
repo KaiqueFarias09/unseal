@@ -403,6 +403,19 @@
       "focus": ["plucker", "pdb", "zlib", "text"]
     },
     {
+      "id": "FORMAT-LRF",
+      "file": "lrf/original.lrf",
+      "format": "lrf",
+      "title": "Unseal LRF Fixture",
+      "language": "en",
+      "source": "Original HTML converted with Calibre 9.4.0; see lrf/PROVENANCE.md",
+      "license": "CC0; original test prose",
+      "license_file": "lrf/PROVENANCE.md",
+      "bytes": 2379,
+      "sha256": "cf5e5e973569e0c9c9d9dea159dfd8958b13160ed48be4b111f807f51caa7175",
+      "focus": ["lrf", "bbeb", "toc", "unicode", "reflow"]
+    },
+    {
       "id": "FORMAT-HTML",
       "file": "html/synthetic.html",
       "format": "html",
