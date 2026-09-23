@@ -4,11 +4,11 @@ import 'package:archive/archive.dart';
 
 import '../../foundation/exceptions/unseal_exception.dart';
 
-/// Converts bounded Palm monochrome, grayscale, and standard-palette bitmaps
-/// to PNG.
+/// Converts bounded Palm monochrome, grayscale, indexed-color, and RGB565
+/// bitmaps to PNG.
 ///
-/// Custom color tables and internal compression are kept explicit so a reader
-/// never receives an apparently valid but incorrectly colored image.
+/// The supported Palm color-table and direct-color layouts are interpreted
+/// only when their headers match the documented Palm bitmap structures.
 Uint8List decodePluckerBitmap(final Uint8List bitmap) {
   if (bitmap.length < 16) {
     throw const InvalidBookException('Truncated Plucker Palm bitmap.');
@@ -21,7 +21,11 @@ Uint8List decodePluckerBitmap(final Uint8List bitmap) {
   final depth = bitmap[8];
   final version = bitmap[9];
   final compression = bitmap[13];
-  final channels = depth == 8 ? 3 : 1;
+  const hasColorTable = 0x4000;
+  const directColor = 0x0400;
+  final isDirectColor = depth == 16;
+  final hasCustomPalette = (flags & hasColorTable) != 0;
+  final channels = depth == 8 || isDirectColor || hasCustomPalette ? 3 : 1;
   final minRowBytes = (width * depth + 7) ~/ 8;
   if (width == 0 ||
       height == 0 ||
@@ -30,13 +34,59 @@ Uint8List decodePluckerBitmap(final Uint8List bitmap) {
       rowBytes * height > 60000) {
     throw const InvalidBookException('Invalid Plucker Palm bitmap dimensions.');
   }
-  if (!((depth == 1 && version == 0) ||
-          ((depth == 2 || depth == 4 || depth == 8) && version == 1)) ||
-      flags != 0 ||
+  final supportedDepthAndVersion =
+      (depth == 1 && version == 0) ||
+      ((depth == 2 || depth == 4 || depth == 8 || isDirectColor) && version == 1);
+  final supportedFlagCombination = isDirectColor
+      ? flags == directColor
+      : flags == 0 || flags == hasColorTable;
+  if (!supportedDepthAndVersion ||
+      !supportedFlagCombination ||
       (compression != 0 && compression != 0xff)) {
     throw const FormatNotSupportedException('Unsupported Plucker Palm bitmap variant.');
   }
-  if (16 + rowBytes * height > bitmap.length) {
+
+  var pixelOffset = 16;
+  List<(int, int, int)?>? palette;
+  if (isDirectColor) {
+    if (bitmap.length < 24) {
+      throw const InvalidBookException('Truncated Plucker Palm direct-color header.');
+    }
+    if (bitmap[16] != 5 ||
+        bitmap[17] != 6 ||
+        bitmap[18] != 5 ||
+        bitmap[19] != 0 ||
+        bitmap[20] != 0 ||
+        (header.getUint16(14) != 0)) {
+      throw const FormatNotSupportedException('Unsupported Plucker Palm direct-color layout.');
+    }
+    pixelOffset = 24;
+  } else if (hasCustomPalette) {
+    final colorCount = 1 << depth;
+    if (bitmap.length < 18) {
+      throw const InvalidBookException('Truncated Plucker Palm color table.');
+    }
+    final tableEntries = header.getUint16(16);
+    if (tableEntries != colorCount) {
+      throw const FormatNotSupportedException('Unsupported Plucker Palm color-table size.');
+    }
+    final tableBytes = tableEntries * 4;
+    if (18 + tableBytes > bitmap.length) {
+      throw const InvalidBookException('Truncated Plucker Palm color table.');
+    }
+    palette = List<(int, int, int)?>.filled(colorCount, null);
+    for (var entry = 0; entry < tableEntries; entry++) {
+      final offset = 18 + entry * 4;
+      final index = bitmap[offset];
+      if (index >= colorCount || palette[index] != null) {
+        throw const InvalidBookException('Invalid Plucker Palm color-table index.');
+      }
+      palette[index] = (bitmap[offset + 1], bitmap[offset + 2], bitmap[offset + 3]);
+    }
+    pixelOffset = 18 + tableBytes;
+  }
+
+  if (pixelOffset + rowBytes * height > bitmap.length) {
     throw const InvalidBookException('Truncated Plucker Palm bitmap pixels.');
   }
 
@@ -46,16 +96,24 @@ Uint8List decodePluckerBitmap(final Uint8List bitmap) {
     final row = y * (width * channels + 1);
     for (var x = 0; x < width; x++) {
       final bitOffset = x * depth;
-      final source = bitmap[16 + y * rowBytes + bitOffset ~/ 8];
-      final shift = 8 - depth - bitOffset % 8;
-      final paletteIndex = (source >> shift) & indexMask;
-      if (depth == 8) {
-        final color = _palmSystemColor(paletteIndex);
-        raw[row + 1 + x * 3] = color.$1;
-        raw[row + 2 + x * 3] = color.$2;
-        raw[row + 3 + x * 3] = color.$3;
+      if (isDirectColor) {
+        final offset = pixelOffset + y * rowBytes + x * 2;
+        final color = header.getUint16(offset);
+        raw[row + 1 + x * 3] = (((color >> 11) & 0x1f) * 255 + 15) ~/ 31;
+        raw[row + 2 + x * 3] = (((color >> 5) & 0x3f) * 255 + 31) ~/ 63;
+        raw[row + 3 + x * 3] = ((color & 0x1f) * 255 + 15) ~/ 31;
       } else {
-        raw[row + 1 + x] = 255 - paletteIndex * 255 ~/ indexMask;
+        final source = bitmap[pixelOffset + y * rowBytes + bitOffset ~/ 8];
+        final shift = 8 - depth - bitOffset % 8;
+        final paletteIndex = (source >> shift) & indexMask;
+        if (palette != null || depth == 8) {
+          final color = palette?[paletteIndex] ?? _palmSystemColor(paletteIndex);
+          raw[row + 1 + x * 3] = color.$1;
+          raw[row + 2 + x * 3] = color.$2;
+          raw[row + 3 + x * 3] = color.$3;
+        } else {
+          raw[row + 1 + x] = 255 - paletteIndex * 255 ~/ indexMask;
+        }
       }
     }
   }
@@ -65,7 +123,7 @@ Uint8List decodePluckerBitmap(final Uint8List bitmap) {
     ..setUint32(0, width)
     ..setUint32(4, height)
     ..setUint8(8, 8)
-    ..setUint8(9, depth == 8 ? 2 : 0);
+    ..setUint8(9, channels == 3 ? 2 : 0);
   _writeChunk(output, 'IHDR', ihdr.buffer.asUint8List());
   _writeChunk(output, 'IDAT', compressed);
   _writeChunk(output, 'IEND', Uint8List(0));

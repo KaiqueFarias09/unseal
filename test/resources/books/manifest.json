@@ -418,6 +418,19 @@
       "focus": ["plucker", "pdb", "zlib", "text"]
     },
     {
+      "id": "FORMAT-PLUCKER-BITMAP-COLOR",
+      "file": "format_expansion/plucker-bitmap-color-variants.pdb",
+      "format": "plucker",
+      "title": "Plucker Palm Color Formats",
+      "language": null,
+      "source": "tool/generate_plucker_bitmap_fixtures.dart from original color-table entries and RGB565 pixel values; see format_expansion/PROVENANCE.md",
+      "license": "MIT; original generated test data",
+      "license_file": "../../../LICENSE",
+      "bytes": 1353,
+      "sha256": "e1ce8e7937d22b534c6a7679d97e1d73694410ff2c9cc2306a0db21333a91487",
+      "focus": ["plucker", "pdb", "bitmap", "custom-palette", "rgb565"]
+    },
+    {
       "id": "FORMAT-PLUCKER-BITMAP-DEPTHS",
       "file": "format_expansion/plucker-bitmap-variants.pdb",
       "format": "plucker",

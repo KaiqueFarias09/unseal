@@ -6,8 +6,40 @@
     {
       "path": "test/resources/books/README.md",
       "format": "manifest",
-      "bytes": 6865,
-      "sha256": "15e6e988247d60eb685074c32f298f030ca48f492c83fccbd38603a761dc15da",
+      "bytes": 7128,
+      "sha256": "b3428a170cdb17c042a3e941a87ed5d482f0653c2ca0409030dfcda217666bad",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/chm/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 1865,
+      "sha256": "11ddc23e6d2259fc86e4355ff96e5a2d6a6f3beca53663eb61a350a6426c85eb",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/chm/legacy-cp1251.chm",
+      "format": "chm",
+      "bytes": 4494,
+      "sha256": "9e2669b133aafad11855a2a863165bdff70bf838056fb622a0db2939d62fa67c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/chm/legacy-cp1252.chm",
+      "format": "chm",
+      "bytes": 4489,
+      "sha256": "3e15ff2ddc20c924fcb53cd62535ce7c96561cbe4bf5684193f695091a1f5103",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/chm/legacy-cp1256.chm",
+      "format": "chm",
+      "bytes": 4490,
+      "sha256": "8cbe7d39a71415dbff5ef379e9ffa797ed1d6b558ac44d43166947d27579f0bd",
       "container": "unknown",
       "landmarks": 0
     },
@@ -237,8 +269,8 @@
     {
       "path": "test/resources/books/format_expansion/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 5499,
-      "sha256": "0290a9cf63f5f1302b47f00eb0ec717e3b51830f37bf47e6b8f4f905c17d47c0",
+      "bytes": 8068,
+      "sha256": "c5468b1e862e8b4e17fba24e6101f75dd9623eb82f4a0a9a117981daf8b1840d",
       "container": "unknown",
       "landmarks": 0
     },
@@ -313,6 +345,22 @@
       "sha256": "d24e52856e64a1b45deba9f3a0b35104dad7b44ae88af6bf6e2c116ab29894df",
       "container": "zip",
       "landmarks": 13
+    },
+    {
+      "path": "test/resources/books/format_expansion/plucker-bitmap-variants.pdb",
+      "format": "plucker",
+      "bytes": 238,
+      "sha256": "b5f34972af587d51679ef9a799d6f5da04d006a909dcff1b81a5b38673622370",
+      "container": "palmDb",
+      "landmarks": 6
+    },
+    {
+      "path": "test/resources/books/format_expansion/plucker-rich-color.pdb",
+      "format": "plucker",
+      "bytes": 378,
+      "sha256": "d699db2e92d2259f1980648c884f4218197737524e0d3e8752352839dab520dd",
+      "container": "palmDb",
+      "landmarks": 5
     },
     {
       "path": "test/resources/books/format_expansion/plucker-rich-source.html",
@@ -414,8 +462,8 @@
     {
       "path": "test/resources/books/lrf/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 1659,
-      "sha256": "f30ff2fee98ac993bda75937afcf7b828731402bf386c41e7ecccc55f713c3e5",
+      "bytes": 5364,
+      "sha256": "0bd55269e9477ffa04c7963a0b105e3d62dbbcbae84f86383fe401875b6b4ba7",
       "container": "unknown",
       "landmarks": 0
     },
@@ -462,8 +510,8 @@
     {
       "path": "test/resources/books/manifest.json",
       "format": "manifest",
-      "bytes": 27593,
-      "sha256": "74f6170703837c1b6b7b2e468924918572b50c17c3d61d6b1a83ce7a3d3e9be0",
+      "bytes": 30552,
+      "sha256": "db40bd43420333b56534b71d9725416a5c7cf750cbf5cc0090d9db5eacba98d3",
       "container": "unknown",
       "landmarks": 0
     },
@@ -550,8 +598,8 @@
     {
       "path": "test/resources/djvu/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 2031,
-      "sha256": "b40c582f48f45ea9be12cc4e1ea21a2e198de8a8371fbe5b3ef518624d23dc23",
+      "bytes": 2823,
+      "sha256": "fd5e43b6effaa1534fc779be8d81749efe179c9c082064285922f809a70cdb40",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1249,11 +1297,11 @@
     }
   ],
   "counts": {
-    "total": 150,
-    "totalBytes": 84659736,
+    "total": 156,
+    "totalBytes": 84685978,
     "byFormat": {
-      "manifest": 11,
-      "chm": 1,
+      "manifest": 12,
+      "chm": 4,
       "cbr": 2,
       "cbz": 3,
       "cbc": 1,
@@ -1267,7 +1315,7 @@
       "ereader": 2,
       "image": 10,
       "palmdoc": 1,
-      "plucker": 3,
+      "plucker": 5,
       "htmlz": 1,
       "txt": 5,
       "lrf": 2,

@@ -118,9 +118,87 @@ void main() {
     expect(_decodePngRows(eightBit), <int>[0, 0, 51, 0, 0, 0, 0, 17, 17, 17]);
   });
 
+  test('Plucker decodes Palm custom color tables and direct RGB565 bitmap data', () {
+    final bytes = Uint8List.fromList(
+      File(
+        'test/resources/books/format_expansion/plucker-bitmap-color-variants.pdb',
+      ).readAsBytesSync(),
+    );
+    final book = parsePluckerBook(bytes);
+    expect(book.files.images, hasLength(3));
+
+    final fourBitPalette = book.files.images[0].content;
+    expect(fourBitPalette[25], 2);
+    expect(_decodePngRows(fourBitPalette), <int>[
+      0,
+      0,
+      0,
+      255,
+      146,
+      46,
+      253,
+      109,
+      243,
+      250,
+      0,
+      71,
+      217,
+      240,
+      255,
+      33,
+      248,
+      219,
+      197,
+      252,
+    ]);
+
+    final eightBitPalette = book.files.images[1].content;
+    expect(eightBitPalette[25], 2);
+    expect(_decodePngRows(eightBitPalette), <int>[0, 0, 0, 255, 128, 128, 127, 183, 105, 0]);
+
+    final directColor = book.files.images[2].content;
+    expect(directColor[25], 2);
+    expect(_decodePngRows(directColor), <int>[
+      0,
+      255,
+      0,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      255,
+      0,
+      255,
+      255,
+      255,
+      0,
+      0,
+      0,
+      132,
+      130,
+      132,
+    ]);
+  });
+
   test('Plucker reports unsupported Palm bitmap modes with typed failures', () {
-    final directColor = _palmBitmap(depth: 16, version: 1, rowBytes: 2, pixels: <int>[0, 0]);
-    expect(() => decodePluckerBitmap(directColor), throwsA(isA<FormatNotSupportedException>()));
+    final missingDirectFlag = _palmBitmap(depth: 16, version: 1, rowBytes: 2, pixels: <int>[0, 0]);
+    expect(
+      () => decodePluckerBitmap(missingDirectFlag),
+      throwsA(isA<FormatNotSupportedException>()),
+    );
+
+    final invalidDirectLayout = _directPalmBitmap()..[16] = 4;
+    expect(
+      () => decodePluckerBitmap(invalidDirectLayout),
+      throwsA(isA<FormatNotSupportedException>()),
+    );
+
+    expect(
+      () => decodePluckerBitmap(_directPalmBitmap().sublist(0, 22)),
+      throwsA(isA<InvalidBookException>()),
+    );
 
     final customPalette = _palmBitmap(
       depth: 8,
@@ -129,7 +207,7 @@ void main() {
       rowBytes: 1,
       pixels: <int>[0],
     );
-    expect(() => decodePluckerBitmap(customPalette), throwsA(isA<FormatNotSupportedException>()));
+    expect(() => decodePluckerBitmap(customPalette), throwsA(isA<InvalidBookException>()));
 
     final compressed = _palmBitmap(
       depth: 2,
@@ -193,6 +271,23 @@ Uint8List _palmBitmap({
     ..setUint8(9, version)
     ..setUint8(13, compression);
   bitmap.setRange(16, bitmap.length, pixels);
+  return bitmap;
+}
+
+Uint8List _directPalmBitmap() {
+  final bitmap = Uint8List(26);
+  ByteData.sublistView(bitmap)
+    ..setUint16(0, 1)
+    ..setUint16(2, 1)
+    ..setUint16(4, 2)
+    ..setUint16(6, 0x0400)
+    ..setUint8(8, 16)
+    ..setUint8(9, 1)
+    ..setUint8(13, 0xff)
+    ..setUint8(16, 5)
+    ..setUint8(17, 6)
+    ..setUint8(18, 5)
+    ..setUint16(24, 0xf800);
   return bitmap;
 }
 

@@ -63,6 +63,7 @@ localization, reading-direction, accessibility, and media-overlay testing.
 | `FORMAT-PALMDOC` | PalmDOC PDB text records and compression |
 | `FORMAT-EREADER` | Calibre-generated eReader PDB zlib text and metadata |
 | `FORMAT-PLUCKER-ZLIB` | PyPlucker-generated Plucker PDB text and compression |
+| `FORMAT-PLUCKER-BITMAP-COLOR` | Generated Palm custom color-table and RGB565 direct-color image records |
 | `FORMAT-LRF` | Calibre-generated Sony LRF text, metadata, and navigation |
 | `FORMAT-HTML` / `FORMAT-HTMLZ` | HTML metadata/navigation, top-level index and OPF sidecar |
 | `FORMAT-DOCX` | Open XML document, styles, metadata and resource contract |
