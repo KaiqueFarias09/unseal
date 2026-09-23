@@ -237,8 +237,8 @@
     {
       "path": "test/resources/books/format_expansion/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 3934,
-      "sha256": "cb191eec1bc4d58348484eec16817b62c7b7972b5762aa6795cdbd85f830b281",
+      "bytes": 5499,
+      "sha256": "0290a9cf63f5f1302b47f00eb0ec717e3b51830f37bf47e6b8f4f905c17d47c0",
       "container": "unknown",
       "landmarks": 0
     },
@@ -251,12 +251,36 @@
       "landmarks": 0
     },
     {
+      "path": "test/resources/books/format_expansion/ereader-rich-source.html",
+      "format": "html",
+      "bytes": 386,
+      "sha256": "797c43786fd34f3bc0b50e124e3a1307de9bff29739a3edb83287c91bc1eca82",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/format_expansion/ereader-rich.pdb",
+      "format": "ereader",
+      "bytes": 1387,
+      "sha256": "4ed3ad654043a94dd09f4a2c04e3865c83fd35c280877023b6735f0842c7936d",
+      "container": "palmDb",
+      "landmarks": 11
+    },
+    {
       "path": "test/resources/books/format_expansion/ereader-sample.pdb",
       "format": "ereader",
       "bytes": 401,
       "sha256": "0685dccfea126b3cfe6f57d84ac1973a3b56251912112d159aa2f8f4e579518d",
       "container": "palmDb",
       "landmarks": 7
+    },
+    {
+      "path": "test/resources/books/format_expansion/ereader-swatch.png",
+      "format": "image",
+      "bytes": 77,
+      "sha256": "886eca293713dd0dc77ee8c492c64e81359f6e0286b79d5f6df20c506466d1e2",
+      "container": "unknown",
+      "landmarks": 0
     },
     {
       "path": "test/resources/books/format_expansion/garden.md",
@@ -291,6 +315,22 @@
       "landmarks": 13
     },
     {
+      "path": "test/resources/books/format_expansion/plucker-rich-source.html",
+      "format": "html",
+      "bytes": 401,
+      "sha256": "baca09a1bd6f44972254ec296c24742e78a72e550599e2a3b3c82fa87c1b69cb",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/format_expansion/plucker-rich.pdb",
+      "format": "plucker",
+      "bytes": 378,
+      "sha256": "2c7215a11a5e5a8ab446f16d83daae592218176b75de7f315942b2c0faae59cf",
+      "container": "palmDb",
+      "landmarks": 5
+    },
+    {
       "path": "test/resources/books/format_expansion/plucker-sample-doc.pdb",
       "format": "plucker",
       "bytes": 294,
@@ -313,6 +353,15 @@
       "sha256": "b8ea02345c6b00f47920c494403dbae414ded215a1f487b9d0688c0d3d3cd9e2",
       "container": "unknown",
       "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/format_expansion/standardebooks-red-badge.kepub.epub",
+      "format": "epub",
+      "bytes": 677545,
+      "sha256": "7075073bba72242ade634cbd9f50546664ac3d39613efc7d91403da5545219f8",
+      "container": "zip",
+      "landmarks": 87,
+      "bookId": "KEPUB-SE-RED-BADGE"
     },
     {
       "path": "test/resources/books/html/synthetic.html",
@@ -413,8 +462,8 @@
     {
       "path": "test/resources/books/manifest.json",
       "format": "manifest",
-      "bytes": 26707,
-      "sha256": "6cf47e09fe3fac4d1e824bf017be751ddda82e41e0064586d96d6a59bee67ae0",
+      "bytes": 27593,
+      "sha256": "74f6170703837c1b6b7b2e468924918572b50c17c3d61d6b1a83ce7a3d3e9be0",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1200,8 +1249,8 @@
     }
   ],
   "counts": {
-    "total": 144,
-    "totalBytes": 83977111,
+    "total": 150,
+    "totalBytes": 84659736,
     "byFormat": {
       "manifest": 11,
       "chm": 1,
@@ -1211,17 +1260,17 @@
       "cb7": 1,
       "djvu": 3,
       "docx": 1,
-      "epub": 27,
+      "epub": 28,
       "fb2": 4,
       "rtf": 2,
-      "ereader": 1,
+      "html": 7,
+      "ereader": 2,
+      "image": 10,
       "palmdoc": 1,
-      "plucker": 2,
-      "html": 5,
+      "plucker": 3,
       "htmlz": 1,
       "txt": 5,
       "lrf": 2,
-      "image": 9,
       "azw3": 2,
       "mobi": 5,
       "azw4": 1,
