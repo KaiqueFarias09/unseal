@@ -169,10 +169,16 @@ materializado. O detalhamento de cada contrato está em
   atuais estão identificadas com sua proveniência.
 - Encontrar amostras CHM redistribuíveis para codepages fora de 1251/1252/1256;
   os casos existentes são gerados a partir de texto original.
+- Encontrar um CHM redistribuível com a flag Intel E8 ligada. O CHM PuTTY real
+  atual tem a flag E8 desligada no cabeçalho do primeiro fluxo LZX; os testes
+  E8 continuam usando quadros sintéticos. O compressor `paslzxcomp` do Free
+  Pascal também declara que sempre grava zero para essa flag, então não serve
+  para gerar essa evidência. — [PuTTY fixture e hash](../test/resources/books/manifest.json),
+  [fonte `paslzxcomp.pas` do Free Pascal](https://gitlab.com/freepascal.org/fpc/source/-/blob/dcb91d0b52/packages/chm/src/paslzxcomp.pas),
+  [regra Microsoft MS-PATCH E8](https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-patch/e6c8366d-a8c3-4f34-aa5d-56f44f938a09).
 - Implementar IW44 e composição de camadas antes de ampliar a promessa de
   leitura de páginas DjVu compostas; completar dicionários JB2 compartilhados,
   reset, TXTz/NAVM e componentes de documentos indiretos.
-- Cobrir Intel E8 com um CHM real licenciado, além dos testes de frame existentes.
 
 ---
 **Próximo passo:** expandir os casos reais e os codecs pendentes sem retirar os

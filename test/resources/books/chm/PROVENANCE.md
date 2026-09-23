@@ -16,3 +16,14 @@ Intel E8 decoder regressions construct small uncompressed LZX frames in memory
 through `test/tests/chm/chm_fixture_builder.dart`. Those byte streams exercise
 the Microsoft E8 header and both positive and negative transformed relative
 addresses; they are generated test inputs rather than standalone CHM books.
+
+The redistributable PuTTY CHM was checked as a real-file candidate. Its first
+LZX stream header has the Intel E8 flag clear, so it does not exercise the
+translation path. The unchanged file is 271,652 bytes with SHA-256
+`317147468e9876d0465b3f1457b948e43911f3e713011d574fd325fab304ef34`, matching
+the book manifest. No additional CHM was added: the Free Pascal `paslzxcomp`
+compressor explicitly writes zero for the Intel preprocessing flag, and no
+redistributable real CHM with the flag set was verified. See the open research
+item in `docs/format-parser-references.md`, the [Free Pascal compressor
+source](https://gitlab.com/freepascal.org/fpc/source/-/blob/dcb91d0b52/packages/chm/src/paslzxcomp.pas),
+and the [Microsoft E8 rules](https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-patch/e6c8366d-a8c3-4f34-aa5d-56f44f938a09).
