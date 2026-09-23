@@ -105,7 +105,23 @@ void main() {
       final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
       expect(
         () => updateEpubMetadata(bytes, const EpubMetadataUpdate(title: 'X')),
-        throwsA(anyOf(isA<FormatException>(), isA<EpubException>())),
+        throwsA(isA<InvalidBookException>()),
+      );
+    });
+
+    test('wraps malformed OPF XML in a public typed exception', () {
+      final archive = Archive()
+        ..addFile(
+          ArchiveFile.string('META-INF/container.xml', '''
+<container><rootfiles><rootfile full-path="book.opf"/></rootfiles></container>
+'''),
+        )
+        ..addFile(ArchiveFile.string('book.opf', '<package><metadata>'));
+      final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
+
+      expect(
+        () => updateEpubMetadata(bytes, const EpubMetadataUpdate(title: 'X')),
+        throwsA(isA<InvalidBookException>()),
       );
     });
   });

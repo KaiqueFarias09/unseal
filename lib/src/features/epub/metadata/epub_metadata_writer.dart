@@ -5,10 +5,12 @@ import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:xml/xml.dart';
 import '../../../foundation/archive/archive_access.dart';
+import '../../../foundation/exceptions/unseal_exception.dart';
 
 import '../../../foundation/metadata/sort_keys.dart';
 import '../../../foundation/metadata/title_sort.dart';
 import '../container/epub_root_file.dart';
+import '../exceptions/exceptions.dart';
 
 /// The metadata changes to apply to an EPUB file.
 ///
@@ -80,20 +82,33 @@ final class EpubMetadataUpdate {
 /// and all content files survive). Identifiers and the cover image
 /// are not touched by this writer.
 Uint8List updateEpubMetadata(final Uint8List bytes, final EpubMetadataUpdate update) {
+  try {
+    return _updateEpubMetadata(bytes, update);
+  } on EpubException catch (error) {
+    throw InvalidBookException('Cannot update EPUB metadata: ${error.message}');
+  } on FormatException catch (error) {
+    throw InvalidBookException('Cannot update EPUB metadata: ${error.message}');
+  } on XmlException catch (error) {
+    throw InvalidBookException('Cannot update EPUB metadata: $error');
+  }
+}
+
+Uint8List _updateEpubMetadata(final Uint8List bytes, final EpubMetadataUpdate update) {
   final archive = decodeBookZip(bytes);
   final rootFilePath = getEpubRootFilePath(archive);
   if (rootFilePath == null) {
-    throw const FormatException('EPUB metadata writing error: no root file found.');
+    throw const InvalidBookException('EPUB metadata writing error: no root file found.');
   }
 
   final rootFile = archive.files.firstWhere(
     (final file) => _samePath(file.name, rootFilePath),
-    orElse: () => throw const FormatException('EPUB metadata writing error: no root file found.'),
+    orElse: () =>
+        throw const InvalidBookException('EPUB metadata writing error: no root file found.'),
   );
   final document = XmlDocument.parse(convert.utf8.decode(rootFile.content as List<int>));
   final metadataElement = document.rootElement.findElements('metadata').firstOrNull;
   if (metadataElement == null) {
-    throw const FormatException('EPUB metadata writing error: no metadata element found.');
+    throw const InvalidBookException('EPUB metadata writing error: no metadata element found.');
   }
 
   _applyMetadataUpdate(metadataElement, update);
