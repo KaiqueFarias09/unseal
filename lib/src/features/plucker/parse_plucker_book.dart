@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:html/parser.dart' as html_parser;
 
 import '../../foundation/entities/entities.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
@@ -141,11 +142,34 @@ DocumentBook parsePluckerBook(final Uint8List bytes) {
   final textIds = <int>{for (final paragraph in paragraphs) paragraph.uid};
   final html = StringBuffer('<!doctype html><html><head><meta charset="utf-8"></head><body>');
   final seenRecords = <int>{};
+  final headings = <NavPoint>[];
   for (final paragraph in paragraphs) {
     if (seenRecords.add(paragraph.uid)) html.write('<span id="r${paragraph.uid}"></span>');
-    html.write('<span id="r${paragraph.uid}-p${paragraph.index}"></span><p>');
-    html.write(renderPluckerParagraph(paragraph.data, textIds: textIds, imagePaths: imagePaths));
-    html.write('</p>');
+    final anchor = 'r${paragraph.uid}-p${paragraph.index}';
+    html.write('<span id="$anchor"></span>');
+    final content = renderPluckerParagraph(
+      paragraph.data,
+      textIds: textIds,
+      imagePaths: imagePaths,
+    );
+    final isHeading = RegExp(r'^<h[1-6]>.*</h[1-6]>$').hasMatch(content);
+    if (isHeading) {
+      html.write(content);
+      final label = html_parser.parseFragment(content).text?.trim() ?? '';
+      if (label.isNotEmpty) {
+        headings.add(
+          NavPoint(
+            classAttribute: '',
+            id: 'nav-${headings.length + 1}',
+            playOrder: '${headings.length + 1}',
+            label: label,
+            content: '$htmlPath#$anchor',
+          ),
+        );
+      }
+    } else {
+      html.write('<p>$content</p>');
+    }
     if (html.length > 2 * _maxBookBytes) {
       throw const InvalidBookException('Rendered Plucker HTML exceeds the 128 MiB limit.');
     }
@@ -168,15 +192,17 @@ DocumentBook parsePluckerBook(final Uint8List bytes) {
     metadata: metadata,
     navigation: Navigation(
       title: metadata.title ?? 'Contents',
-      navPoints: <NavPoint>[
-        NavPoint(
-          classAttribute: '',
-          id: 'nav-1',
-          playOrder: '1',
-          label: metadata.title ?? 'Document',
-          content: htmlPath,
-        ),
-      ],
+      navPoints: headings.isNotEmpty
+          ? headings
+          : <NavPoint>[
+              NavPoint(
+                classAttribute: '',
+                id: 'nav-1',
+                playOrder: '1',
+                label: metadata.title ?? 'Document',
+                content: htmlPath,
+              ),
+            ],
     ),
     order: <String>[htmlPath],
   );

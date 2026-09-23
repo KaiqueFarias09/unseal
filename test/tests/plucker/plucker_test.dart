@@ -58,6 +58,10 @@ void main() {
     expect(html, contains('<em>italic fragment</em>'));
     expect(html, contains('<a href="#r2-p5">the destination</a>'));
     expect(html, contains('<img src="images/11.png" alt=""/>'));
+    expect(
+      book.navigation.navPoints.map((point) => point.label),
+      containsAll(<String>['Plucker Rich', 'The Destination']),
+    );
     expect(book.files.images, hasLength(1));
     expect(book.files.images.single.content.take(8), <int>[137, 80, 78, 71, 13, 10, 26, 10]);
     final image = book.files.images.single.content;
