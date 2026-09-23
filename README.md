@@ -66,7 +66,7 @@ Or add the dependency manually:
 
 ```yaml
 dependencies:
-  unseal: ^1.0.0
+  unseal: ^1.1.0
 ```
 
 The package requires Dart `>=3.8.0 <4.0.0`.
@@ -158,6 +158,59 @@ final cbc = await parseCbcBook(bytes);
 CB7 and CBC use an asynchronous 7-Zip reader. `Unseal.parse` and
 `Unseal.readMetadataSync` reject those formats; use `Unseal.read`,
 `Unseal.readMetadata`, or the dedicated asynchronous functions instead.
+
+For EPUB 3, `EpubBook.navigation` holds the table of contents from the EPUB 3
+navigation document when available, with NCX as a fallback. `pageList` and
+`landmarks` expose other navigation sections separately. The package also
+exposes typed display preferences and accessibility metadata:
+
+```dart
+final book = await Unseal.read(bytes);
+if (book is EpubBook) {
+  print(book.pageList?.navPoints);
+  print(book.landmarks.map((landmark) => landmark.types));
+
+  if (book.package is Epub3Package) {
+    final epub3 = book.package as Epub3Package;
+    print(epub3.renditionSettings.layout);
+    if (epub3.spine.items.isNotEmpty) {
+      print(epub3.renditionSettings.layoutFor(epub3.spine.items.first));
+    }
+    if (epub3.metadata is Epub3Metadata) {
+      print((epub3.metadata as Epub3Metadata).accessibility.sufficientAccessModes);
+    }
+  }
+}
+```
+
+Rendition values come from the OPF and spine. Page dimensions declared inside
+XHTML or SVG content are not extracted by these properties. Accessibility
+values reflect publisher metadata; Unseal does not certify accessibility.
+
+### EPUB metadata updates and Calibre catalogs
+
+`updateEpubMetadata` returns new EPUB bytes with selected OPF fields changed.
+It does not write the file or change identifiers, the cover, or chapter content:
+
+```dart
+final updated = updateEpubMetadata(
+  bytes,
+  const EpubMetadataUpdate(title: 'A new title'),
+);
+```
+
+To inspect an existing Calibre library database, read its `metadata.db` bytes
+and use the read-only parser:
+
+```dart
+final catalog = CalibreDatabase.parse(metadataDbBytes);
+for (final entry in catalog.books) {
+  print('${entry.title}: ${entry.formats}');
+}
+```
+
+The Calibre records describe available formats and library-relative paths;
+opening a listed book remains the application's responsibility.
 
 ## The common book model
 
