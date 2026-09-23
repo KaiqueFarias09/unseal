@@ -1,4 +1,5 @@
 import '../../../foundation/entities/entities.dart';
+import 'comic_page_info.dart';
 
 /// A parsed comic book (CBZ / CBR).
 ///
@@ -11,13 +12,21 @@ class ComicBook extends Book {
     required this.metadata,
     required this.pages,
     required super.format,
-  }) : files = Files(
+    this.readingDirection = ComicReadingDirection.unspecified,
+    final List<ComicPageInfo>? pageInfo,
+  }) : assert(pageInfo == null || pageInfo.length == pages.length),
+       files = Files(
          images: pages,
          css: const [],
          html: const [],
          fonts: const [],
          others: const [],
        ),
+       pageInfo =
+           pageInfo ??
+           <ComicPageInfo>[
+             for (var index = 0; index < pages.length; index++) ComicPageInfo(imageIndex: index),
+           ],
        navigation = Navigation(title: metadata.title ?? '', navPoints: const []);
 
   /// The cover image, or an empty file when none was found.
@@ -29,6 +38,12 @@ class ComicBook extends Book {
 
   /// The comic pages, in natural reading order.
   final List<BinaryFile> pages;
+
+  /// Direction explicitly declared by ComicInfo, when present.
+  final ComicReadingDirection readingDirection;
+
+  /// Page roles and spread hints aligned with [pages].
+  final List<ComicPageInfo> pageInfo;
 
   /// The extracted files of this book.
   @override

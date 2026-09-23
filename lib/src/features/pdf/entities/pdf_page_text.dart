@@ -1,3 +1,20 @@
+/// What the parser can establish about a page's extracted text.
+enum PdfTextQuality {
+  /// Text was extracted and no stream decoding failure was observed.
+  /// This does not certify that every visible glyph has a Unicode mapping.
+  readable,
+
+  /// At least one content stream could not be decoded; text may be missing.
+  partial,
+
+  /// No text was extracted, but an image placement was found.
+  imageWithoutText,
+
+  /// No text or image placement was extracted; the page may still contain
+  /// vector art, unsupported content, or be intentionally blank.
+  noExtractedText,
+}
+
 /// The extracted content of one PDF page: canonical text lines and
 /// image placements, in the page's top-left pixel space (points).
 ///
@@ -9,7 +26,13 @@
 /// offsets agree across modes by construction.
 class PdfPageText {
   /// Creates a page's extracted text.
-  const PdfPageText({required this.lines, this.images = const <PdfImageBox>[]});
+  const PdfPageText({
+    required this.lines,
+    this.images = const <PdfImageBox>[],
+    this.contentStreamCount = 0,
+    this.skippedContentStreams = 0,
+    this.columnOrderApplied = false,
+  });
 
   /// The text lines in reading order (top to bottom, left to right).
   final List<PdfTextLine> lines;
@@ -17,11 +40,28 @@ class PdfPageText {
   /// Image placements on the page, in reading order.
   final List<PdfImageBox> images;
 
+  /// Number of content streams referenced by this page.
+  final int contentStreamCount;
+
+  /// Streams skipped after a decoding failure.
+  final int skippedContentStreams;
+
+  /// Whether a conservative two-column ordering was used for reflow.
+  final bool columnOrderApplied;
+
   /// The canonical text stream of the page.
   String get text => lines.map((final line) => line.text).join('\n');
 
   /// Whether the page yielded any visible text.
   bool get isEmpty => lines.every((final line) => line.text.isEmpty);
+
+  /// A page-level extraction diagnosis, without claiming to detect scans or OCR.
+  PdfTextQuality get quality {
+    if (skippedContentStreams > 0) return PdfTextQuality.partial;
+    if (!isEmpty) return PdfTextQuality.readable;
+    if (images.isNotEmpty) return PdfTextQuality.imageWithoutText;
+    return PdfTextQuality.noExtractedText;
+  }
 }
 
 /// One line of text: the canonical unit the extractor emits.

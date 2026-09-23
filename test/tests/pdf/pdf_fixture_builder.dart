@@ -63,7 +63,7 @@ class PdfFixtureBuilder {
             ? Uint8List.fromList(const ZLibEncoder().encode(_streamData[number]!))
             : _streamData[number]!;
         final filter = _streamFlate[number] == true ? ' /Filter /FlateDecode' : '';
-        out.add('<< /Length ${data.length}$_streamEntries[number]$filter >>\n'.codeUnits);
+        out.add('<< /Length ${data.length}${_streamEntries[number]}$filter >>\n'.codeUnits);
         out.add('stream\n'.codeUnits);
         out.add(data);
         out.add('\nendstream\n'.codeUnits);
@@ -111,7 +111,7 @@ class PdfFixtureBuilder {
             ? Uint8List.fromList(const ZLibEncoder().encode(_streamData[number]!))
             : _streamData[number]!;
         final filter = _streamFlate[number] == true ? ' /Filter /FlateDecode' : '';
-        out.add('<< /Length ${data.length}$_streamEntries[number]$filter >>\n'.codeUnits);
+        out.add('<< /Length ${data.length}${_streamEntries[number]}$filter >>\n'.codeUnits);
         out.add('stream\n'.codeUnits);
         out.add(data);
         out.add('\nendstream\n'.codeUnits);

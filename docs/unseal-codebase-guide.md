@@ -424,7 +424,7 @@ Not every malformed optional file should make the whole publication unreadable. 
 
 ## CBZ and CBR: read a comic as ordered images
 
-CBZ and CBR use archive formats as envelopes for page images. CBZ uses ZIP. CBR uses RAR. `ComicInfo.xml` can provide a small set of descriptive metadata. Page order comes from filenames, and the first sorted image becomes the cover.
+CBZ and CBR use archive formats as envelopes for page images. CBZ uses ZIP. CBR uses RAR. `ComicInfo.xml` can provide descriptive metadata, an explicit right-to-left direction, and page roles. Page order comes from filenames. A declared `FrontCover` becomes the cover; otherwise the first sorted image does.
 
 The flow is:
 
@@ -434,9 +434,10 @@ The flow is:
 | --- | --- |
 | `features/comic/parse_comic_book.dart` | Detects ZIP versus RAR, reads entries, parses `ComicInfo.xml`, keeps image files, sorts pages, and builds the common `ComicBook`. |
 | `features/comic/natural_page_sort.dart` | Compares page names so numeric runs sort as readers expect, such as page 2 before page 10. |
-| `features/comic/entities/comic_book.dart` | Defines the fixed-layout comic result, its image files, page reading order, metadata, and first-page cover. Its structured navigation is empty because comic archives rarely declare chapters. |
+| `features/comic/entities/comic_book.dart` | Defines the fixed-layout comic result, image files, page reading order, metadata, direction, and aligned page declarations. Its structured navigation is empty because comic archives rarely declare chapters. |
+| `features/comic/entities/comic_page_info.dart` | Defines typed page roles and ComicInfo hints such as double-page spreads. Unknown role tokens stay available to callers. |
 | `features/comic/entities/entities.dart` | Re-exports the public comic entity types. |
-| `features/comic/metadata/comic_info.dart` | Reads the supported ComicInfo fields: title, series, number, writer, genre, tags, language, publisher, and summary. It does not control page order or cover choice. |
+| `features/comic/metadata/comic_info.dart` | Reads descriptive fields, `Manga=YesAndRightToLeft`, and indexed `<Page>` attributes. Invalid or out-of-range page declarations do not shift image indices. |
 | `features/comic/archive/rar_reader.dart` | Reads RAR headers and stored entries, then delegates compressed RAR 4 data to the owned decoder. |
 | `features/comic/archive/rar4_decoder.dart` | Implements the bit, Huffman, distance, and copy state machines needed for supported RAR 2.9 and 3.x compression. |
 | `features/comic/exceptions/comic_exception.dart` | Reports invalid archives, unsupported RAR methods, and missing image pages. |
@@ -466,7 +467,7 @@ The flow is:
 
 CB7 reuses `ComicBook` because the reading result is still an ordered image sequence. It does not reuse the private ZIP or RAR implementation because 7-Zip has a different resource and lifetime model.
 
-CBC flattens its children into one page list and does not preserve a chapter for each nested comic. A listing entry absent from the outer ZIP is skipped. A child that is present but cannot be parsed fails the collection. CB7 also caps each extracted entry at 128 MiB.
+CBC flattens its children into one page list and shifts their page metadata indices with the pages. Conflicting child reading directions become `unspecified`; CBC does not preserve a chapter for each nested comic. A listing entry absent from the outer ZIP is skipped. A child that is present but cannot be parsed fails the collection. CB7 also caps each extracted entry at 128 MiB.
 
 ## MOBI and AZW3: rebuild a book from Palm Database records
 
@@ -564,7 +565,7 @@ The flow is:
 | `features/pdf/header/pdf_document.dart` | Locates cross-reference tables or streams, reads trailers and object streams, resolves indirect references, caches objects, and connects the security handler. |
 | `features/pdf/entities/pdf_book.dart` | Defines the parsed PDF result with original bytes, pages, extracted text and images, reflowed page files, metadata, and navigation. |
 | `features/pdf/entities/pdf_page.dart` | Stores one page's object number, geometry, rotation, crop box, and effective resources. |
-| `features/pdf/entities/pdf_page_text.dart` | Stores canonical text lines and image placements in page coordinates. It gives search, reflow, and a viewer implementing facsimile selection one shared character-space contract. |
+| `features/pdf/entities/pdf_page_text.dart` | Stores canonical text lines, image placements, stream-decoding counts, and a per-page extraction diagnosis. It gives search, reflow, and facsimile selection one shared character-space contract. |
 | `features/pdf/entities/entities.dart` | Re-exports the public PDF entity types. |
 | `features/pdf/exceptions/pdf_exception.dart` | Defines general PDF failures and the more specific encrypted-document error. |
 | `features/pdf/exceptions/exceptions.dart` | Re-exports the public PDF exception types. |
@@ -581,7 +582,7 @@ The flow is:
 | `features/pdf/reader/pdf_outline.dart` | Reads bookmarks and named destinations and maps them to page anchors in common `Navigation`. |
 | `features/pdf/reader/pdf_metadata.dart` | Combines the Info dictionary and XMP metadata into `BookMetadata`. |
 | `features/pdf/image/pdf_bitmap.dart` | Normalizes packed one-bit image rows and writes them as grayscale PNG for extracted CCITT and JBIG2 resources. |
-| `features/pdf/reflow/pdf_reflow.dart` | Removes repeated headers and footers, groups lines into blocks, detects headings and indentation, and emits one responsive HTML document per page. After deliberate header/footer removal, each returned page-text value matches the visible text scanned from that page's generated HTML. |
+| `features/pdf/reflow/pdf_reflow.dart` | Removes repeated headers and footers, conservatively reorders clearly separated text-only columns, groups lines into blocks, and emits one responsive HTML document per page. After deliberate header/footer removal, each returned page-text value matches the visible text scanned from that page's generated HTML. |
 | `features/pdf/text/pdf_encodings.dart` | Holds Adobe encoding tables and glyph-name mappings used by simple fonts. This is primarily data, not parser orchestration. |
 | `features/pdf/text/pdf_standard_widths.dart` | Holds metrics for the standard 14 PDF fonts when the document omits explicit widths. |
 

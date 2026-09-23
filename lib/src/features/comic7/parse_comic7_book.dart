@@ -73,8 +73,12 @@ Future<ComicBook> parseCbcBook(final Uint8List bytes) async {
   if (comics.isEmpty) throw const InvalidCbcCollectionException('CBC collection has no comics.');
 
   final pages = <BinaryFile>[];
+  final pageInfo = <ComicPageInfo>[];
   BookMetadata? firstMetadata;
+  BinaryFile? firstCover;
   String? firstTitle;
+  ComicReadingDirection? direction;
+  var mixedDirection = false;
   for (final comic in comics) {
     final entry = findArchiveFile(archive, comic.path);
     if (entry == null) continue;
@@ -83,8 +87,15 @@ Future<ComicBook> parseCbcBook(final Uint8List bytes) async {
     final parsed = await _parseNestedComic(nested, entry.name);
 
     firstMetadata ??= parsed.metadata;
+    firstCover ??= parsed.cover;
     firstTitle ??= comic.title;
+    if (direction != null && direction != parsed.readingDirection) mixedDirection = true;
+    direction ??= parsed.readingDirection;
+    final offset = pages.length;
     pages.addAll(parsed.pages);
+    for (final info in parsed.pageInfo) {
+      pageInfo.add(info.atIndex(offset + info.imageIndex));
+    }
   }
 
   if (pages.isEmpty) {
@@ -95,6 +106,11 @@ Future<ComicBook> parseCbcBook(final Uint8List bytes) async {
     pages,
     firstMetadata,
     BookFormat.cbc,
+    pageInfo: pageInfo,
+    coverOverride: firstCover,
+    readingDirection: mixedDirection
+        ? ComicReadingDirection.unspecified
+        : direction ?? ComicReadingDirection.unspecified,
     titleOverride: comics.length == 1 ? firstMetadata?.title : firstTitle ?? 'Comic collection',
   );
 }
@@ -148,7 +164,13 @@ Future<ComicBook> _parseComic7Archive(final koni.Archive archive) async {
 
   pages.sort((final a, final b) => compareComicPageNames(a.path, b.path));
 
-  return _buildComic(pages, comicInfo?.metadata, BookFormat.cb7);
+  return _buildComic(
+    pages,
+    comicInfo?.metadata,
+    BookFormat.cb7,
+    pageInfo: comicPageInfoFor(comicInfo, pages.length),
+    readingDirection: comicInfo?.readingDirection ?? ComicReadingDirection.unspecified,
+  );
 }
 
 Future<Uint8List> _readEntry(final koni.Archive archive, final koni.ArchiveEntry entry) async {
@@ -184,13 +206,25 @@ ComicBook _buildComic(
   final List<BinaryFile> pages,
   final BookMetadata? sourceMetadata,
   final BookFormat format, {
+  final List<ComicPageInfo>? pageInfo,
+  final BinaryFile? coverOverride,
+  final ComicReadingDirection readingDirection = ComicReadingDirection.unspecified,
   final String? titleOverride,
 }) {
-  final cover = pages.first;
+  final info = pageInfo ?? comicPageInfoFor(null, pages.length);
+  final declaredCoverIndex = info.indexWhere((final page) => page.type == ComicPageType.frontCover);
+  final cover = coverOverride ?? pages[declaredCoverIndex < 0 ? 0 : declaredCoverIndex];
   var metadata = sourceMetadata ?? BookMetadata(format: format);
   metadata = metadata.copyWith(format: format, title: titleOverride, cover: coverFromBinary(cover));
 
-  return ComicBook(cover: cover, metadata: metadata, pages: pages, format: format);
+  return ComicBook(
+    cover: cover,
+    metadata: metadata,
+    pages: pages,
+    pageInfo: info,
+    readingDirection: readingDirection,
+    format: format,
+  );
 }
 
 BookMetadata _metadataFromComicInfo(final ComicInfo? info, final BookFormat format) {

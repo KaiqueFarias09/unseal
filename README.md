@@ -46,11 +46,11 @@ document renderer.
 | DOCX | Open XML document structure, styles, headings, lists, tables, links, properties, and images | Semantic conversion; not pixel-perfect Word layout. |
 | ODT | OpenDocument paragraphs, headings, styles, lists, tables, images, links, and metadata | Semantic conversion; not pixel-perfect LibreOffice layout. |
 | AZW4 | PalmDB/MOBI wrapper validation, PDF extraction, metadata, pages, and original PDF bytes | Requires a valid, unencrypted PDF payload. |
-| CBZ | ZIP comic pages, `ComicInfo.xml`, natural ordering, and first-page cover | Page-oriented data; no comic UI is included. |
+| CBZ | ZIP comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Page-oriented data; no comic UI is included. |
 | CBR | RAR 4 stored and ordinary non-solid method-29 entries, plus RAR 5 stored entries | Split, solid, encrypted, PPMd, VM, and other unsupported variants are rejected. |
-| CB7 | 7-Zip comic pages, `ComicInfo.xml`, natural ordering, and first-page cover | Asynchronous only; encrypted or unsupported entries are rejected. |
+| CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
-| PDF | Metadata, bookmarks, page text, reflow HTML, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not a general-purpose PDF renderer. |
+| PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
 
 `OPF` is not a standalone reading format. When unseal finds `metadata.opf`
 inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
@@ -211,6 +211,37 @@ for (final entry in catalog.books) {
 
 The Calibre records describe available formats and library-relative paths;
 opening a listed book remains the application's responsibility.
+
+### Page data for comics and PDFs
+
+`ComicBook.pages` stays in natural archive order. `pageInfo[i]` describes
+`pages[i]`: its ComicInfo role, double-page hint, and optional declared
+dimensions. `readingDirection` becomes `rightToLeft` only when ComicInfo
+explicitly says `Manga=YesAndRightToLeft`. A page marked `Delete` remains in
+the list for the application to handle. A declared `FrontCover` is used as the
+book cover; otherwise the first page is used.
+
+```dart
+final comic = parseComicBook(comicBytes);
+print(comic.readingDirection);
+for (final page in comic.pageInfo) {
+  print('${comic.pages[page.imageIndex].path}: ${page.type}, spread=${page.doublePage}');
+}
+```
+
+Each `PdfPageText` reports `quality`, the number of content streams, and how
+many streams could not be decoded. `imageWithoutText` is a useful signal for
+an application that offers OCR; it does not prove that a page is a scan.
+`columnOrderApplied` indicates that Unseal reordered clearly separated,
+text-only columns for reflow and the canonical text stream.
+
+```dart
+final pdf = parsePdfBook(pdfBytes);
+for (var i = 0; i < pdf.pageTexts.length; i++) {
+  final page = pdf.pageTexts[i];
+  print('Page ${i + 1}: ${page.quality}, skipped=${page.skippedContentStreams}');
+}
+```
 
 ## The common book model
 

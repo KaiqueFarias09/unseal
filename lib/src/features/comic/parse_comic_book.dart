@@ -131,7 +131,11 @@ ComicBook _build(final List<_Page> pages, final ComicInfo? comicInfo, final Book
     );
   }
 
-  final cover = images.first;
+  final pageInfo = comicPageInfoFor(comicInfo, images.length);
+  final declaredCoverIndex = pageInfo.indexWhere(
+    (final page) => page.type == ComicPageType.frontCover,
+  );
+  final cover = images[declaredCoverIndex < 0 ? 0 : declaredCoverIndex];
   final metadata = _metadataFor(comicInfo, format);
   final coverType = sniffImageType(cover.content)!;
   final size = imageSize(cover.content);
@@ -144,7 +148,14 @@ ComicBook _build(final List<_Page> pages, final ComicInfo? comicInfo, final Book
     ),
   );
 
-  return ComicBook(cover: cover, metadata: coverMetadata, pages: images, format: format);
+  return ComicBook(
+    cover: cover,
+    metadata: coverMetadata,
+    pages: images,
+    pageInfo: pageInfo,
+    readingDirection: comicInfo?.readingDirection ?? ComicReadingDirection.unspecified,
+    format: format,
+  );
 }
 
 BookMetadata _metadataFor(final ComicInfo? comicInfo, final BookFormat format) {

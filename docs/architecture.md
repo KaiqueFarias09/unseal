@@ -49,6 +49,10 @@ entry points for consumers that need one format. Public signatures must use
 types exported by the same public entry point. Consumers must not import
 `lib/src/`.
 
+PDF page diagnostics and comic page roles remain format-specific contracts.
+Applications decide whether to request OCR, hide pages marked `Delete`, or
+render double-page spreads; Unseal only parses and reports the source data.
+
 The main operations are:
 
 - `Unseal.read` and `Unseal.readMetadata` for portable asynchronous reads;

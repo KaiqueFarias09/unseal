@@ -244,6 +244,9 @@ final class _Document {
     _findHeaderFooter();
     _removeHeaderFooter();
     for (final page in this.pages) {
+      page.reorderColumns();
+    }
+    for (final page in this.pages) {
       page.findMargins(
         tops,
         page.number.isOdd ? indentsOdd : indentsEven,
@@ -509,7 +512,9 @@ final class _Stats {
 /// One page under reflow: its working lines and derived margins.
 final class _Page {
   _Page(this.number, this.width, this.height, final PdfPageText pageText)
-    : images = List<PdfImageBox>.of(pageText.images) {
+    : images = List<PdfImageBox>.of(pageText.images),
+      contentStreamCount = pageText.contentStreamCount,
+      skippedContentStreams = pageText.skippedContentStreams {
     for (final line in pageText.lines) {
       if (line.text.trim().isEmpty) continue;
       lines.add(_Line.of(line));
@@ -532,6 +537,73 @@ final class _Page {
 
   final List<_Line> lines = <_Line>[];
   final List<PdfImageBox> images;
+  final int contentStreamCount;
+  final int skippedContentStreams;
+  bool columnOrderApplied = false;
+
+  /// Reorders clearly separated, text-only columns after the edge-line scan.
+  /// Ambiguous layouts keep geometric order rather than guessing.
+  void reorderColumns() {
+    if (images.isNotEmpty || lines.length < 6 || width <= 0) return;
+
+    final byStart = List<_Line>.of(lines)..sort((final a, final b) => a.left.compareTo(b.left));
+    for (var split = 3; split <= byStart.length - 3; split++) {
+      final startGap = byStart[split].left - byStart[split - 1].left;
+      if (startGap < width * 0.2) continue;
+
+      final rightStart = byStart[split].left;
+      final gutter = width * 0.02;
+      final left = lines.where((final line) => line.right <= rightStart - gutter).toList();
+      final right = lines.where((final line) => line.left >= rightStart).toList();
+      if (left.length < 3 || right.length < 3) continue;
+      if (left.where((final line) => line.width >= width * 0.12).length < 2 ||
+          right.where((final line) => line.width >= width * 0.12).length < 2) {
+        continue;
+      }
+
+      final firstColumnTop = left.first.top < right.first.top ? left.first.top : right.first.top;
+      final lastColumnBottom = <_Line>[
+        ...left,
+        ...right,
+      ].map((final line) => line.bottom).reduce((final a, final b) => a > b ? a : b);
+      final columnLines = <_Line>{...left, ...right};
+      final spanning = lines.where((final line) => !columnLines.contains(line));
+      if (spanning.any(
+        (final line) => line.top >= firstColumnTop && line.top <= lastColumnBottom,
+      )) {
+        continue;
+      }
+
+      final overlappingRows = left.where(
+        (final line) => right.any(
+          (final other) =>
+              (line.top - other.top).abs() <=
+              (line.height > other.height ? line.height : other.height),
+        ),
+      );
+      if (overlappingRows.length < 2) continue;
+
+      int comparePosition(final _Line a, final _Line b) {
+        final vertical = a.top.compareTo(b.top);
+        return vertical == 0 ? a.left.compareTo(b.left) : vertical;
+      }
+
+      final top = spanning.where((final line) => line.top < firstColumnTop).toList()
+        ..sort(comparePosition);
+      final bottom = spanning.where((final line) => line.top > lastColumnBottom).toList()
+        ..sort(comparePosition);
+      left.sort(comparePosition);
+      right.sort(comparePosition);
+      lines
+        ..clear()
+        ..addAll(top)
+        ..addAll(left)
+        ..addAll(right)
+        ..addAll(bottom);
+      columnOrderApplied = true;
+      return;
+    }
+  }
 
   double averageTextHeight = 0;
   double leftMargin = double.infinity;
@@ -721,29 +793,39 @@ final class _Page {
         );
       }
     }
-    lines.sort((final a, final b) {
-      final dy = a.y - b.y;
+    if (!columnOrderApplied) {
+      lines.sort((final a, final b) {
+        final dy = a.y - b.y;
 
-      return dy.abs() < 0.5 ? a.x.compareTo(b.x) : dy.compareTo(0);
-    });
+        return dy.abs() < 0.5 ? a.x.compareTo(b.x) : dy.compareTo(0);
+      });
+    }
 
-    return PdfPageText(lines: lines, images: images);
+    return PdfPageText(
+      lines: lines,
+      images: images,
+      contentStreamCount: contentStreamCount,
+      skippedContentStreams: skippedContentStreams,
+      columnOrderApplied: columnOrderApplied,
+    );
   }
 
   /// Renders the page's HTML with the canonical-text invariant:
   /// blocks joined by `\n`, paragraph lines joined by `\n` inside
   /// one text node (font-size spans add no characters).
   String render(final int anchor) {
-    final blocks =
-        <_Block>[
-          for (final line in lines) _Block(top: line.top, left: line.left, line: line),
-          for (final image in images)
-            if (image.path.isNotEmpty) _Block(top: image.y, left: image.x, image: image),
-        ]..sort((final a, final b) {
-          final dy = a.top - b.top;
+    final blocks = <_Block>[
+      for (final line in lines) _Block(top: line.top, left: line.left, line: line),
+      for (final image in images)
+        if (image.path.isNotEmpty) _Block(top: image.y, left: image.x, image: image),
+    ];
+    if (!columnOrderApplied) {
+      blocks.sort((final a, final b) {
+        final dy = a.top - b.top;
 
-          return dy.abs() < 0.5 ? a.left.compareTo(b.left) : dy.compareTo(0);
-        });
+        return dy.abs() < 0.5 ? a.left.compareTo(b.left) : dy.compareTo(0);
+      });
+    }
 
     final out = StringBuffer();
     if (blocks.isEmpty) {

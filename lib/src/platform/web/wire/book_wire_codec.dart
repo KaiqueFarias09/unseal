@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../../features/comic/entities/comic_book.dart';
+import '../../../features/comic/entities/comic_page_info.dart';
 import '../../../features/epub/entities/book/book.dart';
 import '../../../features/epub/entities/book/epub_landmark.dart';
 import '../../../features/fb2/entities/fb2_book.dart';
@@ -97,6 +98,20 @@ import 'metadata_wire.dart';
       'pageTexts': <Object?>[
         for (final pageText in book.pageTexts)
           <String, Object?>{
+            'contentStreamCount': pageText.contentStreamCount,
+            'skippedContentStreams': pageText.skippedContentStreams,
+            'columnOrderApplied': pageText.columnOrderApplied,
+            'images': <Object?>[
+              for (final image in pageText.images)
+                <String, Object?>{
+                  'name': image.name,
+                  'x': image.x,
+                  'y': image.y,
+                  'w': image.width,
+                  'h': image.height,
+                  'path': image.path,
+                },
+            ],
             'lines': <Object?>[
               for (final line in pageText.lines)
                 <String, Object?>{
@@ -130,6 +145,24 @@ import 'metadata_wire.dart';
       : null;
   if (storedMetadata != null) {
     json['metadata'] = encodeMetadataWireValue(storedMetadata, blobs);
+  }
+  if (book is ComicBook) {
+    json['comic'] = <String, Object?>{
+      'readingDirection': book.readingDirection.name,
+      'pageInfo': <Object?>[
+        for (final page in book.pageInfo)
+          <String, Object?>{
+            'imageIndex': page.imageIndex,
+            'type': page.type.name,
+            'rawType': page.rawType,
+            'doublePage': page.doublePage,
+            'bookmark': page.bookmark,
+            'imageSize': page.imageSize,
+            'imageWidth': page.imageWidth,
+            'imageHeight': page.imageHeight,
+          },
+      ],
+    };
   }
 
   return (json, blobs);
@@ -200,6 +233,7 @@ PdfBook _decodePdfBook(
     pageTexts: _decodePdfPageTexts(pdf['pageTexts'] as List<Object?>? ?? const <Object?>[]),
     navigation: navigation,
     pageFiles: files.html,
+    extractedImages: files.images,
     format: format,
   );
 }
@@ -221,9 +255,25 @@ List<PdfPageText> _decodePdfPageTexts(final List<Object?> pageEntries) {
     for (final pageText in pageEntries)
       PdfPageText(
         lines: _decodePdfTextLines((pageText as Map<String, Object?>)['lines'] as List<Object?>),
+        images: <PdfImageBox>[
+          for (final value in pageText['images'] as List<Object?>? ?? const <Object?>[])
+            _decodePdfImageBox(value as Map<String, Object?>),
+        ],
+        contentStreamCount: pageText['contentStreamCount'] as int? ?? 0,
+        skippedContentStreams: pageText['skippedContentStreams'] as int? ?? 0,
+        columnOrderApplied: pageText['columnOrderApplied'] as bool? ?? false,
       ),
   ];
 }
+
+PdfImageBox _decodePdfImageBox(final Map<String, Object?> value) => PdfImageBox(
+  name: value['name'] as String,
+  x: (value['x'] as num).toDouble(),
+  y: (value['y'] as num).toDouble(),
+  width: (value['w'] as num).toDouble(),
+  height: (value['h'] as num).toDouble(),
+  path: value['path'] as String? ?? '',
+);
 
 List<PdfTextLine> _decodePdfTextLines(final List<Object?> entries) {
   return <PdfTextLine>[
@@ -273,8 +323,34 @@ Book _decodeStoredBook(
     return Fb2Book(navigation: navigation, files: files, cover: cover, metadata: metadata);
   }
 
-  return ComicBook(cover: cover, metadata: metadata, pages: files.images, format: format);
+  final comic = json['comic'] as Map<String, Object?>?;
+  return ComicBook(
+    cover: cover,
+    metadata: metadata,
+    pages: files.images,
+    format: format,
+    readingDirection: comic == null
+        ? ComicReadingDirection.unspecified
+        : ComicReadingDirection.values.byName(comic['readingDirection'] as String),
+    pageInfo: comic == null
+        ? null
+        : <ComicPageInfo>[
+            for (final value in comic['pageInfo'] as List<Object?>)
+              _decodeComicPageInfo(value as Map<String, Object?>),
+          ],
+  );
 }
+
+ComicPageInfo _decodeComicPageInfo(final Map<String, Object?> value) => ComicPageInfo(
+  imageIndex: value['imageIndex'] as int,
+  type: ComicPageType.values.byName(value['type'] as String),
+  rawType: value['rawType'] as String,
+  doublePage: value['doublePage'] as bool,
+  bookmark: value['bookmark'] as String?,
+  imageSize: value['imageSize'] as int?,
+  imageWidth: value['imageWidth'] as int?,
+  imageHeight: value['imageHeight'] as int?,
+);
 
 /// Every parsed book exposes its cover as a [BinaryFile]; the
 /// abstract [Book] contract hides it behind `metadata.cover`, so the

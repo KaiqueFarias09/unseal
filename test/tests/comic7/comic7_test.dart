@@ -4,9 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:koni_archive/koni_archive.dart' as koni;
 import 'package:test/test.dart';
-import 'package:unseal/src/features/comic7/exceptions/exceptions.dart';
-import 'package:unseal/src/features/comic7/parse_comic7_book.dart';
-import 'package:unseal/src/foundation/entities/entities.dart';
+import 'package:unseal/comic7.dart';
 
 void main() {
   test('reads CB7 image pages and ComicInfo.xml in natural order', () async {
@@ -18,6 +16,9 @@ void main() {
     expect(book.pages.map((final page) => page.path), ['001/page2.png', '001/page10.png']);
     expect(book.cover.path, '001/page2.png');
     expect(book.metadata.cover, isNotNull);
+    expect(book.readingDirection, ComicReadingDirection.rightToLeft);
+    expect(book.pageInfo.first.type, ComicPageType.frontCover);
+    expect(book.pageInfo.last.doublePage, isTrue);
   });
 
   test('reads CBC comics.txt, resolves nested CB7 and CBZ files, and preserves order', () async {
@@ -42,6 +43,9 @@ void main() {
     expect(book.pages, hasLength(3));
     expect(book.pages.first.path, '001/page2.png');
     expect(book.pages.last.path, 'page1.png');
+    expect(book.pageInfo.map((final page) => page.imageIndex), [0, 1, 2]);
+    expect(book.pageInfo.last.type, ComicPageType.backCover);
+    expect(book.readingDirection, ComicReadingDirection.unspecified);
   });
 
   test('reports a missing CBC collection manifest', () async {
@@ -57,7 +61,13 @@ Future<Uint8List> _cb7Bytes() async {
   final writer = koni.Archive.create(sink, format: const koni.SevenZWriteFormat());
   await writer.addBytes(koni.ArchiveEntrySpec(path: '001/page10.png'), Uint8List.fromList(_png));
   await writer.addBytes(koni.ArchiveEntrySpec(path: '001/page2.png'), Uint8List.fromList(_png));
-  final info = utf8.encode('<ComicInfo><Title>CB7 title</Title><Writer>Ada</Writer></ComicInfo>');
+  final info = utf8.encode(
+    '<ComicInfo><Title>CB7 title</Title><Writer>Ada</Writer>'
+    '<Manga>YesAndRightToLeft</Manga><Pages>'
+    '<Page Image="0" Type="FrontCover"/>'
+    '<Page Image="1" Type="Story" DoublePage="true"/>'
+    '</Pages></ComicInfo>',
+  );
   await writer.addBytes(koni.ArchiveEntrySpec(path: 'ComicInfo.xml'), Uint8List.fromList(info));
   await writer.close();
   await sink.close();
@@ -66,7 +76,12 @@ Future<Uint8List> _cb7Bytes() async {
 }
 
 Uint8List _cbzBytes() {
-  final archive = Archive()..addFile(ArchiveFile('page1.png', _png.length, _png));
+  final info = utf8.encode(
+    '<ComicInfo><Pages><Page Image="0" Type="BackCover"/></Pages></ComicInfo>',
+  );
+  final archive = Archive()
+    ..addFile(ArchiveFile('page1.png', _png.length, _png))
+    ..addFile(ArchiveFile('ComicInfo.xml', info.length, info));
 
   return Uint8List.fromList(ZipEncoder().encode(archive));
 }

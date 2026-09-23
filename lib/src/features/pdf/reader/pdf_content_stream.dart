@@ -44,17 +44,26 @@ class PdfTextExtractor {
   }) {
     final runs = <_Run>[];
     final images = <PdfImageBox>[];
-    for (final stream in _contentStreams(page)) {
+    final streams = _contentStreams(page);
+    var skippedContentStreams = 0;
+    for (final stream in streams) {
       Uint8List content;
       try {
         content = document.decodeStream(stream);
       } on Exception {
+        skippedContentStreams++;
         continue;
       }
       _interpret(content, _resourcesOf(page), runs, images, onImage);
     }
 
-    return _toPageText(runs, images, page);
+    return _toPageText(
+      runs,
+      images,
+      page,
+      contentStreamCount: streams.length,
+      skippedContentStreams: skippedContentStreams,
+    );
   }
 
   List<PdfStream> _contentStreams(final PdfPage page) {
@@ -294,8 +303,10 @@ class PdfTextExtractor {
   PdfPageText _toPageText(
     final List<_Run> runs,
     final List<PdfImageBox> images,
-    final PdfPage page,
-  ) {
+    final PdfPage page, {
+    required final int contentStreamCount,
+    required final int skippedContentStreams,
+  }) {
     final box = page.cropBox ?? page.mediaBox;
     final boxX0 = box[0];
     final boxY0 = box[1];
@@ -306,12 +317,14 @@ class PdfTextExtractor {
 
     final visible = _visibleRuns(runs, boxX0, boxX1, boxY0, boxY1);
     final clusters = _lineClusters(visible);
-    final lines = _textLines(clusters, boxX0, boxY1);
+    final lines = _textLines(_splitRepeatedGutters(clusters, pageWidth), boxX0, boxY1);
     final placedImages = _placeImages(images, boxX0, boxY1);
 
     return PdfPageText(
       lines: _rotateAll(lines, page.rotate, pageWidth, pageHeight),
       images: placedImages,
+      contentStreamCount: contentStreamCount,
+      skippedContentStreams: skippedContentStreams,
     );
   }
 
@@ -356,6 +369,63 @@ class PdfTextExtractor {
     cluster.add(run);
 
     return true;
+  }
+
+  /// A repeated wide gap between runs is stronger column evidence than a
+  /// single line's spacing. Keep isolated gaps as one canonical line.
+  List<List<_Run>> _splitRepeatedGutters(final List<List<_Run>> clusters, final double pageWidth) {
+    if (clusters.length < 3 || pageWidth <= 0) return clusters;
+
+    final candidates =
+        <({int clusterIndex, int splitIndex, double rightStart, double leftStart})>[];
+    for (var index = 0; index < clusters.length; index++) {
+      final sorted = List<_Run>.of(clusters[index])..sort((final a, final b) => a.x.compareTo(b.x));
+      for (var split = 1; split < sorted.length; split++) {
+        final preceding = sorted[split - 1];
+        final following = sorted[split];
+        if (following.x - preceding.x < pageWidth * 0.3 ||
+            following.x - preceding.x - preceding.width < pageWidth * 0.03 ||
+            preceding.width < pageWidth * 0.12 ||
+            following.width < pageWidth * 0.12) {
+          continue;
+        }
+        candidates.add((
+          clusterIndex: index,
+          splitIndex: split,
+          rightStart: following.x,
+          leftStart: sorted.first.x,
+        ));
+        break;
+      }
+    }
+    if (candidates.length < 3) return clusters;
+
+    for (final anchor in candidates) {
+      final agreeing = candidates.where(
+        (final item) =>
+            (item.rightStart - anchor.rightStart).abs() <= pageWidth * 0.04 &&
+            (item.leftStart - anchor.leftStart).abs() <= pageWidth * 0.08,
+      );
+      if (agreeing.length < 3) continue;
+
+      final splits = <int, int>{for (final item in agreeing) item.clusterIndex: item.splitIndex};
+      final separated = <List<_Run>>[];
+      for (var index = 0; index < clusters.length; index++) {
+        final split = splits[index];
+        if (split == null) {
+          separated.add(clusters[index]);
+          continue;
+        }
+        final sorted = List<_Run>.of(clusters[index])
+          ..sort((final a, final b) => a.x.compareTo(b.x));
+        separated
+          ..add(sorted.sublist(0, split))
+          ..add(sorted.sublist(split));
+      }
+      return separated;
+    }
+
+    return clusters;
   }
 
   /// Converts run clusters into canonical text lines and restores reading
