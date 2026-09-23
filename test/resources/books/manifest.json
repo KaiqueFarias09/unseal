@@ -168,6 +168,21 @@
       "focus": ["semantic-markup", "notes", "svg", "unusual-pages", "accessibility"]
     },
     {
+      "id": "KEPUB-SE-RED-BADGE",
+      "file": "format_expansion/standardebooks-red-badge.kepub.epub",
+      "title": "The Red Badge of Courage",
+      "language": "en-US",
+      "reading_direction": "ltr",
+      "source": "Standard Ebooks Kobo edition",
+      "source_page_url": "https://standardebooks.org/ebooks/stephen-crane/the-red-badge-of-courage",
+      "download_url": "https://standardebooks.org/ebooks/stephen-crane/the-red-badge-of-courage/downloads/stephen-crane_the-red-badge-of-courage.kepub.epub?source=download",
+      "license": "CC0-1.0 edition contributions; underlying work believed public domain in the USA",
+      "license_file": "licenses/LICENSE-CC0-1.0.txt",
+      "bytes": 677545,
+      "sha256": "7075073bba72242ade634cbd9f50546664ac3d39613efc7d91403da5545219f8",
+      "focus": ["kobo-produced", "kepub", "navigation", "kobo-spans", "images"]
+    },
+    {
       "id": "RTL-AR",
       "file": "epub/regime-anti-cancer-arabic.epub",
       "title": "Le Vrai Régime anti-cancer",

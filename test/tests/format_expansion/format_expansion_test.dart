@@ -217,4 +217,21 @@ void main() {
     expect(kepub.readingOrder.length, greaterThanOrEqualTo(original.readingOrder.length));
     expect(kepub.files.html.any((final file) => file.content.contains('koboSpan')), isTrue);
   });
+
+  test('independently produced Standard Ebooks KEPUB retains reading structure', () {
+    final bytes = File(
+      'test/resources/books/format_expansion/standardebooks-red-badge.kepub.epub',
+    ).readAsBytesSync();
+    expect(
+      sha256.convert(bytes).toString(),
+      '7075073bba72242ade634cbd9f50546664ac3d39613efc7d91403da5545219f8',
+    );
+    final book = Unseal.parse(bytes);
+    expect(book.format, BookFormat.epub);
+    expect(book.metadata.title, contains('Red Badge of Courage'));
+    expect(book.readingOrder.length, greaterThan(20));
+    expect(book.navigation.navPoints, isNotEmpty);
+    expect(book.files.html.any((file) => file.content.contains('koboSpan')), isTrue);
+    expect(book.files.images, isNotEmpty);
+  });
 }
