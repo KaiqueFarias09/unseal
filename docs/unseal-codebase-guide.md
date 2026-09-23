@@ -115,7 +115,8 @@ You only need a small set of format terms to understand most of the repository.
 | PalmDOC PDB | A `TEXt/REAd` Palm Database with plain text in 4096-byte records. | `DocumentBook` tagged as `BookFormat.palmdoc`. |
 | eReader PDB | A `PNRd/PPrs` Palm Database containing compressed PML text and optional metadata. | `DocumentBook` tagged as `BookFormat.ereader`, with readable text and title/author; complex PML layout and resources remain unsupported. |
 | Plucker PDB | A `Data/Plkr` Palm Database containing compressed HTML-like pages. | `DocumentBook` tagged as `BookFormat.plucker`, with readable paragraphs and database title; links and resources are not reconstructed. |
-| Sony LRF | A BBeB binary container with indexed objects, page streams, metadata XML, and image streams. | `DocumentBook` tagged as `BookFormat.lrf`, with ordered reflowed pages and extracted images. |
+| Sony LRF | A BBeB binary container with indexed objects, page streams, metadata XML, and image streams. | `DocumentBook` tagged as `BookFormat.lrf`, with ordered reflowed pages and extracted images for versions 1–800 and 801+. |
+| Sony LRX | Calibre recognizes legacy `LRX` and `ftypLRX2` markers; Sony's public references describe OpenMG-protected BBeB and separately identify Marlin-protected Reader content, but do not specify the LRX wrapper. | `readLrxMetadata` reads a plaintext metadata stream from a nested LRX2 `bbeb` box; full book parsing throws `DrmProtectedException`. The box path is oracle-derived and tested with synthetic bytes. |
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
@@ -161,6 +162,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 | `lib/ereader.dart` | Unencrypted eReader PDB text and metadata reading. |
 | `lib/plucker.dart` | Plucker PDB text and metadata reading. |
 | `lib/lrf.dart` | Sony BBeB/LRF parsing and metadata reading. |
+| `lib/lrx.dart` | LRX2 plaintext metadata reading; DRM-protected book content rejection. |
 | `lib/comic.dart` | CBZ and CBR parsing, comic entities and exceptions. |
 | `lib/comic7.dart` | CB7 and CBC parsing while reusing the common `ComicBook` model. |
 

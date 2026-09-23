@@ -126,8 +126,9 @@ because the formats have different cost models. The public README records the
 user-visible limits and exclusions.
 CHM bounds its ITSF directory, LZX reset table, decompressed entries and total
 materialized content before allocating untrusted output.
-LRF bounds indexed objects, pages, and expanded zlib streams before exposing
-reflowed content.
+LRF bounds indexed objects, pages, metadata inflation, and expanded zlib
+streams before exposing reflowed content. LRX2 metadata reads are limited to
+the plaintext nested metadata stream; book content is rejected as DRM-protected.
 
 ## Testing strategy
 

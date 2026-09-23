@@ -41,6 +41,9 @@ enum DetectedFormat {
   /// Sony BBeB/LRF binary publication.
   lrf,
 
+  /// Sony LRX container whose book content is rejected as DRM-protected.
+  lrx,
+
   /// Standalone HTML document.
   html,
 

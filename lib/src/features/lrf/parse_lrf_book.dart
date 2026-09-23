@@ -22,7 +22,8 @@ const _maxTotalHtmlUnits = 64 * 1024 * 1024;
 /// Opens an unencrypted Sony BBeB/LRF book as ordered, reflowable page content.
 ///
 /// The original device-specific typography and absolute positioning are not
-/// reproduced. LRX (the encrypted sibling format) is not supported.
+/// reproduced. LRX containers use a separate metadata entry point and their
+/// book content is rejected as DRM-protected.
 DocumentBook parseLrfBook(final Uint8List bytes) => _LrfReader(bytes).read();
 
 /// Reads the embedded LRF metadata without expanding page or image streams.
@@ -42,7 +43,7 @@ final class _LrfObject {
 
 final class _LrfReader {
   _LrfReader(this.bytes) : data = ByteData.sublistView(bytes) {
-    if (bytes.length < 0x58 || bytes.length > _maxInputBytes) {
+    if (bytes.length < 0x53 || bytes.length > _maxInputBytes) {
       throw const InvalidBookException('LRF header or file size is invalid.');
     }
     if (bytes[0] != 0x4c ||
@@ -54,8 +55,11 @@ final class _LrfReader {
       throw const InvalidBookException('LRF signature is invalid.');
     }
     version = _u16(8);
-    if (version <= 800) {
-      throw const FormatNotSupportedException('LRF versions 800 and earlier are not supported.');
+    if (version == 0) {
+      throw const InvalidBookException('LRF version is invalid.');
+    }
+    if (bytes.length < _headerEnd) {
+      throw const InvalidBookException('LRF header is truncated.');
     }
     rootId = _u32(0x0c);
     objectCount = _safe64(0x10);
@@ -64,7 +68,7 @@ final class _LrfReader {
     tocId = _u32(0x44);
     if (objectCount < 1 ||
         objectCount > _maxObjects ||
-        indexOffset < 0x58 ||
+        indexOffset < _headerEnd ||
         indexOffset + objectCount * 16 > bytes.length) {
       throw const InvalidBookException('LRF object index is invalid.');
     }
@@ -78,6 +82,7 @@ final class _LrfReader {
   late final int indexOffset;
   late final int xorKey;
   late final int tocId;
+  int get _headerEnd => version > 800 ? 0x58 : 0x53;
   final Map<int, _LrfObject> objects = <int, _LrfObject>{};
   var decodedBytes = 0;
 
@@ -120,8 +125,8 @@ final class _LrfReader {
         infoStart + compressedSize - 4 > bytes.length) {
       throw const InvalidBookException('LRF metadata stream is invalid.');
     }
-    final expected = _u32(0x54);
-    if (expected > _maxInfoBytes) {
+    final expected = version > 800 ? _u32(0x54) : null;
+    if (expected != null && expected > _maxInfoBytes) {
       throw const InvalidBookException('LRF metadata exceeds the size limit.');
     }
     final info = _inflate(_slice(infoStart, compressedSize - 4), expected, _maxInfoBytes);
@@ -252,7 +257,7 @@ final class _LrfReader {
       final id = _u32(cursor);
       final offset = _u32(cursor + 4);
       final size = _u32(cursor + 8);
-      if (id == 0 || size < 10 || offset < 0x58 || offset > indexOffset - size) {
+      if (id == 0 || size < 10 || offset < _headerEnd || offset > indexOffset - size) {
         throw const InvalidBookException('LRF object index entry is invalid.');
       }
       if (bytes[offset] != 0 || bytes[offset + 1] != 0xf5 || _u32(offset + 2) != id) {
@@ -528,8 +533,8 @@ final class _LrfReader {
     return _inflate(Uint8List.sublistView(value, 4), expected, _maxStreamBytes);
   }
 
-  Uint8List _inflate(final Uint8List compressed, final int expected, final int limit) {
-    if (expected > limit) {
+  Uint8List _inflate(final Uint8List compressed, final int? expected, final int limit) {
+    if (expected != null && expected > limit) {
       throw const InvalidBookException('LRF expanded content exceeds the size limit.');
     }
     final output = _LimitedOutput(limit);
@@ -540,7 +545,7 @@ final class _LrfReader {
     } on Object {
       throw const InvalidBookException('LRF zlib stream is invalid.');
     }
-    if (output.length != expected) {
+    if (expected != null && output.length != expected) {
       throw const InvalidBookException('LRF expanded size differs from its declaration.');
     }
     decodedBytes += output.length;

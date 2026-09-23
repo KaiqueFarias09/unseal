@@ -14,7 +14,8 @@ DjVu reader. Fixture origins, hashes, and licenses are recorded in
 | eReader PDB | [Calibre format notes](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/ereader.txt); Calibre 9.4.0-generated original content and Chrome test | Unencrypted `PNRd/PPrs` text, title and author | PML resources, footnotes, sidebars, links and page layout are flattened or omitted. |
 | Plucker PDB | [Official Plucker format](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/plucker.html); [PyPlucker 3.7](https://github.com/lxmx/PyPlucker) DOC and zlib files from original HTML | Text paragraphs, continued records, and database title | Images, link targets, bookmarks, owner-keyed content and rich layout are not converted; independently produced real-world fixture remains desirable. |
 | CHM | [CHM format notes](https://www.nongnu.org/chmspec/latest/), [jchmlib](https://github.com/chimenchen/jchmlib), Microsoft's [E8 translation rules](https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-patch/e6c8366d-a8c3-4f34-aa5d-56f44f938a09), and [Windows code page identifiers](https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers); licensed PuTTY manual plus generated CP1251/1252/1256 CHM samples | LZX-compressed HTML topics, CSS, metadata, hierarchical contents, Intel E8 restoration, and locale-selected Windows-1251/1252/1256 decoding | Other codepages, full-text index, merged help, and script execution remain outside the contract. |
-| Sony LRF | [Calibre reader](https://github.com/kovidgoyal/calibre/tree/master/src/calibre/ebooks/lrf); Calibre 9.4.0-generated text and image fixtures | Ordered reflowed text pages, metadata, table of contents and inline images | LRX, LRF version 800 or older, precise Sony layout, ruby styling, complex canvases, and independent-producer fixture remain. |
+| Sony LRF | [Calibre reader](https://github.com/kovidgoyal/calibre/tree/master/src/calibre/ebooks/lrf); Calibre 9.4.0-generated text and image fixtures; synthetic legacy-header variants | Ordered reflowed text pages and metadata for versions 1–800 and 801+, table of contents and inline images | Precise Sony layout, ruby styling, complex canvases, and an independently produced redistributable fixture remain. |
+| Sony LRX | Sony's [Reader format list](https://www.sony.com/electronics/support/articles/S1F0504) separates unsecured BBeB from Marlin-protected BBeB; its [BBeB release](https://www.sony.com/ja/SonyInfo/News/Press/200403/04-0324A/) describes OpenMG rights protection. Calibre is only a behavioral oracle for `ftypLRX2` and the nested `bbeb` metadata layout. | Reads plaintext metadata found in that nested LRF stream; full LRX book parsing fails with a DRM-typed error. | Sony does not publish the LRX wrapper layout in these references. No protected payload is inspected or decrypted. Legacy LRX metadata and independently licensed LRX samples remain unsupported. |
 | DjVu direct JPEG | [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf) and [DjVuLibre](https://github.com/DjVuLibre/DjVuLibre); generated JPEG page plus two real licensed unsupported-codec fixtures | Visual pages when each page has directly stored `BGjp` JPEG, dimensions, optional uncompressed OCR | Common JB2/IW44 page layers, compressed text/bookmarks, and indirect files are rejected with typed failures. This is not broad DjVu visual support. |
 
 The parser implementations are pure Dart. Reference tools and implementations
@@ -25,8 +26,11 @@ decoding or wire transport.
 
 ## Validation still needed
 
-- Add independently produced, redistributable LRF, Plucker and Kobo KEPUB
-  files to broaden compatibility evidence.
+- Add independently produced, redistributable LRF, Plucker, and Kobo KEPUB
+  files to broaden compatibility evidence. The Yosemite *Steep Trails* LRF was
+  found, but its downloadable binary could not be accessed through the browser
+  and the page does not state a license for the LRF packaging, so it is not
+  used.
 - Implement JB2 and IW44 image layers before describing DjVu as a general
   scanned-book reader. Preserve the current typed failure for these layers.
 - Add redistributable samples for CHM codepages beyond Windows-1251/1252/1256.

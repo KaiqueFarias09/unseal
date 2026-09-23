@@ -16,7 +16,7 @@ filesystem path and receive one format-neutral `Book` model with metadata,
 cover data, files, reading order, navigation, and statistics.
 
 It supports EPUB, MOBI, AZW3, PalmDOC, eReader and Plucker PDB, RTF, Markdown,
-LRF, FB2, TXT, HTML, CHM, DOCX, ODT, AZW4, comic
+Sony LRF and LRX metadata, FB2, TXT, HTML, CHM, DOCX, ODT, AZW4, comic
 archives, PDF, and JPEG-backed DjVu pages without a native executable, FFI bridge, or Flutter
 dependency in the library itself.
 
@@ -44,7 +44,8 @@ document renderer.
 | PalmDOC PDB | Uncompressed or PalmDOC-compressed `TEXt/REAd` records, title, and plain reading text | Other PDB ebook families use separate parsers. |
 | eReader PDB | Unencrypted `PNRd/PPrs` text records with PalmDOC or zlib compression and title/author metadata | PML is reduced to reading text; images, footnotes, sidebars, links, and page layout are not converted. |
 | Plucker PDB | `Data/Plkr` text pages with PalmDOC or zlib compression, continued records, and database title | Inline formatting and links are flattened to text; images, bookmarks, and owner-keyed documents are not converted. |
-| Sony LRF | BBeB metadata, ordered text pages, table of contents, and embedded JPEG/PNG/BMP/GIF images | Reflowed content rather than Sony's fixed layout. LRX, LRF version 800 or older, exact typography, ruby styling, and complex canvas layouts are outside this contract. |
+| Sony LRF | BBeB metadata, ordered text pages, table of contents, and embedded JPEG/PNG/BMP/GIF images for versions 1–800 and 801+ | Reflowed content rather than Sony's fixed layout. Exact typography, ruby styling, and complex canvas layouts are outside this contract. |
+| Sony LRX | Plaintext metadata from the LRX2 BBeB wrapper | Protected book content is rejected with `DrmProtectedException`; metadata-only support does not decrypt or render it. |
 | AZW3 / KF8 | Skeleton and `div` reassembly, FDST flows, CSS/SVG, images, NCX navigation, and joint MOBI/KF8 files | DRM-protected books are rejected. |
 | FB2 / FBZ | Metadata, covers, declared encodings, notes, links, styles, and section navigation | The result is a reflowable HTML representation. |
 | TXT / TXTZ | UTF-8/UTF-16 decoding, paragraph-preserving XHTML, archive resources, and basic Markdown/Textile | Not a full Markdown or Textile implementation. Plain TXT metadata is limited. |
@@ -409,6 +410,9 @@ decode. `readDjvuMetadata` validates their container and page INFO structure;
 - LRF input is limited to 128 MiB, 20,000 indexed objects, 10,000 pages,
   32 MiB per expanded stream, 64 MiB of total expanded content, 4 Mi code units
   of rendered HTML per page, and 64 Mi code units of rendered HTML per book.
+- LRX2 metadata reads are limited to 128 MiB and 1,024 outer boxes. The parser
+  rejects LRX book content as DRM-protected and does not process its protected
+  payload.
   Unsupported tags and stream flags fail with typed exceptions.
 - EPUB navigation is optional. A damaged or missing table of contents can
   produce an empty navigation model while readable spine content remains

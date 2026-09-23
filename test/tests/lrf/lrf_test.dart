@@ -93,14 +93,24 @@ void main() {
     expect(() => parseLrfBook(length), throwsA(isA<InvalidBookException>()));
   });
 
-  test('bounds metadata expansion and rejects legacy LRF versions explicitly', () {
+  test('bounds metadata expansion and reads legacy LRF header versions', () {
     final oversized = Uint8List.fromList(fixture);
     ByteData.sublistView(oversized).setUint32(0x54, 0xffffffff, Endian.little);
     expect(() => readLrfMetadata(oversized), throwsA(isA<InvalidBookException>()));
 
-    final old = Uint8List.fromList(fixture);
-    ByteData.sublistView(old).setUint16(8, 800, Endian.little);
-    expect(() => parseLrfBook(old), throwsA(isA<FormatNotSupportedException>()));
+    final invalidVersion = Uint8List.fromList(fixture);
+    ByteData.sublistView(invalidVersion).setUint16(8, 0, Endian.little);
+    expect(() => parseLrfBook(invalidVersion), throwsA(isA<InvalidBookException>()));
+
+    for (final version in <int>[1, 799, 800]) {
+      final old = _asLegacyLrf(fixture, version);
+      expect(detectFormat(old), DetectedFormat.lrf);
+      expect(readLrfMetadata(old).title, 'Unseal LRF Fixture');
+      final book = parseLrfBook(old);
+      expect(book.metadata.title, 'Unseal LRF Fixture');
+      expect(book.files.html.first.plainText, contains('First chapter'));
+      expect(book.metadata.cover, isNull);
+    }
   });
 
   test('bounds HTML amplified by repeated page block references', () {
@@ -210,4 +220,32 @@ int _findTag(final Uint8List object, final int tag) {
     if (object[at] == tag && object[at + 1] == 0xf5) return at;
   }
   throw StateError('Expected LRF tag $tag in fixture object.');
+}
+
+Uint8List _asLegacyLrf(final Uint8List source, final int version) {
+  const legacyMetadataStart = 0x53;
+  const removedHeaderTail = 5;
+  final sourceData = ByteData.sublistView(source);
+  final objectCount = sourceData.getUint64(0x10, Endian.little);
+  final sourceIndex = sourceData.getUint64(0x18, Endian.little);
+  final bytes = Uint8List(source.length - removedHeaderTail);
+  bytes.setRange(0, legacyMetadataStart, source);
+  bytes.setRange(
+    legacyMetadataStart,
+    bytes.length,
+    source,
+    legacyMetadataStart + removedHeaderTail,
+  );
+
+  final data = ByteData.sublistView(bytes);
+  data.setUint16(8, version, Endian.little);
+  final indexOffset = sourceIndex - removedHeaderTail;
+  data.setUint64(0x18, indexOffset, Endian.little);
+  for (var entry = 0; entry < objectCount; entry++) {
+    final oldEntry = sourceIndex + entry * 16;
+    final newEntry = indexOffset + entry * 16;
+    final oldObjectOffset = sourceData.getUint32(oldEntry + 4, Endian.little);
+    data.setUint32(newEntry + 4, oldObjectOffset - removedHeaderTail, Endian.little);
+  }
+  return bytes;
 }

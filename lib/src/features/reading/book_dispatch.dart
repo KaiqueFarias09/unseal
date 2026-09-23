@@ -20,6 +20,7 @@ import '../ereader/parse_ereader_book.dart';
 import '../fb2/parse_fb2_book.dart';
 import '../html/parse_html_book.dart';
 import '../lrf/parse_lrf_book.dart';
+import '../lrf/parse_lrx_metadata.dart';
 import '../mobi/parse_mobi_book.dart';
 import '../odt/parse_odt_book.dart';
 import '../palmdoc/parse_palmdoc_book.dart';
@@ -77,6 +78,8 @@ abstract final class BookDispatch {
         return parsePluckerBook(bytes);
       case DetectedFormat.lrf:
         return parseLrfBook(bytes);
+      case DetectedFormat.lrx:
+        return rejectLrxContent();
       case DetectedFormat.html:
         return parseHtmlBook(bytes);
       case DetectedFormat.azw4:
@@ -148,6 +151,8 @@ abstract final class BookDispatch {
         return readPluckerMetadata(bytes);
       case DetectedFormat.lrf:
         return readLrfMetadata(bytes);
+      case DetectedFormat.lrx:
+        return readLrxMetadata(bytes);
       case DetectedFormat.html:
         return readHtmlMetadata(bytes);
       case DetectedFormat.azw4:

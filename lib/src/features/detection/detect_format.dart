@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../foundation/exceptions/unseal_exception.dart';
 import '../../foundation/text/xml_encoding.dart';
+import '../lrf/lrx_signature.dart';
 import 'entities/detected_format.dart';
 
 const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
@@ -17,6 +18,7 @@ const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
 /// * `DataPlkr` Palm Database → [DetectedFormat.plucker]
 /// * `ITSF` header → [DetectedFormat.chm]
 /// * UTF-16LE `LRF` signature → [DetectedFormat.lrf]
+/// * LRX / `ftypLRX2` signature → [DetectedFormat.lrx]
 /// * `{\\rtf` header → [DetectedFormat.rtf]
 /// * `<?xml` / `<FictionBook` prologue → [DetectedFormat.fb2]
 /// * an allowed short preamble followed by `%PDF` → [DetectedFormat.pdf]
@@ -53,6 +55,10 @@ DetectedFormat detectFormat(final Uint8List bytes) {
 
   if (_hasPrefix(bytes, rtfMagic)) {
     return DetectedFormat.rtf;
+  }
+
+  if (hasLrx2Signature(bytes) || hasLegacyLrxSignature(bytes)) {
+    return DetectedFormat.lrx;
   }
 
   if (_hasPrefix(bytes, const <int>[0x4c, 0, 0x52, 0, 0x46, 0, 0, 0])) {

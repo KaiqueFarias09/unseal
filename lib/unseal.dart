@@ -12,6 +12,7 @@ export 'ereader.dart';
 export 'fb2.dart';
 export 'html.dart';
 export 'lrf.dart';
+export 'lrx.dart';
 export 'markdown.dart';
 export 'mobi.dart';
 export 'odt.dart';

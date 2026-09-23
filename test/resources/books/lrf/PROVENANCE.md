@@ -29,3 +29,24 @@ image references. Their temporary XML outputs are not test fixtures.
 These files test Calibre output, not the diversity of Sony Reader files from
 other producers. A legally redistributable independent LRF corpus remains
 needed before claiming broad legacy compatibility.
+
+The legacy-version regression tests build in-memory variants of
+`original.lrf`: they remove the five-byte version-801+ header tail at offsets
+`0x53..0x57`, move the metadata stream to the legacy `0x53` position, update
+the object-index offset and object offsets, then set versions 1, 799, and 800.
+These are synthetic layout cases, not independently authored LRF books, and
+they are not included as binary fixtures.
+
+An independent candidate is Yosemite's [*Steep Trails* page](https://www.yosemite.ca.us/john_muir_writings/steep_trails/) and linked
+[Sony LRF file](https://www.yosemite.ca.us/john_muir_writings/steep_trails/steep_trails.lrf).
+The page says the text derives from Project Gutenberg Etext #326, but it does
+not state a license for the LRF package itself. The browser refused access to
+the linked binary during fixture research. Neither the source text's public
+domain status nor the page's availability establishes redistribution rights
+for this generated file, so it is not vendored.
+
+LRX research uses Sony's support article, which classifies ordinary BBeB as
+unsecured text and BBeB Book (Marlin) as DRM text, and Sony's 2004 release,
+which describes OpenMG rights protection for BBeB. LRX2 test bytes are built
+synthetically around the existing CC0 LRF fixture to verify plaintext
+metadata access and typed DRM rejection; no protected book content is present.

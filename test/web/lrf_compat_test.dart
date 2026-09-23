@@ -22,6 +22,15 @@ void main() {
     expect(decoded.format, BookFormat.lrf);
     expect(decoded.files.html.single.plainText, 'Hello browser');
   });
+
+  test('LRF legacy headers and LRX2 metadata work in the browser', () {
+    final legacy = _asLegacyLrf(_buildLrf(), 800);
+    expect(Unseal.parse(legacy).metadata.title, 'Web LRF');
+
+    final lrx = _wrapLrx2(_buildLrf());
+    expect(Unseal.readMetadataSync(lrx).title, 'Web LRF');
+    expect(() => Unseal.parse(lrx), throwsA(isA<DrmProtectedException>()));
+  });
 }
 
 Uint8List _buildLrf() {
@@ -75,6 +84,55 @@ Uint8List _buildLrf() {
   return Uint8List.fromList(bytes);
 }
 
+Uint8List _asLegacyLrf(final Uint8List source, final int version) {
+  const legacyMetadataStart = 0x53;
+  const removedHeaderTail = 5;
+  final sourceData = ByteData.sublistView(source);
+  final objectCount = sourceData.getUint32(0x10, Endian.little);
+  final sourceIndex = sourceData.getUint32(0x18, Endian.little);
+  final bytes = Uint8List(source.length - removedHeaderTail);
+  bytes.setRange(0, legacyMetadataStart, source);
+  bytes.setRange(
+    legacyMetadataStart,
+    bytes.length,
+    source,
+    legacyMetadataStart + removedHeaderTail,
+  );
+
+  final data = ByteData.sublistView(bytes);
+  data.setUint16(8, version, Endian.little);
+  final indexOffset = sourceIndex - removedHeaderTail;
+  _set64(bytes, 0x18, indexOffset);
+  for (var entry = 0; entry < objectCount; entry++) {
+    final oldEntry = sourceIndex + entry * 16;
+    final newEntry = indexOffset + entry * 16;
+    final oldObjectOffset = sourceData.getUint32(oldEntry + 4, Endian.little);
+    data.setUint32(newEntry + 4, oldObjectOffset - removedHeaderTail, Endian.little);
+  }
+  return bytes;
+}
+
+Uint8List _wrapLrx2(final Uint8List lrf) {
+  final bytes = <int>[
+    ..._be32(12),
+    0x66,
+    0x74,
+    0x79,
+    0x70,
+    0x4c,
+    0x52,
+    0x58,
+    0x32,
+    ..._be32(lrf.length + 8),
+    0x62,
+    0x62,
+    0x65,
+    0x62,
+    ...lrf,
+  ];
+  return Uint8List.fromList(bytes);
+}
+
 List<int> _streamObject(final List<int> stream) => <int>[
   0x54,
   0xf5,
@@ -99,6 +157,13 @@ List<int> _u32(final int value) => <int>[
   (value >> 8) & 255,
   (value >> 16) & 255,
   (value >> 24) & 255,
+];
+
+List<int> _be32(final int value) => <int>[
+  (value >> 24) & 255,
+  (value >> 16) & 255,
+  (value >> 8) & 255,
+  value & 255,
 ];
 
 void _set16(final List<int> bytes, final int offset, final int value) =>

@@ -14,7 +14,7 @@ generated: 2026-09-23
 ## 1. Objetivo da Pesquisa
 
 Identificar especificações, implementações de referência e arquivos de teste para
-KEPUB, Markdown, RTF, CHM, DjVu, PDB e LRF. O objetivo é decidir quais formatos
+KEPUB, Markdown, RTF, CHM, DjVu, PDB, LRF e LRX. O objetivo é decidir quais formatos
 podem entrar no Unseal, uma biblioteca Dart pura que também roda no navegador,
 sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 
@@ -81,9 +81,21 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
   [djvused](https://djvu.sourceforge.net/doc/man/djvused.html)
 - O Calibre documenta a conversão para eReader PDB e LRF, e oferece `lrf2lrs`
   como validador auxiliar. As amostras foram geradas a partir de conteúdo
-  próprio; arquivos de outros produtores ainda ampliariam a validação LRF.
+  próprio. As variantes LRF 1, 799 e 800 dos testes são sintetizadas a partir
+  do fixture existente para cobrir o cabeçalho legado; não substituem um livro
+  produzido por outro criador.
   — [ebook-convert](https://manual.calibre-ebook.com/generated/en/ebook-convert.html),
   [lrf2lrs](https://manual.calibre-ebook.com/generated/en/lrf2lrs.html)
+- A documentação oficial da Sony separa BBeB sem proteção do BBeB com Marlin
+  e sua nota histórica diz que o BBeB pode usar OpenMG para proteger direitos.
+  Essas páginas não especificam o invólucro `.lrx`. O Calibre serve apenas como
+  oráculo comportamental para reconhecer `LRX`/`ftypLRX2` e localizar a caixa
+  `bbeb` com metadados; nenhum código GPL foi copiado. Os testes usam bytes
+  sintéticos. O Unseal expõe somente os metadados plaintext encontrados nessa
+  caixa e rejeita qualquer tentativa de ler o conteúdo do livro como DRM.
+  — [Sony sobre formatos suportados](https://www.sony.com/electronics/support/articles/S1F0504),
+  [Sony sobre BBeB e OpenMG](https://www.sony.com/ja/SonyInfo/News/Press/200403/04-0324A),
+  [metadados LRX no Calibre](https://github.com/kovidgoyal/calibre/blob/master/src/calibre/ebooks/metadata/lrx.py)
 
 ### 3.3 Escopo, licenças e segurança
 
@@ -119,12 +131,14 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 | CHM | ITSF, MS-PATCH E8, CHMLib e IDs de codepage da Microsoft | Manual PuTTY licenciado e CHMs gerados em CP1251/1252/1256 | Implementado: HTML, recursos, sumário, E8 e codepages cobertas com limites; índice de busca e ajudas mescladas pendentes |
 | DjVu | Especificação DjVu 3 + DjVuLibre | Página JPEG gerada; dois arquivos reais licenciados com JB2/IW44 para testar rejeição | Páginas JPEG diretas funcionam; JB2/IW44 ainda exigem decodificadores visuais |
 | PDB | Especificação por subtipo no Calibre e PyPlucker | PalmDOC e eReader gerados; Plucker DOC/zlib gerado por ferramenta independente | PalmDOC, eReader e Plucker têm parsers distintos com contratos limitados |
-| LRF | Parser e ferramentas Calibre | LRF de texto e imagem gerados por Calibre 9.4.0 | Leitura pública limitada; falta amostra de outro produtor |
+| LRF | Parser Calibre como oráculo; Sony para o contexto BBeB | LRF de texto/imagem gerados por Calibre 9.4.0 e variantes sintéticas de cabeçalho antigo | Versões até 800 são cobertas sinteticamente; falta amostra redistribuível de outro produtor |
+| LRX | Sony sobre BBeB sem proteção/Marlin e OpenMG; Calibre como oráculo limitado de metadados | LRX2 sintético com região de metadados plaintext; nenhum livro protegido redistribuído | Metadados LRX2 apenas; conteúdo DRM é sempre rejeitado |
 
 ## 5. Resultado da implementação
 
 KEPUB foi validado pelo caminho EPUB. Markdown, RTF, PalmDOC, eReader,
 Plucker, CHM e LRF têm parsers públicos com testes e limites documentados.
+LRX2 expõe apenas metadados plaintext; Unseal rejeita o conteúdo protegido.
 DjVu abre páginas com JPEG direto e falha de modo tipado para as camadas
 JB2/IW44. O detalhamento de cada contrato está em
 [format-expansion.md](format-expansion.md).
@@ -133,8 +147,12 @@ JB2/IW44. O detalhamento de cada contrato está em
 
 - Incluir KEPUB produzido independentemente pelo ecossistema Kobo, após
   conferir os direitos da edição e de seus recursos.
-- Encontrar LRF e Plucker reais redistribuíveis de outros produtores;
-  as amostras geradas estão identificadas com sua proveniência.
+- Encontrar LRF real redistribuível de outro produtor; a amostra de Yosemite
+  encontrada não informa a licença do arquivo LRF e o download foi bloqueado
+  pelo navegador. As variantes legadas atuais são sintéticas e estão descritas
+  em `test/resources/books/lrf/PROVENANCE.md`.
+- Encontrar Plucker real redistribuível de outro produtor; as amostras geradas
+  atuais estão identificadas com sua proveniência.
 - Implementar JB2/IW44 antes de ampliar a promessa de leitura visual DjVu.
 - Encontrar amostras CHM redistribuíveis para codepages fora de 1251/1252/1256;
   os casos existentes são gerados a partir de texto original.
