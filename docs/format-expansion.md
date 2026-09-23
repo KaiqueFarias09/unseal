@@ -1,38 +1,34 @@
 # Format expansion: evidence and scope
 
-This release adds RTF, standalone Markdown, PalmDOC, eReader, and Plucker PDB parsing. It also
-validates that a Kepubify-generated KEPUB opens through the existing EPUB
-parser. The new fixtures and their hashes are recorded in
-`test/resources/books/format_expansion/PROVENANCE.md`.
+This release validates KEPUB through the EPUB parser and adds standalone
+Markdown, RTF, PalmDOC, eReader PDB, Plucker PDB, CHM, Sony LRF, and a limited
+DjVu reader. Fixture origins, hashes, and licenses are recorded in
+`test/resources/books/manifest.json` and the relevant `PROVENANCE.md` files.
 
-| Format | Parsing reference | Test evidence | Scope in this branch |
+| Format | Reference and fixture | Implemented reading contract | Remaining boundary |
 | --- | --- | --- | --- |
-| RTF | [Microsoft RTF 1.9.1](https://officeprotocoldoc.z19.web.core.windows.net/files/Archive_References/%5BMSFT-RTF%5D.pdf) | Hand-authored control-word fixture and Calibre's real `LICENSE.rtf` | Text, title, author, Unicode, codepages, paragraphs, and basic character emphasis. Non-reading groups and embedded binary data are skipped. |
-| Markdown | [CommonMark 0.31.2](https://spec.commonmark.org/0.31.2/) and the [Dart Markdown parser](https://pub.dev/packages/markdown) | Hand-authored front matter and document fixture, plus browser test | Standalone files and explicit byte API, generated HTML, nested heading navigation, and simple metadata. |
-| PalmDOC PDB | [Calibre PalmDOC header](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/palmdoc.txt) and [compression format](https://github.com/kovidgoyal/calibre/blob/master/format_docs/compression/palmdoc.txt) | Generated `TEXt/REAd` file plus tests for raw records, byte pairs, back references, and corrupt data | Plain text PalmDOC with compression 1 or 2. Other PDB ebook families have different record contracts. |
-| eReader PDB | [Calibre eReader format notes](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/ereader.txt) | Calibre 9.4.0-generated `PNRd/PPrs` fixture with original source text, plus Chrome and malformed-record tests | Unencrypted 132-byte and legacy header recognition; PalmDOC or zlib text; title and author. PML controls are stripped, while images, footnotes, sidebars, links, and page layout are not converted. |
-| Plucker PDB | [Official Plucker format description](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/plucker.html) | PyPlucker 3.7-generated DOC and zlib fixtures from original HTML, plus Chrome and malformed-record tests | Text paragraphs and database title. Inline controls become plain text; images, rich links, bookmarks, and owner-keyed content are not converted. |
-| KEPUB | [Kepubify](https://github.com/pgaskin/kepubify) | Kepubify-generated derivative of a [W3C EPUB sample](https://github.com/IDPF/epub3-samples) | Opens as EPUB, retaining Kobo spans and EPUB metadata. There is no separate byte-level KEPUB identity. |
+| KEPUB | [Kepubify](https://github.com/pgaskin/kepubify) derivative of a [W3C EPUB sample](https://github.com/IDPF/epub3-samples) | Opens as EPUB, retaining Kobo spans and EPUB metadata | A Kobo-specific format type cannot be inferred reliably from ZIP bytes; independent Kobo-produced fixture remains desirable. |
+| Markdown | [CommonMark 0.31.2](https://spec.commonmark.org/0.31.2/) and [Dart Markdown](https://pub.dev/packages/markdown); original fixture and Chrome test | Standalone files, HTML, heading navigation, simple front matter | Relative resources are not loaded; raw HTML needs consumer-side isolation. |
+| RTF | [Microsoft RTF 1.9.1](https://officeprotocoldoc.z19.web.core.windows.net/files/Archive_References/%5BMSFT-RTF%5D.pdf); original fixture and Calibre's `LICENSE.rtf` | Text, title/author, Unicode, codepages, paragraphs, basic emphasis | Tables, pictures, drawing objects and page layout are not converted. |
+| PalmDOC PDB | [Calibre PalmDOC header](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/palmdoc.txt) and [compression notes](https://github.com/kovidgoyal/calibre/blob/master/format_docs/compression/palmdoc.txt); generated file | Plain text with raw or PalmDOC-compressed `TEXt/REAd` records | Other PalmDB identities use their own parsers. |
+| eReader PDB | [Calibre format notes](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/ereader.txt); Calibre 9.4.0-generated original content and Chrome test | Unencrypted `PNRd/PPrs` text, title and author | PML resources, footnotes, sidebars, links and page layout are flattened or omitted. |
+| Plucker PDB | [Official Plucker format](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/plucker.html); [PyPlucker 3.7](https://github.com/lxmx/PyPlucker) DOC and zlib files from original HTML | Text paragraphs and database title | Images, link targets, bookmarks, owner-keyed content and rich layout are not converted; independently produced real-world fixture remains desirable. |
+| CHM | [CHM specification](https://www.nongnu.org/chmspec/latest/) and [jchmlib](https://github.com/chimenchen/jchmlib); licensed real PuTTY manual | LZX-compressed HTML topics, CSS, metadata and hierarchical contents | Full-text CHM index, merged help, some legacy codepages, and Intel E8 variant validation remain. |
+| Sony LRF | [Calibre reader](https://github.com/kovidgoyal/calibre/tree/master/src/calibre/ebooks/lrf); Calibre 9.4.0-generated text and image fixtures | Ordered reflowed text pages, metadata, table of contents and inline images | LRX, LRF version 800 or older, precise Sony layout, ruby styling, complex canvases, and independent-producer fixture remain. |
+| DjVu direct JPEG | [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf) and [DjVuLibre](https://github.com/DjVuLibre/DjVuLibre); generated JPEG page plus two real licensed unsupported-codec fixtures | Visual pages when each page has directly stored `BGjp` JPEG, dimensions, optional uncompressed OCR | Common JB2/IW44 page layers, compressed text/bookmarks, and indirect files are rejected with typed failures. This is not broad DjVu visual support. |
 
-CHM, DjVu, and LRF remain outside this branch. There are [CHM container
-notes](https://www.nongnu.org/chmspec/latest/), a [CHMLib reference
-implementation](https://github.com/jedwing/CHMLib), and an [MIT-licensed PuTTY
-CHM fixture](https://github.com/bjxpen/chmv). A useful CHM reader would still
-need a portable, bounded LZX decoder and tests for compressed directory,
-navigation, and resource variants; the current archive dependency does not
-provide that decoder.
+The parser implementations are pure Dart. Reference tools and implementations
+were used for format behavior and fixtures; their GPL source code is not
+copied into the package. Every parser has focused valid and malformed-input
+tests. Browser tests exercise the new format paths that depend on web
+decoding or wire transport.
 
-[DjVuLibre](https://github.com/DjVuLibre/DjVuLibre) provides a reference
-implementation and [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf).
-Reading scanned DjVu publications requires image codec work beyond extracting
-an optional text chunk. A text-only result would not satisfy the book-reading
-contract already offered for PDF and comics.
+## Validation still needed
 
-Calibre has an [LRF reader](https://github.com/kovidgoyal/calibre/tree/master/src/calibre/ebooks/lrf),
-but this review did not establish an independently usable format specification
-and a redistributable real-world fixture set covering text and images. Support
-should be claimed only after both are available.
-
-These decisions are about testable reader output and the project's pure-Dart
-boundary. They do not assert that the formats are unimportant or that their
-implementations would be too expensive.
+- Add independently produced, redistributable LRF, Plucker and Kobo KEPUB
+  files to broaden compatibility evidence.
+- Implement JB2 and IW44 image layers before describing DjVu as a general
+  scanned-book reader. Preserve the current typed failure for these layers.
+- Broaden CHM tests for Intel E8 transformed LZX blocks and legacy codepages.
+- Add eReader PML resources and Plucker images/navigation only with licensed
+  fixtures that exercise the corresponding record structures.

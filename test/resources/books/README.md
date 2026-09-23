@@ -14,6 +14,8 @@ localization, reading-direction, accessibility, and media-overlay testing.
 - `pdf/`: real-writer and externally published PDFs with redistributable content
 - `chm/`: redistributable compiled HTML Help manual with LZX-compressed topics
 - `djvu/`: generated JPEG-backed DjVu for public format coverage
+- `lrf/`: Calibre-generated Sony LRF text and image fixtures with original content
+- `format_expansion/`: original text formats and independently generated PalmDB fixtures
 - `licenses/`: license texts that are not already fully embedded in each publication
 - `manifest.json`: provenance, expected behavior, size, and SHA-256 for every fixture
 
@@ -60,12 +62,15 @@ localization, reading-direction, accessibility, and media-overlay testing.
 | `FORMAT-RTF` | RTF groups, text, Unicode, metadata, and character emphasis |
 | `FORMAT-PALMDOC` | PalmDOC PDB text records and compression |
 | `FORMAT-EREADER` | Calibre-generated eReader PDB zlib text and metadata |
+| `FORMAT-PLUCKER-ZLIB` | PyPlucker-generated Plucker PDB text and compression |
+| `FORMAT-LRF` | Calibre-generated Sony LRF text, metadata, and navigation |
 | `FORMAT-HTML` / `FORMAT-HTMLZ` | HTML metadata/navigation, top-level index and OPF sidecar |
 | `FORMAT-DOCX` | Open XML document, styles, metadata and resource contract |
 | `FORMAT-AZW4` | PalmDB wrapper and embedded PDF delegation |
 | `FORMAT-CB7` / `FORMAT-CBC` | 7-Zip pages and Calibre collection manifest |
 | `FORMAT-ODT` | OpenDocument content XML and metadata |
 | `FORMAT-DJVU` | Direct JPEG page and uncompressed OCR in a DjVu container |
+| `FORMAT-CHM-PUTTY` | Licensed real CHM manual with LZX topics and table of contents |
 | `REAL-FB2-WL-PL` | Unmodified Polish FB2 published by Wolne Lektury |
 | `REAL-CBZ-IA-1895` | Real 1895 scanned publication distributed as CBZ |
 | `REAL-CBR-IA-1909` | Real 1909 image collection using compressed RAR 4 pages |

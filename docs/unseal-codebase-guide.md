@@ -120,6 +120,7 @@ You only need a small set of format terms to understand most of the repository.
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
 | DjVu direct JPEG subset | An IFF document whose pages have INFO and directly stored BGjp JPEG images. | `DjvuBook` with JPEG page images, dimensions, rotation, optional TXTa text, and original bytes. Other image codecs fail full opening. |
+| CHM | An ITSF compiled HTML Help archive with compressed topic streams. | `DocumentBook` with ordered HTML topics, resources, title, and hierarchical contents. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
 | Standalone Markdown | CommonMark text with optional small front matter. | `DocumentBook` with converted HTML, heading navigation, and selected metadata. |
 | RTF | Grouped rich text with control words and optional `info` metadata. | `DocumentBook` with readable text, basic emphasis, title, and author. |
@@ -148,6 +149,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 | `lib/azw4.dart` | AZW4 extraction and parsing plus the `PdfBook` result type. |
 | `lib/pdf.dart` | PDF parsing, PDF entities and exceptions, and shared book entities. |
 | `lib/djvu.dart` | DjVu JPEG page parsing, page data, typed failures, and shared book entities. |
+| `lib/chm.dart` | CHM topic, resource, navigation, and metadata parsing. |
 | `lib/docx.dart` | DOCX parsing and DOCX exceptions. |
 | `lib/odt.dart` | ODT parsing and ODT exceptions. |
 | `lib/fb2.dart` | FB2 parsing, FB2 entities and exceptions. |
@@ -292,6 +294,7 @@ identified by a `TEXt/REAd` Palm Database without a MOBI header.
 | `features/palmdoc/parse_palmdoc_book.dart` | Validates PalmDOC record zero, decompresses bounded independent text records, and reuses the TXT converter for plain reading text. |
 | `features/ereader/parse_ereader_book.dart` | Recognizes eReader record-zero variants, rejects DRM, expands bounded text records, removes PML controls, and reads metadata. |
 | `features/plucker/parse_plucker_book.dart` | Validates the Plucker index and paragraph tables, expands bounded DOC or zlib text records, and removes inline function codes. |
+| `features/lrf/parse_lrf_book.dart` | Reads BBeB object indexes, expands bounded streams, converts ordered text objects, and exposes metadata, navigation, and images. |
 
 ## HTML and HTMLZ: preserve an existing document
 
@@ -674,6 +677,22 @@ The PDF feature aims for useful extraction, not full rendering-engine parity:
 - an image-only scan remains without text because unseal does not run OCR;
 - reflowed paragraphs and reading order are informed guesses from page geometry;
 - page-faithful display must use the original bytes rather than the reflowed HTML.
+
+## CHM: read compiled HTML Help topics
+
+The CHM adapter reads an ITSF container, its PMGL directory, and LZX-compressed
+content without a native tool. It assembles HTML topics and resources into a
+`DocumentBook`, reads the `#SYSTEM` title, and follows `.hhc` contents links
+for navigation. The real PuTTY manual fixture exercises compressed topics
+and nested navigation. The parser does not expose the CHM full-text index,
+merged help, or script execution; legacy codepages and Intel E8 transformed
+LZX blocks need more fixture coverage.
+
+| File | What it does and why it exists |
+| --- | --- |
+| `features/chm/chm_archive.dart` | Bounds and indexes the ITSF directory and reads archive entries. |
+| `features/chm/chm_lzx.dart` | Expands bounded LZX blocks for compressed topics. |
+| `features/chm/parse_chm_book.dart` | Builds the document, metadata, resources, and contents navigation. |
 
 ## DjVu: extract directly stored JPEG page images
 

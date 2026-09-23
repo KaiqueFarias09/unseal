@@ -1,3 +1,27 @@
+## 1.2.0 - September 23, 2026
+
+### Added
+
+- EPUB 3 rendition settings, page-list and landmarks navigation, and
+  accessibility metadata in the package model.
+- Typed book-opening results and typed failures for EPUB metadata updates.
+- PDF page extraction diagnostics and comic page semantics for reader clients.
+- Standalone Markdown, RTF, PalmDOC PDB, unencrypted eReader PDB, and Plucker
+  PDB text parsing, each with format-specific public entry points.
+- CHM reading with bounded LZX decompression, HTML topics, resources, and
+  hierarchical contents; Sony LRF reading with reflowed text, metadata,
+  navigation, and embedded images.
+- Direct-JPEG DjVu visual pages, dimensions, and optional uncompressed OCR.
+  Common JB2/IW44 image layers return a typed unsupported-format failure.
+- KEPUB fixture validation through the existing EPUB parser.
+
+### Reliability and scope
+
+- Added licensed or original fixtures, provenance, malformed-input tests,
+  browser coverage, and format-specific size and decompression limits.
+- The supported subset and remaining gaps for every new format are documented
+  in `docs/format-expansion.md` and the README.
+
 ## 1.1.0 - September 19, 2026
 
 Dependency maintenance release. No public API changes.

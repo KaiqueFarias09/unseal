@@ -76,7 +76,7 @@ Or add the dependency manually:
 
 ```yaml
 dependencies:
-  unseal: ^1.1.0
+  unseal: ^1.2.0
 ```
 
 The package requires Dart `>=3.8.0 <4.0.0`.

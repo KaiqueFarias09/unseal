@@ -6,8 +6,16 @@
     {
       "path": "test/resources/books/README.md",
       "format": "manifest",
-      "bytes": 5519,
-      "sha256": "dc3fb4c56dd1875a7b1dbaa9fd12bbaf90b2173cfdcd8b38797fe3a7fa9dbb45",
+      "bytes": 6865,
+      "sha256": "15e6e988247d60eb685074c32f298f030ca48f492c83fccbd38603a761dc15da",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/chm/putty.chm",
+      "format": "chm",
+      "bytes": 271652,
+      "sha256": "317147468e9876d0465b3f1457b948e43911f3e713011d574fd325fab304ef34",
       "container": "unknown",
       "landmarks": 0
     },
@@ -56,6 +64,14 @@
       "format": "cbr",
       "bytes": 106,
       "sha256": "19871d020affba36788fe403f4c0cb0bc5b2ca1eb9deee0f4c830f369fe916a4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/djvu/jpeg-only.djvu",
+      "format": "djvu",
+      "bytes": 210,
+      "sha256": "7b6b77e5f140be8853e9a8f94f7099e3a547b9ef63d0da93cdc8d19205b832a6",
       "container": "unknown",
       "landmarks": 0
     },
@@ -219,6 +235,86 @@
       "landmarks": 1
     },
     {
+      "path": "test/resources/books/format_expansion/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 3934,
+      "sha256": "cb191eec1bc4d58348484eec16817b62c7b7972b5762aa6795cdbd85f830b281",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/format_expansion/calibre-license.rtf",
+      "format": "rtf",
+      "bytes": 40358,
+      "sha256": "a348e35edada9240ed21b1249e79be20ddac0184714773c7d0b02b7156fc642c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/format_expansion/ereader-sample.pdb",
+      "format": "ereader",
+      "bytes": 401,
+      "sha256": "0685dccfea126b3cfe6f57d84ac1973a3b56251912112d159aa2f8f4e579518d",
+      "container": "palmDb",
+      "landmarks": 7
+    },
+    {
+      "path": "test/resources/books/format_expansion/garden.md",
+      "format": "manifest",
+      "bytes": 231,
+      "sha256": "66538040b07e5876cb242a75d44ff434725da99868907c23e0d1e24848a1e296",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/format_expansion/garden.pdb",
+      "format": "palmdoc",
+      "bytes": 138,
+      "sha256": "96613a923886c0b1aaa6942ec4c069d5c7eb7ebad28f8fb79ab06dcae7ca530a",
+      "container": "palmDb",
+      "landmarks": 3
+    },
+    {
+      "path": "test/resources/books/format_expansion/garden.rtf",
+      "format": "rtf",
+      "bytes": 202,
+      "sha256": "0947e56ce8951c565cb5fa04ebc2a5c2fe0b161d1a09dd18d9a299d35316dba9",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/format_expansion/hefty-water.kepub.epub",
+      "format": "epub",
+      "bytes": 5031,
+      "sha256": "d24e52856e64a1b45deba9f3a0b35104dad7b44ae88af6bf6e2c116ab29894df",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/books/format_expansion/plucker-sample-doc.pdb",
+      "format": "plucker",
+      "bytes": 294,
+      "sha256": "e80626bf181bcd4270daedeea78f72b6dc7fa4c6ea5b5081ed055c88b73bac95",
+      "container": "palmDb",
+      "landmarks": 4
+    },
+    {
+      "path": "test/resources/books/format_expansion/plucker-sample.pdb",
+      "format": "plucker",
+      "bytes": 296,
+      "sha256": "df734eda0d1cb568ebe518c521e4d8aa9442fdb321906e2e08a7498e37361174",
+      "container": "palmDb",
+      "landmarks": 4
+    },
+    {
+      "path": "test/resources/books/format_expansion/plucker-source.html",
+      "format": "html",
+      "bytes": 276,
+      "sha256": "b8ea02345c6b00f47920c494403dbae414ded215a1f487b9d0688c0d3d3cd9e2",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/books/html/synthetic.html",
       "format": "html",
       "bytes": 180,
@@ -259,10 +355,66 @@
       "landmarks": 0
     },
     {
+      "path": "test/resources/books/licenses/putty-chm-LICENSE.txt",
+      "format": "txt",
+      "bytes": 1313,
+      "sha256": "d79d138b439eae26995049a0d9840963c942c13d25ea2c4523808e17003eefdd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/lrf/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 1659,
+      "sha256": "f30ff2fee98ac993bda75937afcf7b828731402bf386c41e7ecccc55f713c3e5",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/lrf/illustrated.html",
+      "format": "html",
+      "bytes": 230,
+      "sha256": "cb1fad078f6c163478f963435e22e323527a5f9fe224f27e356d18f8ded4f64d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/lrf/illustrated.lrf",
+      "format": "lrf",
+      "bytes": 2009,
+      "sha256": "4078e733625b5f4acb0b403ab05ac5fae766506dd2fe7a965cb997b2a26da2d9",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/lrf/original.lrf",
+      "format": "lrf",
+      "bytes": 2379,
+      "sha256": "cf5e5e973569e0c9c9d9dea159dfd8958b13160ed48be4b111f807f51caa7175",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/lrf/source.html",
+      "format": "html",
+      "bytes": 295,
+      "sha256": "a245cd90a4332b2b5d0d2d610967f7c1acdf5402b6306967944ce08b71f35f8f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/lrf/swatch.png",
+      "format": "image",
+      "bytes": 77,
+      "sha256": "886eca293713dd0dc77ee8c492c64e81359f6e0286b79d5f6df20c506466d1e2",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/books/manifest.json",
       "format": "manifest",
-      "bytes": 22408,
-      "sha256": "a6c241c92959e5596d7b4fe947462f2c9ba2e7f414b720f313bcfacfb98cc0f4",
+      "bytes": 26707,
+      "sha256": "6cf47e09fe3fac4d1e824bf017be751ddda82e41e0064586d96d6a59bee67ae0",
       "container": "unknown",
       "landmarks": 0
     },
@@ -345,6 +497,30 @@
       "sha256": "58d81b519c4cf3a48c25dc38dc70ede863e93bd092abc4c365b96d6003240ce4",
       "container": "zip",
       "landmarks": 9
+    },
+    {
+      "path": "test/resources/djvu/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 2031,
+      "sha256": "b40c582f48f45ea9be12cc4e1ea21a2e198de8a8371fbe5b3ef518624d23dc23",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/big-scanned-page.djvu",
+      "format": "djvu",
+      "bytes": 584365,
+      "sha256": "200f9bcaf891f12014fe39bd9e119f1f4560566abd8bea9b67a21eb198567594",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/cable-1973.djvu",
+      "format": "djvu",
+      "bytes": 15486,
+      "sha256": "ceaac0b3bf8b4ea665c09e26a6f00d5d1e95b00757a7d2b9613948f16610d96b",
+      "container": "unknown",
+      "landmarks": 0
     },
     {
       "path": "test/resources/epub/Alices Adventures in Wonderland.epub",
@@ -1024,20 +1200,28 @@
     }
   ],
   "counts": {
-    "total": 122,
-    "totalBytes": 83038599,
+    "total": 144,
+    "totalBytes": 83977111,
     "byFormat": {
-      "manifest": 7,
+      "manifest": 11,
+      "chm": 1,
       "cbr": 2,
       "cbz": 3,
       "cbc": 1,
       "cb7": 1,
+      "djvu": 3,
       "docx": 1,
-      "epub": 26,
+      "epub": 27,
       "fb2": 4,
-      "html": 2,
+      "rtf": 2,
+      "ereader": 1,
+      "palmdoc": 1,
+      "plucker": 2,
+      "html": 5,
       "htmlz": 1,
-      "txt": 4,
+      "txt": 5,
+      "lrf": 2,
+      "image": 9,
       "azw3": 2,
       "mobi": 5,
       "azw4": 1,
@@ -1045,7 +1229,6 @@
       "pdf": 31,
       "txtz": 1,
       "resource": 14,
-      "image": 8,
       "xml-sidecar": 7
     }
   }

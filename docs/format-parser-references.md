@@ -8,6 +8,9 @@ generated: 2026-09-23
 
 # Referências para parsers e arquivos de teste
 
+> Esta pesquisa registra a seleção inicial de referências. O estado implementado
+> e as limitações da próxima release estão em [Format expansion](format-expansion.md).
+
 ## 1. Objetivo da Pesquisa
 
 Identificar especificações, implementações de referência e arquivos de teste para
@@ -65,12 +68,13 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
   — [amostra CHM](https://github.com/bjxpen/chmv/tree/main/test/fixtures),
   [chmcmd](https://gitlab.com/freepascal.org/fpc/source/-/blob/bce88f2e2bf76c3f979902aaa60598a0487f1509/packages/chm/src/chmcmd.lpr)
 - Para DjVu, as ferramentas DjVuLibre permitem gerar páginas com conteúdo
-  próprio e conferir texto, índices e imagens. Ainda falta selecionar uma
-  amostra real redistribuível para testar variantes externas. — [djvumake](https://djvu.sourceforge.net/doc/man/djvumake.html),
+  próprio e conferir texto, índices e imagens. O corpus inclui uma página JPEG
+  gerada e duas amostras reais com JB2/IW44 e licença registrada; estas últimas
+  verificam a rejeição tipada dos codecs ainda ausentes. — [djvumake](https://djvu.sourceforge.net/doc/man/djvumake.html),
   [djvused](https://djvu.sourceforge.net/doc/man/djvused.html)
 - O Calibre documenta a conversão para eReader PDB e LRF, e oferece `lrf2lrs`
-  como validador auxiliar. Amostras geradas de texto próprio são possíveis,
-  mas não substituem arquivos reais com proveniência independente.
+  como validador auxiliar. As amostras foram geradas a partir de conteúdo
+  próprio; arquivos de outros produtores ainda ampliariam a validação LRF.
   — [ebook-convert](https://manual.calibre-ebook.com/generated/en/ebook-convert.html),
   [lrf2lrs](https://manual.calibre-ebook.com/generated/en/lrf2lrs.html)
 
@@ -85,12 +89,12 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
   implementação para o Unseal. — [Calibre](https://github.com/kovidgoyal/calibre),
   [parser LRF](https://github.com/kovidgoyal/calibre/blob/master/src/calibre/ebooks/lrf/lrfparser.py)
 - O eReader PDB inclui variantes de cabeçalho, compressão, PML e recursos, além
-  de campos relacionados a DRM. Uma primeira implementação deve se limitar a
-  arquivos sem DRM e identificar essa variante antes de ler registros.
+  de campos relacionados a DRM. A implementação atual se limita a arquivos
+  sem DRM e identifica a variante antes de ler registros.
   — [formato eReader](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/ereader.txt)
 - O Plucker combina texto e recursos em registros próprios; sua documentação e
-  ferramentas originais ajudam a gerar fixtures, mas não foi localizada uma
-  amostra real com licença inequívoca para inclusão imediata.
+  ferramentas originais geraram fixtures DOC/zlib, mas não foi localizada uma
+  amostra real de outro produtor com licença inequívoca para inclusão imediata.
   — [formato Plucker](https://github.com/kovidgoyal/calibre/blob/master/format_docs/pdb/plucker.html),
   [projeto Plucker](https://sourceforge.net/projects/plucker/)
 - Um aviso de segurança do Calibre sobre extração eReader reforça a necessidade
@@ -106,32 +110,27 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 | Markdown | CommonMark + `package:markdown` | Suíte CommonMark e livro Markdown próprio | Delimitar HTML, front matter e imagens relativas |
 | RTF | Especificação Microsoft | `LICENSE.rtf` e casos gerados | Extrair texto, estilos e metadados antes de imagens complexas |
 | CHM | ITSF + jchmlib | Manual PuTTY licenciado e casos pequenos gerados | Implementado: HTML, recursos, sumário e LZX com limites; índice de busca e ajudas mescladas pendentes |
-| DjVu | Especificação DjVu 3 + DjVuLibre | Casos gerados; amostra real ainda pendente | Texto/estrutura não equivale a suporte visual completo |
-| PDB | Especificação por subtipo no Calibre | PalmDOC gerado; eReader/Plucker reais pendentes | Identificar criador/tipo; não tratar todo PDB como PalmDOC |
-| LRF | Parser e ferramentas Calibre | LRF gerado; arquivo real com licença pendente | Adiar suporte público até validar em corpus independente |
+| DjVu | Especificação DjVu 3 + DjVuLibre | Página JPEG gerada; dois arquivos reais licenciados com JB2/IW44 para testar rejeição | Páginas JPEG diretas funcionam; JB2/IW44 ainda exigem decodificadores visuais |
+| PDB | Especificação por subtipo no Calibre e PyPlucker | PalmDOC e eReader gerados; Plucker DOC/zlib gerado por ferramenta independente | PalmDOC, eReader e Plucker têm parsers distintos com contratos limitados |
+| LRF | Parser e ferramentas Calibre | LRF de texto e imagem gerados por Calibre 9.4.0 | Leitura pública limitada; falta amostra de outro produtor |
 
-## 5. Recomendação para o MVP
+## 5. Resultado da implementação
 
-Priorizar a validação de KEPUB com um arquivo real da Standard Ebooks e um
-arquivo convertido por Kepubify. Markdown avulso e RTF têm especificações e
-testes suficientes para suporte incremental em Dart puro, desde que o contrato
-declare os recursos realmente preservados. CHM agora usa o manual PuTTY real
-e limites de LZX; eReader PDB sem DRM é a próxima variante PDB plausível.
-Manter DjVu visual, Plucker e LRF condicionados a corpus independente e demanda
-medida, pois exigem implementações e validação próprias.
+KEPUB foi validado pelo caminho EPUB. Markdown, RTF, PalmDOC, eReader,
+Plucker, CHM e LRF têm parsers públicos com testes e limites documentados.
+DjVu abre páginas com JPEG direto e falha de modo tipado para as camadas
+JB2/IW44. O detalhamento de cada contrato está em
+[format-expansion.md](format-expansion.md).
 
 ## 6. Perguntas em Aberto / Fora do Escopo
 
-- Baixar e registrar versão, hash, licença e proveniência de cada candidato
-  antes de incorporá-lo a `test/resources/`. A pesquisa não adicionou binários.
-- Confirmar a situação de direitos da edição KEPUB escolhida no local de
-  redistribuição, inclusive capa e demais recursos.
-- Encontrar arquivos reais redistribuíveis de eReader PDB, Plucker, DjVu e LRF;
-  enquanto isso, manter seus casos gerados identificados como tal.
-- Definir a demanda que justificaria os codecs visuais de DjVu e o parser LRF.
-- Escolher explicitamente o subconjunto de RTF e as extensões de Markdown que
-  a API pública prometerá preservar.
+- Incluir KEPUB produzido independentemente pelo ecossistema Kobo, após
+  conferir os direitos da edição e de seus recursos.
+- Encontrar LRF e Plucker reais redistribuíveis de outros produtores;
+  as amostras geradas estão identificadas com sua proveniência.
+- Implementar JB2/IW44 antes de ampliar a promessa de leitura visual DjVu.
+- Cobrir variantes CHM Intel E8 e codepages antigas com arquivos licenciados.
 
 ---
-**Próximo passo:** usar esta pesquisa como base para requisitos por formato e
-registrar os limites e os testes mínimos antes de ampliar a API pública.
+**Próximo passo:** expandir os casos reais e os codecs pendentes sem retirar os
+limites e erros tipados dos contratos atuais.
