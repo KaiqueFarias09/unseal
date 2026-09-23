@@ -1,3 +1,4 @@
+import 'tests/chm/chm_test.dart' as chm_test;
 import 'tests/comic/comic_test.dart' as comic_test;
 import 'tests/comic/rar_test.dart' as rar_test;
 import 'tests/core/detection_test.dart' as detection_test;
@@ -30,6 +31,7 @@ void main() {
   metadata_test.main();
   sidecar_test.main();
   comic_test.main();
+  chm_test.main();
   rar_test.main();
   mobi_test.main();
   compression_test.main();

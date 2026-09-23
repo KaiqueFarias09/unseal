@@ -492,6 +492,22 @@
       "bytes": 783,
       "sha256": "f98fad84d827126788c712c4ee606e75204d809edcbb65f0f22a547e9e559ac3",
       "focus": ["odt", "opendocument", "content-xml", "metadata"]
+    },
+    {
+      "id": "FORMAT-CHM-PUTTY",
+      "file": "chm/putty.chm",
+      "format": "chm",
+      "title": "PuTTY User Manual",
+      "language": null,
+      "source": "chmv test fixtures; PuTTY documentation",
+      "source_page_url": "https://github.com/bjxpen/chmv/tree/main/test/fixtures",
+      "download_url": "https://raw.githubusercontent.com/bjxpen/chmv/main/test/fixtures/putty.chm",
+      "license": "PuTTY MIT-style license; documentation redistribution permitted with notice",
+      "license_file": "licenses/putty-chm-LICENSE.txt",
+      "bytes": 271652,
+      "sha256": "317147468e9876d0465b3f1457b948e43911f3e713011d574fd325fab304ef34",
+      "minimum_reading_order_items": 454,
+      "focus": ["real-manual", "chm", "lzx", "html-topics", "contents", "resources"]
     }
   ],
   "real_world_fixtures": [

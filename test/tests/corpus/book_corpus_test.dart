@@ -190,5 +190,6 @@ BookFormat _declaredFormat(final Map<String, Object?> fixture) => switch (fixtur
   'cb7' => BookFormat.cb7,
   'cbc' => BookFormat.cbc,
   'odt' => BookFormat.odt,
+  'chm' => BookFormat.chm,
   final value => throw FormatException('Unknown fixture format: $value'),
 };

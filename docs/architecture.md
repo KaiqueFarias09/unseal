@@ -45,7 +45,7 @@ the common book model, reading services, typed exceptions, and stable
 format-specific contracts.
 
 Files such as `lib/epub.dart`, `lib/pdf.dart`, `lib/markdown.dart`,
-`lib/rtf.dart`, `lib/palmdoc.dart`, and `lib/comic.dart` are narrow
+`lib/rtf.dart`, `lib/palmdoc.dart`, `lib/chm.dart`, and `lib/comic.dart` are narrow
 entry points for consumers that need one format. Public signatures must use
 types exported by the same public entry point. Consumers must not import
 `lib/src/`.
@@ -121,6 +121,8 @@ RTF bounds group nesting and generated HTML, while PalmDOC, eReader, and Plucker
 each compressed and decompressed text record. Format-specific limits may differ
 because the formats have different cost models. The public README records the
 user-visible limits and exclusions.
+CHM bounds its ITSF directory, LZX reset table, decompressed entries and total
+materialized content before allocating untrusted output.
 
 ## Testing strategy
 

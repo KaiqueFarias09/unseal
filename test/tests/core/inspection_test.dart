@@ -40,7 +40,7 @@ void main() {
     });
 
     test('reports unsupported formats without claiming a concrete book format', () async {
-      final result = await Unseal.inspect(Uint8List.fromList(r'{\rtf1}'.codeUnits));
+      final result = await Unseal.inspect(Uint8List.fromList('TPZ'.codeUnits));
 
       expect(result.canOpen, isFalse);
       expect(result.book, isNull);

@@ -2,6 +2,7 @@
 library;
 
 export 'azw4.dart';
+export 'chm.dart';
 export 'comic.dart';
 export 'comic7.dart';
 export 'docx.dart';

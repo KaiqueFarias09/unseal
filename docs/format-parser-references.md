@@ -60,8 +60,8 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
   destinos ignorados, imagens e entradas truncadas. — [arquivo RTF](https://github.com/kovidgoyal/calibre/blob/master/LICENSE.rtf),
   [especificação RTF](https://officeprotocoldoc.z19.web.core.windows.net/files/Archive_References/%5BMSFT-RTF%5D.pdf)
 - O projeto chmv guarda um manual PuTTY em CHM junto de sua licença; `chmcmd`
-  também pode produzir amostras pequenas de conteúdo próprio. Antes de copiar
-  o manual, conferir a licença e registrar origem e hash da versão escolhida.
+  também pode produzir amostras pequenas de conteúdo próprio. O corpus já inclui
+  esse manual com a licença PuTTY e o hash da versão testada no manifesto.
   — [amostra CHM](https://github.com/bjxpen/chmv/tree/main/test/fixtures),
   [chmcmd](https://gitlab.com/freepascal.org/fpc/source/-/blob/bce88f2e2bf76c3f979902aaa60598a0487f1509/packages/chm/src/chmcmd.lpr)
 - Para DjVu, as ferramentas DjVuLibre permitem gerar páginas com conteúdo
@@ -105,7 +105,7 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 | KEPUB | Parser EPUB atual + diretrizes Kobo | KEPUB real da Standard Ebooks; EPUB convertido com Kepubify | Validar detecção, conteúdo, recursos e navegação antes de criar código específico |
 | Markdown | CommonMark + `package:markdown` | Suíte CommonMark e livro Markdown próprio | Delimitar HTML, front matter e imagens relativas |
 | RTF | Especificação Microsoft | `LICENSE.rtf` e casos gerados | Extrair texto, estilos e metadados antes de imagens complexas |
-| CHM | ITSF + jchmlib | Manual PuTTY licenciado e casos `chmcmd` | Navegação e HTML com LZX e limites de descompressão |
+| CHM | ITSF + jchmlib | Manual PuTTY licenciado e casos pequenos gerados | Implementado: HTML, recursos, sumário e LZX com limites; índice de busca e ajudas mescladas pendentes |
 | DjVu | Especificação DjVu 3 + DjVuLibre | Casos gerados; amostra real ainda pendente | Texto/estrutura não equivale a suporte visual completo |
 | PDB | Especificação por subtipo no Calibre | PalmDOC gerado; eReader/Plucker reais pendentes | Identificar criador/tipo; não tratar todo PDB como PalmDOC |
 | LRF | Parser e ferramentas Calibre | LRF gerado; arquivo real com licença pendente | Adiar suporte público até validar em corpus independente |
@@ -115,8 +115,8 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 Priorizar a validação de KEPUB com um arquivo real da Standard Ebooks e um
 arquivo convertido por Kepubify. Markdown avulso e RTF têm especificações e
 testes suficientes para suporte incremental em Dart puro, desde que o contrato
-declare os recursos realmente preservados. CHM pode vir depois com uma amostra
-real e limites de LZX; eReader PDB sem DRM é a próxima variante PDB plausível.
+declare os recursos realmente preservados. CHM agora usa o manual PuTTY real
+e limites de LZX; eReader PDB sem DRM é a próxima variante PDB plausível.
 Manter DjVu visual, Plucker e LRF condicionados a corpus independente e demanda
 medida, pois exigem implementações e validação próprias.
 

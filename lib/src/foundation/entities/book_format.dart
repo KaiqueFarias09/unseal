@@ -62,4 +62,7 @@ enum BookFormat {
 
   /// OpenDocument Text document.
   odt,
+
+  /// Microsoft Compiled HTML Help archive with HTML topics and LZX compression.
+  chm,
 }

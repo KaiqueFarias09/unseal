@@ -43,4 +43,7 @@ enum DetectedFormat {
 
   /// 7-Zip comic archive.
   comic7,
+
+  /// Microsoft Compiled HTML Help (ITSF/CHM).
+  chm,
 }

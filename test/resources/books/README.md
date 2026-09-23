@@ -12,6 +12,7 @@ localization, reading-direction, accessibility, and media-overlay testing.
 - `comic/`: generated archives plus externally published CBZ, CBR, CB7 and CBC samples
 - `txt/`, `html/`, `docx/`, `odt/`: generated fixtures for the document adapters
 - `pdf/`: real-writer and externally published PDFs with redistributable content
+- `chm/`: redistributable compiled HTML Help manual with LZX-compressed topics
 - `licenses/`: license texts that are not already fully embedded in each publication
 - `manifest.json`: provenance, expected behavior, size, and SHA-256 for every fixture
 
@@ -67,6 +68,7 @@ localization, reading-direction, accessibility, and media-overlay testing.
 | `REAL-CBZ-IA-1895` | Real 1895 scanned publication distributed as CBZ |
 | `REAL-CBR-IA-1909` | Real 1909 image collection using compressed RAR 4 pages |
 | `REAL-PDF-EUCLID` | External Project Gutenberg PDF with geometry diagrams and pagination |
+| `FORMAT-CHM-PUTTY` | Real PuTTY manual with LZX frames, HTML topics, CSS and nested help contents |
 
 ## External-file attribution
 
@@ -82,6 +84,11 @@ Domain Mark 1.0 in their item records. The mark records the uploader's
 copyright-status identification; it is not a warranty for every jurisdiction.
 Their exact item pages, download URLs, sizes and hashes are pinned in the
 manifest.
+
+`FORMAT-CHM-PUTTY` is the unchanged PuTTY user manual fixture from the
+[chmv test corpus](https://github.com/bjxpen/chmv/tree/main/test/fixtures).
+Its adjacent `putty.chm.LICENCE` grants redistribution of the software and
+documentation with the notice; a copy is stored under `licenses/`.
 
 ## Known real-world limitation
 

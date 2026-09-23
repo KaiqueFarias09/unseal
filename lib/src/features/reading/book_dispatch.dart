@@ -7,6 +7,7 @@ import '../../foundation/archive/archive_access.dart';
 import '../../foundation/entities/entities.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
 import '../azw4/parse_azw4_book.dart';
+import '../chm/parse_chm_book.dart';
 import '../comic/parse_comic_book.dart';
 import '../comic7/parse_comic7_book.dart';
 import '../detection/detect_format.dart';
@@ -50,6 +51,8 @@ abstract final class BookDispatch {
     switch (detectFormat(bytes)) {
       case DetectedFormat.epub:
         return _parseZipBook(bytes);
+      case DetectedFormat.chm:
+        return parseChmBook(bytes);
       case DetectedFormat.mobiFamily:
         return parseMobiBook(bytes);
       case DetectedFormat.fb2:
@@ -115,6 +118,8 @@ abstract final class BookDispatch {
         if (isTxtzArchive(archive)) return readTxtzMetadataFromArchive(archive);
 
         return readComicMetadata(bytes);
+      case DetectedFormat.chm:
+        return readChmMetadata(bytes);
       case DetectedFormat.mobiFamily:
         return readMobiMetadata(bytes);
       case DetectedFormat.fb2:

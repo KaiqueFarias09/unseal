@@ -15,6 +15,7 @@ const _pdfMagic = <int>[0x25, 0x50, 0x44, 0x46];
 /// * plain `TEXTREAD` Palm Database → [DetectedFormat.palmdoc]
 /// * `PNRdPPrs` Palm Database → [DetectedFormat.ereader]
 /// * `DataPlkr` Palm Database → [DetectedFormat.plucker]
+/// * `ITSF` header → [DetectedFormat.chm]
 /// * `{\\rtf` header → [DetectedFormat.rtf]
 /// * `<?xml` / `<FictionBook` prologue → [DetectedFormat.fb2]
 /// * an allowed short preamble followed by `%PDF` → [DetectedFormat.pdf]
@@ -29,6 +30,7 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   const kfxMagic = <int>[0xEA, 0x44, 0x52, 0x4D, 0x49, 0x4F, 0x4E, 0xEE];
   const rtfMagic = <int>[0x7B, 0x5C, 0x72, 0x74, 0x66];
   const sevenZipMagic = <int>[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+  const chmMagic = <int>[0x49, 0x54, 0x53, 0x46];
 
   if (bytes.isEmpty) {
     throw const FormatNotSupportedException('Cannot detect format of empty bytes.');
@@ -42,6 +44,7 @@ DetectedFormat detectFormat(final Uint8List bytes) {
   }
 
   if (_pdfHeaderOffset(bytes) != null) return DetectedFormat.pdf;
+  if (_hasPrefix(bytes, chmMagic)) return DetectedFormat.chm;
 
   if (_hasPrefix(bytes, rtfMagic)) {
     return DetectedFormat.rtf;
