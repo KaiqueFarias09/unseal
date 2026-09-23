@@ -508,6 +508,19 @@
       "sha256": "317147468e9876d0465b3f1457b948e43911f3e713011d574fd325fab304ef34",
       "minimum_reading_order_items": 454,
       "focus": ["real-manual", "chm", "lzx", "html-topics", "contents", "resources"]
+    },
+    {
+      "id": "FORMAT-DJVU",
+      "file": "djvu/jpeg-only.djvu",
+      "format": "djvu",
+      "title": null,
+      "language": null,
+      "source": "tool/generate_djvu_fixture.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 210,
+      "sha256": "7b6b77e5f140be8853e9a8f94f7099e3a547b9ef63d0da93cdc8d19205b832a6",
+      "focus": ["djvu", "iff", "jpeg-page", "ocr"]
     }
   ],
   "real_world_fixtures": [

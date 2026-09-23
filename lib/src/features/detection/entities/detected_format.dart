@@ -20,6 +20,9 @@ enum DetectedFormat {
   /// PDF document.
   pdf,
 
+  /// DjVu single-page or bundled document.
+  djvu,
+
   /// Plain text document.
   txt,
 

@@ -12,6 +12,7 @@ import '../comic/parse_comic_book.dart';
 import '../comic7/parse_comic7_book.dart';
 import '../detection/detect_format.dart';
 import '../detection/entities/detected_format.dart';
+import '../djvu/parse_djvu_book.dart';
 import '../docx/parse_docx_book.dart';
 import '../epub/exceptions/exceptions.dart';
 import '../epub/parse_epub_book.dart';
@@ -61,6 +62,8 @@ abstract final class BookDispatch {
         return parseComicBook(bytes);
       case DetectedFormat.pdf:
         return parsePdfBook(bytes, password: password);
+      case DetectedFormat.djvu:
+        return parseDjvuBook(bytes);
       case DetectedFormat.txt:
         return parseTxtBook(bytes);
       case DetectedFormat.rtf:
@@ -128,6 +131,8 @@ abstract final class BookDispatch {
         return readComicMetadata(bytes);
       case DetectedFormat.pdf:
         return readPdfMetadata(bytes, password: password);
+      case DetectedFormat.djvu:
+        return readDjvuMetadata(bytes);
       case DetectedFormat.txt:
         return readTxtMetadata(bytes);
       case DetectedFormat.rtf:

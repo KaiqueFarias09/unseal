@@ -17,7 +17,7 @@ cover data, files, reading order, navigation, and statistics.
 
 It supports EPUB, MOBI, AZW3, PalmDOC, eReader and Plucker PDB, RTF, Markdown,
 FB2, TXT, HTML, CHM, DOCX, ODT, AZW4, comic
-archives, and PDF without a native executable, FFI bridge, or Flutter
+archives, PDF, and JPEG-backed DjVu pages without a native executable, FFI bridge, or Flutter
 dependency in the library itself.
 
 Unseal is a parser and data layer, not a reader UI or a general-purpose
@@ -59,6 +59,7 @@ document renderer.
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
+| DjVu (JPEG pages) | Single-page and bundled documents with direct `BGjp` JPEG page images, INFO dimensions and rotation, and optional uncompressed `TXTa` OCR | Common JB2/IW44 image layers, compressed `TXTz`/`NAVM`, and indirect documents are not decoded; full opening fails with a typed error rather than returning invisible pages. |
 
 `OPF` is not a standalone reading format. When unseal finds `metadata.opf`
 inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
@@ -258,6 +259,14 @@ an application that offers OCR; it does not prove that a page is a scan.
 `columnOrderApplied` indicates that Unseal reordered clearly separated,
 text-only columns for reflow and the canonical text stream.
 
+`DjvuBook.pages` exposes directly stored JPEG pages with their original
+dimensions, DPI, rotation, and optional uncompressed OCR text. Its
+`readingOrder` points to per-page HTML that displays each image and keeps OCR
+searchable. The complete source stays in
+`DjvuBook.bytes` for applications with a dedicated DjVu renderer. Metadata
+scans can identify documents with other DjVu image codecs, but full opening
+rejects them until those decoders are available.
+
 ```dart
 final pdf = parsePdfBook(pdfBytes);
 for (var i = 0; i < pdf.pageTexts.length; i++) {
@@ -349,6 +358,11 @@ annotations, and image codecs outside the supported extraction contract may be
 omitted. The original PDF bytes are retained for an application that provides
 its own facsimile renderer.
 
+DjVu visual reading currently covers direct JPEG background pages only. Most
+scanned DjVu books use JB2 or IW44 compression, which this release does not
+decode. `readDjvuMetadata` validates their container and page INFO structure;
+`parseDjvuBook` reports `DjvuUnsupportedCodecException` for those pages.
+
 ### Input and archive boundaries
 
 - Every ZIP-backed format goes through the same bounded decoder. Before
@@ -383,6 +397,10 @@ its own facsimile renderer.
 - CHM input is limited to 128 MiB, individual entries to 16 MiB, directory
   entries to 10,000, and total materialized content to 128 MiB. Unsupported
   LZX layouts and malformed directory/reset tables fail with typed errors.
+- DjVu input is limited to 128 MiB, 1024 pages, 65536 IFF chunks, 100 million
+  pixels per page, 32 MiB per directly stored JPEG, and 8 MiB per
+  uncompressed OCR chunk. Indirect DjVu
+  documents require external component files and are rejected.
 - EPUB navigation is optional. A damaged or missing table of contents can
   produce an empty navigation model while readable spine content remains
   available.
@@ -420,6 +438,8 @@ input from corrupted or protected content. Common types include:
   and `OdtException` for format-specific failures.
 - `PdfException` and `PdfEncryptedException` for PDF structure and security
   failures.
+- `DjvuException` for malformed or excessive DjVu input and
+  `DjvuUnsupportedCodecException` when a page cannot be displayed.
 - `EpubException`, `MobiException`, and `Fb2Exception` for parser-specific
   errors.
 
@@ -457,6 +477,9 @@ Compatibility work draws on:
   7-Zip implementation used by CB7 and CBC.
 - PDF.js and Poppler as independent references for PDF extraction and image
   behavior.
+- The [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf)
+  for IFF structure, page INFO, direct JPEG, and OCR chunks; no DjVuLibre GPL
+  code is copied into this parser.
 
 ## Development
 

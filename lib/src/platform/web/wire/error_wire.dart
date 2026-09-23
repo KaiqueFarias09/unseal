@@ -1,6 +1,7 @@
 import '../../../features/azw4/exceptions/azw4_exception.dart';
 import '../../../features/comic/exceptions/comic_exception.dart';
 import '../../../features/comic7/exceptions/comic7_exception.dart';
+import '../../../features/djvu/djvu_exception.dart';
 import '../../../features/docx/exceptions/docx_exception.dart';
 import '../../../features/epub/exceptions/empty_bytes_exception.dart';
 import '../../../features/epub/exceptions/epub_exception.dart';
@@ -62,6 +63,10 @@ Exception decodeErrorWire(final String type, final String message) {
       return PdfException(message);
     case 'PdfEncryptedException':
       return const PdfEncryptedException();
+    case 'DjvuException':
+      return DjvuException(message);
+    case 'DjvuUnsupportedCodecException':
+      return DjvuUnsupportedCodecException(message);
     default:
       return UnsealException(message);
   }

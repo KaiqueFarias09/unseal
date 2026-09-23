@@ -21,6 +21,9 @@ enum BookFormat {
   /// PDF (text extraction + reflow; page-faithful rendering stays with the viewer).
   pdf,
 
+  /// DjVu document with directly extractable JPEG pages.
+  djvu,
+
   /// Plain UTF text document.
   txt,
 

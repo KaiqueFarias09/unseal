@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../../features/comic/entities/comic_book.dart';
 import '../../../features/comic/entities/comic_page_info.dart';
+import '../../../features/djvu/djvu_book.dart';
 import '../../../features/epub/entities/book/book.dart';
 import '../../../features/epub/entities/book/epub_landmark.dart';
 import '../../../features/fb2/entities/fb2_book.dart';
@@ -131,6 +132,24 @@ import 'metadata_wire.dart';
     return (json, blobs);
   }
 
+  if (book is DjvuBook) {
+    json['metadata'] = encodeMetadataWireValue(book.metadata, blobs);
+    json['djvu'] = <String, Object?>{
+      'bytes': pushWireBlob(blobs, book.bytes),
+      'pages': <Object?>[
+        for (final page in book.pages)
+          <String, Object?>{
+            'width': page.width,
+            'height': page.height,
+            'dpi': page.dpi,
+            'rotation': page.rotation,
+            'text': page.text,
+          },
+      ],
+    };
+    return (json, blobs);
+  }
+
   if (book is DocumentBook) {
     json['metadata'] = encodeMetadataWireValue(book.metadata, blobs);
     json['document'] = <String, Object?>{'order': book.order};
@@ -213,6 +232,29 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
   final pdf = json['pdf'] as Map<String, Object?>?;
   if (pdf != null) {
     return _decodePdfBook(json, blobs, format, navigation, files, pdf);
+  }
+
+  final djvu = json['djvu'] as Map<String, Object?>?;
+  if (djvu != null) {
+    final pageEntries = djvu['pages'] as List<Object?>;
+    if (pageEntries.length != files.images.length) {
+      throw ArgumentError('DjVu wire pages and images differ in count');
+    }
+    return DjvuBook(
+      bytes: blobs[djvu['bytes'] as int] as Uint8List,
+      metadata: decodeMetadataWireValue(json['metadata'] as Map<String, Object?>, blobs),
+      pages: <DjvuPage>[
+        for (var index = 0; index < pageEntries.length; index++)
+          DjvuPage(
+            width: (pageEntries[index] as Map<String, Object?>)['width'] as int,
+            height: (pageEntries[index] as Map<String, Object?>)['height'] as int,
+            dpi: (pageEntries[index] as Map<String, Object?>)['dpi'] as int,
+            rotation: (pageEntries[index] as Map<String, Object?>)['rotation'] as int,
+            text: (pageEntries[index] as Map<String, Object?>)['text'] as String,
+            image: files.images[index],
+          ),
+      ],
+    );
   }
 
   return _decodeStoredBook(json, format, navigation, files, cover, archiveEntries, blobs);
@@ -361,6 +403,7 @@ BinaryFile _coverOf(final Book book) {
   if (book is Fb2Book) return book.cover;
   if (book is ComicBook) return book.cover;
   if (book is PdfBook) return book.cover;
+  if (book is DjvuBook) return book.cover;
   if (book is DocumentBook) return book.cover ?? BinaryFile.empty();
 
   throw ArgumentError('Unsupported book type for the wire: ${book.runtimeType}');

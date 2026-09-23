@@ -19,7 +19,7 @@ Paths that start with `features/`, `foundation/`, or `platform/` are relative to
 | --- | --- |
 | The common book model and shared policies | Foundation, then Detection and Reading |
 | Reflowable text and document formats | TXT, HTML, DOCX, ODT, FB2, then EPUB |
-| Image-first or binary formats | CBZ/CBR, CB7/CBC, MOBI/AZW3, AZW4, then PDF |
+| Image-first or binary formats | CBZ/CBR, CB7/CBC, MOBI/AZW3, AZW4, PDF, then DjVu |
 | Positions and reader-facing capabilities | Search, Locators, Annotations, CFI, and Reading progression |
 | Catalogs that point to books | OPDS and Calibre |
 | Native isolates, browser workers, and serialization | Platform |
@@ -118,6 +118,7 @@ You only need a small set of format terms to understand most of the repository.
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
+| DjVu direct JPEG subset | An IFF document whose pages have INFO and directly stored BGjp JPEG images. | `DjvuBook` with JPEG page images, dimensions, rotation, optional TXTa text, and original bytes. Other image codecs fail full opening. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
 | Standalone Markdown | CommonMark text with optional small front matter. | `DocumentBook` with converted HTML, heading navigation, and selected metadata. |
 | RTF | Grouped rich text with control words and optional `info` metadata. | `DocumentBook` with readable text, basic emphasis, title, and author. |
@@ -145,6 +146,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 | `lib/mobi.dart` | MOBI and AZW3 parsing, MOBI entities and exceptions, and shared book entities. |
 | `lib/azw4.dart` | AZW4 extraction and parsing plus the `PdfBook` result type. |
 | `lib/pdf.dart` | PDF parsing, PDF entities and exceptions, and shared book entities. |
+| `lib/djvu.dart` | DjVu JPEG page parsing, page data, typed failures, and shared book entities. |
 | `lib/docx.dart` | DOCX parsing and DOCX exceptions. |
 | `lib/odt.dart` | ODT parsing and ODT exceptions. |
 | `lib/fb2.dart` | FB2 parsing, FB2 entities and exceptions. |
@@ -237,7 +239,7 @@ For ZIP, `BookDispatch` checks internal evidence in order: EPUB, CBC, FB2, DOCX,
 | File | What it does and why it exists |
 | --- | --- |
 | `features/detection/entities/detected_format.dart` | Defines broad families recognized from bytes. These values are intentionally less specific than `BookFormat` when deeper inspection is required. |
-| `features/detection/detect_format.dart` | Checks signatures and bounded content for PDF, ZIP, 7-Zip, RAR, Palm Database, RTF, FB2, HTML, and text. It also rejects known unsupported families with clear errors. |
+| `features/detection/detect_format.dart` | Checks signatures and bounded content for PDF, DjVu, ZIP, 7-Zip, RAR, Palm Database, RTF, FB2, HTML, and text. It also rejects known unsupported families with clear errors. |
 | `features/detection/refine_mobi_format.dart` | Opens enough of a Palm Database header to distinguish legacy MOBI from KF8 or AZW3 after broad detection. |
 
 ## Reading: select a parser and resolve reading positions
@@ -670,6 +672,31 @@ The PDF feature aims for useful extraction, not full rendering-engine parity:
 - an image-only scan remains without text because unseal does not run OCR;
 - reflowed paragraphs and reading order are informed guesses from page geometry;
 - page-faithful display must use the original bytes rather than the reflowed HTML.
+
+## DjVu: extract directly stored JPEG page images
+
+DjVu wraps page chunks in an IFF container. A single page is `FORM:DJVU`; a
+bundled book is `FORM:DJVM` with a `DIRM` directory and embedded page FORMs.
+Each page starts with `INFO`, which supplies dimensions, resolution, and
+rotation. The current adapter can expose a page image when its sole image
+layer is `BGjp`, a directly stored JPEG. Optional uncompressed `TXTa` provides
+searchable text. A page with JB2 masks or IW44 color layers fails full opening
+with `DjvuUnsupportedCodecException`; a successful `DjvuBook` always has a
+displayable image for every page.
+
+| File | What it does and why it exists |
+| --- | --- |
+| `lib/djvu.dart` | Exposes the narrow format API. |
+| `features/djvu/parse_djvu_book.dart` | Walks bounded IFF chunks, validates directory offsets and page INFO, extracts JPEG and uncompressed OCR, and rejects unsupported visual layers. |
+| `features/djvu/djvu_book.dart` | Keeps page geometry, JPEG resources, OCR, and original source bytes together. |
+| `features/djvu/djvu_exception.dart` | Distinguishes malformed documents from valid pages needing another image codec. |
+
+Metadata-only reads validate the container and page INFO without decoding
+image layers. The test corpus includes a generated JPEG-backed page and
+in-memory malformed and multipage cases. It also contains real JB2 and IW44
+documents for format recognition and explicit unsupported-codec checks; their
+provenance is recorded beside the fixtures. The independent reference is
+the [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf).
 
 ## Search: query the HTML-backed content of a parsed book
 

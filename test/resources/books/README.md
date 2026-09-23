@@ -13,6 +13,7 @@ localization, reading-direction, accessibility, and media-overlay testing.
 - `txt/`, `html/`, `docx/`, `odt/`: generated fixtures for the document adapters
 - `pdf/`: real-writer and externally published PDFs with redistributable content
 - `chm/`: redistributable compiled HTML Help manual with LZX-compressed topics
+- `djvu/`: generated JPEG-backed DjVu for public format coverage
 - `licenses/`: license texts that are not already fully embedded in each publication
 - `manifest.json`: provenance, expected behavior, size, and SHA-256 for every fixture
 
@@ -64,6 +65,7 @@ localization, reading-direction, accessibility, and media-overlay testing.
 | `FORMAT-AZW4` | PalmDB wrapper and embedded PDF delegation |
 | `FORMAT-CB7` / `FORMAT-CBC` | 7-Zip pages and Calibre collection manifest |
 | `FORMAT-ODT` | OpenDocument content XML and metadata |
+| `FORMAT-DJVU` | Direct JPEG page and uncompressed OCR in a DjVu container |
 | `REAL-FB2-WL-PL` | Unmodified Polish FB2 published by Wolne Lektury |
 | `REAL-CBZ-IA-1895` | Real 1895 scanned publication distributed as CBZ |
 | `REAL-CBR-IA-1909` | Real 1909 image collection using compressed RAR 4 pages |

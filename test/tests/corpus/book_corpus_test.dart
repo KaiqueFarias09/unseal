@@ -176,6 +176,7 @@ BookFormat _declaredFormat(final Map<String, Object?> fixture) => switch (fixtur
   'cbz' => BookFormat.cbz,
   'cbr' => BookFormat.cbr,
   'pdf' => BookFormat.pdf,
+  'djvu' => BookFormat.djvu,
   'txt' => BookFormat.txt,
   'markdown' => BookFormat.markdown,
   'rtf' => BookFormat.rtf,
