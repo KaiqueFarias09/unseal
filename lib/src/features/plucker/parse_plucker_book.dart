@@ -15,10 +15,10 @@ const _maxRecords = 8192;
 const _maxTextRecordBytes = 32768;
 const _maxCompressedRecordBytes = 8192;
 
-/// Reads Plucker pages, links, inline styles, and monochrome Palm images.
+/// Reads Plucker pages, links, inline styles, and supported Palm bitmap images.
 ///
-/// Color bitmap variants, external URLs, and owner-keyed documents remain
-/// outside this reading projection.
+/// Custom palettes, internally compressed and direct-color bitmaps, external
+/// URLs, and owner-keyed documents remain outside this reading projection.
 DocumentBook parsePluckerBook(final Uint8List bytes) {
   final source = _PluckerSource.read(bytes);
   final paragraphs = <_PluckerParagraph>[];

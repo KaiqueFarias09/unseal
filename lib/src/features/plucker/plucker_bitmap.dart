@@ -4,7 +4,8 @@ import 'package:archive/archive.dart';
 
 import '../../foundation/exceptions/unseal_exception.dart';
 
-/// Converts bounded Palm 1-bit and standard-palette 8-bit bitmaps to PNG.
+/// Converts bounded Palm monochrome, grayscale, and standard-palette bitmaps
+/// to PNG.
 ///
 /// Custom color tables and internal compression are kept explicit so a reader
 /// never receives an apparently valid but incorrectly colored image.
@@ -21,14 +22,16 @@ Uint8List decodePluckerBitmap(final Uint8List bitmap) {
   final version = bitmap[9];
   final compression = bitmap[13];
   final channels = depth == 8 ? 3 : 1;
+  final minRowBytes = (width * depth + 7) ~/ 8;
   if (width == 0 ||
       height == 0 ||
       width * height * depth > 480000 ||
-      rowBytes < (depth == 1 ? (width + 7) ~/ 8 : width) ||
+      rowBytes < minRowBytes ||
       rowBytes * height > 60000) {
     throw const InvalidBookException('Invalid Plucker Palm bitmap dimensions.');
   }
-  if (!((depth == 1 && version == 0) || (depth == 8 && version == 1)) ||
+  if (!((depth == 1 && version == 0) ||
+          ((depth == 2 || depth == 4 || depth == 8) && version == 1)) ||
       flags != 0 ||
       (compression != 0 && compression != 0xff)) {
     throw const FormatNotSupportedException('Unsupported Plucker Palm bitmap variant.');
@@ -38,18 +41,21 @@ Uint8List decodePluckerBitmap(final Uint8List bitmap) {
   }
 
   final raw = Uint8List(height * (width * channels + 1));
+  final indexMask = (1 << depth) - 1;
   for (var y = 0; y < height; y++) {
     final row = y * (width * channels + 1);
     for (var x = 0; x < width; x++) {
-      if (depth == 1) {
-        final source = bitmap[16 + y * rowBytes + x ~/ 8];
-        raw[row + 1 + x] = (source & (0x80 >> (x % 8))) == 0 ? 255 : 0;
-      } else {
-        final paletteIndex = bitmap[16 + y * rowBytes + x];
+      final bitOffset = x * depth;
+      final source = bitmap[16 + y * rowBytes + bitOffset ~/ 8];
+      final shift = 8 - depth - bitOffset % 8;
+      final paletteIndex = (source >> shift) & indexMask;
+      if (depth == 8) {
         final color = _palmSystemColor(paletteIndex);
         raw[row + 1 + x * 3] = color.$1;
         raw[row + 2 + x * 3] = color.$2;
         raw[row + 3 + x * 3] = color.$3;
+      } else {
+        raw[row + 1 + x] = 255 - paletteIndex * 255 ~/ indexMask;
       }
     }
   }
@@ -68,7 +74,7 @@ Uint8List decodePluckerBitmap(final Uint8List bitmap) {
 
 (int, int, int) _palmSystemColor(final int index) {
   const levels = <int>[255, 204, 153, 102, 51, 0];
-  if (index < 215) {
+  if (index < 216) {
     final band = index ~/ 108;
     final withinBand = index % 108;
     final red = levels[withinBand ~/ 18];
@@ -88,12 +94,13 @@ Uint8List decodePluckerBitmap(final Uint8List bitmap) {
     (221, 221, 221),
     (238, 238, 238),
     (192, 192, 192),
+    (128, 128, 128),
     (128, 0, 0),
     (128, 0, 128),
     (0, 128, 0),
     (0, 128, 128),
   ];
-  return index < 230 ? extras[index - 215] : (0, 0, 0);
+  return index < 232 ? extras[index - 216] : (0, 0, 0);
 }
 
 void _writeChunk(final BytesBuilder output, final String type, final Uint8List data) {

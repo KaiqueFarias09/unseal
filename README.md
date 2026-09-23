@@ -43,7 +43,7 @@ document renderer.
 | MOBI 6 | PalmDOC and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts, and navigation | DRM-protected books are rejected. |
 | PalmDOC PDB | Uncompressed or PalmDOC-compressed `TEXt/REAd` records, title, and plain reading text | Other PDB ebook families use separate parsers. |
 | eReader PDB | Unencrypted `PNRd/PPrs` records with PML emphasis, headings, local links, PNG images, footnotes, sidebars, and title/author metadata | Reading-oriented HTML does not reproduce page layout or every PML control; protected books are rejected. |
-| Plucker PDB | `Data/Plkr` text pages with PalmDOC or zlib compression, continued records, and database title | Inline formatting and links are flattened to text; images, bookmarks, and owner-keyed documents are not converted. |
+| Plucker PDB | `Data/Plkr` text pages, continued records, paragraph links and inline formatting; Palm 1/2/4-bit grayscale and 8-bit system-palette images | Custom color tables, internally compressed bitmaps, direct-color 16-bit images, bookmarks, and owner-keyed documents are not converted. |
 | Sony LRF | BBeB metadata, ordered text pages, table of contents, and embedded JPEG/PNG/BMP/GIF images for versions 1–800 and 801+ | Reflowed content rather than Sony's fixed layout. Exact typography, ruby styling, and complex canvas layouts are outside this contract. |
 | Sony LRX | Plaintext metadata from the LRX2 BBeB wrapper | Protected book content is rejected with `DrmProtectedException`; metadata-only support does not decrypt or render it. |
 | AZW3 / KF8 | Skeleton and `div` reassembly, FDST flows, CSS/SVG, images, NCX navigation, and joint MOBI/KF8 files | DRM-protected books are rejected. |
@@ -401,7 +401,9 @@ image layer.
 - eReader PDB input is limited to 64 MiB, 8192 records, 8192 compressed bytes
   and 65535 decoded bytes per text record. DRM-protected books are rejected.
 - Plucker PDB input is limited to 64 MiB, 8192 records, 8192 compressed bytes
-  and 32768 decoded bytes per text record. Text-only projection omits images.
+  and 32768 decoded bytes per text record. Images are limited to 512 records,
+  480,000 source bits per bitmap, 60,000 source bytes per bitmap, and 32 MiB
+  of generated PNG output.
 - CHM input is limited to 128 MiB, individual entries to 16 MiB, directory
   entries to 10,000, and total materialized content to 128 MiB. Unsupported
   LZX layouts and malformed directory/reset tables fail with typed errors.

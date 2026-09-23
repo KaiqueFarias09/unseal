@@ -114,7 +114,7 @@ You only need a small set of format terms to understand most of the repository.
 | MOBI 6 | A Palm Database container with compressed legacy Kindle markup. | `MobiBook` with reconstructed HTML, resources, metadata, and navigation. |
 | PalmDOC PDB | A `TEXt/REAd` Palm Database with plain text in 4096-byte records. | `DocumentBook` tagged as `BookFormat.palmdoc`. |
 | eReader PDB | A `PNRd/PPrs` Palm Database containing compressed PML text, image and note records, and optional metadata. | `DocumentBook` tagged as `BookFormat.ereader`, with reading-oriented HTML, basic styles, local links, PNG images, footnotes, sidebars, and title/author. Exact PML layout is not reconstructed. |
-| Plucker PDB | A `Data/Plkr` Palm Database containing compressed HTML-like pages. | `DocumentBook` tagged as `BookFormat.plucker`, with readable paragraphs and database title; links and resources are not reconstructed. |
+| Plucker PDB | A `Data/Plkr` Palm Database containing compressed HTML-like pages and Palm bitmap records. | `DocumentBook` tagged as `BookFormat.plucker`, with readable paragraphs, paragraph links, title, and supported 1/2/4-bit grayscale or 8-bit palette images. |
 | Sony LRF | A BBeB binary container with indexed objects, page streams, metadata XML, and image streams. | `DocumentBook` tagged as `BookFormat.lrf`, with ordered reflowed pages and extracted images for versions 1–800 and 801+. |
 | Sony LRX | Calibre recognizes legacy `LRX` and `ftypLRX2` markers; Sony's public references describe OpenMG-protected BBeB and separately identify Marlin-protected Reader content, but do not specify the LRX wrapper. | `readLrxMetadata` reads a plaintext metadata stream from a nested LRX2 `bbeb` box; full book parsing throws `DrmProtectedException`. The box path is oracle-derived and tested with synthetic bytes. |
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
@@ -296,6 +296,7 @@ identified by a `TEXt/REAd` Palm Database without a MOBI header.
 | `features/palmdoc/parse_palmdoc_book.dart` | Validates PalmDOC record zero, decompresses bounded independent text records, and reuses the TXT converter for plain reading text. |
 | `features/ereader/parse_ereader_book.dart` | Recognizes eReader record-zero variants, rejects DRM, expands bounded text and resource records, converts supported PML into reading-oriented HTML, and reads metadata. |
 | `features/plucker/parse_plucker_book.dart` | Validates the Plucker index and paragraph tables, expands bounded DOC or zlib text records, joins continued fragments, and removes inline function codes. |
+| `features/plucker/plucker_bitmap.dart` | Converts bounded, uncompressed Palm 1/2/4-bit grayscale and standard-palette 8-bit rows to PNG; custom palettes, internal compression, and direct-color 16-bit images fail with a typed unsupported-format error. |
 | `features/lrf/parse_lrf_book.dart` | Reads BBeB object indexes, expands bounded streams, converts ordered text objects, and exposes metadata, navigation, and images. |
 
 ## HTML and HTMLZ: preserve an existing document

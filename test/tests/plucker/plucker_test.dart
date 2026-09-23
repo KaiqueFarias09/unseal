@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:test/test.dart';
+import 'package:unseal/src/features/plucker/plucker_bitmap.dart';
 import 'package:unseal/unseal.dart';
 
 void main() {
@@ -97,6 +98,66 @@ void main() {
     expect(rgbRows, <int>[0, 255, 0, 0, 0, 255, 0, 0, 0, 0, 255, 255, 255, 0]);
   });
 
+  test('Plucker decodes packed 2/4-bit grayscale and Palm palette boundary colors', () {
+    final bytes = Uint8List.fromList(
+      File('test/resources/books/format_expansion/plucker-bitmap-variants.pdb').readAsBytesSync(),
+    );
+    final book = parsePluckerBook(bytes);
+    expect(book.files.images, hasLength(3));
+
+    final twoBit = book.files.images[0].content;
+    expect(twoBit[25], 0); // Grayscale PNG.
+    expect(_decodePngRows(twoBit), <int>[0, 255, 170, 85, 0, 170, 0, 0, 85, 170, 255, 0]);
+
+    final fourBit = book.files.images[1].content;
+    expect(fourBit[25], 0);
+    expect(_decodePngRows(fourBit), <int>[0, 255, 238, 136, 119, 0, 0, 0, 17, 119, 238, 255]);
+
+    final eightBit = book.files.images[2].content;
+    expect(eightBit[25], 2); // RGB PNG.
+    expect(_decodePngRows(eightBit), <int>[0, 0, 51, 0, 0, 0, 0, 17, 17, 17]);
+  });
+
+  test('Plucker reports unsupported Palm bitmap modes with typed failures', () {
+    final directColor = _palmBitmap(depth: 16, version: 1, rowBytes: 2, pixels: <int>[0, 0]);
+    expect(() => decodePluckerBitmap(directColor), throwsA(isA<FormatNotSupportedException>()));
+
+    final customPalette = _palmBitmap(
+      depth: 8,
+      version: 1,
+      flags: 0x4000,
+      rowBytes: 1,
+      pixels: <int>[0],
+    );
+    expect(() => decodePluckerBitmap(customPalette), throwsA(isA<FormatNotSupportedException>()));
+
+    final compressed = _palmBitmap(
+      depth: 2,
+      version: 1,
+      compression: 1,
+      rowBytes: 2,
+      pixels: <int>[1, 0],
+    );
+    expect(() => decodePluckerBitmap(compressed), throwsA(isA<FormatNotSupportedException>()));
+
+    final truncatedPixels = _palmBitmap(depth: 4, version: 1, rowBytes: 2, pixels: const <int>[]);
+    ByteData.sublistView(truncatedPixels)
+      ..setUint16(0, 2)
+      ..setUint16(4, 1);
+    expect(() => decodePluckerBitmap(truncatedPixels), throwsA(isA<InvalidBookException>()));
+
+    final excessiveRowStorage = _palmBitmap(
+      depth: 1,
+      version: 0,
+      rowBytes: 30001,
+      pixels: const <int>[],
+    );
+    ByteData.sublistView(excessiveRowStorage)
+      ..setUint16(2, 2)
+      ..setUint16(4, 30001);
+    expect(() => decodePluckerBitmap(excessiveRowStorage), throwsA(isA<InvalidBookException>()));
+  });
+
   test('rejects a Plucker continuation without a matching next record', () {
     expect(
       () => parsePluckerBook(_continuedPlucker(<int>[65], <int>[], missingNext: true)),
@@ -107,6 +168,32 @@ void main() {
       throwsA(isA<InvalidBookException>()),
     );
   });
+}
+
+List<int> _decodePngRows(final Uint8List png) {
+  final idatLength = ByteData.sublistView(png).getUint32(33);
+  return const ZLibDecoder().decodeBytes(png.sublist(41, 41 + idatLength));
+}
+
+Uint8List _palmBitmap({
+  required final int depth,
+  required final int version,
+  required final int rowBytes,
+  required final List<int> pixels,
+  final int flags = 0,
+  final int compression = 0xff,
+}) {
+  final bitmap = Uint8List(16 + pixels.length);
+  ByteData.sublistView(bitmap)
+    ..setUint16(0, 1)
+    ..setUint16(2, 1)
+    ..setUint16(4, rowBytes)
+    ..setUint16(6, flags)
+    ..setUint8(8, depth)
+    ..setUint8(9, version)
+    ..setUint8(13, compression);
+  bitmap.setRange(16, bitmap.length, pixels);
+  return bitmap;
 }
 
 Uint8List _continuedPlucker(

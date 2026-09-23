@@ -418,6 +418,19 @@
       "focus": ["plucker", "pdb", "zlib", "text"]
     },
     {
+      "id": "FORMAT-PLUCKER-BITMAP-DEPTHS",
+      "file": "format_expansion/plucker-bitmap-variants.pdb",
+      "format": "plucker",
+      "title": "Plucker Bitmap Formats",
+      "language": null,
+      "source": "tool/generate_plucker_bitmap_fixtures.dart from original pixel-index arrays; see format_expansion/PROVENANCE.md",
+      "license": "MIT; original generated test data",
+      "license_file": "../../../LICENSE",
+      "bytes": 238,
+      "sha256": "b5f34972af587d51679ef9a799d6f5da04d006a909dcff1b81a5b38673622370",
+      "focus": ["plucker", "pdb", "bitmap", "2-bit", "4-bit", "palette-boundary"]
+    },
+    {
       "id": "FORMAT-LRF",
       "file": "lrf/original.lrf",
       "format": "lrf",
