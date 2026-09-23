@@ -8,15 +8,19 @@
 - PDF page extraction diagnostics and comic page semantics for reader clients.
 - Standalone Markdown, RTF, PalmDOC PDB, unencrypted eReader PDB, and Plucker
   PDB text parsing, each with format-specific public entry points.
-- CHM reading with bounded LZX decompression, HTML topics, resources, and
-  hierarchical contents; Sony LRF reading with reflowed text, metadata,
-  navigation, and embedded images.
-- Direct-JPEG DjVu visual pages, dimensions, and optional uncompressed OCR.
-  Common JB2/IW44 image layers return a typed unsupported-format failure.
+- CHM reading with bounded LZX decompression, HTML topics, resources,
+  hierarchical contents, Intel E8 restoration, and Windows-1251/1252/1256
+  decoding selected by locale; Sony LRF reading with reflowed text, metadata,
+  navigation, embedded images, and legacy headers through version 800.
+- LRX2 plaintext metadata inspection, with protected book content rejected.
+- Direct-JPEG DjVu visual pages, page-local JB2 masks, progressive IW44 color
+  and grayscale layers, BG/FG/mask composition, dimensions, and optional
+  uncompressed OCR.
 - KEPUB fixture validation through the existing EPUB parser, including an
   independently produced Standard Ebooks Kobo edition.
 - eReader PML emphasis, headings, local links, PNG images, footnotes, and
-  sidebars; Plucker inline formatting, links, headings, and bitmap resources.
+  sidebars; Plucker inline formatting, links, headings, and 1/2/4-bit grayscale,
+  8-bit system-palette, 4/8-bit custom-palette, and 16-bit RGB565 bitmaps.
 
 ### Reliability and scope
 

@@ -58,9 +58,9 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 ### 3.2 Arquivos de teste e conformidade
 
 - A Standard Ebooks oferece KEPUBs produzidos para Kobo, inclusive *The Red
-  Badge of Courage*. É um candidato a teste com arquivo real, distinto do KEPUB
-  gerado de uma amostra EPUB pelo Kepubify. Conferir direitos da edição e de
-  cada componente antes de incluí-lo no repositório. — [edição](https://standardebooks.org/ebooks/stephen-crane/the-red-badge-of-courage),
+  Badge of Courage*. O corpus inclui essa edição real, produzida sem Kepubify,
+  com licença, origem e hash registrados no manifesto. Ela complementa o KEPUB
+  convertido de uma amostra EPUB pelo Kepubify. — [edição](https://standardebooks.org/ebooks/stephen-crane/the-red-badge-of-courage),
   [orientações de download](https://standardebooks.org/help/how-to-use-our-ebooks)
 - O projeto CommonMark disponibiliza mais de 500 exemplos com entrada Markdown
   e saída esperada; são úteis como matriz de conformidade. Imagens relativas,
@@ -156,8 +156,8 @@ materializado. O detalhamento de cada contrato está em
 
 ## 6. Perguntas em Aberto / Fora do Escopo
 
-- Incluir KEPUB produzido independentemente pelo ecossistema Kobo, após
-  conferir os direitos da edição e de seus recursos.
+- Testar, se houver uma amostra redistribuível, um KEPUB produzido pela própria
+  Kobo. A edição independente da Standard Ebooks já está no corpus.
 - Encontrar LRF redistribuível válido produzido por outra ferramenta ou por um
   dispositivo Sony. O writer Eruditio em `c517504` foi compilado e testado, mas
   seus objetos `BookAttr` não passam no leitor Calibre 9.4.0 nem no Unseal; o
