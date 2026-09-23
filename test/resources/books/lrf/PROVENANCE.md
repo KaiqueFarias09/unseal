@@ -1,9 +1,10 @@
 # LRF fixtures
 
 The source HTML and 2×2 PNG in this directory were created for Unseal on
-2026-09-23 and are dedicated to the public domain (CC0). The LRF files were
-generated from that source with [Calibre 9.4.0](https://calibre-ebook.com/).
-Calibre's [LRF reader](https://github.com/kovidgoyal/calibre/tree/master/src/calibre/ebooks/lrf)
+2026-09-23 and are dedicated to the public domain (CC0). `original.lrf` and
+`illustrated.lrf` were generated from that source with
+[Calibre 9.4.0](https://calibre-ebook.com/). Calibre's
+[LRF reader](https://github.com/kovidgoyal/calibre/tree/master/src/calibre/ebooks/lrf)
 is used as an independent parsing oracle; no Calibre source code is included.
 
 ```sh
@@ -29,6 +30,46 @@ image references. Their temporary XML outputs are not test fixtures.
 These files test Calibre output, not the diversity of Sony Reader files from
 other producers. A legally redistributable independent LRF corpus remains
 needed before claiming broad legacy compatibility.
+
+## Independent writer evaluation (excluded from the corpus)
+
+Eruditio's LRF writer was evaluated at commit
+[`c517504356fcf1ec68a72be5a5005dff393da3f8`](https://github.com/DevExzh/eruditio/tree/c517504356fcf1ec68a72be5a5005dff393da3f8).
+That revision is licensed under
+[Apache-2.0](https://github.com/DevExzh/eruditio/blob/c517504356fcf1ec68a72be5a5005dff393da3f8/LICENSE)
+and contains an independent
+[`LrfWriter`](https://github.com/DevExzh/eruditio/blob/c517504356fcf1ec68a72be5a5005dff393da3f8/crates/eruditio/src/formats/lrf/writer.rs).
+It was built with:
+
+```sh
+cargo build --package eruditio --bin eruditio-convert \
+  --no-default-features --features cli,native-fs
+```
+
+The CLI converted original CC0 HTML with title `Eruditio LRF Writer Fixture`,
+author `Unseal Test Team`, language `en`, and `--no-transforms`. It exited
+successfully, reported one chapter, and wrote an 873-byte output. The input
+SHA-256 was
+`c7c57a031156bf644511b9a856d87c82bc83f859cf3b026935f4047a71393822`; the
+temporary output SHA-256 was
+`44d8bb5698943c9d93e25dd7c913ad734b42723085fb1a34467a7ec9a7e64960`.
+Neither file is included in the corpus.
+
+The generated output is not interoperable. Unseal rejects it with the typed
+error `LRF page tree is missing`. Calibre 9.4.0's `lrf2lrs` independently
+rejects it with `Unknown tag in BookAttr: Tag F503 *Link`; the same Calibre
+command successfully decompiles `original.lrf`. In the pinned Eruditio writer,
+`BookAttr` is given a generic `F503` Link tag for the page tree. Calibre's
+[`BookAttr` definition](https://github.com/kovidgoyal/calibre/blob/55e3f7667ee04a52addee24a38c91b98b28a55d1/src/calibre/ebooks/lrf/objects.py#L1163)
+uses the dedicated `F57B` ChildPageTree field instead, and its
+[LRF writer](https://github.com/kovidgoyal/calibre/blob/55e3f7667ee04a52addee24a38c91b98b28a55d1/src/calibre/ebooks/lrf/pylrs/pylrf.py#L312)
+defines that tag separately. This makes the output unsuitable as a valid
+cross-producer fixture. The Eruditio writer also fixes its output version at
+1000; it exposes no option to emit an older header version.
+
+At the same Eruditio commit, `test-data/real-world` contains no `.lrf` file or
+LRF provenance manifest. The independent output is therefore recorded as a
+failed compatibility experiment, not as evidence of supported LRF variants.
 
 The legacy-version regression tests build in-memory variants of
 `original.lrf`: they remove the five-byte version-801+ header tail at offsets

@@ -80,12 +80,18 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
   composto de origem continua rejeitado. — [especificação DjVu 3](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf),
   [djvu-rs](https://github.com/matyushkin/djvu-rs)
 - O Calibre documenta a conversão para eReader PDB e LRF, e oferece `lrf2lrs`
-  como validador auxiliar. As amostras foram geradas a partir de conteúdo
-  próprio. As variantes LRF 1, 799 e 800 dos testes são sintetizadas a partir
-  do fixture existente para cobrir o cabeçalho legado; não substituem um livro
-  produzido por outro criador.
+  como validador auxiliar. As amostras válidas do corpus foram geradas a partir
+  de conteúdo próprio pelo Calibre 9.4.0. Uma tentativa com o writer independente
+  Eruditio, no commit `c517504356fcf1ec68a72be5a5005dff393da3f8` (Apache-2.0),
+  produziu um arquivo de 873 bytes, mas o Calibre 9.4.0 o rejeitou por um Link
+  genérico desconhecido em `BookAttr`; o Unseal também não encontrou sua árvore
+  de páginas. A documentação de proveniência registra os hashes e o motivo da
+  exclusão. As variantes LRF 1, 799 e 800 são sintéticas e cobrem somente o
+  cabeçalho legado.
   — [ebook-convert](https://manual.calibre-ebook.com/generated/en/ebook-convert.html),
-  [lrf2lrs](https://manual.calibre-ebook.com/generated/en/lrf2lrs.html)
+  [lrf2lrs](https://manual.calibre-ebook.com/generated/en/lrf2lrs.html),
+  [writer Eruditio em commit fixo](https://github.com/DevExzh/eruditio/blob/c517504356fcf1ec68a72be5a5005dff393da3f8/crates/eruditio/src/formats/lrf/writer.rs),
+  [BookAttr no Calibre 9.4.0](https://github.com/kovidgoyal/calibre/blob/55e3f7667ee04a52addee24a38c91b98b28a55d1/src/calibre/ebooks/lrf/objects.py#L1163)
 - A documentação oficial da Sony separa BBeB sem proteção do BBeB com Marlin
   e sua nota histórica diz que o BBeB pode usar OpenMG para proteger direitos.
   Essas páginas não especificam o invólucro `.lrx`. O Calibre serve apenas como
@@ -133,7 +139,7 @@ sem declarar suporte com base apenas em arquivos gerados pelo próprio parser.
 | CHM | ITSF, MS-PATCH E8, CHMLib e IDs de codepage da Microsoft | Manual PuTTY licenciado e CHMs gerados em CP1251/1252/1256 | Implementado: HTML, recursos, sumário, E8 e codepages cobertas com limites; índice de busca e ajudas mescladas pendentes |
 | DjVu | Especificação DjVu 3 + tabelas ZP cross-checkadas com djvu-rs (MIT) | Página JPEG gerada; camada Sjbz real de fixture pública federal dos EUA; IW44 Unlicense para rejeição | JPEG direto e máscara JB2 page-local são exibidos; JB2 sai como BMP 1-bit. IW44, composição de camadas, dicionários compartilhados e indiretos permanecem rejeitados |
 | PDB | Especificação por subtipo no Calibre e PyPlucker | PalmDOC e eReader gerados; Plucker DOC/zlib gerado por ferramenta independente | PalmDOC, eReader e Plucker têm parsers distintos com contratos limitados |
-| LRF | Parser Calibre como oráculo; Sony para o contexto BBeB | LRF de texto/imagem gerados por Calibre 9.4.0 e variantes sintéticas de cabeçalho antigo | Versões até 800 são cobertas sinteticamente; falta amostra redistribuível de outro produtor |
+| LRF | Parser Calibre como oráculo; Sony para o contexto BBeB | LRF de texto/imagem gerados por Calibre 9.4.0 e variantes sintéticas; writer Eruditio Apache-2.0 avaliado e rejeitado por incompatibilidade | Versões até 800 são cobertas sinteticamente; segue faltando amostra redistribuível válida de outro produtor |
 | LRX | Sony sobre BBeB sem proteção/Marlin e OpenMG; Calibre como oráculo limitado de metadados | LRX2 sintético com região de metadados plaintext; nenhum livro protegido redistribuído | Metadados LRX2 apenas; conteúdo DRM é sempre rejeitado |
 
 ## 5. Resultado da implementação
@@ -152,10 +158,13 @@ materializado. O detalhamento de cada contrato está em
 
 - Incluir KEPUB produzido independentemente pelo ecossistema Kobo, após
   conferir os direitos da edição e de seus recursos.
-- Encontrar LRF real redistribuível de outro produtor; a amostra de Yosemite
-  encontrada não informa a licença do arquivo LRF e o download foi bloqueado
-  pelo navegador. As variantes legadas atuais são sintéticas e estão descritas
-  em `test/resources/books/lrf/PROVENANCE.md`.
+- Encontrar LRF redistribuível válido produzido por outra ferramenta ou por um
+  dispositivo Sony. O writer Eruditio em `c517504` foi compilado e testado, mas
+  seus objetos `BookAttr` não passam no leitor Calibre 9.4.0 nem no Unseal; o
+  corpus real-world desse commit não contém LRF. A amostra de Yosemite não
+  informa a licença do arquivo e seu download foi bloqueado pelo navegador.
+  As variantes legadas atuais são sintéticas e estão descritas em
+  `test/resources/books/lrf/PROVENANCE.md`.
 - Encontrar Plucker real redistribuível de outro produtor; as amostras geradas
   atuais estão identificadas com sua proveniência.
 - Encontrar amostras CHM redistribuíveis para codepages fora de 1251/1252/1256;
