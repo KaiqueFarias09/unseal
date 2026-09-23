@@ -44,7 +44,8 @@ specific format.
 the common book model, reading services, typed exceptions, and stable
 format-specific contracts.
 
-Files such as `lib/epub.dart`, `lib/pdf.dart`, and `lib/comic.dart` are narrow
+Files such as `lib/epub.dart`, `lib/pdf.dart`, `lib/markdown.dart`,
+`lib/rtf.dart`, `lib/palmdoc.dart`, and `lib/comic.dart` are narrow
 entry points for consumers that need one format. Public signatures must use
 types exported by the same public entry point. Consumers must not import
 `lib/src/`.
@@ -116,8 +117,9 @@ Input is untrusted. The following rules are architectural, not parser details:
 - Preserve HTML as data. A consuming renderer must sanitize or isolate it.
 - Reject unsupported DRM. Do not attempt to bypass access controls.
 
-Format-specific limits may differ because the formats have different cost
-models. The public README records the user-visible limits and exclusions.
+RTF bounds group nesting and generated HTML, while PalmDOC bounds each
+decompressed text record. Format-specific limits may differ because the formats
+have different cost models. The public README records the user-visible limits and exclusions.
 
 ## Testing strategy
 

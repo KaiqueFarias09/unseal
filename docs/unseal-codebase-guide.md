@@ -110,11 +110,15 @@ You only need a small set of format terms to understand most of the repository.
 | Format | What it contains | What unseal produces |
 | --- | --- | --- |
 | EPUB 2 and EPUB 3 | A ZIP package with metadata, HTML chapters, resources, and navigation. | `EpubBook` with its package model, reading spine, resources, and navigation. EPUB 3 also exposes page-list, landmarks, rendition, and accessibility metadata. Consumers parse optional SMIL files separately. |
+| KEPUB | A Kobo-modified EPUB package. | `EpubBook` tagged as `BookFormat.epub`; Kobo spans in XHTML remain available. |
 | MOBI 6 | A Palm Database container with compressed legacy Kindle markup. | `MobiBook` with reconstructed HTML, resources, metadata, and navigation. |
+| PalmDOC PDB | A `TEXt/REAd` Palm Database with plain text in 4096-byte records. | `DocumentBook` tagged as `BookFormat.palmdoc`. |
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
+| Standalone Markdown | CommonMark text with optional small front matter. | `DocumentBook` with converted HTML, heading navigation, and selected metadata. |
+| RTF | Grouped rich text with control words and optional `info` metadata. | `DocumentBook` with readable text, basic emphasis, title, and author. |
 | TXTZ | A ZIP archive containing text documents and optional metadata or cover files. | `DocumentBook` with the ordered text documents converted to HTML and their extracted resources. |
 | HTML | One HTML document. | A `DocumentBook` that preserves the decoded source HTML while normalizing its path and deriving metadata and heading navigation. |
 | HTMLZ | A ZIP archive with a top-level HTML file and optional OPF metadata. | `DocumentBook` with the HTML entry point and its resources. |
@@ -126,7 +130,7 @@ You only need a small set of format terms to understand most of the repository.
 | CB7 | A 7-Zip archive of comic page images. | The same `ComicBook` model, opened asynchronously. |
 | CBC | A ZIP collection that lists nested comics in `comics.txt`. | One flattened `ComicBook` whose pages follow collection order. |
 
-The detector explicitly rejects Amazon Topaz, Amazon KFX, and RTF. An encrypted PDF can open when the caller supplies a supported password. Kindle DRM and unsupported PDF security handlers fail with an owned exception.
+The detector explicitly rejects Amazon Topaz and Amazon KFX. An encrypted PDF can open when the caller supplies a supported password. Kindle DRM and unsupported PDF security handlers fail with an owned exception. Markdown needs a path extension or an explicit format-specific call because it has no byte signature.
 
 ## Start with the public API
 
@@ -144,6 +148,9 @@ The files at the root of `lib/` define what package consumers can import. They d
 | `lib/fb2.dart` | FB2 parsing, FB2 entities and exceptions. |
 | `lib/html.dart` | HTML and HTMLZ parsing through the small public wrapper in the HTML feature. |
 | `lib/txt.dart` | TXT and TXTZ parsing and metadata reading. It deliberately hides archive-level helpers. |
+| `lib/markdown.dart` | Standalone Markdown parsing and metadata reading. |
+| `lib/rtf.dart` | RTF parsing and metadata reading. |
+| `lib/palmdoc.dart` | PalmDOC PDB parsing and metadata reading. |
 | `lib/comic.dart` | CBZ and CBR parsing, comic entities and exceptions. |
 | `lib/comic7.dart` | CB7 and CBC parsing while reusing the common `ComicBook` model. |
 
@@ -226,7 +233,7 @@ For ZIP, `BookDispatch` checks internal evidence in order: EPUB, CBC, FB2, DOCX,
 | File | What it does and why it exists |
 | --- | --- |
 | `features/detection/entities/detected_format.dart` | Defines broad families recognized from bytes. These values are intentionally less specific than `BookFormat` when deeper inspection is required. |
-| `features/detection/detect_format.dart` | Checks signatures and bounded content for PDF, ZIP, 7-Zip, RAR, Palm Database, FB2, HTML, and text. It also rejects known unsupported families with clear errors. |
+| `features/detection/detect_format.dart` | Checks signatures and bounded content for PDF, ZIP, 7-Zip, RAR, Palm Database, RTF, FB2, HTML, and text. It also rejects known unsupported families with clear errors. |
 | `features/detection/refine_mobi_format.dart` | Opens enough of a Palm Database header to distinguish legacy MOBI from KF8 or AZW3 after broad detection. |
 
 ## Reading: select a parser and resolve reading positions
@@ -261,6 +268,20 @@ The flow is:
 | `features/txt/archive/txtz_archive.dart` | Validates archive limits and paths, orders text entries naturally, reads optional metadata, and returns the validated archive contents. `parse_txt_book.dart` later classifies resources. |
 
 Plain TXT becomes paragraphs with one navigation point. Headings are recognized only when the caller explicitly selects the supported Markdown or Textile input mode. The separate, opt-in policies in `lib/src/heuristics.dart` are not applied by `parseTxtBook`.
+
+## Standalone Markdown, RTF, and PalmDOC
+
+These formats turn source text into the same `DocumentBook` reading contract while
+keeping their own format identity. Markdown bytes have no unique signature, so
+`Unseal.readFile` recognizes `.md`, `.markdown`, and `.mdown`; callers with
+bytes use `parseMarkdownBook` directly. RTF has a byte signature. PalmDOC is
+identified by a `TEXt/REAd` Palm Database without a MOBI header.
+
+| File | What it does and why it exists |
+| --- | --- |
+| `features/markdown/parse_markdown_book.dart` | Converts CommonMark to HTML, reads bounded simple front matter, assigns heading targets, and builds navigation. Relative resources remain references because byte input cannot access neighboring files. |
+| `features/rtf/parse_rtf_book.dart` | Reads bounded RTF groups and control words, skips non-reading destinations, decodes text and metadata, and emits paragraphs with basic character emphasis. |
+| `features/palmdoc/parse_palmdoc_book.dart` | Validates PalmDOC record zero, decompresses bounded independent text records, and reuses the TXT converter for plain reading text. |
 
 ## HTML and HTMLZ: preserve an existing document
 
@@ -488,7 +509,7 @@ The flow is:
 | `features/mobi/parse_mobi_book.dart` | Coordinates the entire format family. It parses headers, rejects DRM, finds standalone or joint KF8 layouts, chooses the MOBI 6 or KF8 reader, and builds metadata and `MobiBook`. |
 | `features/mobi/entities/mobi_book.dart` | Defines the MOBI result, chapter representation, resources, navigation, and reading order. |
 | `features/mobi/entities/entities.dart` | Re-exports the public MOBI entity types. |
-| `features/mobi/header/pdb_header.dart` | Parses the Palm Database header and record table and provides bounded access to numbered records. |
+| `features/mobi/header/pdb_header.dart` | Parses the Palm Database header and record table for MOBI and PalmDOC, then provides bounded access to numbered records. |
 | `features/mobi/header/mobi_header.dart` | Parses PalmDOC and MOBI header fields that control compression, encoding, record counts, resources, indexes, and format version. |
 | `features/mobi/header/exth_header.dart` | Parses optional EXTH metadata records used by Kindle for authors, identifiers, covers, KF8 boundaries, and other fields. |
 | `features/mobi/codec/mobi_text_codec.dart` | Decodes MOBI text with the format's character encodings. |
@@ -810,6 +831,7 @@ The intentional cross-feature cases are narrow:
 
 - `BookDispatch` imports all parser entry points because parser selection is its job.
 - AZW4 calls the public PDF parser because an AZW4 publication contains a PDF payload.
+- PalmDOC reuses the MOBI feature's bounded Palm Database record reader and the TXT converter.
 - CBC calls comic parsers because a collection contains nested comic archives.
 - EPUB CFI accepts `EpubBook` because CFI is defined specifically for EPUB structure.
 

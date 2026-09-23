@@ -15,7 +15,7 @@ Unseal is a pure-Dart book parser and reading-data library. Give it bytes or a
 filesystem path and receive one format-neutral `Book` model with metadata,
 cover data, files, reading order, navigation, and statistics.
 
-It supports EPUB, MOBI, AZW3, FB2, TXT, HTML, DOCX, ODT, AZW4, comic
+It supports EPUB, MOBI, AZW3, PalmDOC, RTF, Markdown, FB2, TXT, HTML, DOCX, ODT, AZW4, comic
 archives, and PDF without a native executable, FFI bridge, or Flutter
 dependency in the library itself.
 
@@ -38,10 +38,14 @@ document renderer.
 | Format | Main capabilities | Important boundary |
 | --- | --- | --- |
 | EPUB 2/3 | OPF metadata, spine, XHTML, CSS, images, fonts, media overlays, navigation, and CFI; EPUB 3 page list, landmarks, rendition, and accessibility metadata | Font obfuscation is limited to the standard IDPF and Adobe algorithms. |
+| KEPUB | Kobo EPUB packages are read through the EPUB parser, preserving Kobo spans and EPUB content. | Reported as `BookFormat.epub`; a Kobo-specific format type is not inferred from ZIP bytes. |
 | MOBI 6 | PalmDOC and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts, and navigation | DRM-protected books are rejected. |
+| PalmDOC PDB | Uncompressed or PalmDOC-compressed `TEXt/REAd` records, title, and plain reading text | Other PDB ebook families such as eReader are not included. |
 | AZW3 / KF8 | Skeleton and `div` reassembly, FDST flows, CSS/SVG, images, NCX navigation, and joint MOBI/KF8 files | DRM-protected books are rejected. |
 | FB2 / FBZ | Metadata, covers, declared encodings, notes, links, styles, and section navigation | The result is a reflowable HTML representation. |
 | TXT / TXTZ | UTF-8/UTF-16 decoding, paragraph-preserving XHTML, archive resources, and basic Markdown/Textile | Not a full Markdown or Textile implementation. Plain TXT metadata is limited. |
+| Standalone Markdown | CommonMark blocks and inline formatting, headings, links, and simple front matter | Byte-only calls use `parseMarkdownBook`; `readFile` recognizes `.md`, `.markdown`, and `.mdown`. Relative resources are references, not extracted files. |
+| RTF | Text, title/author, paragraphs, Unicode, codepages 1251/1252/1256 and UTF-8, and basic emphasis | Tables, pictures, drawing objects, fields, and page layout are not converted. |
 | HTML / HTMLZ | Source-preserving HTML, head metadata, heading navigation, OPF manifests, and resources | HTML is preserved, not sanitized. |
 | DOCX | Open XML document structure, styles, headings, lists, tables, links, properties, and images | Semantic conversion; not pixel-perfect Word layout. |
 | ODT | OpenDocument paragraphs, headings, styles, lists, tables, images, links, and metadata | Semantic conversion; not pixel-perfect LibreOffice layout. |
@@ -129,6 +133,21 @@ On native platforms, filesystem paths are also supported:
 final book = await Unseal.readFile('/books/wonderland.epub');
 final metadata = await Unseal.readMetadataFile('/books/wonderland.epub');
 ```
+
+A standalone Markdown file is selected by its path extension. With bytes
+alone, use the format-specific entry point because Markdown has no reliable
+signature:
+
+```dart
+import 'package:unseal/markdown.dart';
+
+final book = parseMarkdownBook(markdownBytes, sourceName: 'notes.md');
+```
+
+Initial Markdown front matter accepts single-line `key: value` entries and
+dash lists for `authors`, `languages`, and `tags`. Supported metadata
+includes `title`, `author(s)`, `language(s)`, `tag(s)`, and
+`description`. It is a deliberately small subset, not arbitrary YAML.
 
 Path-based reads are filesystem-only and read the input file into memory before
 parsing. They also look for a sibling `<book-name>.opf`, followed by
@@ -343,8 +362,16 @@ its own facsimile renderer.
   only the standard IDPF and Adobe algorithms.
 - HTMLZ selects one top-level HTML spine file. Other HTML files remain
   resources.
-- TXT/TXZ conversion covers basic Markdown/Textile constructs, not every
+- TXT/TXTZ conversion covers basic Markdown/Textile constructs, not every
   extension of either format.
+- Standalone Markdown input is limited to 16 MiB and front matter to 16 KiB.
+  Relative image paths stay in the generated HTML; the parser does not load
+  neighboring files. Markdown HTML is not sanitized.
+- RTF input is limited to 64 MiB, group depth to 128, and generated HTML to
+  64 MiB. Embedded pictures and advanced layout are skipped. High bytes in
+  unsupported declared codepages are rejected; Unicode escapes still work.
+- PalmDOC input is limited to 64 MiB, with each text record limited to
+  4096 decoded bytes. Unsupported Palm database ebook subtypes are rejected.
 - EPUB navigation is optional. A damaged or missing table of contents can
   produce an empty navigation model while readable spine content remains
   available.
