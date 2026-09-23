@@ -18,7 +18,8 @@ void main() {
       expect(book.format, BookFormat.plucker);
       expect(book.metadata.title, startsWith('Plucker Sample'));
       expect(book.files.html.single.content, contains('First paragraph with readable text.'));
-      expect(book.files.html.single.content, contains('Second paragraph and a local link.'));
+      expect(book.files.html.single.content, contains('Second paragraph and a '));
+      expect(book.files.html.single.content, contains('>local link</a>.'));
       expect(book.files.html.single.content, contains('The End'));
       expect(book.files.html.single.content, contains('Closing line.'));
       expect(book.readingOrder, hasLength(1));
@@ -41,10 +42,41 @@ void main() {
 
   test('joins continued Plucker text and a split inline function', () {
     final book = parsePluckerBook(_continuedPlucker(<int>[65, 0], <int>[0x38, 66]));
-    expect(book.files.html.single.content, contains('<p>A B</p>'));
+    expect(book.files.html.single.content, contains('<p>A<br/>B</p>'));
 
     final word = parsePluckerBook(_continuedPlucker('Al'.codeUnits, 'pha'.codeUnits));
     expect(word.files.html.single.content, contains('<p>Alpha</p>'));
+  });
+
+  test('Plucker keeps inline styles, paragraph links, and monochrome images', () {
+    final bytes = Uint8List.fromList(
+      File('test/resources/books/format_expansion/plucker-rich.pdb').readAsBytesSync(),
+    );
+    final book = parsePluckerBook(bytes);
+    final html = book.files.html.single.content;
+    expect(html, contains('<strong>bold fragment</strong>'));
+    expect(html, contains('<em>italic fragment</em>'));
+    expect(html, contains('<a href="#r2-p5">the destination</a>'));
+    expect(html, contains('<img src="images/11.png" alt=""/>'));
+    expect(book.files.images, hasLength(1));
+    expect(book.files.images.single.content.take(8), <int>[137, 80, 78, 71, 13, 10, 26, 10]);
+    final image = book.files.images.single.content;
+    expect(ByteData.sublistView(image).getUint32(16), 2);
+    expect(ByteData.sublistView(image).getUint32(20), 2);
+  });
+
+  test('Plucker rejects a malformed Palm bitmap before allocating pixels', () {
+    final bytes = Uint8List.fromList(
+      File('test/resources/books/format_expansion/plucker-rich.pdb').readAsBytesSync(),
+    );
+    final count = ByteData.sublistView(bytes).getUint16(76);
+    for (var index = 1; index < count; index++) {
+      final offset = ByteData.sublistView(bytes).getUint32(78 + index * 8);
+      if (bytes[offset + 6] != 2) continue;
+      ByteData.sublistView(bytes).setUint16(offset + 8, 65535);
+      break;
+    }
+    expect(() => parsePluckerBook(bytes), throwsA(isA<InvalidBookException>()));
   });
 
   test('rejects a Plucker continuation without a matching next record', () {

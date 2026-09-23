@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -7,23 +6,57 @@ import '../../foundation/entities/entities.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
 import '../mobi/header/pdb_header.dart';
 import '../palmdoc/palmdoc_compression.dart';
-import '../txt/parse_txt_book.dart';
+import 'plucker_bitmap.dart';
+import 'plucker_html.dart';
 
 const _maxBookBytes = 64 * 1024 * 1024;
 const _maxRecords = 8192;
 const _maxTextRecordBytes = 32768;
 const _maxCompressedRecordBytes = 8192;
 
-/// Reads the textual pages of a Plucker PDB in record order.
+/// Reads Plucker pages, links, inline styles, and monochrome Palm images.
 ///
-/// Plucker images, links, styles and bookmarks are not represented in this
-/// text projection. Owner-keyed compressed documents are not supported.
+/// Color bitmap variants, external URLs, and owner-keyed documents remain
+/// outside this reading projection.
 DocumentBook parsePluckerBook(final Uint8List bytes) {
   final source = _PluckerSource.read(bytes);
-  final paragraphs = <Uint8List>[];
+  final paragraphs = <_PluckerParagraph>[];
+  final images = <BinaryFile>[];
+  final imagePaths = <int, String>{};
+  var imageBytes = 0;
+  for (var index = 1; index < source.pdb.count; index++) {
+    final record = source.pdb.record(index);
+    if (record.length < 8) {
+      throw const InvalidBookException('Truncated Plucker data record.');
+    }
+    final type = record[6];
+    if (type != 2 && type != 3) continue;
+    final view = ByteData.sublistView(record);
+    final uid = view.getUint16(0);
+    final size = view.getUint16(4);
+    if (imagePaths.containsKey(uid) || images.length >= 512) {
+      throw const InvalidBookException('Duplicate or excessive Plucker image records.');
+    }
+    final bitmap = _decodeText(record, 8, size, compressed: type == 3, version: source.version);
+    Uint8List png;
+    try {
+      png = decodePluckerBitmap(bitmap);
+    } on FormatNotSupportedException {
+      continue;
+    }
+    imageBytes += png.length;
+    if (imageBytes > 32 * 1024 * 1024) {
+      throw const InvalidBookException('Plucker images exceed the 32 MiB output limit.');
+    }
+    final path = 'images/$uid.png';
+    imagePaths[uid] = path;
+    images.add(BinaryFile(content: png, name: '$uid.png', type: 'png', path: path));
+  }
   var totalTextBytes = 0;
   Uint8List? continuedParagraph;
   int? continuedType;
+  int? continuedUid;
+  int? continuedIndex;
 
   for (var index = 1; index < source.pdb.count; index++) {
     final record = source.pdb.record(index);
@@ -35,6 +68,7 @@ DocumentBook parsePluckerBook(final Uint8List bytes) {
       throw const InvalidBookException('Plucker text continuation has a different record type.');
     }
     if (type != 0 && type != 1) continue;
+    final uid = ByteData.sublistView(record).getUint16(0);
     final count = ByteData.sublistView(record).getUint16(2);
     final size = ByteData.sublistView(record).getUint16(4);
     if (count == 0 || count > _maxTextRecordBytes ~/ 4 || size > _maxTextRecordBytes) {
@@ -85,8 +119,12 @@ DocumentBook parsePluckerBook(final Uint8List bytes) {
       if (paragraph == lengths.length - 1 && (record[7] & 0x01) != 0) {
         continuedParagraph = part;
         continuedType = type;
+        continuedUid ??= uid;
+        continuedIndex ??= paragraph;
       } else {
-        paragraphs.add(part);
+        paragraphs.add(_PluckerParagraph(continuedUid ?? uid, continuedIndex ?? paragraph, part));
+        continuedUid = null;
+        continuedIndex = null;
       }
     }
   }
@@ -98,15 +136,35 @@ DocumentBook parsePluckerBook(final Uint8List bytes) {
   if (paragraphs.isEmpty) {
     throw const FormatNotSupportedException('Plucker document has no readable text pages.');
   }
-  final document = parseTxtBook(
-    Uint8List.fromList(utf8.encode(paragraphs.map(_stripFunctions).join('\n\n'))),
-    sourceName: source.pdb.name,
-  );
   final metadata = source.metadata;
-  final htmlPath = document.files.html.single.path;
+  final htmlPath = _documentPath(source.pdb.name);
+  final textIds = <int>{for (final paragraph in paragraphs) paragraph.uid};
+  final html = StringBuffer('<!doctype html><html><head><meta charset="utf-8"></head><body>');
+  final seenRecords = <int>{};
+  for (final paragraph in paragraphs) {
+    if (seenRecords.add(paragraph.uid)) html.write('<span id="r${paragraph.uid}"></span>');
+    html.write('<span id="r${paragraph.uid}-p${paragraph.index}"></span><p>');
+    html.write(renderPluckerParagraph(paragraph.data, textIds: textIds, imagePaths: imagePaths));
+    html.write('</p>');
+    if (html.length > 2 * _maxBookBytes) {
+      throw const InvalidBookException('Rendered Plucker HTML exceeds the 128 MiB limit.');
+    }
+  }
+  html.write('</body></html>');
+  if (html.length > 2 * _maxBookBytes) {
+    throw const InvalidBookException('Rendered Plucker HTML exceeds the 128 MiB limit.');
+  }
   return DocumentBook(
     format: BookFormat.plucker,
-    files: document.files,
+    files: Files(
+      images: images,
+      css: const <TextFile>[],
+      html: <TextFile>[
+        TextFile(name: htmlPath, type: 'html', path: htmlPath, content: html.toString()),
+      ],
+      fonts: const <BinaryFile>[],
+      others: const <BinaryFile>[],
+    ),
     metadata: metadata,
     navigation: Navigation(
       title: metadata.title ?? 'Contents',
@@ -163,26 +221,20 @@ Uint8List _decodeText(
   return decoded;
 }
 
-String _stripFunctions(final Uint8List paragraph) {
-  final text = StringBuffer();
-  for (var index = 0; index < paragraph.length; index++) {
-    final byte = paragraph[index];
-    if (byte != 0) {
-      text.writeCharCode(byte);
-      continue;
-    }
-    if (++index >= paragraph.length) {
-      throw const InvalidBookException('Truncated Plucker text function.');
-    }
-    final code = paragraph[index];
-    final argumentBytes = code & 7;
-    if (index + argumentBytes >= paragraph.length) {
-      throw const InvalidBookException('Truncated Plucker text function argument.');
-    }
-    index += argumentBytes;
-    if (code == 0x38) text.write('\n');
-  }
-  return text.toString();
+String _documentPath(final String name) {
+  final stem = name
+      .trim()
+      .replaceAll(RegExp(r'[^A-Za-z0-9 ._-]'), '_')
+      .replaceFirst(RegExp(r'^\.+'), '');
+  return '${stem.isEmpty ? 'index' : stem}.html';
+}
+
+final class _PluckerParagraph {
+  const _PluckerParagraph(this.uid, this.index, this.data);
+
+  final int uid;
+  final int index;
+  final Uint8List data;
 }
 
 final class _PluckerSource {

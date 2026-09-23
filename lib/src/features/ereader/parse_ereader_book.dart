@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -8,17 +7,17 @@ import '../../foundation/exceptions/unseal_exception.dart';
 import '../../foundation/text/xml_encoding.dart';
 import '../mobi/header/pdb_header.dart';
 import '../palmdoc/palmdoc_compression.dart';
-import '../txt/parse_txt_book.dart';
+import 'ereader_pml.dart';
 
 const _maxBookBytes = 64 * 1024 * 1024;
 const _maxRecords = 8192;
 const _maxCompressedRecordBytes = 8192;
 const _maxDecodedRecordBytes = 65535;
 
-/// Parses an unencrypted eReader PDB into readable text and metadata.
+/// Parses an unencrypted eReader PDB into readable HTML and metadata.
 ///
-/// eReader's Palm Markup Language is reduced to reading text. Image, footnote,
-/// sidebar, and page-layout instructions are not represented in this result.
+/// A reading-oriented PML subset preserves headings, inline emphasis, local
+/// links, and PNG images. Complex page layout remains outside this projection.
 DocumentBook parseEreaderBook(final Uint8List bytes) {
   final source = _EreaderSource.read(bytes);
   final output = BytesBuilder(copy: false);
@@ -33,29 +32,51 @@ DocumentBook parseEreaderBook(final Uint8List bytes) {
   }
 
   final pml = decodeXmlTextAs(output.takeBytes(), XmlEncoding.cp1252);
-  final readable = _stripPml(pml);
-  final document = parseTxtBook(
-    Uint8List.fromList(utf8.encode(readable)),
-    sourceName: source.pdb.name,
-  );
+  final images = source.images();
+  final imagePaths = <String, String>{for (final image in images) image.name: image.path};
+  final rendered = renderEreaderPml(pml, imagePaths: imagePaths);
+  final supplemental = source.supplementalHtml();
+  final htmlContent = supplemental.isEmpty
+      ? rendered.html
+      : rendered.html.replaceFirst('</body>', '$supplemental</body>');
+  if (htmlContent.length > 2 * _maxBookBytes) {
+    throw const InvalidBookException('Rendered eReader HTML exceeds the 128 MiB limit.');
+  }
   final metadata = source.metadata();
-  final htmlPath = document.files.html.single.path;
+  final htmlPath = _documentPath(source.pdb.name);
+  final navigation = rendered.headings.isEmpty
+      ? <NavPoint>[
+          NavPoint(
+            classAttribute: '',
+            id: 'nav-1',
+            playOrder: '1',
+            label: metadata.title ?? 'Document',
+            content: htmlPath,
+          ),
+        ]
+      : <NavPoint>[
+          for (var i = 0; i < rendered.headings.length; i++)
+            NavPoint(
+              classAttribute: '',
+              id: 'nav-${i + 1}',
+              playOrder: '${i + 1}',
+              label: rendered.headings[i].label,
+              content: '$htmlPath#${rendered.headings[i].id}',
+            ),
+        ];
   return DocumentBook(
     format: BookFormat.ereader,
-    files: document.files,
-    metadata: metadata,
-    navigation: Navigation(
-      title: metadata.title ?? 'Contents',
-      navPoints: <NavPoint>[
-        NavPoint(
-          classAttribute: '',
-          id: 'nav-1',
-          playOrder: '1',
-          label: metadata.title ?? 'Document',
-          content: htmlPath,
-        ),
+    files: Files(
+      images: images,
+      css: const <TextFile>[],
+      html: <TextFile>[
+        TextFile(name: htmlPath, type: 'html', path: htmlPath, content: htmlContent),
       ],
+      fonts: const <BinaryFile>[],
+      others: const <BinaryFile>[],
     ),
+    metadata: metadata,
+    navigation: Navigation(title: metadata.title ?? 'Contents', navPoints: navigation),
     order: <String>[htmlPath],
   );
 }
@@ -64,12 +85,29 @@ DocumentBook parseEreaderBook(final Uint8List bytes) {
 BookMetadata readEreaderMetadata(final Uint8List bytes) => _EreaderSource.read(bytes).metadata();
 
 final class _EreaderSource {
-  const _EreaderSource(this.pdb, this.compression, this.nonTextRecord, this.metadataRecord);
+  const _EreaderSource(
+    this.pdb,
+    this.compression,
+    this.nonTextRecord,
+    this.metadataRecord,
+    this.imageStart,
+    this.imageCount,
+    this.footnoteStart,
+    this.footnoteCount,
+    this.sidebarStart,
+    this.sidebarCount,
+  );
 
   final PdbHeader pdb;
   final int compression;
   final int nonTextRecord;
   final int? metadataRecord;
+  final int imageStart;
+  final int imageCount;
+  final int footnoteStart;
+  final int footnoteCount;
+  final int sidebarStart;
+  final int sidebarCount;
 
   static _EreaderSource read(final Uint8List bytes) {
     if (bytes.length > _maxBookBytes) {
@@ -99,7 +137,33 @@ final class _EreaderSource {
           (metadataRecord < nonTextRecord || metadataRecord >= pdb.count)) {
         throw const InvalidBookException('Invalid eReader metadata record.');
       }
-      return _EreaderSource(pdb, compression, nonTextRecord, metadataRecord);
+      final imageCount = view.getUint16(20);
+      final imageStart = view.getUint16(40);
+      final footnoteCount = view.getUint16(28);
+      final sidebarCount = view.getUint16(30);
+      final footnoteStart = view.getUint16(48);
+      final sidebarStart = view.getUint16(50);
+      if (imageCount > 0 && (imageStart < nonTextRecord || imageStart + imageCount > pdb.count)) {
+        throw const InvalidBookException('Invalid eReader image record range.');
+      }
+      if ((footnoteCount > 0 &&
+              (footnoteStart < nonTextRecord || footnoteStart + footnoteCount > pdb.count)) ||
+          (sidebarCount > 0 &&
+              (sidebarStart < nonTextRecord || sidebarStart + sidebarCount > pdb.count))) {
+        throw const InvalidBookException('Invalid eReader note record range.');
+      }
+      return _EreaderSource(
+        pdb,
+        compression,
+        nonTextRecord,
+        metadataRecord,
+        imageStart,
+        imageCount,
+        footnoteStart,
+        footnoteCount,
+        sidebarStart,
+        sidebarCount,
+      );
     }
     if (header.length == 202 || header.length == 116) {
       final version = view.getUint16(0);
@@ -110,7 +174,7 @@ final class _EreaderSource {
       if (nonTextRecord < 2 || nonTextRecord > pdb.count) {
         throw const InvalidBookException('Invalid eReader text record range.');
       }
-      return _EreaderSource(pdb, -1, nonTextRecord, null);
+      return _EreaderSource(pdb, -1, nonTextRecord, null, 0, 0, 0, 0, 0, 0);
     }
     throw const FormatNotSupportedException('Unsupported eReader header layout.');
   }
@@ -138,6 +202,83 @@ final class _EreaderSource {
     } on FormatException {
       throw const InvalidBookException('Invalid eReader zlib text record.');
     }
+  }
+
+  List<BinaryFile> images() {
+    final images = <BinaryFile>[];
+    final names = <String>{};
+    for (var index = imageStart; index < imageStart + imageCount; index++) {
+      final record = pdb.record(index);
+      if (record.length < 70 ||
+          record.length > 65505 ||
+          record[0] != 0x50 ||
+          record[1] != 0x4e ||
+          record[2] != 0x47 ||
+          record[3] != 0x20) {
+        throw const InvalidBookException('Invalid eReader PNG image record.');
+      }
+      var end = 4;
+      while (end < 36 && record[end] != 0) {
+        end++;
+      }
+      final name = decodeXmlTextAs(Uint8List.sublistView(record, 4, end), XmlEncoding.cp1252);
+      if (name.isEmpty ||
+          !RegExp(r'^[A-Za-z0-9_.-]+\.png$', caseSensitive: false).hasMatch(name) ||
+          !names.add(name)) {
+        throw const InvalidBookException('Invalid or duplicate eReader image name.');
+      }
+      final data = Uint8List.sublistView(record, 62);
+      if (data.length < 8 ||
+          data[0] != 0x89 ||
+          data[1] != 0x50 ||
+          data[2] != 0x4e ||
+          data[3] != 0x47 ||
+          data[4] != 0x0d ||
+          data[5] != 0x0a ||
+          data[6] != 0x1a ||
+          data[7] != 0x0a) {
+        throw const InvalidBookException('Invalid eReader PNG image payload.');
+      }
+      images.add(BinaryFile(content: data, name: name, type: 'png', path: 'images/$name'));
+    }
+    return images;
+  }
+
+  String supplementalHtml() {
+    final html = StringBuffer();
+    var decodedBytes = 0;
+    for (final section in <(String, int, int)>[
+      ('fn', footnoteStart, footnoteCount),
+      ('sb', sidebarStart, sidebarCount),
+    ]) {
+      final (prefix, start, count) = section;
+      if (count <= 1) continue;
+      final idsRecord = pdb.record(start);
+      if (idsRecord.length > 64 * 1024) {
+        throw const InvalidBookException('eReader note ID record exceeds 64 KiB.');
+      }
+      final ids = decodeXmlTextAs(
+        idsRecord,
+        XmlEncoding.cp1252,
+      ).split('\u0000').where((id) => id.isNotEmpty).toList();
+      for (var index = 1; index < count; index++) {
+        final text = decodeTextRecord(start + index);
+        decodedBytes += text.length;
+        if (decodedBytes > _maxBookBytes) {
+          throw const InvalidBookException('eReader notes exceed the 64 MiB limit.');
+        }
+        final name = index - 1 < ids.length ? ids[index - 1] : 'note-$index';
+        final id = RegExp(r'^[A-Za-z0-9_.:-]{1,128}$').hasMatch(name) ? name : 'note-$index';
+        final rendered = renderEreaderPml(
+          decodeXmlTextAs(text, XmlEncoding.cp1252),
+          imagePaths: const <String, String>{},
+        ).html;
+        final bodyStart = rendered.indexOf('<body>') + '<body>'.length;
+        final bodyEnd = rendered.lastIndexOf('</body>');
+        html.write('<aside id="$prefix-$id">${rendered.substring(bodyStart, bodyEnd)}</aside>');
+      }
+    }
+    return html.toString();
   }
 
   BookMetadata metadata() {
@@ -171,35 +312,10 @@ final class _EreaderSource {
   }
 }
 
-String _stripPml(final String source) {
-  final output = StringBuffer();
-  var cursor = 0;
-  while (cursor < source.length) {
-    final char = source[cursor++];
-    if (char != r'\' || cursor >= source.length) {
-      output.write(char);
-      continue;
-    }
-    final command = source[cursor++];
-    switch (command) {
-      case r'\':
-        output.write(r'\');
-      case 'n':
-        output.write('\n');
-      case 't':
-        output.write('\t');
-      default:
-        // Formatting commands may have a quoted argument (for example an
-        // image name). Discard it together with the command, preserving prose.
-        if (cursor < source.length && source[cursor] == '=') cursor++;
-        if (cursor < source.length && source[cursor] == '"') {
-          cursor++;
-          while (cursor < source.length && source[cursor] != '"') {
-            cursor++;
-          }
-          if (cursor < source.length) cursor++;
-        }
-    }
-  }
-  return output.toString();
+String _documentPath(final String name) {
+  final stem = name
+      .trim()
+      .replaceAll(RegExp(r'[^A-Za-z0-9 ._-]'), '_')
+      .replaceFirst(RegExp(r'^\.+'), '');
+  return '${stem.isEmpty ? 'index' : stem}.html';
 }
