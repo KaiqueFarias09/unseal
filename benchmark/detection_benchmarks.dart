@@ -2,9 +2,10 @@
 // [detectFormat] and [refineMobiFormat].
 //
 // The detection group iterates every parsing fixture — the classic
-// fixtures plus the 15-fixture format matrix — so all 16 [BookFormat]
-// values are measured; the closing coverage scenario fails the run if
-// a format ever loses its fixture.
+// fixtures plus the format matrix — so every byte-detectable
+// [BookFormat] value is measured. Markdown is file-name-based at the
+// facade (byte-only detection classifies it as plain text), so it has
+// no byte-level detection row.
 
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations

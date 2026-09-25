@@ -97,8 +97,9 @@ String _locate(final String relative) {
 /// CB7 and CBC are async-only at the public API (7-Zip work runs on an
 /// isolate) — they are measured through [asyncParsingFixtures] instead,
 /// so every format still gets both a parse and a metadata scenario.
-/// Detection rows iterate the full [parsingFixtures] ∪
-/// [asyncParsingFixtures] set.
+/// Markdown is file-name-based and measured through
+/// [fileBasedParsingFixtures]. Detection rows iterate the full
+/// [parsingFixtures] ∪ [asyncParsingFixtures] set.
 List<BookFixture> get parsingFixtures => <BookFixture>[
   ..._classicParsingFixtures,
   ...formatMatrixFixtures.where(_syncParseable),
@@ -111,6 +112,20 @@ bool _syncParseable(final BookFixture fixture) => fixture != cb7Matrix && fixtur
 /// ([Unseal.read] / [Unseal.readMetadata]):
 /// the 7-Zip-backed formats.
 List<BookFixture> get asyncParsingFixtures => <BookFixture>[cb7Matrix, cbcMatrix];
+
+/// Fixtures whose format is only detectable with the file name:
+/// byte-only detection classifies Markdown as plain text, so they are
+/// measured through the file-based entry points
+/// ([Unseal.readFile] / [Unseal.readMetadataFile]).
+List<BookFixture> get fileBasedParsingFixtures => <BookFixture>[markdownMatrix];
+
+/// The standalone Markdown fixture (FORMAT-MARKDOWN); cached, so
+/// instance equality with [fileBasedParsingFixtures] entries holds.
+BookFixture get markdownMatrix => loadFixture(
+  'books/format_expansion/garden.md',
+  displayName: 'garden.md',
+  fixtureId: 'FORMAT-MARKDOWN',
+);
 
 List<BookFixture> get _classicParsingFixtures => <BookFixture>[
   epubSmall,
@@ -224,6 +239,29 @@ final List<BookFixture> formatMatrixFixtures = <BookFixture>[
   cb7Matrix,
   cbcMatrix,
   loadFixture('books/odt/synthetic.odt', displayName: 'synthetic.odt', fixtureId: 'FORMAT-ODT'),
+  loadFixture(
+    'books/format_expansion/garden.rtf',
+    displayName: 'garden.rtf',
+    fixtureId: 'FORMAT-RTF',
+  ),
+  loadFixture(
+    'books/format_expansion/garden.pdb',
+    displayName: 'garden.pdb',
+    fixtureId: 'FORMAT-PALMDOC',
+  ),
+  loadFixture(
+    'books/format_expansion/ereader-sample.pdb',
+    displayName: 'ereader-sample.pdb',
+    fixtureId: 'FORMAT-EREADER',
+  ),
+  loadFixture(
+    'books/format_expansion/plucker-sample.pdb',
+    displayName: 'plucker-sample.pdb',
+    fixtureId: 'FORMAT-PLUCKER-ZLIB',
+  ),
+  loadFixture('books/lrf/original.lrf', displayName: 'original.lrf', fixtureId: 'FORMAT-LRF'),
+  loadFixture('books/chm/putty.chm', displayName: 'putty.chm', fixtureId: 'FORMAT-CHM-PUTTY'),
+  loadFixture('books/djvu/jpeg-only.djvu', displayName: 'jpeg-only.djvu', fixtureId: 'FORMAT-DJVU'),
 ];
 
 bool _derivedReady = false;

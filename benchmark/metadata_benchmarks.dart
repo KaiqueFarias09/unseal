@@ -45,4 +45,12 @@ Future<void> runMetadataBenchmarks() async {
     () => Unseal.readMetadataFile(epubWithSidecar.path),
     note: 'disk read + isolate + OPF sidecar merge',
   );
+  for (final fixture in fileBasedParsingFixtures) {
+    await group.addAsync(
+      'Unseal.readMetadataFile — ${fixture.label}',
+      () => Unseal.readMetadataFile(fixture.path),
+      fixtureId: fixture.fixtureId,
+      note: 'file-name-based format · disk read + isolate',
+    );
+  }
 }

@@ -4,9 +4,9 @@
 //
 // The sync loop covers every synchronously-parseable format; the 7-Zip
 // formats (CB7, CBC) are async-only at the public API and are measured
-// through their own [Unseal.read] rows. A coverage check
-// (untimed, once per run) fails the suite when a [BookFormat] loses
-// its fixture.
+// through their own [Unseal.read] rows, and Markdown is file-name-based
+// and measured through [Unseal.readFile]. A coverage check (untimed,
+// once per run) fails the suite when a [BookFormat] loses its fixture.
 
 // Benchmark registration reads best as sequential statements.
 // ignore_for_file: cascade_invocations
@@ -67,6 +67,14 @@ Future<void> runParsingBenchmarks() async {
     () => Unseal.readFile(epubAlice.path),
     note: 'disk read + isolate',
   );
+  for (final fixture in fileBasedParsingFixtures) {
+    await group.addAsync(
+      'Unseal.readFile — ${fixture.label}',
+      () => Unseal.readFile(fixture.path),
+      fixtureId: fixture.fixtureId,
+      note: 'file-name-based format · disk read + isolate',
+    );
+  }
 }
 
 /// Parses every matrix fixture once, untimed — CB7/CBC through the
@@ -78,6 +86,9 @@ Future<void> _verifyParseFormatCoverage() async {
   };
   for (final fixture in asyncParsingFixtures) {
     formats.add((await Unseal.read(fixture.bytes)).format);
+  }
+  for (final fixture in fileBasedParsingFixtures) {
+    formats.add((await Unseal.readFile(fixture.path)).format);
   }
   if (formats.length != BookFormat.values.length) {
     final missing = BookFormat.values.toSet().difference(formats);
