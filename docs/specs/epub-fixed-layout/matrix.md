@@ -56,9 +56,14 @@ registram-se apenas IDs privados e resultado.
 ## Baseline do leitor atual (registro FXL-01)
 
 Confirmado por inspeção de código (nenhum uso de `EpubRendition`/`EpubLayout`
-em `lib/` do Grimoire) e por probe de integração (`test/fxl_baseline_test.dart`
-no Grimoire): livros `pre-paginated` são paginados pelo caminho de colunas,
-a viewport do livro é ignorada, não há spreads/zoom/orientação, itens SVG
-standalone são descartados do reading order pelo parser e itens
-`linear="no"` entram no fluxo linear. `page-progression-direction` é o único
-recurso já honrado (refluível).
+em `lib/` do Grimoire), por probe de integração no macOS
+(`example/integration_test/fxl_baseline_probe.dart`, temporário) e por captura
+visual (`/tmp/fxl-artifacts/baseline/macos-page-blanche-before-window.png`):
+com `page-blanche.epub`, o leitor atual parseia (169 ms) e abre (primeiro
+relatório de página 827 ms) pelo caminho refluível — `column 0/1`, viradas de
+página ~107 ms cruzando arquivos — mas a página bitmap renderiza no tamanho
+natural dos pixels, cortada pela janela, sem palco 1200×1577, sem fit-to-window,
+sem spreads e sem zoom. Livros `pre-paginated` são paginados pelo caminho de
+colunas, a viewport do livro é ignorada, itens SVG standalone são descartados
+do reading order pelo parser e itens `linear="no"` entram no fluxo linear.
+`page-progression-direction` é o único recurso já honrado (refluível).
