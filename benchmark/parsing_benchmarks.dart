@@ -34,7 +34,7 @@ Future<void> runParsingBenchmarks() async {
       () => Unseal.read(fixture.bytes),
       inputBytes: fixture.bytes.length,
       fixtureId: fixture.fixtureId,
-      note: 'async-only format · isolate spawn + byte copy included',
+      note: 'async-only format · isolate spawn (fresh-JIT) + byte copy included',
     );
   }
 
@@ -54,13 +54,13 @@ Future<void> runParsingBenchmarks() async {
     'Unseal.read — ${epubSmall.label}',
     () => Unseal.read(epubSmall.bytes),
     inputBytes: epubSmall.bytes.length,
-    note: 'isolate spawn + byte copy included',
+    note: 'isolate spawn (fresh-JIT) + byte copy included',
   );
   await group.addAsync(
     'Unseal.read — ${mobi6Alice.label}',
     () => Unseal.read(mobi6Alice.bytes),
     inputBytes: mobi6Alice.bytes.length,
-    note: 'isolate spawn + byte copy included',
+    note: 'isolate spawn (fresh-JIT) + byte copy included',
   );
   await group.addAsync(
     'Unseal.readFile — ${epubAlice.label}',
