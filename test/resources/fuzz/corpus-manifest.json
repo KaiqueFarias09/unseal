@@ -227,16 +227,16 @@
     {
       "path": "test/resources/books/epub/fxl-spread-hints.epub",
       "format": "epub",
-      "bytes": 3541,
-      "sha256": "a836ec02ea0ab3d46bc8fed6884ed827c03b13ee2b5b3df2a547f5d84bdd4ac7",
+      "bytes": 3562,
+      "sha256": "6cadbe50fd322786a9101f578c6483e3dca6bef92b8edaeb3ac6b12cabbfa217",
       "container": "zip",
       "landmarks": 19
     },
     {
       "path": "test/resources/books/epub/fxl-spread-portrait.epub",
       "format": "epub",
-      "bytes": 3067,
-      "sha256": "7c519a964022b921e22390f5fa22bba075ff4f27eb9cf3aee5aafe9ff9962235",
+      "bytes": 3088,
+      "sha256": "d513e3a9b75268c25575f04ca0c0c04b11032564f36350cdc4974fcde453f9af",
       "container": "zip",
       "landmarks": 17
     },
@@ -623,7 +623,7 @@
       "path": "test/resources/books/manifest.json",
       "format": "manifest",
       "bytes": 38491,
-      "sha256": "43f1cbfbcd3fffd384c06e4ec4b126af880635ea0ebd4ac0036b59fc903c3c36",
+      "sha256": "db58c05cec8456393830f1c67ba405148861423f3042a0c0b02baf388ab678c7",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1434,7 +1434,7 @@
   ],
   "counts": {
     "total": 173,
-    "totalBytes": 84754319,
+    "totalBytes": 84754361,
     "byFormat": {
       "manifest": 12,
       "chm": 4,

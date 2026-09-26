@@ -645,8 +645,8 @@
       "source": "tool/generate_synthetic_format_fixtures.dart",
       "license": "MIT; contains no third-party creative content",
       "license_file": "../../../LICENSE",
-      "bytes": 3541,
-      "sha256": "a836ec02ea0ab3d46bc8fed6884ed827c03b13ee2b5b3df2a547f5d84bdd4ac7",
+      "bytes": 3562,
+      "sha256": "6cadbe50fd322786a9101f578c6483e3dca6bef92b8edaeb3ac6b12cabbfa217",
       "focus": [
         "generated",
         "epub",
@@ -665,8 +665,8 @@
       "source": "tool/generate_synthetic_format_fixtures.dart",
       "license": "MIT; contains no third-party creative content",
       "license_file": "../../../LICENSE",
-      "bytes": 3067,
-      "sha256": "7c519a964022b921e22390f5fa22bba075ff4f27eb9cf3aee5aafe9ff9962235",
+      "bytes": 3088,
+      "sha256": "d513e3a9b75268c25575f04ca0c0c04b11032564f36350cdc4974fcde453f9af",
       "focus": [
         "generated",
         "epub",
