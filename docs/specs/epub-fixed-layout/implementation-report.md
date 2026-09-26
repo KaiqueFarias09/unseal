@@ -88,10 +88,53 @@ commit exato informado no fim deste relatório.
 
 **Critérios A1, A2, A3, J1 atendidos no macOS** (matriz).
 
-## FXL-03 — Geometria e navegação completas ⏳
+## FXL-03 — Geometria e navegação completas ✅
 
-Em execução (agente de renderização retomado): spreads sintéticos com
-colocação left/right/center, RTL espelhado, zoom (fitPage/fitWidth/oneToOne/
-custom), orientação reportada ao host, links/TOC/landmarks, não-lineares fora
-do fluxo linear, referências repetidas, SVG standalone, itens mistos,
-estabilidade em resize/fechar-reabrir/voltar; cobertura pequena+grande viewport.
+Commit `af4e787` (branch `fxl/grimoire`, merge `097ec58` no main local):
+- **Spreads sintéticos**: `FixedPresentation` + `fixedPresentationsOf` (walk de
+  pareamento no spine: `page-spread-left/right` forçam lado, `center` fica
+  sozinho, fillers em branco apenas quando há contexto de spread; `auto`
+  pareia só em viewport larga e escala legível ≥0.35). Wrapper
+  `/__spread__/<l>/<r>` no servidor IO (loopback) e no web (blob): duas
+  metades iframe same-origin com `elvframe=1` + frame guard
+  (`injectSpreadFrameGuard`), que religa a ponte via `window.parent`;
+  palco único escalado (fit/zoom/pan), ordem visual espelhada em RTL,
+  pageTurn por par via gestos/teclado no wrapper.
+- **Zoom**: `ViewerFixedLayoutSettings` (`FixedPageZoomMode`
+  fitPage/fitWidth/oneToOne/custom, escala 1..5) + `setFixedLayoutSettings`
+  no controlador; página única ganha os mesmos modos no viewer.js
+  (`setFixedLayout`), pan por arrasto quando ampliado.
+- **Orientação reportada**: `fixedLayoutOrientationFor(fileIndex)` no
+  controlador (o host decide travar o dispositivo).
+- **Navegação**: `_flowTarget` — spreads viram como unidade e itens
+  `linear="no"` saem do fluxo linear (continuam alcançáveis por locator/
+  sumário/link); `setLogicalViewport` re-pareia e recarrega mantendo a
+  posição; restauração de locator dentro de um par recarrega o spread
+  inteiro.
+- Cobertura pequena/grande viewport nos testes de pareamento
+  (700×1300 vs 2400×1300); wrapper com metades guardadas verificado por
+  fetch; `flutter test` 314→**322**.
+- Nota de auditoria: pareamento exige viewports declarados nas duas metades
+  (decisão registrada no código; livros sem viewport degradam para página
+  única, sem fillers).
+
+## FXL-04 — Interações e acessibilidade ✅
+
+Commits `6c9c0fc` (Grimoire) e `aafa55f` (Narration):
+- **Script do livro**: `fxl-scripted.epub` servido sem o `<script>` do livro
+  (política `disabled` intocada); teste prova isolamento no modo fixo.
+- **Busca**: `controller.search` encontra termos no texto canônico de página
+  fixa; marcas via `showSearchMatches` chegam ao palco.
+- **Seleção/anotações**: seleção na página fixa produz offsets canônicos;
+  `addHighlightFromSelection` grava (offsets + CFI) e re-render via
+  `applyHighlights`.
+- **SMIL/Narration**: catálogo considera página `pre-paginated` elegível para
+  overlay (segments/fragment resolvidos); playback de overlay na página fixa
+  toca o clipe e, na página fixa sem texto, a narração termina sem travar
+  (testes com os doubles existentes; suíte Narration 66→**68**).
+- **Ordem de leitura/teclado**: ordem = spine; teclado e swipe viram página
+  no modo fixo (caminho `pageTurn`, já coberto no FXL-02/03 e validado em
+  navegador real na entrega FXL-02).
+- **Limites documentados** (spec §6): JS do livro permanece desligado;
+  DRM fora do escopo; sem equivalência pixel a pixel.
+
