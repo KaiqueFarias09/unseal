@@ -118,6 +118,12 @@ Future<void> _addGiantBookBenchmarks(
 
   group.add('Unseal.parse — $label', () => Unseal.parse(bytes), inputBytes: bytes.length);
   group.add('Unseal.readMetadataSync — $label', () => Unseal.readMetadataSync(bytes));
+  await group.addAsync(
+    'Unseal.readFile — $label',
+    () => Unseal.readFile(book.path),
+    inputBytes: bytes.length,
+    note: 'path-based open on a giant book',
+  );
   if (withOpenFromBytes) {
     await _addOpenFromBytesBenchmark(group, bytes, label);
   }
