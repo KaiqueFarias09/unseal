@@ -14,7 +14,9 @@ import '../entities/entities.dart';
 ///
 /// Manifest items are resolved to archive entries by exact path
 /// (relative to the OPF [rootFilePath], case-insensitive) and bucketed
-/// into images, CSS, HTML, fonts and other files.
+/// into images, CSS, HTML, fonts and other files. SVG documents count
+/// as content documents, not images: standalone SVG pages participate
+/// in the spine and reading order.
 Files extractFiles(
   final List<ArchiveFile> files,
   final List<ManifestItem> items, [
@@ -104,7 +106,8 @@ Iterable<ArchiveFile> _resolveEntries(
   return resolved;
 }
 
-bool _isImageItem(final ManifestItem item) => _mediaType(item.mediaType).startsWith('image/');
+bool _isImageItem(final ManifestItem item) =>
+    _mediaType(item.mediaType).startsWith('image/') && !_isHtmlItem(item);
 
 bool _isCssItem(final ManifestItem item) => _mediaType(item.mediaType) == 'text/css';
 
@@ -117,6 +120,11 @@ bool _isHtmlItem(final ManifestItem item) {
       mediaType == 'application/html') {
     return true;
   }
+
+  // Standalone SVG content documents are content documents first:
+  // EPUB 3 spine items may reference them directly, so they join the
+  // reading order as text files instead of bucketing as images.
+  if (mediaType == 'image/svg+xml' || mediaType == 'image/svg') return true;
 
   final path = item.path.split('#').first.split('?').first.toLowerCase();
 

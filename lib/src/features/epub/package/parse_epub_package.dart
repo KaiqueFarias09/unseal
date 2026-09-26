@@ -548,14 +548,22 @@ List<ManifestItem> _parseManifestItems(
 }
 
 Spine _parseSpine(final XmlElement spineElement) {
+  final items = <String>[];
+  final nonLinearIdrefs = <String>{};
+  for (final itemrefElement in spineElement.findElements('itemref')) {
+    final idref = _requiredAttribute(itemrefElement, 'idref', elementName: 'spine item');
+    items.add(idref);
+    final linear = itemrefElement.getAttribute('linear')?.trim().toLowerCase();
+    if (linear == 'no') nonLinearIdrefs.add(idref);
+  }
+
   return Spine(
     tocId: spineElement.getAttribute('toc'),
     pageProgressionDirection: PageProgressionDirection.fromSpineValue(
       spineElement.getAttribute('page-progression-direction'),
     ),
-    items: spineElement.findElements('itemref').map((final itemrefElement) {
-      return _requiredAttribute(itemrefElement, 'idref', elementName: 'spine item');
-    }).toList(),
+    items: items,
+    nonLinearIdrefs: nonLinearIdrefs,
   );
 }
 

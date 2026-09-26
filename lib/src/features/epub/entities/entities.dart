@@ -5,4 +5,5 @@ export 'package/epub_3_package.dart';
 export 'package/epub_accessibility.dart';
 export 'package/epub_package.dart';
 export 'package/epub_rendition.dart';
+export 'package/epub_viewport.dart';
 export 'package/page_progression_direction.dart';

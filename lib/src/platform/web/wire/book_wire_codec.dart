@@ -5,6 +5,7 @@ import '../../../features/comic/entities/comic_page_info.dart';
 import '../../../features/djvu/djvu_book.dart';
 import '../../../features/epub/entities/book/book.dart';
 import '../../../features/epub/entities/book/epub_landmark.dart';
+import '../../../features/epub/entities/package/epub_viewport.dart';
 import '../../../features/fb2/entities/fb2_book.dart';
 import '../../../features/mobi/entities/mobi_book.dart';
 import '../../../features/mobi/header/mobi_header.dart';
@@ -50,6 +51,14 @@ import 'metadata_wire.dart';
   if (epub != null) {
     json['epub'] = <String, Object?>{
       'spinePaths': epub.spinePaths,
+      'spineIdrefs': epub.spineIdrefs,
+      // Fixed-layout data crosses only for the few documents that
+      // declare it; a reflowable book encodes two empty collections.
+      'contentViewports': <String, Object?>{
+        for (final entry in epub.contentViewports.entries)
+          entry.key: <String, Object?>{'w': entry.value.width, 'h': entry.value.height},
+      },
+      'nonLinearSpinePaths': List<String>.of(epub.nonLinearSpinePaths),
       'package': encodeEpubPackageWireValue(epub.package),
       'pageList': epub.pageList == null ? null : encodeNavigationWireValue(epub.pageList!),
       'landmarks': <Object?>[
@@ -214,6 +223,11 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
           ),
       ],
       spinePaths: (epub['spinePaths'] as List<Object?>?)?.cast<String>(),
+      spineIdrefs: (epub['spineIdrefs'] as List<Object?>?)?.cast<String>(),
+      contentViewports: _decodeContentViewports(epub['contentViewports']),
+      nonLinearSpinePaths:
+          (epub['nonLinearSpinePaths'] as List<Object?>?)?.cast<String>().toSet() ??
+          const <String>{},
       archiveEntries: archiveEntries,
     );
   }
@@ -393,6 +407,21 @@ ComicPageInfo _decodeComicPageInfo(final Map<String, Object?> value) => ComicPag
   imageWidth: value['imageWidth'] as int?,
   imageHeight: value['imageHeight'] as int?,
 );
+
+/// Rebuilds the fixed-layout viewports from the compact per-path
+/// `{w, h}` entries; payloads from before the field existed decode to
+/// an empty map.
+Map<String, EpubViewport> _decodeContentViewports(final Object? json) {
+  if (json is! Map<String, Object?>) return const <String, EpubViewport>{};
+
+  return <String, EpubViewport>{
+    for (final entry in json.entries)
+      entry.key: EpubViewport(
+        width: (entry.value as Map<String, Object?>)['w'] as int,
+        height: (entry.value as Map<String, Object?>)['h'] as int,
+      ),
+  };
+}
 
 /// Every parsed book exposes its cover as a [BinaryFile]; the
 /// abstract [Book] contract hides it behind `metadata.cover`, so the

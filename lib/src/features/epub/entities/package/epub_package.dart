@@ -160,6 +160,7 @@ final class Spine {
     required this.tocId,
     required this.items,
     this.pageProgressionDirection = PageProgressionDirection.unspecified,
+    this.nonLinearIdrefs = const <String>{},
   });
 
   /// Manifest identifier of the table of contents, when declared.
@@ -172,6 +173,13 @@ final class Spine {
   /// `.rtl` when the book declares its page flow, `.unspecified` when
   /// the attribute is absent, `default`, or malformed.
   final PageProgressionDirection pageProgressionDirection;
+
+  /// Manifest identifiers whose spine `itemref` declares `linear="no"`.
+  ///
+  /// Non-linear items are auxiliary to the primary reading order (notes,
+  /// pop-ups, bonus pages); readers may skip them during sequential
+  /// reading.
+  final Set<String> nonLinearIdrefs;
 
   @override
   String toString() {

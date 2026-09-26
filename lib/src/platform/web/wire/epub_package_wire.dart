@@ -30,6 +30,7 @@ Map<String, Object?> encodeEpubPackageWireValue(final EpubPackage package) {
       'tocId': package.spine.tocId,
       'items': List<String>.of(package.spine.items),
       'pageProgressionDirection': package.spine.pageProgressionDirection.name,
+      'nonLinearIdrefs': List<String>.of(package.spine.nonLinearIdrefs),
     },
     'guide': package.guide == null
         ? null
@@ -156,6 +157,8 @@ Spine _decodeSpine(final Map<String, Object?> json) {
     pageProgressionDirection: PageProgressionDirection.fromName(
       json['pageProgressionDirection'] as String?,
     ),
+    nonLinearIdrefs:
+        (json['nonLinearIdrefs'] as List<Object?>?)?.cast<String>().toSet() ?? const <String>{},
   );
 }
 
