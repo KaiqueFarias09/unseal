@@ -161,6 +161,110 @@
       "bookId": "MATH-PD"
     },
     {
+      "path": "test/resources/books/epub/fxl-mixed-fixed-override.epub",
+      "format": "epub",
+      "bytes": 2968,
+      "sha256": "b67f0bf41d948c99b7b1017d16b6252f817a03082f5b87105c3c9215cc9e2bdb",
+      "container": "zip",
+      "landmarks": 17
+    },
+    {
+      "path": "test/resources/books/epub/fxl-mixed-reflow-override.epub",
+      "format": "epub",
+      "bytes": 2575,
+      "sha256": "372fae0ef73cc145b17e455a5724f94c3a27ed95fc4e9b20cde45a1766d07d5b",
+      "container": "zip",
+      "landmarks": 15
+    },
+    {
+      "path": "test/resources/books/epub/fxl-nonlinear.epub",
+      "format": "epub",
+      "bytes": 2682,
+      "sha256": "271e406848448c7ed9396856aa8aa24ac73699304d7b7e4a8b9932d3fb03af65",
+      "container": "zip",
+      "landmarks": 15
+    },
+    {
+      "path": "test/resources/books/epub/fxl-orientation.epub",
+      "format": "epub",
+      "bytes": 2641,
+      "sha256": "a40d17e3d0821bbdfce3db0c0ad21dfee964bffcfc2d23d0cef9a3d84497fac4",
+      "container": "zip",
+      "landmarks": 15
+    },
+    {
+      "path": "test/resources/books/epub/fxl-overlays.epub",
+      "format": "epub",
+      "bytes": 2755,
+      "sha256": "a6ce993f520c5140e3dc52c9ba4ce27362beffa63ef9fbf329d530c6bd4aaf5e",
+      "container": "zip",
+      "landmarks": 17
+    },
+    {
+      "path": "test/resources/books/epub/fxl-repeated-spine.epub",
+      "format": "epub",
+      "bytes": 2178,
+      "sha256": "65ee0ebb92d99e153d1b719027ea7598620da8d7393ac5b5c35a6adde8252bfa",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/books/epub/fxl-rtl.epub",
+      "format": "epub",
+      "bytes": 3119,
+      "sha256": "be96d64f7d99b10c53ac9f14b2f8b4f651bc72a80a18213e7654ad32f2135128",
+      "container": "zip",
+      "landmarks": 17
+    },
+    {
+      "path": "test/resources/books/epub/fxl-scripted.epub",
+      "format": "epub",
+      "bytes": 2230,
+      "sha256": "044e11de745cf90e688d479d0d0e1f249d5573b41d13a687285afff554a6484e",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/books/epub/fxl-spread-hints.epub",
+      "format": "epub",
+      "bytes": 3541,
+      "sha256": "a836ec02ea0ab3d46bc8fed6884ed827c03b13ee2b5b3df2a547f5d84bdd4ac7",
+      "container": "zip",
+      "landmarks": 19
+    },
+    {
+      "path": "test/resources/books/epub/fxl-spread-portrait.epub",
+      "format": "epub",
+      "bytes": 3067,
+      "sha256": "7c519a964022b921e22390f5fa22bba075ff4f27eb9cf3aee5aafe9ff9962235",
+      "container": "zip",
+      "landmarks": 17
+    },
+    {
+      "path": "test/resources/books/epub/fxl-svg.epub",
+      "format": "epub",
+      "bytes": 2466,
+      "sha256": "cef002799597e938794a226c9c4a7ed679ecec96c82ab33d5d7c188b9f55977b",
+      "container": "zip",
+      "landmarks": 15
+    },
+    {
+      "path": "test/resources/books/epub/fxl-viewport-quirks.epub",
+      "format": "epub",
+      "bytes": 3093,
+      "sha256": "fdb2fece59122cb49ac8aa179e1a2d059ffa97d59097935aaebccbd560ced77b",
+      "container": "zip",
+      "landmarks": 17
+    },
+    {
+      "path": "test/resources/books/epub/fxl-xhtml-viewport.epub",
+      "format": "epub",
+      "bytes": 2625,
+      "sha256": "d9a4e4f04a2d4b876a716101df517f1e5b6a8b571e1c3f656278a26716e69372",
+      "container": "zip",
+      "landmarks": 15
+    },
+    {
       "path": "test/resources/books/epub/hefty-water.epub",
       "format": "epub",
       "bytes": 3683,
@@ -518,8 +622,8 @@
     {
       "path": "test/resources/books/manifest.json",
       "format": "manifest",
-      "bytes": 30552,
-      "sha256": "db40bd43420333b56534b71d9725416a5c7cf750cbf5cc0090d9db5eacba98d3",
+      "bytes": 38491,
+      "sha256": "43f1cbfbcd3fffd384c06e4ec4b126af880635ea0ebd4ac0036b59fc903c3c36",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1329,8 +1433,8 @@
     }
   ],
   "counts": {
-    "total": 160,
-    "totalBytes": 84710440,
+    "total": 173,
+    "totalBytes": 84754319,
     "byFormat": {
       "manifest": 12,
       "chm": 4,
@@ -1340,7 +1444,7 @@
       "cb7": 1,
       "djvu": 6,
       "docx": 1,
-      "epub": 28,
+      "epub": 41,
       "fb2": 4,
       "rtf": 2,
       "html": 7,

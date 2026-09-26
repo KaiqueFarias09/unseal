@@ -42,6 +42,11 @@ It keeps paragraph boundaries and Unicode: café, 漢字.
   final cb7 = await _buildCb7();
   _writeBytes('comic/synthetic-pages.cb7', cb7);
   _writeBytes('comic/synthetic-collection.cbc', _buildCbc(cb7));
+
+  final fxlBooks = buildFxlEpubFixtures();
+  for (final entry in fxlBooks.entries) {
+    _writeBytes('epub/${entry.key}', entry.value);
+  }
 }
 
 void _writeText(final String relativePath, final String value) {
@@ -267,4 +272,471 @@ Uint8List _buildCbr() {
   builder.add(end.buffer.asUint8List());
 
   return builder.takeBytes();
+}
+
+/// One EPUB content document: a manifest item and its file body.
+final class _EpubContent {
+  const _EpubContent({
+    required this.id,
+    required this.href,
+    required this.mediaType,
+    required this.bytes,
+    this.properties,
+    this.mediaOverlay,
+  });
+
+  final String id;
+  final String href;
+  final String mediaType;
+  final List<int> bytes;
+  final String? properties;
+  final String? mediaOverlay;
+}
+
+/// One `<itemref>` of the spine.
+final class _EpubSpineItem {
+  const _EpubSpineItem(this.idref, {this.properties, this.linear = 'yes'});
+
+  final String idref;
+  final String? properties;
+  final String linear;
+}
+
+/// Viewport `content` attribute of a fixed-layout XHTML page.
+String _vp(final int width, final int height) => 'width=$width, height=$height';
+
+/// Builds the thirteen deterministic EPUB fixed-layout fixtures under
+/// `test/resources/books/epub/`.
+///
+/// Every book is a few kilobytes, uses only generated prose (no
+/// third-party content), pins its zip entry dates like the other
+/// synthetic fixtures, and prints visible page numbers so rendered
+/// screenshots stay verifiable. The generator rewrites files in place;
+/// byte stability across runs keeps the books manifest hashes valid.
+Map<String, Uint8List> buildFxlEpubFixtures() {
+  return <String, Uint8List>{
+    'fxl-xhtml-viewport.epub': _epub(
+      slug: 'xhtml-viewport',
+      title: 'unseal FXL XHTML Viewport Fixture',
+      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>',
+      content: [
+        for (var page = 1; page <= 3; page++)
+          _xhtmlPage(id: 'p$page', href: 'page$page.xhtml', number: page),
+      ],
+      spine: const [_EpubSpineItem('p1'), _EpubSpineItem('p2'), _EpubSpineItem('p3')],
+    ),
+    'fxl-spread-hints.epub': _epub(
+      slug: 'spread-hints',
+      title: 'unseal FXL Spread Hints Fixture',
+      renditionMetadata: '<meta property="rendition:spread">both</meta>',
+      content: [
+        for (var page = 1; page <= 5; page++)
+          _xhtmlPage(id: 'p$page', href: 'page$page.xhtml', number: page, viewport: _vp(800, 1200)),
+      ],
+      spine: const [
+        _EpubSpineItem('p1', properties: 'page-spread-left'),
+        _EpubSpineItem('p2', properties: 'page-spread-right'),
+        _EpubSpineItem('p3', properties: 'rendition:page-spread-center'),
+        _EpubSpineItem('p4'),
+        _EpubSpineItem('p5'),
+      ],
+    ),
+    'fxl-spread-portrait.epub': _epub(
+      slug: 'spread-portrait',
+      title: 'unseal FXL Portrait Spread Fixture',
+      renditionMetadata: '<meta property="rendition:spread">portrait</meta>',
+      content: [
+        for (var page = 1; page <= 4; page++)
+          _xhtmlPage(id: 'p$page', href: 'page$page.xhtml', number: page, viewport: _vp(900, 1300)),
+      ],
+      spine: const [
+        _EpubSpineItem('p1'),
+        _EpubSpineItem('p2'),
+        _EpubSpineItem('p3'),
+        _EpubSpineItem('p4'),
+      ],
+    ),
+    'fxl-rtl.epub': _epub(
+      slug: 'rtl',
+      title: 'unseal FXL Right-to-Left Fixture',
+      language: 'ar',
+      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>',
+      pageProgressionDirection: 'rtl',
+      content: [
+        for (var page = 1; page <= 4; page++)
+          _xhtmlPage(
+            id: 'p$page',
+            href: 'page$page.xhtml',
+            number: page,
+            lang: 'ar',
+            viewport: _vp(1000, 1400),
+            heading: 'صفحة ثابتة',
+          ),
+      ],
+      spine: const [
+        _EpubSpineItem('p1', properties: 'page-spread-right'),
+        _EpubSpineItem('p2'),
+        _EpubSpineItem('p3'),
+        _EpubSpineItem('p4'),
+      ],
+    ),
+    'fxl-orientation.epub': _epub(
+      slug: 'orientation',
+      title: 'unseal FXL Orientation Fixture',
+      renditionMetadata:
+          '<meta property="rendition:layout">pre-paginated</meta>'
+          '<meta property="rendition:orientation">landscape</meta>',
+      content: [
+        for (var page = 1; page <= 3; page++)
+          _xhtmlPage(id: 'p$page', href: 'page$page.xhtml', number: page, viewport: _vp(1600, 900)),
+      ],
+      spine: const [
+        _EpubSpineItem('p1'),
+        _EpubSpineItem('p2', properties: 'rendition:orientation-portrait'),
+        _EpubSpineItem('p3'),
+      ],
+    ),
+    'fxl-mixed-fixed-override.epub': _epub(
+      slug: 'mixed-fixed-override',
+      title: 'unseal FXL Mixed Fixed Override Fixture',
+      content: [
+        _xhtmlPage(id: 'p1', href: 'prose1.xhtml', number: 1, prose: true, viewport: null),
+        _xhtmlPage(id: 'p2', href: 'fixed2.xhtml', number: 2, viewport: _vp(1000, 1400)),
+        _xhtmlPage(id: 'p3', href: 'prose3.xhtml', number: 3, prose: true, viewport: null),
+        _xhtmlPage(id: 'p4', href: 'fixed4.xhtml', number: 4, viewport: _vp(1000, 1400)),
+      ],
+      spine: const [
+        _EpubSpineItem('p1'),
+        _EpubSpineItem('p2', properties: 'rendition:layout-pre-paginated'),
+        _EpubSpineItem('p3'),
+        _EpubSpineItem('p4', properties: 'rendition:layout-pre-paginated'),
+      ],
+    ),
+    'fxl-mixed-reflow-override.epub': _epub(
+      slug: 'mixed-reflow-override',
+      title: 'unseal FXL Mixed Reflow Override Fixture',
+      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>',
+      content: [
+        _xhtmlPage(id: 'p1', href: 'page1.xhtml', number: 1),
+        _xhtmlPage(id: 'p2', href: 'page2.xhtml', number: 2, prose: true, viewport: null),
+        _xhtmlPage(id: 'p3', href: 'page3.xhtml', number: 3),
+      ],
+      spine: const [
+        _EpubSpineItem('p1'),
+        _EpubSpineItem('p2', properties: 'rendition:layout-reflowable'),
+        _EpubSpineItem('p3'),
+      ],
+    ),
+    'fxl-svg.epub': _epub(
+      slug: 'svg',
+      title: 'unseal FXL SVG Content Fixture',
+      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>',
+      content: [
+        _svgPage(id: 'svg1', href: 'page1.svg', number: 1),
+        _svgPage(id: 'svg2', href: 'page2.svg', number: 2),
+        _xhtmlPage(
+          id: 'p3',
+          href: 'page3.xhtml',
+          number: 3,
+          bodyExtra:
+              '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="200" '
+              'viewBox="0 0 600 200"><text x="40" y="120" font-size="40">'
+              'Inline SVG frame</text></svg>',
+        ),
+      ],
+      spine: const [_EpubSpineItem('svg1'), _EpubSpineItem('svg2'), _EpubSpineItem('p3')],
+    ),
+    'fxl-nonlinear.epub': _epub(
+      slug: 'nonlinear',
+      title: 'unseal FXL Non-linear Fixture',
+      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>',
+      content: [
+        _xhtmlPage(
+          id: 'p1',
+          href: 'page1.xhtml',
+          number: 1,
+          bodyExtra:
+              '<p>Detours: <a href="page2.xhtml">a footnote page</a> and '
+              '<a href="page3.xhtml">a plate page</a> stay outside the linear flow.</p>',
+        ),
+        _xhtmlPage(id: 'p2', href: 'page2.xhtml', number: 2),
+        _xhtmlPage(id: 'p3', href: 'page3.xhtml', number: 3),
+      ],
+      spine: const [
+        _EpubSpineItem('p1'),
+        _EpubSpineItem('p2', linear: 'no'),
+        _EpubSpineItem('p3', linear: 'no'),
+      ],
+    ),
+    'fxl-repeated-spine.epub': _epub(
+      slug: 'repeated-spine',
+      title: 'unseal FXL Repeated Spine Fixture',
+      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>',
+      content: [
+        _xhtmlPage(id: 'shared', href: 'shared.xhtml', number: 1),
+        _xhtmlPage(id: 'other', href: 'other.xhtml', number: 2),
+      ],
+      spine: const [_EpubSpineItem('shared'), _EpubSpineItem('other'), _EpubSpineItem('shared')],
+    ),
+    'fxl-overlays.epub': _epub(
+      slug: 'overlays',
+      title: 'unseal FXL Media Overlays Fixture',
+      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>',
+      metadataExtras:
+          '<meta property="media:active-class">-epub-media-overlay-active</meta>'
+          '<meta property="media:duration" refines="#overlay1">0:00:04.000</meta>',
+      content: [
+        _xhtmlPage(
+          id: 'p1',
+          href: 'page1.xhtml',
+          number: 1,
+          bodyExtra:
+              '<p id="s1">Sentence one of the first fixed page.</p>'
+              '<p id="s2">Sentence two carries its own narration clip.</p>',
+          mediaOverlay: 'overlay1',
+        ),
+        _xhtmlPage(
+          id: 'p2',
+          href: 'page2.xhtml',
+          number: 2,
+          textFree: true,
+          bodyExtra: '<img src="plate.png" alt="A full-page plate without text"/>',
+          mediaOverlay: 'overlay1',
+        ),
+        _EpubContent(
+          id: 'plate-image',
+          href: 'plate.png',
+          mediaType: 'image/png',
+          bytes: mobi_fixtures.tinyPng,
+        ),
+        _EpubContent(
+          id: 'overlay1',
+          href: 'overlay1.smil',
+          mediaType: 'application/smil+xml',
+          bytes: _utf8Bytes('''
+<?xml version="1.0" encoding="utf-8"?>
+<smil xmlns="http://www.w3.org/ns/SMIL" xmlns:epub="http://www.idpf.org/2007/ops" version="3.0">
+  <body>
+    <seq id="s1" epub:textref="page1.xhtml">
+      <par id="sentence1">
+        <text src="page1.xhtml#s1"/><audio src="audio/narration.mp3" clipBegin="0s" clipEnd="2s"/>
+      </par>
+      <par id="sentence2">
+        <text src="page1.xhtml#s2"/><audio src="audio/narration.mp3" clipBegin="2s" clipEnd="4s"/>
+      </par>
+    </seq>
+  </body>
+</smil>
+'''),
+        ),
+      ],
+      spine: const [_EpubSpineItem('p1'), _EpubSpineItem('p2')],
+    ),
+    'fxl-scripted.epub': _epub(
+      slug: 'scripted',
+      title: 'unseal FXL Scripted Fixture',
+      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>',
+      content: [
+        _xhtmlPage(id: 'p1', href: 'page1.xhtml', number: 1),
+        _xhtmlPage(
+          id: 'p2',
+          href: 'page2.xhtml',
+          number: 2,
+          properties: 'scripted',
+          bodyExtra:
+              '<script type="application/javascript">'
+              "document.body.setAttribute('data-script-ran', 'yes');"
+              '</script>',
+        ),
+      ],
+      spine: const [_EpubSpineItem('p1'), _EpubSpineItem('p2')],
+    ),
+    'fxl-viewport-quirks.epub': _epub(
+      slug: 'viewport-quirks',
+      title: 'unseal FXL Viewport Quirks Fixture',
+      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>',
+      content: [
+        _xhtmlPage(id: 'p1', href: 'no-viewport.xhtml', number: 1, viewport: null),
+        _xhtmlPage(id: 'p2', href: 'malformed.xhtml', number: 2, viewport: 'width=abc, height=0'),
+        _xhtmlPage(
+          id: 'p3',
+          href: 'oversized.xhtml',
+          number: 3,
+          viewport: 'width=25000, height=30000',
+        ),
+        _xhtmlPage(id: 'p4', href: 'valid.xhtml', number: 4, viewport: _vp(900, 1200)),
+      ],
+      spine: const [
+        _EpubSpineItem('p1'),
+        _EpubSpineItem('p2'),
+        _EpubSpineItem('p3'),
+        _EpubSpineItem('p4'),
+      ],
+    ),
+  };
+}
+
+const _fxlProse =
+    'The fixed page keeps its geometry while the reader turns it. '
+    'Every sentence stays inside the declared viewport. '
+    'A reader that honors the layout never reflows this text.';
+
+List<int> _utf8Bytes(final String value) => value.codeUnits;
+
+_EpubContent _xhtmlPage({
+  required final String id,
+  required final String href,
+  required final int number,
+  final String lang = 'en',
+  final String? properties,
+  final String? mediaOverlay,
+  final String? viewport = _defaultViewport,
+  final bool prose = false,
+  final bool textFree = false,
+  final String heading = 'Fixed Page',
+  final String? bodyExtra,
+}) {
+  final meta = viewport == null ? '' : '<meta name="viewport" content="$viewport"/>';
+  final body = StringBuffer();
+  if (!textFree) {
+    body
+      ..write('<h1>$heading $number</h1>')
+      ..write(
+        prose
+            ? '<p>Reflowable prose follows the reading system layout instead of a '
+                  'declared page geometry. The folio still reads Page $number.</p>'
+            : '<p>Page $number. $_fxlProse</p>',
+      )
+      ..write('<p class="folio">Page $number.</p>');
+  }
+  body.write(bodyExtra ?? '');
+
+  return _EpubContent(
+    id: id,
+    href: href,
+    mediaType: 'application/xhtml+xml',
+    properties: properties,
+    mediaOverlay: mediaOverlay,
+    bytes: _utf8Bytes('''
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="$lang">
+<head>${textFree ? '' : '<title>$heading $number</title>'}$meta</head>
+<body>
+${body.toString()}
+</body>
+</html>
+'''),
+  );
+}
+
+const _defaultViewport = 'width=1200, height=1600';
+
+_EpubContent _svgPage({
+  required final String id,
+  required final String href,
+  required final int number,
+}) {
+  return _EpubContent(
+    id: id,
+    href: href,
+    mediaType: 'image/svg+xml',
+    bytes: _utf8Bytes('''
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
+  <rect x="0" y="0" width="1200" height="1600" fill="white"/>
+  <text x="120" y="240" font-size="64">Fixed Page $number</text>
+  <text x="120" y="320" font-size="32">Page $number of the SVG fixed layout.</text>
+</svg>
+'''),
+  );
+}
+
+Uint8List _epub({
+  required final String slug,
+  required final String title,
+  final String language = 'en',
+  final String renditionMetadata = '',
+  final String metadataExtras = '',
+  final String pageProgressionDirection = 'ltr',
+  required final List<_EpubContent> content,
+  required final List<_EpubSpineItem> spine,
+}) {
+  const opfPath = 'OEBPS/content.opf';
+  const navPath = 'OEBPS/nav.xhtml';
+
+  final manifestItems = StringBuffer()
+    ..write(
+      '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>',
+    );
+  for (final item in content) {
+    manifestItems.write('<item id="${item.id}" href="${item.href}" media-type="${item.mediaType}"');
+    if (item.properties != null) manifestItems.write(' properties="${item.properties}"');
+    if (item.mediaOverlay != null) manifestItems.write(' media-overlay="${item.mediaOverlay}"');
+    manifestItems.write('/>');
+  }
+
+  final itemrefs = StringBuffer();
+  for (final item in spine) {
+    itemrefs.write('<itemref idref="${item.idref}"');
+    if (item.linear != 'yes') itemrefs.write(' linear="${item.linear}"');
+    if (item.properties != null) itemrefs.write(' properties="${item.properties}"');
+    itemrefs.write('/>');
+  }
+
+  final navList = StringBuffer();
+  for (final item in content.where(
+    (final candidate) => candidate.mediaType == 'application/xhtml+xml',
+  )) {
+    navList.write('<li><a href="${item.href}">${item.id}</a></li>');
+  }
+
+  final opf =
+      '''
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid" xml:lang="$language">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="uid">urn:uuid:unseal-fxl-$slug</dc:identifier>
+    <dc:title>$title</dc:title>
+    <dc:language>$language</dc:language>
+    <dc:creator>unseal contributors</dc:creator>
+    <meta property="dcterms:modified">2026-01-01T00:00:00Z</meta>
+    $renditionMetadata
+    $metadataExtras
+  </metadata>
+  <manifest>$manifestItems</manifest>
+  <spine${pageProgressionDirection.isEmpty ? '' : ' page-progression-direction="$pageProgressionDirection"'}>$itemrefs</spine>
+</package>
+''';
+
+  final entries = <String, List<int>>{
+    'mimetype': 'application/epub+zip'.codeUnits,
+    'META-INF/container.xml': _utf8Bytes('''
+<?xml version="1.0" encoding="utf-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="$opfPath" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>
+'''),
+    opfPath: _utf8Bytes(opf),
+    navPath: _utf8Bytes('''
+<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>Navigation</title></head>
+<body>
+  <nav epub:type="toc"><ol>${navList.toString()}</ol></nav>
+</body>
+</html>
+'''),
+  };
+  for (final item in content) {
+    final name = 'OEBPS/${item.href}';
+    if (entries.containsKey(name)) {
+      throw ArgumentError('duplicate EPUB entry $name');
+    }
+    entries[name] = item.bytes;
+  }
+
+  return _zip(entries);
 }

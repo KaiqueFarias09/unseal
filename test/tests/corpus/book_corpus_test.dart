@@ -18,7 +18,7 @@ void main() {
     test('manifest has unique IDs and files', () {
       expect(manifest['schema_version'], 3);
       expect(books.length, greaterThanOrEqualTo(15));
-      expect(formatFixtures.map(_declaredFormat).toSet(), hasLength(BookFormat.values.length - 1));
+      expect(formatFixtures.map(_declaredFormat).toSet(), hasLength(BookFormat.values.length));
       expect(realWorldFixtures, hasLength(4));
       final fixtures = [...books, ...formatFixtures, ...realWorldFixtures];
       expect(fixtures.map((final book) => book['id']).toSet(), hasLength(fixtures.length));
@@ -87,7 +87,9 @@ void main() {
     }
 
     test('format fixtures cover every supported book format', () {
-      final covered = <BookFormat>{BookFormat.epub, ...formatFixtures.map(_declaredFormat)};
+      // The generated fixed-layout EPUBs bring the format fixtures to
+      // full coverage; the real-book `books` array also exercises EPUB.
+      final covered = formatFixtures.map(_declaredFormat).toSet();
       expect(covered, BookFormat.values.toSet());
     });
 
@@ -170,6 +172,7 @@ void main() {
 }
 
 BookFormat _declaredFormat(final Map<String, Object?> fixture) => switch (fixture['format']) {
+  'epub' => BookFormat.epub,
   'mobi' => BookFormat.mobi,
   'azw3' => BookFormat.azw3,
   'fb2' => BookFormat.fb2,

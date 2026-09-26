@@ -615,6 +615,263 @@
       "sha256": "7b6b77e5f140be8853e9a8f94f7099e3a547b9ef63d0da93cdc8d19205b832a6",
       "focus": ["djvu", "iff", "jpeg-page", "ocr"]
     }
+,
+{
+      "id": "FORMAT-FXL-XHTML-VIEWPORT",
+      "file": "epub/fxl-xhtml-viewport.epub",
+      "format": "epub",
+      "title": "unseal FXL XHTML Viewport Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 2625,
+      "sha256": "d9a4e4f04a2d4b876a716101df517f1e5b6a8b571e1c3f656278a26716e69372",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "viewport",
+        "rendition",
+        "prose"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-SPREAD-HINTS",
+      "file": "epub/fxl-spread-hints.epub",
+      "format": "epub",
+      "title": "unseal FXL Spread Hints Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 3541,
+      "sha256": "a836ec02ea0ab3d46bc8fed6884ed827c03b13ee2b5b3df2a547f5d84bdd4ac7",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "spreads",
+        "page-spread",
+        "rendition"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-SPREAD-PORTRAIT",
+      "file": "epub/fxl-spread-portrait.epub",
+      "format": "epub",
+      "title": "unseal FXL Portrait Spread Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 3067,
+      "sha256": "7c519a964022b921e22390f5fa22bba075ff4f27eb9cf3aee5aafe9ff9962235",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "spreads",
+        "portrait",
+        "rendition"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-RTL",
+      "file": "epub/fxl-rtl.epub",
+      "format": "epub",
+      "title": "unseal FXL Right-to-Left Fixture",
+      "language": "ar",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 3119,
+      "sha256": "be96d64f7d99b10c53ac9f14b2f8b4f651bc72a80a18213e7654ad32f2135128",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "rtl",
+        "page-progression",
+        "arabic"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-ORIENTATION",
+      "file": "epub/fxl-orientation.epub",
+      "format": "epub",
+      "title": "unseal FXL Orientation Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 2641,
+      "sha256": "a40d17e3d0821bbdfce3db0c0ad21dfee964bffcfc2d23d0cef9a3d84497fac4",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "orientation",
+        "rendition-override"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-MIXED-FIXED",
+      "file": "epub/fxl-mixed-fixed-override.epub",
+      "format": "epub",
+      "title": "unseal FXL Mixed Fixed Override Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 2968,
+      "sha256": "b67f0bf41d948c99b7b1017d16b6252f817a03082f5b87105c3c9215cc9e2bdb",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "layout-override",
+        "mixed-flow",
+        "viewport"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-MIXED-REFLOW",
+      "file": "epub/fxl-mixed-reflow-override.epub",
+      "format": "epub",
+      "title": "unseal FXL Mixed Reflow Override Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 2575,
+      "sha256": "372fae0ef73cc145b17e455a5724f94c3a27ed95fc4e9b20cde45a1766d07d5b",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "layout-override",
+        "mixed-flow"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-SVG",
+      "file": "epub/fxl-svg.epub",
+      "format": "epub",
+      "title": "unseal FXL SVG Content Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 2466,
+      "sha256": "cef002799597e938794a226c9c4a7ed679ecec96c82ab33d5d7c188b9f55977b",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "svg",
+        "reading-order",
+        "viewbox"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-NONLINEAR",
+      "file": "epub/fxl-nonlinear.epub",
+      "format": "epub",
+      "title": "unseal FXL Non-linear Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 2682,
+      "sha256": "271e406848448c7ed9396856aa8aa24ac73699304d7b7e4a8b9932d3fb03af65",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "linear",
+        "nonlinear-spine",
+        "internal-links"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-REPEATED-SPINE",
+      "file": "epub/fxl-repeated-spine.epub",
+      "format": "epub",
+      "title": "unseal FXL Repeated Spine Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 2178,
+      "sha256": "65ee0ebb92d99e153d1b719027ea7598620da8d7393ac5b5c35a6adde8252bfa",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "repeated-spine",
+        "reading-order"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-OVERLAYS",
+      "file": "epub/fxl-overlays.epub",
+      "format": "epub",
+      "title": "unseal FXL Media Overlays Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 2755,
+      "sha256": "a6ce993f520c5140e3dc52c9ba4ce27362beffa63ef9fbf329d530c6bd4aaf5e",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "media-overlays",
+        "smil",
+        "image-only-page"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-SCRIPTED",
+      "file": "epub/fxl-scripted.epub",
+      "format": "epub",
+      "title": "unseal FXL Scripted Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 2230,
+      "sha256": "044e11de745cf90e688d479d0d0e1f249d5573b41d13a687285afff554a6484e",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "scripted",
+        "javascript"
+      ]
+    },
+{
+      "id": "FORMAT-FXL-VIEWPORT-QUIRKS",
+      "file": "epub/fxl-viewport-quirks.epub",
+      "format": "epub",
+      "title": "unseal FXL Viewport Quirks Fixture",
+      "language": "en",
+      "source": "tool/generate_synthetic_format_fixtures.dart",
+      "license": "MIT; contains no third-party creative content",
+      "license_file": "../../../LICENSE",
+      "bytes": 3093,
+      "sha256": "fdb2fece59122cb49ac8aa179e1a2d059ffa97d59097935aaebccbd560ced77b",
+      "focus": [
+        "generated",
+        "epub",
+        "fixed-layout",
+        "viewport",
+        "malformed",
+        "limits"
+      ]
+    }
   ],
   "real_world_fixtures": [
     {
