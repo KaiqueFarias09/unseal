@@ -7,6 +7,7 @@ import '../../foundation/archive/archive_access.dart';
 import '../../foundation/entities/entities.dart';
 import 'container/epub_root_file.dart';
 import 'content/epub_files.dart';
+import 'content/epub_viewports.dart';
 import 'encryption/epub_encryption.dart';
 import 'entities/entities.dart';
 import 'exceptions/exceptions.dart';
@@ -39,6 +40,9 @@ EpubBook parseEpubArchive(final Archive archive, {final String? rootFilePath}) {
     encryption,
   );
   final cover = getBookCover(package, archive, files.images, selectedRootFilePath);
+  final spine = _resolveSpine(package, files, selectedRootFilePath);
+  final spinePaths = spine == null ? null : List<String>.of(spine.paths);
+  final contentViewports = extractContentViewports(files.html, spine?.paths ?? const <String>[]);
 
   return EpubBook(
     navigation: navigationSections.toc,
@@ -47,7 +51,15 @@ EpubBook parseEpubArchive(final Archive archive, {final String? rootFilePath}) {
     files: files,
     cover: cover,
     package: package,
-    spinePaths: _spinePaths(package, files, selectedRootFilePath),
+    spinePaths: spinePaths,
+    spineIdrefs: spine == null ? null : List<String>.of(spine.idrefs),
+    contentViewports: contentViewports,
+    nonLinearSpinePaths: spine == null
+        ? const <String>{}
+        : <String>{
+            for (var index = 0; index < spine.paths.length; index++)
+              if (package.spine.nonLinearIdrefs.contains(spine.idrefs[index])) spine.paths[index],
+          },
     archiveEntries: _archiveEntries(archive),
   );
 }
@@ -98,7 +110,11 @@ String _selectRootFilePath(final Archive archive, final String? rootFilePath) {
   throw EpubException('No usable EPUB package found');
 }
 
-List<String>? _spinePaths(
+/// The spine resolved against the extracted content files: parallel
+/// content paths and manifest idrefs in reading order, using the
+/// `files.html` path space. Null when no spine item resolves to a
+/// content document.
+({List<String> paths, List<String> idrefs})? _resolveSpine(
   final EpubPackage package,
   final Files files,
   final String? rootFilePath,
@@ -106,7 +122,8 @@ List<String>? _spinePaths(
   final htmlPaths = files.html
       .map((final file) => normalizeZipPath(file.path).toLowerCase())
       .toList();
-  final resolved = <String>[];
+  final paths = <String>[];
+  final idrefs = <String>[];
   for (final idref in package.spine.items) {
     final item = package.manifest.items.firstWhereOrNull(
       (final candidate) => candidate.id == idref,
@@ -115,8 +132,11 @@ List<String>? _spinePaths(
 
     final path = normalizeZipPath(resolveItemPath(rootFilePath, item.path));
     final index = htmlPaths.indexOf(path.toLowerCase());
-    if (index >= 0) resolved.add(files.html[index].path);
+    if (index >= 0) {
+      paths.add(files.html[index].path);
+      idrefs.add(idref);
+    }
   }
 
-  return resolved.isEmpty ? null : resolved;
+  return paths.isEmpty ? null : (paths: paths, idrefs: idrefs);
 }
