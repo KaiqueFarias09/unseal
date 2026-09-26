@@ -1,3 +1,19 @@
+## Unreleased
+
+### Added
+
+- EPUB fixed-layout modeling: declared page viewports
+  (`EpubBook.contentViewports`, `viewportForSpineIndex`) read from XHTML
+  `<meta name="viewport">` declarations and standalone SVG geometry, spine
+  `linear="no"` items (`nonLinearSpinePaths`, `spineItemIsLinear`), and
+  effective per-spine-index rendition helpers (`layoutForSpineIndex`,
+  `orientationForSpineIndex`, `spreadForSpineIndex`,
+  `pageSpreadForSpineIndex`) on `EpubBook`.
+- Standalone SVG content documents join the EPUB reading order and search as
+  text content documents instead of bucketing as images.
+- The browser worker wire carries the fixed-layout viewports, spine
+  linearity, and spine idrefs of EPUB books.
+
 ## 1.2.0 - September 23, 2026
 
 ### Added

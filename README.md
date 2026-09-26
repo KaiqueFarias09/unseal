@@ -38,7 +38,7 @@ document renderer.
 
 | Format | Main capabilities | Important boundary |
 | --- | --- | --- |
-| EPUB 2/3 | OPF metadata, spine, XHTML, CSS, images, fonts, media overlays, navigation, and CFI; EPUB 3 page list, landmarks, rendition, and accessibility metadata | Font obfuscation is limited to the standard IDPF and Adobe algorithms. |
+| EPUB 2/3 | OPF metadata, spine (including `linear="no"` items), XHTML, SVG content documents, CSS, images, fonts, media overlays, navigation, and CFI; EPUB 3 page list, landmarks, rendition, accessibility metadata, and fixed-layout viewports with effective per-page rendition helpers | Font obfuscation is limited to the standard IDPF and Adobe algorithms. |
 | KEPUB | Kobo EPUB packages are read through the EPUB parser, preserving Kobo spans and EPUB content. | Reported as `BookFormat.epub`; a Kobo-specific format type is not inferred from ZIP bytes. |
 | MOBI 6 | PalmDOC and HUFF/CDIC decompression, EXTH metadata, chapters, images, fonts, and navigation | DRM-protected books are rejected. |
 | PalmDOC PDB | Uncompressed or PalmDOC-compressed `TEXt/REAd` records, title, and plain reading text | Other PDB ebook families use separate parsers. |
@@ -209,9 +209,33 @@ if (book is EpubBook) {
 }
 ```
 
-Rendition values come from the OPF and spine. Page dimensions declared inside
-XHTML or SVG content are not extracted by these properties. Accessibility
-values reflect publisher metadata; Unseal does not certify accessibility.
+Rendition values come from the OPF and spine. Accessibility values reflect
+publisher metadata; Unseal does not certify accessibility.
+
+For fixed-layout EPUBs, the book resolves the rendition, viewport, and
+linearity of any reading-order position directly, so a reader does not have to
+re-derive the spine path, manifest id, and rendition chain itself:
+
+```dart
+if (book is EpubBook) {
+  const index = 0;
+  print(book.layoutForSpineIndex(index)); // EpubLayout.prePaginated
+  print(book.orientationForSpineIndex(index));
+  print(book.spreadForSpineIndex(index));
+  print(book.pageSpreadForSpineIndex(index)); // synthetic-spread placement
+  print(book.viewportForSpineIndex(index)); // EpubViewport(width, height) or null
+  print(book.spineItemIsLinear(index)); // false for linear="no" items
+  print(book.nonLinearSpinePaths);
+}
+```
+
+`contentViewports` maps content paths (the same key space as `files.html`) to
+the page dimensions declared inside fixed-layout XHTML (`<meta
+name="viewport">`) or standalone SVG content documents (root `width`/`height`,
+falling back to `viewBox`). Standalone SVG documents join the reading order as
+content documents. Malformed, fractional, non-positive, or oversized
+declarations yield no viewport instead of failing the parse; only documents the
+spine references are scanned.
 
 ### EPUB metadata updates and Calibre catalogs
 
