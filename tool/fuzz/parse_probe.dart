@@ -65,29 +65,44 @@ Future<ProbeResult> probeParse(
 }) async {
   final watch = Stopwatch()..start();
   final port = ReceivePort();
-  final errorPort = ReceivePort();
   final done = Completer<ProbeResult>();
   late final Isolate isolate;
 
-  errorPort.listen((final message) {
+  void completeCrash(final String detail) {
     if (!done.isCompleted) {
-      done.complete(ProbeResult(ProbeStatus.crash, 'IsolateError', watch.elapsedMilliseconds));
+      done.complete(ProbeResult(ProbeStatus.crash, detail, watch.elapsedMilliseconds));
     }
-  });
+  }
+
   port.listen((final message) {
     if (done.isCompleted) {
       return;
     }
-    final payload = message as Map;
-    final status = ProbeStatus.values.byName(payload['status'] as String);
-    done.complete(
-      ProbeResult(
-        status,
-        (payload['detail'] as String?) ?? '',
-        watch.elapsedMilliseconds,
-        graceful: payload['graceful'] as bool? ?? false,
-      ),
-    );
+    if (message == null) {
+      // `onExit` uses this same port. Normal results are sent before the
+      // isolate exits, so they arrive first without relying on a timer race.
+      completeCrash('UnexpectedIsolateExit');
+      return;
+    }
+    if (message is! Map) {
+      // Uncaught isolate errors are also sent to this port by `onError`.
+      completeCrash('IsolateError');
+      return;
+    }
+    try {
+      final payload = message;
+      final status = ProbeStatus.values.byName(payload['status'] as String);
+      done.complete(
+        ProbeResult(
+          status,
+          (payload['detail'] as String?) ?? '',
+          watch.elapsedMilliseconds,
+          graceful: payload['graceful'] as bool? ?? false,
+        ),
+      );
+    } on Object {
+      completeCrash('InvalidProbeResult');
+    }
   });
 
   try {
@@ -95,10 +110,11 @@ Future<ProbeResult> probeParse(
       _probeEntry,
       _ProbeJob(port.sendPort, bytes, parse),
       errorsAreFatal: true,
+      onError: port.sendPort,
+      onExit: port.sendPort,
     );
   } on Object {
     port.close();
-    errorPort.close();
     return ProbeResult(ProbeStatus.crash, 'SpawnFailed', watch.elapsedMilliseconds);
   }
 
@@ -110,7 +126,6 @@ Future<ProbeResult> probeParse(
     },
   );
   port.close();
-  errorPort.close();
   return result;
 }
 

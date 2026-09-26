@@ -8,11 +8,16 @@
 // survive.
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
 
 import '../../tool/fuzz_book_campaign.dart';
+import '../../tool/fuzz_book_campaign.dart' as fuzz_campaign;
+import '../fuzz/harness/fuzz_invariants.dart';
 
 const _boom = <int>[0x42, 0x4F, 0x4F, 0x4D]; // "BOOM"
 const _die = <int>[0x44, 0x49, 0x45]; // "DIE"
@@ -34,16 +39,10 @@ Future<void> throwOnMarker(final Uint8List bytes) async {
   if (_contains(bytes, _boom)) throw RangeError('controlled marker failure');
 }
 
-/// Stub probe with the crash shape: the minimizer must preserve a
-/// `crash` signature whenever the probe classifies one (the error port
-/// fires for errors escaping the worker entry, e.g. spawn failures).
-/// Empirically, a worker that dies SILENTLY — a kill request,
-/// a fatal error losing the race with the result post — surfaces as
-/// `timeout` through `probeParse`, which the timeout tests cover
-/// end-to-end with the real probe.
-Future<String> crashProbe(final Uint8List bytes) async {
-  if (_contains(bytes, _die)) return 'crash';
-  return 'ok';
+/// Exits the worker isolate without sending a parse result when the DIE
+/// marker is present. The real `probeParse` must classify this as a crash.
+Future<void> exitOnMarker(final Uint8List bytes) async {
+  if (_contains(bytes, _die)) Isolate.exit();
 }
 
 /// Hangs past any short deadline when the ZZZ marker is present.
@@ -82,6 +81,26 @@ void main() {
       expect(signature, 'ok');
     });
 
+    test('keeps a successful result ahead of the isolate exit notification', () async {
+      for (var attempt = 0; attempt < 8; attempt++) {
+        final signature = await failureSignature(
+          _seeded(<int>[0x00]),
+          parse: throwOnMarker,
+          timeout: const Duration(seconds: 5),
+        );
+        expect(signature, 'ok');
+      }
+    });
+
+    test('classifies a worker that exits without a result as crash', () async {
+      final signature = await failureSignature(
+        _seeded(_die),
+        parse: exitOnMarker,
+        timeout: const Duration(seconds: 5),
+      );
+      expect(signature, 'crash');
+    });
+
     test('records a deadline hit as timeout (a silent worker death included)', () async {
       final signature = await failureSignature(
         _seeded(_zzz),
@@ -114,19 +133,17 @@ void main() {
       expect(await probe(minimized), 'throw:RangeError');
     });
 
-    test('a crash signature shrinks to a smaller sample that still crashes', () async {
+    test('a crash signature from a real worker exit shrinks and still crashes', () async {
       final original = _seeded(_die);
+      Future<String> probe(final Uint8List bytes) =>
+          failureSignature(bytes, parse: exitOnMarker, timeout: const Duration(seconds: 5));
 
-      final minimized = await minimizeFailure(
-        bytes: original,
-        signature: 'crash',
-        probe: crashProbe,
-      );
+      final minimized = await minimizeFailure(bytes: original, signature: 'crash', probe: probe);
 
       expect(minimized, isNotNull);
       expect(minimized!.length, lessThan(original.length ~/ 2));
       expect(_contains(minimized, _die), isTrue);
-      expect(await crashProbe(minimized), 'crash');
+      expect(await probe(minimized), 'crash');
     });
 
     test('a timeout shrinks to a smaller sample with the timeout signature', () async {
@@ -150,5 +167,41 @@ void main() {
       );
       expect(minimized, isNull);
     });
+  });
+
+  test('campaign reports use fixture IDs instead of source paths or basenames', () async {
+    final temporaryDirectory = await Directory.systemTemp.createTemp('fuzz-campaign-privacy-');
+    try {
+      final privateName = 'private-title-do-not-report.epub';
+      final input = File('${temporaryDirectory.path}/$privateName')
+        ..writeAsBytesSync(Uint8List.fromList(<int>[0x00, 0x01, 0x02, 0x03]));
+      final report = File('${temporaryDirectory.path}/report.json');
+
+      await fuzz_campaign.main(<String>[
+        '--input=${input.path}',
+        '--rounds=0',
+        '--timeout-seconds=5',
+        '--out=${report.path}',
+      ]);
+
+      final reportText = report.readAsStringSync();
+      final decoded = jsonDecode(reportText) as Map<String, Object?>;
+      final pristine = (decoded['pristine']! as List).single as Map<String, Object?>;
+      expect(pristine['fixtureId'], 'fixture-001');
+      expect(reportText, isNot(contains(input.path)));
+      expect(reportText, isNot(contains(privateName)));
+    } finally {
+      await temporaryDirectory.delete(recursive: true);
+    }
+  });
+
+  test('a skipped entry cannot hide a later invariant failure', () {
+    final verdict = FuzzVerdict(<FuzzEntryPoint, FuzzEntryVerdict>{
+      FuzzEntryPoint.detect: FuzzEntryVerdict(FuzzStatus.skipped),
+      FuzzEntryPoint.parse: FuzzEntryVerdict(FuzzStatus.untyped, errorType: 'RangeError'),
+    });
+
+    expect(verdict.status, FuzzStatus.untyped);
+    expect(verdict.isDefect, isTrue);
   });
 }

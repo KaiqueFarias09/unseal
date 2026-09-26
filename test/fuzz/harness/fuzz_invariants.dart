@@ -31,6 +31,9 @@ enum FuzzStatus {
   /// The entry point threw a typed exception (contract-compliant).
   typed,
 
+  /// The entry was not attempted (an earlier entry already failed).
+  skipped,
+
   /// The entry point threw an untyped exception or error (defect).
   untyped,
 
@@ -39,9 +42,6 @@ enum FuzzStatus {
 
   /// The worker isolate exceeded its deadline and was killed.
   timeout,
-
-  /// The entry was not attempted (an earlier entry already failed).
-  skipped,
 }
 
 /// A single entry point exercised by the invariants worker.

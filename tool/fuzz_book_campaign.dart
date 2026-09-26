@@ -87,17 +87,22 @@ Future<void> main(final List<String> arguments) async {
 
   for (var fixtureIndex = 0; fixtureIndex < inputs.length; fixtureIndex++) {
     final path = inputs[fixtureIndex];
+    // Stable for a fixed ordered invocation, and independent of source names
+    // or paths so private corpus metadata never enters the report.
+    final fixtureId = 'fixture-${(fixtureIndex + 1).toString().padLeft(3, '0')}';
     final pristine = File(path).readAsBytesSync();
     final pristineVerdict = await runBoundedParse(pristine, timeout: timeout);
     pristineChecks++;
     stdout.writeln(
-      '${path.split('/').last} pristine: ${pristineVerdict.status.name} '
+      '$fixtureId pristine: ${pristineVerdict.status.name} '
       '(${pristine.length} B)',
     );
-    final pristineTextLength = _documentTextLength(pristine);
+    final pristineTextLength = pristineVerdict.status == FuzzStatus.ok
+        ? _documentTextLength(pristine)
+        : null;
     final pristineParses = pristineTextLength != null;
     pristineRecords.add(<String, Object?>{
-      'fixtureId': path,
+      'fixtureId': fixtureId,
       'status': pristineVerdict.status.name,
     });
 
@@ -109,16 +114,17 @@ Future<void> main(final List<String> arguments) async {
       if (verdict.isDefect) {
         classification = 'defect';
         defects++;
-        final expectedSignature = _expectedSignature(verdict);
-        final minimized = expectedSignature == null
+        final failure = _expectedFailure(verdict);
+        final minimized = failure == null
             ? null
             : await minimizeFailure(
                 bytes: mutant,
-                signature: expectedSignature,
-                probe: (final chunk) => failureSignature(chunk, timeout: timeout),
+                signature: failure.signature,
+                probe: (final chunk) =>
+                    failureSignature(chunk, entryPoint: failure.entryPoint, timeout: timeout),
               );
         Directory(reproDir).createSync(recursive: true);
-        final reproName = '${path.split('/').last}.m$fixtureIndex-$round.min.bin';
+        final reproName = '$fixtureId.m$round.min.bin';
         final reproPath = '$reproDir/$reproName';
         File(reproPath).writeAsBytesSync(minimized ?? mutant);
         stdout.writeln(
@@ -136,7 +142,7 @@ Future<void> main(final List<String> arguments) async {
         }
       }
       records.add(<String, Object?>{
-        'fixtureId': path,
+        'fixtureId': fixtureId,
         'round': round,
         'bytes': mutant.length,
         'status': verdict.status.name,
@@ -180,18 +186,24 @@ Future<void> main(final List<String> arguments) async {
 /// `throw:<Type>` for untyped errors, `crash` for isolate death, and
 /// `timeout` for deadline kills. `null` for statuses that are not
 /// defects. The first failing entry point determines the signature.
-String? _expectedSignature(final FuzzVerdict verdict) {
+({FuzzEntryPoint entryPoint, String signature})? _expectedFailure(final FuzzVerdict verdict) {
   for (final entry in FuzzEntryPoint.values) {
     final entryVerdict = verdict.entries[entry];
     if (entryVerdict == null) continue;
-    if (entryVerdict.status.index < FuzzStatus.untyped.index) continue;
-    return switch (entryVerdict.status) {
-      FuzzStatus.untyped =>
-        entryVerdict.errorType == null ? null : 'throw:${entryVerdict.errorType}',
-      FuzzStatus.crash => 'crash',
-      FuzzStatus.timeout => 'timeout',
-      _ => null,
-    };
+    switch (entryVerdict.status) {
+      case FuzzStatus.untyped:
+        final errorType = entryVerdict.errorType;
+        if (errorType == null) return null;
+        return (entryPoint: entry, signature: 'throw:$errorType');
+      case FuzzStatus.crash:
+        return (entryPoint: entry, signature: 'crash');
+      case FuzzStatus.timeout:
+        return (entryPoint: entry, signature: 'timeout');
+      case FuzzStatus.ok:
+      case FuzzStatus.typed:
+      case FuzzStatus.skipped:
+        continue;
+    }
   }
   return null;
 }
@@ -248,8 +260,9 @@ Future<Uint8List?> minimizeFailure({
   return shrunk ? current : null;
 }
 
-/// Failure signature of [bytes] through [parse] (default
-/// [Unseal.parse]), classified the way [probeParse] sees it:
+/// Failure signature of [bytes] through [entryPoint] (default
+/// [Unseal.parse]), or through [parse] when a custom parser is supplied.
+/// The result is classified the way [probeParse] sees it:
 /// `throw:<Type>` when the parser throws a foreign error, `crash` when
 /// the worker isolate dies, `timeout` when the deadline kills it, and
 /// `ok`/`reject:<Type>` for clean outcomes.
@@ -258,9 +271,39 @@ Future<Uint8List?> minimizeFailure({
 /// would erase the type and every failure would classify as `ok`.
 Future<String> failureSignature(
   final Uint8List bytes, {
-  final FutureOr<void> Function(Uint8List) parse = Unseal.parse,
+  final FuzzEntryPoint entryPoint = FuzzEntryPoint.parse,
+  final FutureOr<void> Function(Uint8List)? parse,
   final Duration timeout = const Duration(seconds: 30),
 }) async {
-  final probe = await probeParse(bytes, (final chunk) async => parse(chunk), timeout: timeout);
+  final parser = parse ?? _parserFor(entryPoint);
+  Future<void> parseInWorker(final Uint8List input) async {
+    await parser(input);
+  }
+
+  final probe = await probeParse(bytes, parseInWorker, timeout: timeout);
   return probe.signature;
+}
+
+Future<void> Function(Uint8List) _parserFor(final FuzzEntryPoint entryPoint) =>
+    switch (entryPoint) {
+      FuzzEntryPoint.detect => _detectFormat,
+      FuzzEntryPoint.parse => _parse,
+      FuzzEntryPoint.metadata => _readMetadata,
+      FuzzEntryPoint.open => _read,
+    };
+
+Future<void> _detectFormat(final Uint8List bytes) async {
+  detectFormat(bytes);
+}
+
+Future<void> _parse(final Uint8List bytes) async {
+  Unseal.parse(bytes);
+}
+
+Future<void> _readMetadata(final Uint8List bytes) async {
+  Unseal.readMetadataSync(bytes);
+}
+
+Future<void> _read(final Uint8List bytes) async {
+  await Unseal.read(bytes);
 }
