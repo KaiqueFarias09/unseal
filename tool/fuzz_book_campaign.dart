@@ -1,11 +1,13 @@
-// Coverage-guided structural-mutation campaign over BOOK fixtures.
+// Deterministic structural-mutation campaign over BOOK fixtures.
 //
 // Composes the two pieces the tracked suites already use — the
 // deterministic mutators (`test/fuzz/harness/fuzz_mutators.dart`) and
 // the killable-isolate invariants engine
 // (`test/fuzz/harness/fuzz_invariants.dart`) — and applies them to real
 // book-shaped fixtures, which `tool/fuzz_runner.dart --corpus` never
-// touches (it is hardwired to `test/resources/fuzz`).
+// touches (it is hardwired to `test/resources/fuzz`). Seed selection is
+// deterministic, not coverage-guided: every fixture produces the same
+// mutants for the same seed.
 //
 // For every fixture the campaign runs the pristine bytes once and N
 // deterministic mutants. Each run classifies as one of:
@@ -29,6 +31,7 @@
 // Deterministic: the same seed and fixture set always produce the same
 // mutants and the same report.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -77,6 +80,8 @@ Future<void> main(final List<String> arguments) async {
   }
   final timeout = Duration(seconds: timeoutSeconds);
   final records = <Map<String, Object?>>[];
+  final pristineRecords = <Map<String, Object?>>[];
+  var pristineChecks = 0;
   var defects = 0;
   var contentLoss = 0;
 
@@ -84,12 +89,17 @@ Future<void> main(final List<String> arguments) async {
     final path = inputs[fixtureIndex];
     final pristine = File(path).readAsBytesSync();
     final pristineVerdict = await runBoundedParse(pristine, timeout: timeout);
+    pristineChecks++;
     stdout.writeln(
       '${path.split('/').last} pristine: ${pristineVerdict.status.name} '
       '(${pristine.length} B)',
     );
     final pristineTextLength = _documentTextLength(pristine);
     final pristineParses = pristineTextLength != null;
+    pristineRecords.add(<String, Object?>{
+      'fixtureId': path,
+      'status': pristineVerdict.status.name,
+    });
 
     for (var round = 0; round < rounds; round++) {
       final random = Random(seed + fixtureIndex * 1000003 + round);
@@ -99,14 +109,22 @@ Future<void> main(final List<String> arguments) async {
       if (verdict.isDefect) {
         classification = 'defect';
         defects++;
-        final minimized = await _minimize(mutant, verdict, timeout);
+        final expectedSignature = _expectedSignature(verdict);
+        final minimized = expectedSignature == null
+            ? null
+            : await minimizeFailure(
+                bytes: mutant,
+                signature: expectedSignature,
+                probe: (final chunk) => failureSignature(chunk, timeout: timeout),
+              );
         Directory(reproDir).createSync(recursive: true);
         final reproName = '${path.split('/').last}.m$fixtureIndex-$round.min.bin';
         final reproPath = '$reproDir/$reproName';
         File(reproPath).writeAsBytesSync(minimized ?? mutant);
         stdout.writeln(
           '  DEFECT round $round: ${verdict.defectSummary} — repro $reproPath '
-          '(${(minimized ?? mutant).length} B, was ${mutant.length} B)',
+          '(${(minimized ?? mutant).length} B, was ${mutant.length} B'
+          '${minimized == null ? ' · not minimized' : ''})',
         );
       } else if (pristineParses && verdict.status == FuzzStatus.ok) {
         final mutantTextLength = _documentTextLength(mutant);
@@ -138,10 +156,12 @@ Future<void> main(final List<String> arguments) async {
     'seed': seed,
     'rounds': rounds,
     'fixtures': inputs.length,
-    'runs': records.length,
+    'mutantRuns': records.length,
+    'pristineChecks': pristineChecks,
     'totalsByStatus': byStatus,
     'defects': defects,
     'contentLoss': contentLoss,
+    'pristine': pristineRecords,
     'runs_detail': records,
   };
   if (out != null) {
@@ -150,10 +170,30 @@ Future<void> main(final List<String> arguments) async {
     stdout.writeln('report: $out');
   }
   stdout.writeln(
-    'campaign done: ${records.length} runs · defects=$defects · '
-    'content-loss=$contentLoss · byStatus=$byStatus',
+    'campaign done: ${records.length} mutants · $pristineChecks pristine '
+    'checks · defects=$defects · content-loss=$contentLoss · byStatus=$byStatus',
   );
   if (defects > 0) exitCode = 1;
+}
+
+/// The failure signature a defect verdict must reproduce when minimized:
+/// `throw:<Type>` for untyped errors, `crash` for isolate death, and
+/// `timeout` for deadline kills. `null` for statuses that are not
+/// defects. The first failing entry point determines the signature.
+String? _expectedSignature(final FuzzVerdict verdict) {
+  for (final entry in FuzzEntryPoint.values) {
+    final entryVerdict = verdict.entries[entry];
+    if (entryVerdict == null) continue;
+    if (entryVerdict.status.index < FuzzStatus.untyped.index) continue;
+    return switch (entryVerdict.status) {
+      FuzzStatus.untyped =>
+        entryVerdict.errorType == null ? null : 'throw:${entryVerdict.errorType}',
+      FuzzStatus.crash => 'crash',
+      FuzzStatus.timeout => 'timeout',
+      _ => null,
+    };
+  }
+  return null;
 }
 
 /// Total document text across the book's HTML files, or `null` when the
@@ -172,20 +212,22 @@ int? _documentTextLength(final Uint8List bytes) {
   }
 }
 
-/// Chunk-halving shrink loop: keep removing a quarter of the input while
-/// the failure signature survives. Returns `null` when nothing shrank.
-Future<Uint8List?> _minimize(
-  final Uint8List bytes,
-  final FuzzVerdict verdict,
-  final Duration timeout,
-) async {
-  final summary = verdict.defectSummary;
-  final signature = summary == null ? null : await _signatureOf(bytes, timeout);
-  if (signature == null || signature == 'ok') return null;
+/// Chunk-halving shrink loop: keep removing a quarter of [bytes] while
+/// [signature] still reproduces through [probe]. Returns `null` when
+/// nothing shrank, or when the original input does not reproduce
+/// [signature] to begin with.
+Future<Uint8List?> minimizeFailure({
+  required final Uint8List bytes,
+  required final String signature,
+  required final Future<String> Function(Uint8List) probe,
+  final int maxSteps = 40,
+  final int minBytes = 64,
+}) async {
+  if (await probe(bytes) != signature) return null;
 
   var current = Uint8List.fromList(bytes);
   var shrunk = false;
-  for (var step = 0; step < 40 && current.length > 64; step++) {
+  for (var step = 0; step < maxSteps && current.length > minBytes; step++) {
     final chunk = current.length ~/ 4;
     var improved = false;
     for (var start = 0; start + 1 < current.length; start += chunk) {
@@ -194,7 +236,7 @@ Future<Uint8List?> _minimize(
         ...current.sublist(0, start),
         ...current.sublist(end),
       ]);
-      if (await _signatureOf(candidate, timeout) == signature) {
+      if (await probe(candidate) == signature) {
         current = candidate;
         improved = true;
         shrunk = true;
@@ -206,14 +248,19 @@ Future<Uint8List?> _minimize(
   return shrunk ? current : null;
 }
 
-Future<String?> _signatureOf(final Uint8List bytes, final Duration timeout) async {
-  final probe = await probeParse(bytes, (final chunk) async {
-    try {
-      Unseal.parse(chunk);
-    } on Object {
-      // The signature only cares about the thrown type, which
-      // probeParse records itself.
-    }
-  }, timeout: timeout);
+/// Failure signature of [bytes] through [parse] (default
+/// [Unseal.parse]), classified the way [probeParse] sees it:
+/// `throw:<Type>` when the parser throws a foreign error, `crash` when
+/// the worker isolate dies, `timeout` when the deadline kills it, and
+/// `ok`/`reject:<Type>` for clean outcomes.
+///
+/// The thrown error MUST reach [probeParse] uncaught — catching it here
+/// would erase the type and every failure would classify as `ok`.
+Future<String> failureSignature(
+  final Uint8List bytes, {
+  final FutureOr<void> Function(Uint8List) parse = Unseal.parse,
+  final Duration timeout = const Duration(seconds: 30),
+}) async {
+  final probe = await probeParse(bytes, (final chunk) async => parse(chunk), timeout: timeout);
   return probe.signature;
 }
