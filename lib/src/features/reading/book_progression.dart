@@ -31,6 +31,24 @@ final class BookProgression {
     );
   }
 
+  /// Builds a progression from per-section canonical-text [sectionLengths]
+  /// measured elsewhere — the shape a progressive session computes while
+  /// walking one section at a time.
+  factory BookProgression.fromSectionLengths(final List<int> sectionLengths) {
+    final starts = <int>[];
+    var total = 0;
+    for (final length in sectionLengths) {
+      starts.add(total);
+      total += length;
+    }
+
+    return BookProgression._(
+      sectionStarts: starts,
+      sectionLengths: List<int>.of(sectionLengths),
+      totalCharacters: total,
+    );
+  }
+
   const BookProgression._({
     required List<int> sectionStarts,
     required List<int> sectionLengths,

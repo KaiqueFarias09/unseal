@@ -23,12 +23,15 @@ Files extractFiles(
   final String? rootFilePath,
   final EpubEncryption? encryption,
 ]) {
-  final imageItems = items.where(_isImageItem);
-  final cssItems = items.where(_isCssItem);
-  final htmlItems = items.where(_isHtmlItem);
-  final fontItems = items.where(_isFontItem);
+  final imageItems = items.where(isImageManifestItem);
+  final cssItems = items.where(isCssManifestItem);
+  final htmlItems = items.where(isHtmlManifestItem);
+  final fontItems = items.where(isFontManifestItem);
   final otherItems = items.where((final item) {
-    return !_isImageItem(item) && !_isCssItem(item) && !_isHtmlItem(item) && !_isFontItem(item);
+    return !isImageManifestItem(item) &&
+        !isCssManifestItem(item) &&
+        !isHtmlManifestItem(item) &&
+        !isFontManifestItem(item);
   });
 
   return Files(
@@ -106,12 +109,18 @@ Iterable<ArchiveFile> _resolveEntries(
   return resolved;
 }
 
-bool _isImageItem(final ManifestItem item) =>
-    _mediaType(item.mediaType).startsWith('image/') && !_isHtmlItem(item);
+/// Whether [item] buckets as an image resource (media type `image/*`,
+/// except the SVG content documents [isHtmlManifestItem] claims).
+bool isImageManifestItem(final ManifestItem item) =>
+    _mediaType(item.mediaType).startsWith('image/') && !isHtmlManifestItem(item);
 
-bool _isCssItem(final ManifestItem item) => _mediaType(item.mediaType) == 'text/css';
+/// Whether [item] buckets as a CSS stylesheet (`text/css`).
+bool isCssManifestItem(final ManifestItem item) => _mediaType(item.mediaType) == 'text/css';
 
-bool _isHtmlItem(final ManifestItem item) {
+/// Whether [item] buckets as an HTML content document: the XHTML/HTML
+/// media types, standalone SVG (spine items may reference it directly),
+/// or XML media types on `.html`/`.htm`/`.xhtml` paths.
+bool isHtmlManifestItem(final ManifestItem item) {
   final mediaType = _mediaType(item.mediaType);
   if (mediaType == 'application/xhtml+xml' ||
       mediaType == 'application/xhtml' ||
@@ -132,7 +141,9 @@ bool _isHtmlItem(final ManifestItem item) {
       (path.endsWith('.html') || path.endsWith('.htm') || path.endsWith('.xhtml'));
 }
 
-bool _isFontItem(final ManifestItem item) {
+/// Whether [item] buckets as a font resource: font media types or the
+/// usual font file extensions.
+bool isFontManifestItem(final ManifestItem item) {
   final mediaType = _mediaType(item.mediaType);
   if (mediaType.contains('font') ||
       mediaType.contains('opentype') ||

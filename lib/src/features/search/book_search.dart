@@ -69,7 +69,7 @@ extension BookSearch on Book {
             sectionName: section.name,
             start: match.start,
             end: match.end,
-            snippet: _snippet(text, match.start, match.end, contextChars),
+            snippet: searchSnippet(text, match.start, match.end, contextChars),
           ),
         );
       }
@@ -79,20 +79,16 @@ extension BookSearch on Book {
 
     return SearchResults(query: query, matches: results, isTruncated: isTruncated);
   }
+}
 
-  /// Builds a context snippet around `[start, end)` with ellipses where the surrounding text was
-  /// cut.
-  static String _snippet(
-    final String text,
-    final int start,
-    final int end,
-    final int contextChars,
-  ) {
-    final from = (start - contextChars).clamp(0, text.length);
-    final to = (end + contextChars).clamp(0, text.length);
-    final prefix = from > 0 ? '…' : '';
-    final suffix = to < text.length ? '…' : '';
+/// Builds a context snippet around `[start, end)` of [text] with ellipses
+/// where the surrounding text was cut — the snippet shape of every
+/// [SearchMatch].
+String searchSnippet(final String text, final int start, final int end, final int contextChars) {
+  final from = (start - contextChars).clamp(0, text.length);
+  final to = (end + contextChars).clamp(0, text.length);
+  final prefix = from > 0 ? '…' : '';
+  final suffix = to < text.length ? '…' : '';
 
-    return '$prefix${text.substring(from, to)}$suffix';
-  }
+  return '$prefix${text.substring(from, to)}$suffix';
 }

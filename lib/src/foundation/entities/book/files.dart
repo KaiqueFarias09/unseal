@@ -6,6 +6,14 @@ import '../file/text_file.dart';
 /// Provides access to the images, CSS files, HTML files, font files and other files extracted from
 /// the book, regardless of the source format.
 class Files {
+  /// An empty file set: the shape of a progressive session header.
+  Files.empty()
+    : images = const <BinaryFile>[],
+      css = const <TextFile>[],
+      html = const <TextFile>[],
+      fonts = const <BinaryFile>[],
+      others = const <BinaryFile>[];
+
   /// Creates a new [Files] with the given lists of files.
   Files({
     required this.images,
