@@ -146,9 +146,12 @@ Future<void> _runMode(
   openWatch.stop();
   final rssAfter = ProcessInfo.currentRss;
 
+  double? firstContentMs;
+  if (result is _SessionCarry) firstContentMs = result.firstContentMs;
+
   record
     ..['t_open_ms'] = _ms(openWatch.elapsedMicroseconds)
-    ..['t_first_content_ms'] = null
+    ..['t_first_content_ms'] = firstContentMs
     ..['rss_before'] = rssBefore
     ..['rss_after'] = rssAfter
     ..['rss_delta_mb'] = _mb(rssAfter - rssBefore);
@@ -170,9 +173,13 @@ Future<void> _runMode(
       ..['rss_warm_after'] = rssWarmAfter
       ..['rss_warm_delta_mb'] = _mb(rssWarmAfter - rssWarmBefore);
     _consume(warmResult);
+    if (warmResult is _SessionCarry) warmResult.session.dispose();
   }
   _consume(result);
   _inspectStructure(result, record: record);
+  // The session isolate must die before the VM exits, or dart run
+  // hangs on its runloop after main() returns.
+  if (result is _SessionCarry) result.session.dispose();
 }
 
 /// One open through the path selected by [mode]. Returns the parse
@@ -192,9 +199,9 @@ Future<Object?> _openOnce(
     case 'read-file-isolate':
       return Unseal.readFile(bookPath, password: password);
     case 'session-header':
-      _openSession(bytes, password: password, firstContent: false);
+      return _openSession(bytes, password: password, firstContent: false);
     case 'session-first-content':
-      _openSession(bytes, password: password, firstContent: true);
+      return _openSession(bytes, password: password, firstContent: true);
   }
   throw StateError('unreachable mode: $mode');
 }
@@ -207,49 +214,96 @@ void _consume(final Object? result) {
   _sink = Object.hash(_sink, result.runtimeType);
 }
 
-/// STUB for the progressive session modes.
-///
-/// TODO(parent-agent): implement once `BookSession` exists
-/// (docs/specs/progressive-reading/design.md). Keep the record contract:
-///
-/// * session-header — wrap `BookSession.open(bytes, password: password)`
-///   in the caller's timed window and set `record['t_open_ms']`; leave
-///   `t_first_content_ms` null here.
-/// * session-first-content — after the header, load the "first page
-///   content" recipe (first spine item document + the CSS files it
-///   links) via `session.loadResources([...])` and time that span into
-///   `record['t_first_content_ms']`; `t_open_ms` stays header-only so
-///   the two session modes keep a comparable opening figure.
-///
-/// The structure fields (`readingOrderLength`,
-/// `declaredUncompressedBytes`) must come from `session.book` (the
-/// header), NOT from a second full parse.
-///
-/// The throw stays until both paths fill those fields; the sweep
-/// reports this exit code as `unimplemented`.
-void _openSession(
+/// Opens a session and, for the first-content mode, loads the "first
+/// page" recipe: the first HTML spine document plus every CSS it links.
+/// The returned carry keeps the session resident for the caller's RSS
+/// sampling and reports the separately-timed first-content span.
+final class _SessionCarry {
+  _SessionCarry(this.session, this.firstContentMs);
+
+  final BookSession session;
+  final double? firstContentMs;
+}
+
+/// Regexes for the first-content recipe: stylesheet links of the first
+/// chapter, resolved the way the reader's server resolves them.
+final RegExp _linkTagPattern = RegExp(r'<link\b[^>]*>', multiLine: true, caseSensitive: false);
+final RegExp _stylesheetPattern = RegExp(
+  r'''rel\s*=\s*["']?stylesheet''',
+  multiLine: true,
+  caseSensitive: false,
+);
+final RegExp _hrefPattern = RegExp(r'''href\s*=\s*["']([^"']+)["']''', caseSensitive: false);
+
+Future<_SessionCarry> _openSession(
   final Uint8List bytes, {
   required final String password,
   required final bool firstContent,
-}) {
-  // TODO(parent-agent): BookSession.open / loadResources wiring.
-  throw UnimplementedError(
-    'session mode (firstContent: $firstContent) requires BookSession '
-    '(TODO(parent-agent))',
-  );
+}) async {
+  final session = await BookSession.open(bytes, password: password);
+  if (!firstContent) return _SessionCarry(session, null);
+
+  final order = session.book.readingOrder;
+  final firstHtml = order.firstWhere((final item) => item.isHtml, orElse: () => order.first);
+
+  final contentWatch = Stopwatch()..start();
+  final source = await session.loadDocumentSource(firstHtml.name) ?? '';
+  final cssPaths = <String>{
+    for (final tag in _linkTagPattern.allMatches(source))
+      if (_stylesheetPattern.hasMatch(tag[0]!) && tag[0]!.contains('href'))
+        _resolveSibling(firstHtml.name, _hrefPattern.firstMatch(tag[0]!)?.group(1)),
+    for (final match in _hrefPattern.allMatches(source))
+      if (match.group(1)!.toLowerCase().endsWith('.css'))
+        _resolveSibling(firstHtml.name, match.group(1)),
+  }..remove('');
+
+  final targets = <String>{firstHtml.name, ...cssPaths};
+  await session.loadResources(targets);
+  contentWatch.stop();
+
+  return _SessionCarry(session, _ms(contentWatch.elapsedMicroseconds));
+}
+
+/// Resolves a stylesheet [href] against the chapter's directory (the
+/// sibling space the resource server uses), or '' for foreign links.
+String _resolveSibling(final String chapterPath, final String? href) {
+  if (href == null || href.isEmpty) return '';
+  final clean = href.split('#').first.split('?').first;
+  if (clean.isEmpty) return '';
+  if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('/')) {
+    return '';
+  }
+
+  final directory = chapterPath.contains('/')
+      ? chapterPath.substring(0, chapterPath.lastIndexOf('/'))
+      : '';
+  final segments = <String>[...directory.split('/'), ...clean.split('/')];
+  final resolved = <String>[];
+  for (final segment in segments) {
+    if (segment.isEmpty || segment == '.') continue;
+    if (segment == '..') {
+      if (resolved.isNotEmpty) resolved.removeLast();
+      continue;
+    }
+    resolved.add(segment);
+  }
+
+  return resolved.join('/');
 }
 
 /// Fills the structure fields from the OPEN'S OWN result — no second
 /// parse. Untimed, after the measured window. When the session modes
 /// land, the parent agent hands `session.book` here instead.
 void _inspectStructure(final Object? result, {required final Map<String, Object?> record}) {
-  if (result is! Book || result.archiveEntries.isEmpty) {
+  final book = result is _SessionCarry ? result.session.book : result;
+  if (book is! Book || book.archiveEntries.isEmpty) {
     return;
   }
+  final Book resolved = book;
   record
-    ..['bookFormat'] = result.format.name
-    ..['readingOrderLength'] = result.readingOrder.length
-    ..['declaredUncompressedBytes'] = result.archiveEntries.fold<int>(
+    ..['bookFormat'] = resolved.format.name
+    ..['readingOrderLength'] = resolved.readingOrder.length
+    ..['declaredUncompressedBytes'] = resolved.archiveEntries.fold<int>(
       0,
       (final sum, final entry) => sum + entry.size,
     );
