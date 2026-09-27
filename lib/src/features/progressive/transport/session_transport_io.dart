@@ -243,6 +243,7 @@ final class _IsolateSessionTransport implements SessionTransport {
 
   Future<Object?> _request(final List<Object> message) {
     if (_disposed) throw const SessionClosedException();
+
     final port = _port;
     if (port == null) throw const SessionClosedException();
 
@@ -274,20 +275,24 @@ final class _IsolateSessionTransport implements SessionTransport {
   }
 
   @override
-  Future<Uint8List?> resource(final String path) async =>
-      await _request([_opResource, path]) as Uint8List?;
+  Future<Uint8List?> resource(final String path) async {
+    return await _request([_opResource, path]) as Uint8List?;
+  }
 
   @override
-  Future<Map<String, Uint8List>> resources(final Set<String> paths) async =>
-      await _request([_opResources, paths.toList()]) as Map<String, Uint8List>;
+  Future<Map<String, Uint8List>> resources(final Set<String> paths) async {
+    return await _request([_opResources, paths.toList()]) as Map<String, Uint8List>;
+  }
 
   @override
-  Future<String?> documentText(final String path) async =>
-      await _request([_opText, path]) as String?;
+  Future<String?> documentText(final String path) async {
+    return await _request([_opText, path]) as String?;
+  }
 
   @override
-  Future<String?> documentSource(final String path) async =>
-      await _request([_opSource, path]) as String?;
+  Future<String?> documentSource(final String path) async {
+    return await _request([_opSource, path]) as String?;
+  }
 
   @override
   Future<SearchResults> search(
@@ -313,16 +318,19 @@ final class _IsolateSessionTransport implements SessionTransport {
   }
 
   @override
-  Future<BookProgression> computeProgression() async =>
-      await _request([_opProgression]) as BookProgression;
+  Future<BookProgression> computeProgression() async {
+    return await _request([_opProgression]) as BookProgression;
+  }
 
   @override
-  Future<BookStatistics> computeStatistics() async =>
-      await _request([_opStatistics]) as BookStatistics;
+  Future<BookStatistics> computeStatistics() async {
+    return await _request([_opStatistics]) as BookStatistics;
+  }
 
   @override
-  Future<EpubCfiLocation?> resolveCfi(final String cfi) async =>
-      await _request([_opCfiResolve, cfi]) as EpubCfiLocation?;
+  Future<EpubCfiLocation?> resolveCfi(final String cfi) async {
+    return await _request([_opCfiResolve, cfi]) as EpubCfiLocation?;
+  }
 
   @override
   Future<String> buildCfi({
@@ -336,6 +344,7 @@ final class _IsolateSessionTransport implements SessionTransport {
   @override
   void dispose() {
     if (_disposed) return;
+
     _disposed = true;
     _isolate.kill(priority: Isolate.immediate);
     _replies.close();

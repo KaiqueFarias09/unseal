@@ -177,9 +177,7 @@ final class SessionEngine {
 
     final results = <SearchMatch>[];
     final trimmed = query.trim();
-    if (trimmed.isEmpty) {
-      return SearchResults(query: query, matches: results, isTruncated: false);
-    }
+    if (trimmed.isEmpty) return SearchResults(query: query, matches: results, isTruncated: false);
 
     final compiled = compileSearchQuery(
       trimmed,
@@ -256,6 +254,7 @@ final class SessionEngine {
 
     final contentIndex = _spineIndexOf(parsed);
     if (contentIndex == null) return null;
+
     final sectionPath = _sectionPathFor(contentIndex);
     if (sectionPath == null) return null;
     if (documentText(sectionPath) == null) return null;
@@ -268,9 +267,7 @@ final class SessionEngine {
   /// contract.
   String buildCfi({required final int contentIndex, required final int offsetInText}) {
     _ensureOpen();
-    if (book is! EpubBook) {
-      throw const UnsealException('CFI building needs an EPUB session.');
-    }
+    if (book is! EpubBook) throw const UnsealException('CFI building needs an EPUB session.');
 
     final sectionPath = _sectionPathFor(contentIndex);
     if (sectionPath == null) {
@@ -287,6 +284,7 @@ final class SessionEngine {
   /// [SessionClosedException].
   void close() {
     if (_closed) return;
+
     _closed = true;
     _cache.clear();
     _source.close();
@@ -312,6 +310,7 @@ final class SessionEngine {
 
     final spineSegment = segments.first;
     if (spineSegment.steps.isEmpty) return null;
+
     final spineStep = spineSegment.steps.last;
     if (spineStep.isText || spineStep.index == 0) return null;
 
@@ -401,9 +400,7 @@ final class SessionEngine {
             (final name) =>
                 !name.contains('/') && (name.endsWith('.html') || name.endsWith('.htm')),
           );
-      if (isOtherZipBook) {
-        throw unsupported(detected?.name ?? '');
-      }
+      if (isOtherZipBook) throw unsupported(detected?.name ?? '');
 
       final looksLikeEpub =
           source.find('META-INF/container.xml') != null ||
@@ -423,16 +420,14 @@ final class SessionEngine {
         if (!record.isFile || record.name.toLowerCase() == 'comicinfo.xml') continue;
         if (sniffImageType(source.head(record, 64)) != null) {
           hasImages = true;
+
           break;
         }
       }
-      if (hasImages) {
-        final book = buildComicSessionHeader(source, policy: policy);
+      if (!hasImages) throw unsupported(detected?.name ?? '');
+      final book = buildComicSessionHeader(source, policy: policy);
 
-        return SessionEngine._(book, source, policy);
-      }
-
-      throw unsupported(detected?.name ?? '');
+      return SessionEngine._(book, source, policy);
     } on SessionUnsupportedFormatException {
       source.close();
       rethrow;
@@ -453,6 +448,7 @@ final class _CacheEntry {
   int get weightBytes {
     final raw = bytes;
     if (raw != null) return raw.length;
+
     final text = this.text;
     if (text != null) return text.content.length * 2;
 

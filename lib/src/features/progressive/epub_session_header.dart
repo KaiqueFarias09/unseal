@@ -114,9 +114,7 @@ String _selectRootFilePath(
     // Container absent or unusable: recover by scanning every .opf
     // entry, like the eager path does.
     for (final record in source.entries) {
-      if (record.isFile && record.name.toLowerCase().endsWith('.opf')) {
-        partial.add(record.name);
-      }
+      if (record.isFile && record.name.toLowerCase().endsWith('.opf')) partial.add(record.name);
     }
   }
   final discovered = findEpubRootFilePath(partial.archive);
@@ -248,9 +246,11 @@ Map<String, EpubViewport> _extractPrePaginatedViewports(
 
     final record = source.find(spine.paths[index]);
     if (record == null) continue;
+
     final bytes = _inflateDecrypting(source, record, encryption);
     files.add(TextFile(content: decodeEpubText(bytes), name: '', type: '', path: record.name));
   }
+
   if (files.isEmpty) return const <String, EpubViewport>{};
 
   return extractContentViewports(files, spine.paths);
@@ -293,14 +293,10 @@ final class _PartialArchive {
   Uint8List add(final String path) {
     final normalized = normalizeZipPath(path);
     final existing = _added.lookup(normalized);
-    if (existing != null) {
-      return contentBytes(findArchiveFile(archive, normalized)!);
-    }
+    if (existing != null) return contentBytes(findArchiveFile(archive, normalized)!);
 
     final record = _source.find(normalized);
-    if (record == null) {
-      throw EpubException('Container entry $normalized is missing.');
-    }
+    if (record == null) throw EpubException('Container entry $normalized is missing.');
 
     final bytes = _source.inflate(record);
     final materialized = ArchiveFile.bytes(record.name, bytes)

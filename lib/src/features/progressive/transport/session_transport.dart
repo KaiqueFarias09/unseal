@@ -95,15 +95,17 @@ final class InlineSessionTransport implements SessionTransport {
     required final int nearChars,
     required final int contextChars,
     required final int maxMatches,
-  }) async => _engine.search(
-    query,
-    mode: mode,
-    isCaseSensitive: isCaseSensitive,
-    isTolerant: isTolerant,
-    nearChars: nearChars,
-    contextChars: contextChars,
-    maxMatches: maxMatches,
-  );
+  }) async {
+    return _engine.search(
+      query,
+      mode: mode,
+      isCaseSensitive: isCaseSensitive,
+      isTolerant: isTolerant,
+      nearChars: nearChars,
+      contextChars: contextChars,
+      maxMatches: maxMatches,
+    );
+  }
 
   @override
   Future<BookProgression> computeProgression() async => _engine.computeProgression();
@@ -115,10 +117,11 @@ final class InlineSessionTransport implements SessionTransport {
   Future<EpubCfiLocation?> resolveCfi(final String cfi) async => _engine.resolveCfi(cfi);
 
   @override
-  Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) =>
-      Future<String>.value(
-        _engine.buildCfi(contentIndex: contentIndex, offsetInText: offsetInText),
-      );
+  Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) {
+    return Future<String>.value(
+      _engine.buildCfi(contentIndex: contentIndex, offsetInText: offsetInText),
+    );
+  }
 
   @override
   void cancelPending() {

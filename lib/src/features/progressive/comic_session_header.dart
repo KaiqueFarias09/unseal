@@ -30,9 +30,7 @@ ComicBook buildComicSessionHeader(
 }) {
   final comicInfo = _readComicInfo(source);
   final pages = _pageRecords(source);
-  if (pages.isEmpty) {
-    throw const ComicException('No image pages found in the comic archive.');
-  }
+  if (pages.isEmpty) throw const ComicException('No image pages found in the comic archive.');
 
   final images = <BinaryFile>[
     for (final page in pages)
@@ -124,9 +122,7 @@ BinaryFile _materializeCover(
   final SessionPolicy policy,
 ) {
   final record = source.find(placeholder.path);
-  if (record == null || record.uncompressedSize > policy.coverMaxBytes) {
-    return BinaryFile.empty();
-  }
+  if (record == null || record.uncompressedSize > policy.coverMaxBytes) return BinaryFile.empty();
 
   return BinaryFile(
     content: source.inflate(record),

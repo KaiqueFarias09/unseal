@@ -82,8 +82,9 @@ final class BookSession {
 
   /// Loads several container entries in one round trip; missing paths
   /// are absent from the result.
-  Future<Map<String, Uint8List>> loadResources(final Iterable<String> paths) =>
-      _transport.resources(Set.of(paths));
+  Future<Map<String, Uint8List>> loadResources(final Iterable<String> paths) {
+    return _transport.resources(Set.of(paths));
+  }
 
   /// Loads the canonical document text of a content document, or null
   /// when the entry does not exist. This is the same offset space
@@ -129,8 +130,9 @@ final class BookSession {
 
   /// Builds a book-level CFI for a reading position. Range errors keep
   /// the inline resolver's contract.
-  Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) =>
-      _transport.buildCfi(contentIndex: contentIndex, offsetInText: offsetInText);
+  Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) {
+    return _transport.buildCfi(contentIndex: contentIndex, offsetInText: offsetInText);
+  }
 
   /// Completes every in-flight request with
   /// [SessionCancelledException]. New requests remain valid.

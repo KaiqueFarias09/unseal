@@ -24,19 +24,15 @@ Future<(SessionTransport, Book)> openSessionTransport({
   required final String? path,
   required final SessionPolicy policy,
 }) async {
-  if (path != null) {
-    throw UnsupportedError('Opening a book from a path is not supported on web');
-  }
+  if (path != null) throw UnsupportedError('Opening a book from a path is not supported on web');
 
   final client = WorkerClient.instance;
   final header = await client.sessionOpenInWorker(bytes!, policy: policy);
-  if (header == null) {
-    final engine = SessionEngine.openBytes(bytes, policy: policy);
+  if (header != null) return (_WorkerSessionTransport(client), header);
 
-    return (InlineSessionTransport(engine), engine.book);
-  }
+  final engine = SessionEngine.openBytes(bytes, policy: policy);
 
-  return (_WorkerSessionTransport(client), header);
+  return (InlineSessionTransport(engine), engine.book);
 }
 
 /// Transport driving the session engine resident in the shared web
@@ -87,20 +83,24 @@ final class _WorkerSessionTransport implements SessionTransport {
   }
 
   @override
-  Future<Uint8List?> resource(final String path) =>
-      _dispatch(() => _client.sessionResourceInWorker(path));
+  Future<Uint8List?> resource(final String path) {
+    return _dispatch(() => _client.sessionResourceInWorker(path));
+  }
 
   @override
-  Future<Map<String, Uint8List>> resources(final Set<String> paths) =>
-      _dispatch(() => _client.sessionResourcesInWorker(paths));
+  Future<Map<String, Uint8List>> resources(final Set<String> paths) {
+    return _dispatch(() => _client.sessionResourcesInWorker(paths));
+  }
 
   @override
-  Future<String?> documentText(final String path) =>
-      _dispatch(() => _client.sessionTextInWorker(path));
+  Future<String?> documentText(final String path) {
+    return _dispatch(() => _client.sessionTextInWorker(path));
+  }
 
   @override
-  Future<String?> documentSource(final String path) =>
-      _dispatch(() => _client.sessionSourceInWorker(path));
+  Future<String?> documentSource(final String path) {
+    return _dispatch(() => _client.sessionSourceInWorker(path));
+  }
 
   @override
   Future<SearchResults> search(
@@ -111,17 +111,19 @@ final class _WorkerSessionTransport implements SessionTransport {
     required final int nearChars,
     required final int contextChars,
     required final int maxMatches,
-  }) => _dispatch(
-    () => _client.sessionSearchInWorker(
-      query,
-      mode: mode,
-      isCaseSensitive: isCaseSensitive,
-      isTolerant: isTolerant,
-      nearChars: nearChars,
-      contextChars: contextChars,
-      maxMatches: maxMatches,
-    ),
-  );
+  }) {
+    return _dispatch(
+      () => _client.sessionSearchInWorker(
+        query,
+        mode: mode,
+        isCaseSensitive: isCaseSensitive,
+        isTolerant: isTolerant,
+        nearChars: nearChars,
+        contextChars: contextChars,
+        maxMatches: maxMatches,
+      ),
+    );
+  }
 
   @override
   Future<BookProgression> computeProgression() => _dispatch(_client.sessionProgressionInWorker);
@@ -130,15 +132,16 @@ final class _WorkerSessionTransport implements SessionTransport {
   Future<BookStatistics> computeStatistics() => _dispatch(_client.sessionStatisticsInWorker);
 
   @override
-  Future<EpubCfiLocation?> resolveCfi(final String cfi) =>
-      _dispatch(() => _client.sessionResolveCfiInWorker(cfi));
+  Future<EpubCfiLocation?> resolveCfi(final String cfi) {
+    return _dispatch(() => _client.sessionResolveCfiInWorker(cfi));
+  }
 
   @override
-  Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) =>
-      _dispatch(
-        () =>
-            _client.sessionBuildCfiInWorker(contentIndex: contentIndex, offsetInText: offsetInText),
-      );
+  Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) {
+    return _dispatch(
+      () => _client.sessionBuildCfiInWorker(contentIndex: contentIndex, offsetInText: offsetInText),
+    );
+  }
 
   @override
   void cancelPending() => _drain(const SessionCancelledException());
@@ -146,6 +149,7 @@ final class _WorkerSessionTransport implements SessionTransport {
   @override
   void dispose() {
     if (_disposed) return;
+
     _disposed = true;
     _client.sessionDisposeInWorker();
     _drain(const SessionClosedException());
