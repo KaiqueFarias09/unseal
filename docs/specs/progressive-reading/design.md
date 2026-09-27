@@ -192,3 +192,47 @@ material (>10%) na outra métrica; livros pequenos (dracula) não podem piorar
 5. Media overlays: SMIL de capítulos futuros via provedor de sessão.
 6. Estatísticas de `Book.statistics` no header refletem só o carregado;
    livro inteiro via `computeStatistics()` (ninguém na família usa hoje).
+
+## 8. Adendo de integração (contrato congelado pós-implementação do core)
+
+API da sessão implementada em `BookSession` (commits 5b2c874..0856b20):
+
+- `session.book` — header (EpubBook/ComicBook com `files` vazio).
+- `loadResource(path) → Uint8List?` — bytes inflados de uma entrada.
+- `loadResources(paths) → Map<String, Uint8List>` — lote.
+- `loadDocumentSource(path) → String?` — HTML/CSS cru decodificado
+  (o que o servidor de recursos e `EpubCfiDocument.parse` consomem).
+- `loadDocumentText(path) → String?` — texto canônico (espaço de busca/CFI).
+- `search / computeProgression / computeStatistics / resolveCfi / buildCfi`.
+- `cancelPending()` → `SessionCancelledException`; `dispose()` →
+  `SessionClosedException`.
+
+Regras para o controller com `session != null`:
+
+1. `book` exposto = `session.book`. Nenhum acesso a `book.files.*`
+   como fonte de conteúdo — conteúdo só via sessão.
+2. `BookServer` (io e web): o snapshot `_files` é substituído por um
+   resolver assíncrono apoiado em `loadResource`/`loadDocumentSource`.
+   HTML passa pelo pipeline existente (sanitize/rewrite/inject). No
+   server web, `urlForPath` ganha variante assíncrona; o blob é criado
+   quando o conteúdo chega. Em `_prepareHtml`, CSS/imagens referenciadas
+   são resolvidas sob demanda (o resolver cuida de reentrância).
+3. `BookProgression`: com sessão, `computeProgression()` roda em
+   background após a abertura; `progress` usa o valor quando chegar
+   (0 antes). Sem sessão, comportamento atual intocado.
+4. Busca: `session.search(...)`; fallback inline quando sem sessão.
+5. CFI: book-level via `session.resolveCfi`; build via
+   `session.buildCfi` (projeção carrega o documento no worker).
+   File-local scan (goToCfi/`_cfiDocFor`) carrega cada candidato via
+   `loadDocumentSource` e parseia `EpubCfiDocument` no cliente;
+   memoização negativa proibida com sessão (evictable).
+6. MathJax: decisão por página no prepare (o pipeline já tem
+   `containsMath`); o sniff global só roda sem sessão.
+7. Footnotes e excerpts: conteúdo via `loadDocumentSource` por demanda.
+8. Narration: `MediaOverlayCatalog` ganha provedor opcional
+   `Future<String?> Function(String path)` para SMIL (default: lê de
+   `files.others` como hoje); o Grimoire passa `session.loadDocumentSource`.
+   Inventário de paths já coberto por `archiveEntries` do header.
+9. Estatísticas: ninguém consome; nenhuma ação.
+10. FXL: inalterado — dados de spine/viewports vêm no header; spread
+    garante o par carregado antes de montar URL.
