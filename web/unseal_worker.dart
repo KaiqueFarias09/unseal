@@ -3,6 +3,7 @@ import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:unseal/src/features/epub/exceptions/empty_bytes_exception.dart';
+import 'package:unseal/src/features/progressive/session_engine.dart';
 import 'package:unseal/src/foundation/entities/book/book.dart';
 import 'package:unseal/src/foundation/exceptions/unseal_exception.dart';
 import 'package:unseal/src/platform/web/book_wire.dart';
@@ -13,6 +14,11 @@ import 'package:web/web.dart' as web;
 /// `cfiResolve` and `cfiBuild` run against it until the next parse
 /// replaces it.
 Book? _book;
+
+/// The session engine retained from the last successful
+/// `sessionOpen`; the `session*` ops run against it until the next
+/// open replaces it or `sessionDispose` closes it.
+SessionEngine? _session;
 
 /// Entry point of the unseal parsing worker.
 ///
@@ -25,11 +31,13 @@ Book? _book;
 ///
 /// The worker answers `parse` (whole book), `metadata` (fast path),
 /// `search`, `cfiResolve` and `cfiBuild` — the last three against the
-/// book kept back from the most recent successful parse. Every reply
-/// carries a JSON wire payload plus the blob list it references
-/// (binary bytes and text strings side by side). Failures travel back
-/// as typed errors; infrastructure failures (script unreachable,
-/// worker killed) make the main thread fall back to inline parsing.
+/// book kept back from the most recent successful parse — and the
+/// progressive `session*` ops against the engine kept back from the
+/// most recent successful `sessionOpen`. Every reply carries a JSON
+/// wire payload plus the blob list it references (binary bytes and
+/// text strings side by side). Failures travel back as typed errors;
+/// infrastructure failures (script unreachable, worker killed) make
+/// the main thread fall back to inline parsing.
 void main() {
   globalContext.setProperty('onmessage'.toJS, _handle.toJS);
 }
@@ -40,8 +48,8 @@ void _handle(final web.MessageEvent event) {
 
   final id = (data.getProperty(wireKeyId.toJS) as JSNumber).toDartInt;
   final op = (data.getProperty(wireKeyOp.toJS) as JSString).toDart;
-  // `parse` / `metadata` carry bytes and no payload; the stateful ops
-  // carry a payload and no bytes.
+  // `parse` / `metadata` / `sessionOpen` carry bytes and no payload;
+  // the stateful ops carry a payload and no bytes.
   final bytes = data.hasProperty(wireKeyBytes.toJS).toDart
       ? (data.getProperty(wireKeyBytes.toJS) as JSUint8Array).toDart
       : null;
@@ -50,13 +58,27 @@ void _handle(final web.MessageEvent event) {
       : null;
 
   try {
-    final reply = runWorkerOp(op: op, payload: payload, bytes: bytes, residentBook: _book);
+    final reply = runWorkerOp(
+      op: op,
+      payload: payload,
+      bytes: bytes,
+      residentBook: _book,
+      residentSession: _session,
+    );
     if (op == workerOpParse) {
       // Retain the freshly parsed book for the stateful ops; the
       // decode rebuilds structures without copying content and, for
       // MOBI, re-parses only the record 0 slice — cheap against the
       // parse that just ran.
       _book = decodeBookWire(reply.json, reply.blobs);
+    }
+    if (op == workerOpSessionOpen) {
+      // The op already closed the session it replaced; adopt the new
+      // engine it built.
+      _session = reply.session;
+    }
+    if (op == workerOpSessionDispose) {
+      _session = null;
     }
     _reply(id, reply.kind, reply.json, reply.blobs);
   } on EmptyBytesException catch (error) {
@@ -65,6 +87,8 @@ void _handle(final web.MessageEvent event) {
     _error(id, error.runtimeType.toString(), error.message);
   } on FormatException catch (error) {
     _error(id, 'FormatException', error.message);
+  } on RangeError catch (error) {
+    _error(id, 'RangeError', error.message == null ? error.toString() : '${error.message}');
   } on Object catch (error) {
     _error(id, '', error.toString());
   }

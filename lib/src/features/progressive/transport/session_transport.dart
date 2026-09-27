@@ -20,6 +20,10 @@ abstract interface class SessionTransport {
   /// missing.
   Future<String?> documentText(final String path);
 
+  /// Raw decoded source of a content document (markup included), or
+  /// null when missing.
+  Future<String?> documentSource(final String path);
+
   /// Whole-book search with the `BookSearch.search` contract.
   Future<SearchResults> search(
     final String query, {
@@ -78,6 +82,9 @@ final class InlineSessionTransport implements SessionTransport {
 
   @override
   Future<String?> documentText(final String path) async => _engine.documentText(path);
+
+  @override
+  Future<String?> documentSource(final String path) async => _engine.documentSource(path);
 
   @override
   Future<SearchResults> search(

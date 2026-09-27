@@ -4,8 +4,6 @@ import '../../../features/comic/entities/comic_book.dart';
 import '../../../features/comic/entities/comic_page_info.dart';
 import '../../../features/djvu/djvu_book.dart';
 import '../../../features/epub/entities/book/book.dart';
-import '../../../features/epub/entities/book/epub_landmark.dart';
-import '../../../features/epub/entities/package/epub_viewport.dart';
 import '../../../features/fb2/entities/fb2_book.dart';
 import '../../../features/mobi/entities/mobi_book.dart';
 import '../../../features/mobi/header/mobi_header.dart';
@@ -54,21 +52,11 @@ import 'metadata_wire.dart';
       'spineIdrefs': epub.spineIdrefs,
       // Fixed-layout data crosses only for the few documents that
       // declare it; a reflowable book encodes two empty collections.
-      'contentViewports': <String, Object?>{
-        for (final entry in epub.contentViewports.entries)
-          entry.key: <String, Object?>{'w': entry.value.width, 'h': entry.value.height},
-      },
+      'contentViewports': encodeContentViewportsWireValue(epub.contentViewports),
       'nonLinearSpinePaths': List<String>.of(epub.nonLinearSpinePaths),
       'package': encodeEpubPackageWireValue(epub.package),
       'pageList': epub.pageList == null ? null : encodeNavigationWireValue(epub.pageList!),
-      'landmarks': <Object?>[
-        for (final landmark in epub.landmarks)
-          <String, Object?>{
-            'label': landmark.label,
-            'href': landmark.href,
-            'types': List<String>.of(landmark.types),
-          },
-      ],
+      'landmarks': encodeEpubLandmarksWireValue(epub.landmarks),
     };
 
     return (json, blobs);
@@ -177,19 +165,7 @@ import 'metadata_wire.dart';
   if (book is ComicBook) {
     json['comic'] = <String, Object?>{
       'readingDirection': book.readingDirection.name,
-      'pageInfo': <Object?>[
-        for (final page in book.pageInfo)
-          <String, Object?>{
-            'imageIndex': page.imageIndex,
-            'type': page.type.name,
-            'rawType': page.rawType,
-            'doublePage': page.doublePage,
-            'bookmark': page.bookmark,
-            'imageSize': page.imageSize,
-            'imageWidth': page.imageWidth,
-            'imageHeight': page.imageHeight,
-          },
-      ],
+      'pageInfo': <Object?>[for (final page in book.pageInfo) encodeComicPageInfoWireValue(page)],
     };
   }
 
@@ -214,17 +190,10 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
       pageList: epub['pageList'] == null
           ? null
           : decodeNavigationWireValue(epub['pageList'] as Map<String, Object?>),
-      landmarks: <EpubLandmark>[
-        for (final item in epub['landmarks'] as List<Object?>? ?? const <Object?>[])
-          EpubLandmark(
-            label: (item as Map<String, Object?>)['label'] as String,
-            href: item['href'] as String,
-            types: (item['types'] as List<Object?>).cast<String>(),
-          ),
-      ],
+      landmarks: decodeEpubLandmarksWireValue(epub['landmarks'] as List<Object?>?),
       spinePaths: (epub['spinePaths'] as List<Object?>?)?.cast<String>(),
       spineIdrefs: (epub['spineIdrefs'] as List<Object?>?)?.cast<String>(),
-      contentViewports: _decodeContentViewports(epub['contentViewports']),
+      contentViewports: decodeContentViewportsWireValue(epub['contentViewports']),
       nonLinearSpinePaths:
           (epub['nonLinearSpinePaths'] as List<Object?>?)?.cast<String>().toSet() ??
           const <String>{},
@@ -392,35 +361,9 @@ Book _decodeStoredBook(
         ? null
         : <ComicPageInfo>[
             for (final value in comic['pageInfo'] as List<Object?>)
-              _decodeComicPageInfo(value as Map<String, Object?>),
+              decodeComicPageInfoWireValue(value as Map<String, Object?>),
           ],
   );
-}
-
-ComicPageInfo _decodeComicPageInfo(final Map<String, Object?> value) => ComicPageInfo(
-  imageIndex: value['imageIndex'] as int,
-  type: ComicPageType.values.byName(value['type'] as String),
-  rawType: value['rawType'] as String,
-  doublePage: value['doublePage'] as bool,
-  bookmark: value['bookmark'] as String?,
-  imageSize: value['imageSize'] as int?,
-  imageWidth: value['imageWidth'] as int?,
-  imageHeight: value['imageHeight'] as int?,
-);
-
-/// Rebuilds the fixed-layout viewports from the compact per-path
-/// `{w, h}` entries; payloads from before the field existed decode to
-/// an empty map.
-Map<String, EpubViewport> _decodeContentViewports(final Object? json) {
-  if (json is! Map<String, Object?>) return const <String, EpubViewport>{};
-
-  return <String, EpubViewport>{
-    for (final entry in json.entries)
-      entry.key: EpubViewport(
-        width: (entry.value as Map<String, Object?>)['w'] as int,
-        height: (entry.value as Map<String, Object?>)['h'] as int,
-      ),
-  };
 }
 
 /// Every parsed book exposes its cover as a [BinaryFile]; the

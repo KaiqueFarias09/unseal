@@ -110,6 +110,7 @@ void _dispatch(final SessionEngine engine, final SendPort replyPort, final List<
           if (engine.resource(path) case final Uint8List bytes) path: bytes,
       },
       _opText => engine.documentText(message[2]! as String),
+      _opSource => engine.documentSource(message[2]! as String),
       _opSearch => engine.search(
         message[2]! as String,
         mode: SearchMode.values.byName(message[3]! as String),
@@ -137,6 +138,7 @@ void _dispatch(final SessionEngine engine, final SendPort replyPort, final List<
 const _opResource = 'resource';
 const _opResources = 'resources';
 const _opText = 'text';
+const _opSource = 'source';
 const _opSearch = 'search';
 const _opProgression = 'progression';
 const _opStatistics = 'statistics';
@@ -282,6 +284,10 @@ final class _IsolateSessionTransport implements SessionTransport {
   @override
   Future<String?> documentText(final String path) async =>
       await _request([_opText, path]) as String?;
+
+  @override
+  Future<String?> documentSource(final String path) async =>
+      await _request([_opSource, path]) as String?;
 
   @override
   Future<SearchResults> search(

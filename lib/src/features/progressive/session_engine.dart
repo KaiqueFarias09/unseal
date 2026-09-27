@@ -157,6 +157,11 @@ final class SessionEngine {
     return file == null ? null : documentTextOf(file);
   }
 
+  /// Raw decoded source of a content document — the HTML/CSS text as
+  /// stored (markup included), the shape servers and CFI document
+  /// parsers need.
+  String? documentSource(final String path) => textFile(path)?.content;
+
   /// Full-text search with the [BookSearch.search] contract, executed
   /// section by section so only one chapter is materialized at a time.
   SearchResults search(

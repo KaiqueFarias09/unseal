@@ -90,6 +90,10 @@ final class BookSession {
   /// search and CFI address.
   Future<String?> loadDocumentText(final String path) => _transport.documentText(path);
 
+  /// Loads the raw decoded source of a content document (the HTML/CSS
+  /// text with markup), or null when the entry does not exist.
+  Future<String?> loadDocumentSource(final String path) => _transport.documentSource(path);
+
   /// Full-text search over the whole book with the `BookSearch.search`
   /// contract, executed against the resident content.
   Future<SearchResults> search(

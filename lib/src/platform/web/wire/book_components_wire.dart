@@ -1,5 +1,8 @@
 import 'dart:typed_data';
 
+import '../../../features/comic/entities/comic_page_info.dart';
+import '../../../features/epub/entities/book/epub_landmark.dart';
+import '../../../features/epub/entities/package/epub_viewport.dart';
 import '../../../foundation/entities/entities.dart';
 
 /// Encodes navigation into its wire-map representation.
@@ -128,6 +131,80 @@ List<ArchiveEntry> decodeArchiveEntriesWireValue(final List<Object?> json) {
       ),
   ];
 }
+
+/// Encodes EPUB structural destinations into a wire value.
+List<Object?> encodeEpubLandmarksWireValue(final List<EpubLandmark> landmarks) {
+  return <Object?>[
+    for (final landmark in landmarks)
+      <String, Object?>{
+        'label': landmark.label,
+        'href': landmark.href,
+        'types': List<String>.of(landmark.types),
+      },
+  ];
+}
+
+/// Decodes EPUB structural destinations from a wire value.
+List<EpubLandmark> decodeEpubLandmarksWireValue(final List<Object?>? json) {
+  return <EpubLandmark>[
+    for (final item in json ?? const <Object?>[])
+      EpubLandmark(
+        label: (item as Map<String, Object?>)['label'] as String,
+        href: item['href'] as String,
+        types: (item['types'] as List<Object?>).cast<String>(),
+      ),
+  ];
+}
+
+/// Encodes fixed-layout viewports into the compact per-path `{w, h}`
+/// wire value.
+Map<String, Object?> encodeContentViewportsWireValue(final Map<String, EpubViewport> viewports) {
+  return <String, Object?>{
+    for (final entry in viewports.entries)
+      entry.key: <String, Object?>{'w': entry.value.width, 'h': entry.value.height},
+  };
+}
+
+/// Rebuilds the fixed-layout viewports from the compact per-path
+/// `{w, h}` wire value; payloads from before the field existed decode
+/// to an empty map.
+Map<String, EpubViewport> decodeContentViewportsWireValue(final Object? json) {
+  if (json is! Map<String, Object?>) return const <String, EpubViewport>{};
+
+  return <String, EpubViewport>{
+    for (final entry in json.entries)
+      entry.key: EpubViewport(
+        width: (entry.value as Map<String, Object?>)['w'] as int,
+        height: (entry.value as Map<String, Object?>)['h'] as int,
+      ),
+  };
+}
+
+/// Encodes one comic page declaration into a wire value.
+Map<String, Object?> encodeComicPageInfoWireValue(final ComicPageInfo page) {
+  return <String, Object?>{
+    'imageIndex': page.imageIndex,
+    'type': page.type.name,
+    'rawType': page.rawType,
+    'doublePage': page.doublePage,
+    'bookmark': page.bookmark,
+    'imageSize': page.imageSize,
+    'imageWidth': page.imageWidth,
+    'imageHeight': page.imageHeight,
+  };
+}
+
+/// Decodes one comic page declaration from a wire value.
+ComicPageInfo decodeComicPageInfoWireValue(final Map<String, Object?> json) => ComicPageInfo(
+  imageIndex: json['imageIndex'] as int,
+  type: ComicPageType.values.byName(json['type'] as String),
+  rawType: json['rawType'] as String,
+  doublePage: json['doublePage'] as bool,
+  bookmark: json['bookmark'] as String?,
+  imageSize: json['imageSize'] as int?,
+  imageWidth: json['imageWidth'] as int?,
+  imageHeight: json['imageHeight'] as int?,
+);
 
 /// Appends a blob payload and returns the index referenced by the JSON map.
 int pushWireBlob(final List<Object> blobs, final Object payload) {

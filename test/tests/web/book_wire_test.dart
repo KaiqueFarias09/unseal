@@ -271,7 +271,13 @@ void main() {
       expect(decodeErrorWire('InvalidDocxXmlException', 'x'), isA<DocxException>());
       expect(decodeErrorWire('HtmlException', 'x'), isA<HtmlException>());
       expect(decodeErrorWire('MissingOdtPartException', 'x'), isA<OdtException>());
-      expect(decodeErrorWire('RangeError', 'boom'), isA<UnsealException>());
+      expect(decodeErrorWire('RangeError', 'boom'), isA<RangeError>());
+      expect(decodeErrorWire('SessionClosedException', ''), isA<SessionClosedException>());
+      expect(decodeErrorWire('SessionCancelledException', ''), isA<SessionCancelledException>());
+      expect(
+        decodeErrorWire('SessionUnsupportedFormatException', 'x'),
+        isA<SessionUnsupportedFormatException>(),
+      );
     });
   });
 }

@@ -10,19 +10,29 @@ import '../../../features/html/exceptions/html_exception.dart';
 import '../../../features/mobi/exceptions/mobi_exception.dart';
 import '../../../features/odt/exceptions/odt_exception.dart';
 import '../../../features/pdf/exceptions/pdf_exception.dart';
+import '../../../features/progressive/session_policy.dart';
 import '../../../foundation/exceptions/unseal_exception.dart';
 
 /// Rebuilds the exception hierarchy behind a worker error reply:
 /// known [UnsealException] subtypes come back with their own type,
-/// [FormatException] (a bad regex query) keeps its own type, unknown
+/// [FormatException] (a bad regex query) and [RangeError] (CFI
+/// building outside the reading order) keep their own types, unknown
 /// ones degrade to the base exception with the original text
 /// preserved.
-Exception decodeErrorWire(final String type, final String message) {
+Object decodeErrorWire(final String type, final String message) {
   switch (type) {
     case 'EmptyBytesException':
       return EmptyBytesException();
     case 'FormatException':
       return FormatException(message);
+    case 'RangeError':
+      return RangeError(message);
+    case 'SessionClosedException':
+      return const SessionClosedException();
+    case 'SessionCancelledException':
+      return const SessionCancelledException();
+    case 'SessionUnsupportedFormatException':
+      return SessionUnsupportedFormatException(message);
     case 'FormatNotSupportedException':
       return FormatNotSupportedException(message);
     case 'DrmProtectedException':

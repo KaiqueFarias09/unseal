@@ -64,6 +64,10 @@ final class BookProgression {
   /// Number of sections in the reading order.
   int get sectionCount => _sectionLengths.length;
 
+  /// Per-section canonical-text lengths, aligned with `Book.readingOrder`. Non-HTML sections
+  /// measure 0. The returned list is a copy; mutating it never changes the progression.
+  List<int> get sectionLengths => List<int>.of(_sectionLengths);
+
   /// Total characters of canonical text across all sections. Fully non-text books (comics) measure
   /// 0.
   int get totalCharacters => _totalCharacters;
