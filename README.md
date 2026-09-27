@@ -160,6 +160,40 @@ Path-based reads are filesystem-only and read the input file into memory before
 parsing. They also look for a sibling `<book-name>.opf`, followed by
 `metadata.opf`, and merge available sidecar metadata.
 
+### Progressive sessions for large books
+
+`Unseal.read` materializes the whole book — every chapter, image, stylesheet
+and font — before returning. A `BookSession` inverts that: the compressed
+source and the inflated content stay resident behind a delivery layer (a
+long-lived isolate on the VM, a Web Worker on the browser), the caller
+receives the book's structure immediately, and content loads one request at a
+time under a byte-budgeted LRU cache:
+
+```dart
+final session = await BookSession.openFile(path);
+final book = session.book; // structure only: metadata, navigation, reading order
+
+final first = book.readingOrder.first;
+final chapter = await session.loadDocumentSource(first.name); // raw HTML
+final text = await session.loadDocumentText(first.name); // canonical text space
+final results = await session.search('island');
+final progress = await session.computeProgression();
+final cfi = await session.buildCfi(contentIndex: 0, offsetInText: 120);
+
+session.cancelPending(); // fail in-flight requests with SessionCancelledException
+session.dispose(); // end the session; later requests fail with SessionClosedException
+```
+
+`session.book` is a real `EpubBook` or `ComicBook` whose structure is complete
+(spine, rendition data, navigation, container inventory, the cover when it
+fits `SessionPolicy.coverMaxBytes`) while `files` carries no content —
+spine-driven consumers such as fixed-layout readers work unchanged, and
+`loadResource(path)` serves any container entry on demand. EPUB and CBZ open
+progressively today; other formats throw
+`SessionUnsupportedFormatException` and should use `Unseal.read` instead.
+The classic entry points are unchanged and remain the right choice whenever
+the whole book is needed at once.
+
 ### Format-specific APIs
 
 The package exports dedicated entry points when an application needs details
