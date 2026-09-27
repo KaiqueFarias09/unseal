@@ -17,6 +17,9 @@ import 'tests/fb2/fb2_to_html_test.dart' as fb2_to_html_test;
 import 'tests/mobi/compression_test.dart' as compression_test;
 import 'tests/mobi/mobi_test.dart' as mobi_test;
 import 'tests/mobi/synthetic_mobi_test.dart' as synthetic_mobi_test;
+import 'tests/progressive/book_session_test.dart' as book_session_test;
+import 'tests/progressive/session_engine_test.dart' as session_engine_test;
+import 'tests/progressive/zip_random_access_test.dart' as zip_random_access_test;
 
 void main() {
   detection_test.main();
@@ -38,4 +41,7 @@ void main() {
   synthetic_mobi_test.main();
   fb2_test.main();
   fb2_to_html_test.main();
+  zip_random_access_test.main();
+  session_engine_test.main();
+  book_session_test.main();
 }
