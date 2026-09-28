@@ -36,6 +36,12 @@ final RegExp _fixedLineNumberPattern = RegExp(r'(^.+[^0-9])\d+\s*$');
 /// separated by literal newlines between tags, so the reflowed
 /// reading mode, the facsimile text layer, search and annotations
 /// all address the same character space.
+///
+/// The document-global decisions are factored into [PdfReflowPlan]:
+/// [PdfReflowPlan.scan] computes the plan, [PdfReflow.applyWithPlan]
+/// renders pages under it, and [PdfReflow.apply] stays the eager
+/// whole-document facade (one pass, same bytes as
+/// scan + applyWithPlan over the same pages).
 class PdfReflow {
   const PdfReflow._();
 
@@ -49,21 +55,93 @@ class PdfReflow {
     final List<PdfPageText> pageTexts,
     final List<PdfPage> pages,
   ) {
-    final document = _Document(pageTexts, pages);
+    return _render(_Document(pageTexts, pages));
+  }
 
+  /// Builds the same output as [apply] for the pages given, using a
+  /// plan computed elsewhere by [PdfReflowPlan.scan].
+  ///
+  /// [firstPageNumber] is the 1-based number of the first page in
+  /// [pageTexts]/[pages]: per-page decisions key off the page's
+  /// absolute number (odd/even margin statistics, the `page_N`
+  /// anchors and file names, and the plan's continuation flags), so
+  /// rendering a slice — a single page, in the lazy path — must know
+  /// where the slice starts.
+  static (List<TextFile>, List<PdfPageText>) applyWithPlan(
+    final List<PdfPageText> pageTexts,
+    final List<PdfPage> pages,
+    final PdfReflowPlan plan, {
+    final int firstPageNumber = 1,
+  }) {
+    return _render(_Document.withPlan(pageTexts, pages, plan, firstPageNumber: firstPageNumber));
+  }
+
+  static (List<TextFile>, List<PdfPageText>) _render(final _Document document) {
     return (
       <TextFile>[
-        for (var i = 0; i < pageTexts.length; i++)
+        for (var i = 0; i < document.pages.length; i++)
           TextFile(
-            content: document.pages[i].render(i + 1),
-            name: 'page_${i + 1}.html',
+            content: document.pages[i].render(document.pages[i].number),
+            name: 'page_${document.pages[i].number}.html',
             type: 'html',
-            path: 'page_${i + 1}.html',
+            path: 'page_${document.pages[i].number}.html',
           ),
       ],
-      <PdfPageText>[for (var i = 0; i < pageTexts.length; i++) document.pages[i].canonicalText()],
+      <PdfPageText>[
+        for (var i = 0; i < document.pages.length; i++) document.pages[i].canonicalText(),
+      ],
     );
   }
+}
+
+/// The document-global reflow decisions every page's render depends
+/// on: the repeated header/footer cuts, the dominant font size, the
+/// document-level margin/spacing statistics and the cross-page
+/// paragraph continuation marks.
+///
+/// [PdfReflowPlan.scan] derives the plan by running the global
+/// passes over the pages it is given. The header/footer cut only
+/// samples the first [_pageScanCount] pages — everything else
+/// (dominant font, statistics, continuations) is genuinely
+/// whole-document, so a plan built from a partial page sample is
+/// faithful only when that sample is the whole document or the
+/// globals happen to coincide. Per-page work stays per-page: the
+/// plan carries nothing a single page could compute for itself.
+final class PdfReflowPlan {
+  const PdfReflowPlan._(
+    this.headerSkip,
+    this.footerSkip,
+    this.dominantFontSize,
+    this.stats,
+    this.continuationPages,
+  );
+
+  /// Runs the global reflow passes over [pageTexts]/[pages] and
+  /// captures every decision the per-page render consumes.
+  static PdfReflowPlan scan(final List<PdfPageText> pageTexts, final List<PdfPage> pages) {
+    final document = _Document(pageTexts, pages);
+
+    return document.plan;
+  }
+
+  /// Everything at or above this top edge is a running header line.
+  final double headerSkip;
+
+  /// Everything at or below this top edge is a running footer line.
+  final double footerSkip;
+
+  /// The font size carrying the most characters document-wide; a
+  /// line's `em` size is its font size relative to this.
+  final double dominantFontSize;
+
+  /// The document-level statistics (dominant top, odd/even margins
+  /// and indents, page right, line/paragraph space, page bottom)
+  /// the per-page passes read.
+  final PdfReflowStats stats;
+
+  /// 1-based numbers of pages whose first paragraph continues the
+  /// previous page's last paragraph.
+  final Set<int> continuationPages;
 }
 
 /// Finds repeated top and bottom lines without coupling the document's
@@ -233,11 +311,13 @@ final class _IndentClusters {
 
 /// The whole-document reflow state and pipeline.
 final class _Document {
-  _Document(final List<PdfPageText> pageTexts, final List<PdfPage> pages) {
-    for (var i = 0; i < pageTexts.length && i < pages.length; i++) {
-      this.pages.add(_Page(i + 1, pages[i].width, pages[i].height, pageTexts[i]));
-    }
-
+  /// The full pipeline: every global pass runs over the pages given.
+  _Document(
+    final List<PdfPageText> pageTexts,
+    final List<PdfPage> pages, {
+    final int firstPageNumber = 1,
+  }) {
+    _buildPages(pageTexts, pages, firstPageNumber);
     if (this.pages.isEmpty) return;
 
     _collectFontStatistics();
@@ -262,6 +342,78 @@ final class _Document {
     _markContinuations();
   }
 
+  /// The plan-driven pipeline: the global decisions arrive with
+  /// [plan], so only per-page work runs — the path a lazy reader
+  /// takes when pages materialize one at a time.
+  _Document.withPlan(
+    final List<PdfPageText> pageTexts,
+    final List<PdfPage> pages,
+    final PdfReflowPlan plan, {
+    final int firstPageNumber = 1,
+  }) {
+    _buildPages(pageTexts, pages, firstPageNumber);
+    if (this.pages.isEmpty) return;
+
+    headerSkip = plan.headerSkip;
+    footerSkip = plan.footerSkip;
+    _applyPlanFontStatistics(plan);
+    _removeHeaderFooter();
+    for (final page in this.pages) {
+      page.reorderColumns();
+    }
+    for (final page in this.pages) {
+      page.secondPass(plan.stats);
+    }
+    _applyPlanContinuations(plan);
+  }
+
+  /// The plan capturing everything this document computed globally.
+  PdfReflowPlan get plan => PdfReflowPlan._(headerSkip, footerSkip, dominantFontSize, stats, <int>{
+    for (final page in pages)
+      if (page.lines.isNotEmpty && page.lines.first.continuesPreviousPage) page.number,
+  });
+
+  void _buildPages(
+    final List<PdfPageText> pageTexts,
+    final List<PdfPage> pages,
+    final int firstPageNumber,
+  ) {
+    for (var i = 0; i < pageTexts.length && i < pages.length; i++) {
+      this.pages.add(_Page(firstPageNumber + i, pages[i].width, pages[i].height, pageTexts[i]));
+    }
+  }
+
+  /// Applies [plan]'s dominant font size — the second half of
+  /// [_collectFontStatistics], with the document-wide vote already
+  /// taken.
+  void _applyPlanFontStatistics(final PdfReflowPlan plan) {
+    for (final page in pages) {
+      for (final line in page.lines) {
+        line.fontSizeEm = (line.fontSize / plan.dominantFontSize * 100).round() / 100;
+      }
+    }
+    // Part 0 keeps the paragraph's own em; merged parts already
+    // carry the em they joined with.
+    for (final page in pages) {
+      for (final line in page.lines) {
+        line.syncFirstPartEm();
+      }
+    }
+  }
+
+  /// Applies the plan's continuation marks: the merge decision was
+  /// made document-wide, so a page only honors the verdict about its
+  /// own first paragraph.
+  void _applyPlanContinuations(final PdfReflowPlan plan) {
+    for (final page in pages) {
+      if (page.lines.isEmpty || !plan.continuationPages.contains(page.number)) continue;
+
+      final first = page.lines.first;
+      first.continuesPreviousPage = true;
+      first.indented = 0;
+    }
+  }
+
   final List<_Page> pages = <_Page>[];
 
   final Map<double, int> tops = <double, int>{};
@@ -273,7 +425,7 @@ final class _Document {
 
   double dominantFontSize = 12;
 
-  final _Stats stats = _Stats();
+  final PdfReflowStats stats = PdfReflowStats();
 
   double headerSkip = 0;
   double footerSkip = 0;
@@ -492,20 +644,48 @@ final class _Document {
 }
 
 /// Document-level statistics shared by the per-page passes.
-final class _Stats {
+///
+/// The pipeline fills these once per document (per plan scan) and
+/// every page's render then reads them.
+final class PdfReflowStats {
+  /// The most popular first-line top across pages.
   double top = 0;
+
+  /// The lowest line bottom seen across pages.
   double bottom = 0;
+
+  /// The rightmost line edge seen across pages.
   double right = 0;
+
+  /// The most popular inter-line gap.
   double lineSpace = 0;
+
+  /// The paragraph-separation gap derived from the remaining gap
+  /// clusters, capped and back-filled from [lineSpace].
   double paraSpace = 0;
 
+  /// Odd pages: the left-margin cluster.
   double leftMinOdd = 0;
+
+  /// Odd pages: the left-margin cluster's upper bound.
   double leftMaxOdd = 0;
+
+  /// Odd pages: the indent cluster.
   double indentMinOdd = 0;
+
+  /// Odd pages: the indent cluster's upper bound.
   double indentMaxOdd = 0;
+
+  /// Even pages: the left-margin cluster.
   double leftMinEven = 0;
+
+  /// Even pages: the left-margin cluster's upper bound.
   double leftMaxEven = 0;
+
+  /// Even pages: the indent cluster.
   double indentMinEven = 0;
+
+  /// Even pages: the indent cluster's upper bound.
   double indentMaxEven = 0;
 }
 
@@ -655,7 +835,7 @@ final class _Page {
   /// Paragraph coalescing, alignment and heading detection — the
   /// reflow.py `second_pass` over `coalesce_paras` and
   /// `check_centered`, minus the markup-only conditions.
-  void secondPass(final _Stats stats) {
+  void secondPass(final PdfReflowStats stats) {
     if (number.isOdd) {
       statsLeftMin = stats.leftMinOdd;
       statsLeftMax = stats.leftMaxOdd;
@@ -674,7 +854,7 @@ final class _Page {
     _checkCentered(stats);
   }
 
-  void _coalesceParagraphs(final _Stats stats) {
+  void _coalesceParagraphs(final PdfReflowStats stats) {
     const sectionFactor = 1.3;
 
     var index = 0;
@@ -706,7 +886,7 @@ final class _Page {
     }
   }
 
-  bool _canMerge(final _Line first, final _Line second, final _Stats stats) {
+  bool _canMerge(final _Line first, final _Line second, final PdfReflowStats stats) {
     const lineFactor = 0.2;
     const unwrapFactor = 0.45;
 
@@ -725,7 +905,7 @@ final class _Page {
         !_adjacentQuotes(first.parts.last.text, second.text);
   }
 
-  void _checkCentered(final _Stats stats) {
+  void _checkCentered(final PdfReflowStats stats) {
     const rightFactor = 1.8;
 
     var first = true;
