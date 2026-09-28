@@ -446,4 +446,97 @@ void main() {
       );
     });
   });
+
+  group('pdf session ops', () {
+    final pdfBytes = _bytes('pdf/dickens-sample.pdf');
+    final encryptedBytes = _bytes('pdf/encrypted/r6.pdf');
+
+    test('sessionOpen replies with a pdf header whose pages load on demand', () {
+      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: pdfBytes);
+      addTearDown(reply.session!.close);
+      expect(reply.kind, wireReplySessionOpen);
+      expect(reply.json[wireKeyProgressive], isTrue);
+      expect(reply.json[wireKeyByteLength], pdfBytes.length);
+
+      final header = decodeSessionHeaderWire(reply.json, reply.blobs) as PdfBook;
+      final full = Unseal.parse(pdfBytes) as PdfBook;
+      expect(header.pageCount, full.pageCount);
+      expect(header.hasTextLayer, isFalse, reason: 'page texts stay resident');
+      expect(header.bytes, isEmpty, reason: 'the document stays byte-source resident');
+
+      final textReply = runWorkerOp(
+        op: workerOpSessionText,
+        payload: <String, Object?>{wireKeyPath: 'page_1.html'},
+        residentSession: reply.session,
+      );
+      expect(
+        _referencedBlob(textReply),
+        full.pageTexts.single.text,
+        reason: 'page text materializes inside the worker',
+      );
+    });
+
+    test('sessionPdfLines carries the page geometry through the JSON channel', () {
+      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: pdfBytes);
+      addTearDown(reply.session!.close);
+      final full = Unseal.parse(pdfBytes) as PdfBook;
+
+      final linesReply = runWorkerOp(
+        op: workerOpSessionPdfLines,
+        payload: <String, Object?>{wireKeyPageIndex: 0},
+        residentSession: reply.session,
+      );
+      expect(linesReply.kind, wireReplySessionPdfLines);
+
+      final page = linesReply.json[wireKeyPage] as Map<String, Object?>;
+      final channel = decodeJson(encodeJson(page));
+      final decoded = decodePdfPageLinesWire(channel);
+      final reference = reply.session!.loadPdfPageLines(0);
+      expect(decoded.lines.map((final line) => line.text).join('\n'), reference.text);
+      expect(decoded.lines.length, full.pageTexts.single.lines.length);
+      expect(decoded.lines.first.x, full.pageTexts.single.lines.first.x);
+      expect(decoded.lines.first.fontSize, full.pageTexts.single.lines.first.fontSize);
+
+      // The same §3.4.4 space the page's document text addresses.
+      final textReply = runWorkerOp(
+        op: workerOpSessionText,
+        payload: <String, Object?>{wireKeyPath: 'page_1.html'},
+        residentSession: reply.session,
+      );
+      expect(_referencedBlob(textReply), decoded.lines.map((final l) => l.text).join('\n'));
+    });
+
+    test('sessionPdfLines out of range keeps the RangeError type across the wire', () {
+      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: pdfBytes);
+      addTearDown(reply.session!.close);
+
+      expect(
+        () => runWorkerOp(
+          op: workerOpSessionPdfLines,
+          payload: <String, Object?>{wireKeyPageIndex: 7},
+          residentSession: reply.session,
+        ),
+        throwsA(isA<RangeError>()),
+      );
+    });
+
+    test('sessionOpen forwards the password; the wrong one fails typed', () {
+      expect(
+        () => runWorkerOp(
+          op: workerOpSessionOpen,
+          bytes: encryptedBytes,
+          payload: <String, Object?>{wireKeyPassword: 'nope'},
+        ),
+        throwsA(isA<PdfEncryptedException>()),
+      );
+
+      final reply = runWorkerOp(
+        op: workerOpSessionOpen,
+        bytes: encryptedBytes,
+        payload: <String, Object?>{wireKeyPassword: 'user123'},
+      );
+      addTearDown(reply.session!.close);
+      expect((decodeSessionHeaderWire(reply.json, reply.blobs) as PdfBook).pageCount, 1);
+    });
+  });
 }

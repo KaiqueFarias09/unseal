@@ -269,6 +269,37 @@ PdfFixtureBuilder twoPageFixture({final bool withOutline = true}) {
   return fixture;
 }
 
+/// A one-page fixture drawing one DCTDecode (JPEG passthrough) image
+/// through an /XObject, so extraction and the session's on-demand
+/// image path both see a drawable `images/pdf-image-<n>.jpg`.
+PdfFixtureBuilder imagePageFixture(final List<int> jpegBytes) {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R >> /XObject << /Im0 8 0 R >> >> >>',
+    )
+    ..addStreamObject(
+      7,
+      '',
+      'BT /F1 12 Tf 72 720 Td (A page with one drawn image) Tj ET\n'
+              'q 200 0 0 150 72 500 cm /Im0 Do Q\n'
+          .codeUnits,
+    )
+    ..addStreamObject(
+      8,
+      ' /Subtype /Image /Width 4 /Height 4 /ColorSpace /DeviceRGB /BitsPerComponent 8'
+      ' /Filter /DCTDecode',
+      jpegBytes,
+    )
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    );
+}
+
 const String _toUnicodeCMap =
     '/CIDInit /ProcSet findresource begin\n'
     '12 dict begin\n'
@@ -408,6 +439,89 @@ PdfFixtureBuilder standardFontPageFixture() {
       9,
       '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     );
+}
+
+/// A [pageCount]-page fixture with real body text on every page: a
+/// shared standard-14 font, three flush-left body lines, a
+/// distinctive searchable marker line per page and, with
+/// [withHeaderFooter], a repeated running header and a numbered
+/// footer — the shape the reflow's document-global passes sample.
+PdfFixtureBuilder multipageTextFixture({
+  final int pageCount = 6,
+  final bool withHeaderFooter = false,
+  final String marker = 'quixoticmarker',
+}) {
+  final fixture = PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(
+      3,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    );
+  const firstPageObject = 10;
+  final kids = <String>[];
+  for (var i = 0; i < pageCount; i++) {
+    final page = firstPageObject + i * 2;
+    final contents = page + 1;
+    kids.add('$page 0 R');
+    fixture.addObject(
+      page,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents $contents 0 R '
+      '/Resources << /Font << /F1 3 0 R >> >> >>',
+    );
+    final body = StringBuffer();
+    if (withHeaderFooter) {
+      body.write('BT /F1 12 Tf 72 755 Td (A Tale of Two Cities) Tj ET\n');
+    }
+    body
+      ..write('BT /F1 12 Tf 72 720 Td (Page $i opens with a plain body line of) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 705 Td (generous width so the paragraph coalescer has) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 690 Td (plenty to hold together across the line breaks.) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 660 Td (The $marker appears exactly once per page.) Tj ET\n');
+    if (withHeaderFooter) {
+      body.write('BT /F1 12 Tf 250 60 Td (Page ${i + 1}) Tj ET\n');
+    }
+    fixture.addStreamObject(contents, '', body.toString().codeUnits);
+  }
+  fixture.addObject(2, '<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${kids.length} >>');
+
+  return fixture;
+}
+
+/// A [pageCount]-page fixture whose paragraphs run to the bottom of
+/// every page and continue flush-left at the top of the next one —
+/// the geometry the reflow's cross-page continuation pass fires on.
+PdfFixtureBuilder continuationPagesFixture({final int pageCount = 5}) {
+  final fixture = PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(
+      3,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    );
+  const firstPageObject = 10;
+  final kids = <String>[];
+  for (var i = 0; i < pageCount; i++) {
+    final page = firstPageObject + i * 2;
+    final contents = page + 1;
+    kids.add('$page 0 R');
+    fixture.addObject(
+      page,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents $contents 0 R '
+      '/Resources << /Font << /F1 3 0 R >> >> >>',
+    );
+    final body = StringBuffer()
+      ..write(
+        'BT /F1 12 Tf 72 750 Td (the sentence carries over from the previous page and) Tj ET\n',
+      )
+      ..write('BT /F1 12 Tf 72 735 Td (runs onward through the whole column of this page) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 720 Td (until it nearly reaches the bottom margin of the) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 705 Td (page so the continuation pass has a real decision) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 690 Td (to make about the paragraph that follows it here) Tj ET\n')
+      ..write('BT /F1 12 Tf 72 675 Td (and the paragraph that opens the next page fresh) Tj ET\n');
+    fixture.addStreamObject(contents, '', body.toString().codeUnits);
+  }
+  fixture.addObject(2, '<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${kids.length} >>');
+
+  return fixture;
 }
 
 const String _type0EmbeddedCMap =

@@ -238,9 +238,95 @@ void main() {
     });
   });
 
+  group('PDF session header round-trip', () {
+    const fixture = 'pdf/dickens-sample.pdf';
+    final engine = SessionEngine.openBytes(_bytes(fixture));
+    final header = engine.book as PdfBook;
+    engine.close();
+    final decoded = _roundTrip(header) as PdfBook;
+    final full = Unseal.parse(_bytes(fixture)) as PdfBook;
+
+    test('the pdf book format survives intact', () {
+      expect(header.format, BookFormat.pdf);
+      expect(decoded.format, BookFormat.pdf);
+    });
+
+    test('page geometry survives; content stays empty', () {
+      expect(decoded.pageCount, full.pageCount);
+      expect(decoded.bytes, isEmpty, reason: 'the document bytes stay on the worker');
+      expect(decoded.hasTextLayer, isFalse, reason: 'pageTexts stay empty');
+      expect(decoded.cover.isEmpty, isTrue);
+      for (var i = 0; i < full.pageCount; i++) {
+        expect(decoded.pages[i].objectNumber, full.pages[i].objectNumber, reason: 'page $i');
+        expect(decoded.pages[i].width, full.pages[i].width, reason: 'page $i width');
+        expect(decoded.pages[i].height, full.pages[i].height, reason: 'page $i height');
+        expect(decoded.pages[i].rotate, full.pages[i].rotate, reason: 'page $i rotate');
+      }
+    });
+
+    test('reading-order placeholders survive as structure', () {
+      expect(
+        [for (final item in decoded.readingOrder) item.name],
+        [for (final item in header.readingOrder) item.name],
+      );
+      expect(decoded.files.html, hasLength(full.pageCount));
+      for (final file in decoded.files.html) {
+        expect(file.content, isEmpty, reason: 'placeholder pages carry no content');
+        expect(file.type, 'html');
+      }
+    });
+
+    test('metadata and navigation survive', () {
+      expect(decoded.metadata.title, full.metadata.title);
+      _expectSameNavigation(decoded.navigation, header.navigation);
+      _expectSameNavigation(decoded.navigation, full.navigation);
+    });
+  });
+
   test('rejects a book that cannot be a session header', () {
     final bytes = _bytes('books/txt/synthetic.txt');
 
     expect(() => encodeSessionHeaderWire(Unseal.parse(bytes)), throwsArgumentError);
+  });
+
+  group('PDF page-lines wire round-trip', () {
+    const fixture = 'pdf/dickens-sample.pdf';
+    final bytes = _bytes(fixture);
+    final full = Unseal.parse(bytes) as PdfBook;
+
+    test('a page extracted text survives the JSON channel', () {
+      final page = full.pageTexts.single;
+      final json = encodePdfPageLinesWire(
+        page,
+        pageWidth: full.pages.single.width,
+        pageHeight: full.pages.single.height,
+      );
+      final channel = decodeJson(encodeJson(json));
+      final decoded = decodePdfPageLinesWire(channel);
+
+      expect(decoded.lines.length, page.lines.length);
+      for (var i = 0; i < page.lines.length; i++) {
+        expect(decoded.lines[i].text, page.lines[i].text, reason: 'line $i text');
+        expect(decoded.lines[i].x, page.lines[i].x, reason: 'line $i x');
+        expect(decoded.lines[i].y, page.lines[i].y, reason: 'line $i y');
+        expect(decoded.lines[i].width, page.lines[i].width, reason: 'line $i width');
+        expect(decoded.lines[i].height, page.lines[i].height, reason: 'line $i height');
+        expect(decoded.lines[i].fontSize, page.lines[i].fontSize, reason: 'line $i fontSize');
+        expect(decoded.lines[i].rotated, page.lines[i].rotated, reason: 'line $i rotated');
+      }
+      expect(decoded.images.length, page.images.length);
+      for (var i = 0; i < page.images.length; i++) {
+        expect(decoded.images[i].path, page.images[i].path, reason: 'image $i');
+        expect(decoded.images[i].x, page.images[i].x, reason: 'image $i x');
+      }
+      expect(decoded.contentStreamCount, page.contentStreamCount);
+      expect(decoded.skippedContentStreams, page.skippedContentStreams);
+      expect(decoded.columnOrderApplied, page.columnOrderApplied);
+      expect(
+        decoded.lines.map((final line) => line.text).join('\n'),
+        page.text,
+        reason: 'the §3.4.4 canonical space crosses intact',
+      );
+    });
   });
 }
