@@ -243,6 +243,29 @@ design.md):
    dedup global e teto de 128 reproduzidos por estado residente do engine
    (paridade com `_extractPageContent`).
 
+(implementado, onda B: o delta 2 ganhou uma exceção consciente — o header
+carrega `pageFiles` como PLACEHOLDERS de conteúdo vazio, um `TextFile` por
+página chamado `page_<i>.html`, porque `PdfBook.readingOrder` se constrói de
+`files.html`: sem os placeholders, search/progression/statistics e a
+navegação CFI-free não vêem as páginas. `pageTexts` segue vazio e
+`hasTextLayer` segue `false`; consumidores leem conteúdo só pelos ops. O
+delta 4 mudou de posto: NÃO há teto de 128 nem mapa obj→página residente —
+`resource('images/pdf-image-<n>.<ext>')` decodifica por número de objeto
+direto do documento (§4.5 manda), via `decodePdfImageObject`
+(`pdf_content_stream.dart`), o mesmo caminho de decodificação que o
+`onImage` do extractor usa. A invariante intra-sessão §3.4.4 está pinada
+por teste: `documentText('page_<i>.html')` == o texto canônico do eager
+(≤20 páginas, byte a byte) == as linhas de `loadPdfPageLines` unidas por
+`\n` — o HTML do reflow é construído para que o scanner canônico o
+reproduza. As flags de continuação sob demanda usam um
+`PdfReflow.applyWithPlan(computeContinuations: true)` renderizando o PAR
+[página i−1, página i] sob o plano amostrado: a decisão é a mesma passada
+do pipeline completo (todos os insumos são do par, exceto as estatísticas
+do plano), e o canônico da página i−1 já materializada serve de insumo do
+par sem quebrar a byte-paridade — pinado materializando as páginas em
+ordem reversa. O peso LRU da entrada de página = 2 × code units do texto +
+64 bytes por linha canônica; entradas só-extração pesam linhas × 64.)
+
 ### 3.5 Engine: ramo PDF
 
 `SessionEngine` ganha `PdfSessionContent? _pdf` (nulo nos ramos zip/rar):
@@ -281,23 +304,51 @@ design.md):
   varreduras inteiras (search/progression) pagam o custo por página sob
   demanda — sem novo mecanismo, paridade com EPUB documentada.
 
+  (implementado, onda B, com três notas de superfície: `resourceLength`
+  devolve null para TODO path pdf — páginas não materializam só para um
+  tamanho e imagens só têm tamanho conhecido pós-decodificação (o serving
+  de páginas é HTML reescrito sem byte-ranges); `loadPdfPageLines` é
+  RangeError tipado fora da faixa (sessões não-pdf: `pageCount` 0 → sempre
+  RangeError) e devolve o canônico PÓS-plano — o §3.4.4 obriga; o wire das
+  linhas carrega linhas (x/y/width/height/fontSize/text/rotated), image
+  placements e contadores de stream, mais pageWidth/pageHeight da
+  `PdfPage` — as placements viajam junto porque o reader precisa serví-las.)
+
 ### 3.6 Gate de detecção e abertura
 
 - `SessionEngine.openBytes/openSource`: admitir `DetectedFormat.epub`
   (caminho zip: EPUB ou CBZ por inventário), `DetectedFormat.pdf` (ramo PDF)
   e `DetectedFormat.comic` quando a assinatura é RAR (ramo `RarRandomAccess`;
   o despacho zip→CBZ por inventário fica como está). (implementado, onda A2:
-  os ramos epub e comic; o ramo PDF é a onda B. Nota: bytes imprimíveis
+  os ramos epub e comic. Nota: bytes imprimíveis
   não-RAR detectam como txt e o gate recusa com
   `SessionUnsupportedFormatException` — o leitor RAR só vê o que a
-  detecção marca como comic.)
+  detecção marca como comic. implementado, onda B: o ramo PDF —
+  `openBytes` constrói `MemoryPdfByteSource` sobre os bytes;
+  `openSource` constrói um `PdfByteSource` VISÃO sobre o `ZipByteSource`
+  existente (ver abaixo) e ambos despacham para `buildPdfSessionHeader`,
+  cuja falha tipada (`PdfException`/`PdfEncryptedException`) encerra a
+  abertura. Parâmetro `password` nomeado e aditivo em
+  `openBytes`/`openSource`, encaminhado pelo transporte io
+  (`openSessionTransport`/bootstrap do isolate) e pelo worker
+  (`wireKeyPassword` no payload do `sessionOpen`) — necessário para que a
+  senha certa abra de fato, não só a errada falhe tipada.)
 - `openFile` (VM): PDF → `FilePdfByteSource(path)`; RAR →
   `FileZipByteSource(path)` + `RarRandomAccess`. Nenhum dos lados mantém o
-  arquivo comprimido inteiro em memória.
+  arquivo comprimido inteiro em memória. (implementado, onda B, com desvio
+  de superfície: o caminho por arquivo abre UM descritor só — o
+  `PdfByteSource` do parser é uma view sobre o MESMO `ZipByteSource` que
+  serve `bytesRange` (`_PdfSourceOverZip`), em vez de um segundo handle
+  `FilePdfByteSource`; semântica idêntica (seek+read em janelas), um
+  recurso a menos para fechar. `close` do engine fecha o
+  `ZipByteSource` direto no ramo pdf.)
 - Erros tipados: `PdfException`/`PdfEncryptedException`/`ComicException`
   atravessam o transporte e são reconstruídos tipados (estender
   `rebuildSessionError`). Senha errada em PDF → `PdfEncryptedException` na
-  abertura, igual ao eager.
+  abertura, igual ao eager. (implementado, onda B: os dois tipos pdf no
+  `rebuildSessionError` do isolate — mesmo degrade do wire web, campos
+  `requiresNonEmptyPassword`/`permissions` não cruzam; pinado por teste no
+  isolate e no worker op.)
 
 ### 3.7 API pública `BookSession` (adições mínimas)
 
@@ -318,16 +369,27 @@ Future<Uint8List?> loadBytesRange(int offset, int count); // fatia do fonte
   reconstrói tipada no `rebuildSessionError` do isolate — o wire web já a
   conhecia.)
 - `isProgressive` continua sempre true; README/design atualizados: formatos
-  suportados = EPUB, CBZ, **CBR**, **PDF**.
+  suportados = EPUB, CBZ, **CBR**, **PDF**. (implementado, onda B: a doc
+  comment de `isProgressive` e do header do `BookSession` acompanha os
+  quatro formatos; o README é contrato de produto da onda F de docs.)
 
 ### 3.8 Wire (web)
 
 - `session_header_wire.dart`: ramo `PdfBook` (pages: width/height/rotação/
   label na ordem; navigation + metadata reusando codecs existentes;
   pageTexts/files omitidos; sem bytes). Comic: garantir `BookFormat.cbr`
-  íntegro no roundtrip.
+  íntegro no roundtrip. (implementado, onda B: o ramo `PdfBook` já saiu —
+  pages como objectNumber/width/height/rotate (a entidade não tem label),
+  navigation + metadata pelos codecs existentes, placeholders de
+  `page_<i>.html` reconstruídos na decodificação, sem bytes/pageTexts;
+  `BookFormat.cbr` segue íntegro. Roundtrip VM pinado em
+  `session_header_wire_test.dart`.)
 - `worker_ops.dart`: `_sessionOpen` já chama `SessionEngine.openBytes` —
   passa a funcionar p/ pdf/rar; nova op `workerOpSessionRange`.
+  (implementado, onda A2/B: range na A2; `workerOpSessionPdfLines` + senha
+  no payload do `sessionOpen` na onda B, com decode no `WorkerClient` e
+  op `pdfLines` no transporte do isolate. Os testes Chrome de sessão PDF
+  ficam para a onda C — os codecs e o op já são cobertos VM-side.)
 - `session_transport_web.dart`: `_WorkerSessionTransport.range`.
 - Testes Chrome: abrir sessão PDF e CBR no worker, loadResource/text,
   search, range, dispose — mais isolamento de sessões simultâneas.
@@ -408,7 +470,10 @@ linhas no relatório da sessão; resumo do contrato):
   min/median/p90/p95/max. `t_first_content_ms` nos modos eager = primeiro acesso
   ao conteúdo já residente, por tipo de livro (~0: o custo mora no `t_open_ms`);
   modos de sessão sobre pdf/cbr emitem `status: "unsupported"` tipado até as
-  ondas B/C.)
+  ondas B/C. implementado na onda B: `session-first-content` resolve o
+  primeiro conteúdo POR FORMATO — EPUB = primeiro HTML do spine + CSS; PDF =
+  `loadDocumentSource('page_1.html')`; comics = `loadResource` da primeira
+  página — e os modos de sessão abrem pdf/cbr com `status: "ok"`.)
 - Ordem de modos **alternada por repetição** (já existe); campanha no mesmo
   Mac, seriada; repetições ≥ 5.
 - Corpus licenciado: os 8 PDFs da biblioteca Calibre (ids = sha256 do path,
