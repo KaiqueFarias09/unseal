@@ -23,6 +23,10 @@
 //                           first spine chapter HTML + its CSS; PDF =
 //                           page 1's reflow document; comics = the
 //                           first page image bytes.
+// * session-file-*          the same two, through BookSession.openFile:
+//                           the engine holds a file handle, the caller
+//                           never holds the container bytes — the
+//                           memory story the reader app gets.
 //
 // Output: ONE JSON object on stdout (nothing else — the sweep driver
 // parses stdout). Shape, identical across modes:
@@ -85,6 +89,11 @@ const List<String> implementedModes = ['parse-sync', 'read-isolate', 'read-file-
 /// Session modes over the BookSession API (EPUB, CBZ, CBR and PDF);
 /// other formats report the typed `unsupported` status.
 const List<String> sessionModes = ['session-header', 'session-first-content'];
+
+/// File-backed session modes: the engine holds only a file handle (the
+/// caller never holds the bytes) — the memory story the reader app gets
+/// through BookSession.openFile.
+const List<String> sessionFileModes = ['session-file-header', 'session-file-first-content'];
 
 Future<void> main(final List<String> arguments) async {
   final mode = _optionValue(arguments, '--mode');
@@ -151,7 +160,9 @@ Future<void> main(final List<String> arguments) async {
 }
 
 bool _isKnownMode(final String mode) =>
-    implementedModes.contains(mode) || sessionModes.contains(mode);
+    implementedModes.contains(mode) ||
+    sessionModes.contains(mode) ||
+    sessionFileModes.contains(mode);
 
 Future<void> _runMode(
   final String mode,
@@ -186,7 +197,7 @@ Future<void> _runMeasured(
   final file = File(bookPath);
   record['bytes'] = file.lengthSync();
   final Uint8List bytes;
-  if (mode == 'read-file-isolate') {
+  if (mode == 'read-file-isolate' || sessionFileModes.contains(mode)) {
     bytes = Uint8List(0); // the mode reads the file inside the timed call
   } else {
     bytes = file.readAsBytesSync(); // untimed; resident before rss_before
@@ -264,6 +275,10 @@ Future<Object?> _openOnce(
       return _openSession(bytes, password: password, firstContent: false);
     case 'session-first-content':
       return _openSession(bytes, password: password, firstContent: true);
+    case 'session-file-header':
+      return _openSessionFile(bookPath, password: password, firstContent: false);
+    case 'session-file-first-content':
+      return _openSessionFile(bookPath, password: password, firstContent: true);
   }
   throw StateError('unreachable mode: $mode');
 }
@@ -440,6 +455,26 @@ Future<_SessionCarry> _openSession(
   required final bool firstContent,
 }) async {
   final session = await BookSession.open(bytes, password: password);
+
+  return _sessionFirstContent(session, firstContent: firstContent);
+}
+
+/// File-backed twin of [_openSession]: the engine reads the book from
+/// [bookPath] itself, so no side ever holds the compressed container.
+Future<_SessionCarry> _openSessionFile(
+  final String bookPath, {
+  required final String password,
+  required final bool firstContent,
+}) async {
+  final session = await BookSession.openFile(bookPath, password: password);
+
+  return _sessionFirstContent(session, firstContent: firstContent);
+}
+
+Future<_SessionCarry> _sessionFirstContent(
+  final BookSession session, {
+  required final bool firstContent,
+}) async {
   if (!firstContent) return _SessionCarry(session, null);
 
   final book = session.book;
