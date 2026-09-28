@@ -82,9 +82,13 @@ abstract interface class ArchiveRandomAccess implements AutoCloseable-like {
 
 - `ZipRandomAccess`/`ZipEntryRecord` passam a implementar essas interfaces
   (cláusula `implements`; campos públicos intactos — tipo interno, sem quebra
-  de API publicada).
+  de API publicada). (implementado: parâmetros de payload viram
+  `covariant final` para conformar com a interface sem alargar assinaturas;
+  o nome `ArchiveEntry` colide com a entidade de inventário já existente em
+  `foundation/entities` — o `comic_session_header` esconde-a localmente.)
 - `SessionEngine._source` vira `ArchiveRandomAccess`. `resourceLength` lê
-  `ArchiveEntry.uncompressedSize`.
+  `ArchiveEntry.uncompressedSize`. (implementado: o engine também retém o
+  `ZipByteSource` bruto para `bytesRange`.)
 - `buildComicSessionHeader(ArchiveRandomAccess source, {required BookFormat
   format, policy})` — corpo quase intacto; zip → `BookFormat.cbz`, rar →
   `BookFormat.cbr`.
@@ -108,14 +112,26 @@ Novo arquivo `lib/src/features/comic/archive/rar_random_access.dart`:
   soma declarada > `maxZipTotalUncompressedBytes` (1 GiB), maior entrada >
   `maxZipEntryUncompressedBytes` (512 MiB), ou razão > `maxZipExpansionRatio`
   (200×, só acima de 32 MiB). Saída de `inflate` limitada por
-  `BoundedOutputStream` como o zip.
+  `BoundedOutputStream` como o zip. (implementado: no method-29 o teto é o
+  próprio alvo declarado do decodificador, que recusa matches além dele.)
 - CRC: o eager RAR **não** verifica CRC. A sessão verifica quando
   `crc32 != 0` (rejeição tipada a dados corrompidos); delta documentado —
-  entradas com CRC 0 nunca rejeitam.
+  entradas com CRC 0 nunca rejeitam. (implementado: verificação em stored
+  RAR4/RAR5 e method-29; o fixture real method-29 abre com CRCs
+  declarados.)
 - Comportamento de book inteiro: se o eager `parseComicBook` falha tipada
   para um CBR (ex.: entrada de página não decodificável mata o parse —
   verificar no código e espelhar), a sessão falha no OPEN com o mesmo tipo.
-  A paridade é decidida por teste, não por suposição.
+  A paridade é decidida por teste, não por suposição. (implementado e
+  pinado por teste: o eager lança `ComicException` para QUALQUER entrada
+  comprimida indecodificável — solid/split/senha, métodos fora de
+  0x31–0x35, versão ≠ 29, RAR5 comprimido, decode falho — logo a sessão
+  falha no OPEN nomeando a entrada; "indexadas" vale no nível
+  `RarRandomAccess`, mas o build do header toca toda entrada ao sniffar e
+  a falha tipada surfaced no OPEN. Entradas stored truncadas/mismatched o
+  eager descarta em silêncio — a sessão idem, via `head()` vazio. Nota de
+  custo: `head()` de method-29 decodifica o payload inteiro para sniffar —
+  mesmo custo do eager, uma vez, na abertura.)
 
 ### 3.3 PDF: `PdfByteSource` + documento sem bytes residentes
 
@@ -202,7 +218,11 @@ design.md):
 - `SessionEngine.openBytes/openSource`: admitir `DetectedFormat.epub`
   (caminho zip: EPUB ou CBZ por inventário), `DetectedFormat.pdf` (ramo PDF)
   e `DetectedFormat.comic` quando a assinatura é RAR (ramo `RarRandomAccess`;
-  o despacho zip→CBZ por inventário fica como está).
+  o despacho zip→CBZ por inventário fica como está). (implementado, onda A2:
+  os ramos epub e comic; o ramo PDF é a onda B. Nota: bytes imprimíveis
+  não-RAR detectam como txt e o gate recusa com
+  `SessionUnsupportedFormatException` — o leitor RAR só vê o que a
+  detecção marca como comic.)
 - `openFile` (VM): PDF → `FilePdfByteSource(path)`; RAR →
   `FileZipByteSource(path)` + `RarRandomAccess`. Nenhum dos lados mantém o
   arquivo comprimido inteiro em memória.
@@ -223,7 +243,12 @@ Future<Uint8List?> loadBytesRange(int offset, int count); // fatia do fonte
   pro Grimoire hoje via `resourceLength`).
 - `loadBytesRange`: `RangeError` tipado para offset/count inválidos; devolve
   ≤ count bytes no fim do arquivo. Ops novas no transporte (`range`) e no
-  worker (`workerOpSessionRange`, blobs).
+  worker (`workerOpSessionRange`, blobs). (implementado, onda A2:
+  `byteLength` cruza o handshake — 4º elemento da mensagem `ready` do
+  isolate e chave `byteLength` no JSON do `sessionOpen` do worker;
+  `rangeMaxBytes` cruza o payload do open; `ComicException` agora também
+  reconstrói tipada no `rebuildSessionError` do isolate — o wire web já a
+  conhecia.)
 - `isProgressive` continua sempre true; README/design atualizados: formatos
   suportados = EPUB, CBZ, **CBR**, **PDF**.
 
