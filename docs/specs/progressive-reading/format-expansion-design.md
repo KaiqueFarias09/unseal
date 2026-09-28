@@ -208,6 +208,31 @@ Novo `lib/src/features/progressive/pdf_session_header.dart`:
 - Header: `PdfBook(bytes: Uint8List(0), pages, navigation, metadata,
   pageTexts: [], pageFiles: [])` — estrutura completa, conteúdo vazio.
 
+**Decisão congelada (2026-09-28, pós-onda B1)** — o plano completo do
+`PdfReflow` carrega estatísticas globais (fonte dominante, histogramas de
+margem/indentação, flags de continuação entre páginas) que uma amostra de
+20 páginas não reproduz para livros maiores (ver §3.3, nota implementado).
+Postura da sessão:
+
+1. Skips de cabeçalho/rodapé: do plano amostrado — **idênticos ao eager**
+   (o scanner eager também só amostra as primeiras 20 páginas; pinado por
+   teste em `pdf_reflow_plan_test.dart`).
+2. Flags de continuação: computadas **sob demanda**, materializando a
+   página i com a geometria da página i−1 (extração extra sob demanda,
+   cacheada) — exata quando a página anterior existe.
+3. Fonte dominante + estatísticas de documento: do plano amostrado →
+   **delta documentado** para livros >20 páginas (o texto canônico pode
+   diferir do eager em detalhes de coalescência/espaçamento). Para livros
+   ≤20 páginas, sessão e eager são byte-idênticos (o plano amostral É o
+   plano completo).
+4. A invariante **intra-sessão** é a que vincula: o texto visível do reflow
+   HTML materializado == `documentText` da página == os textos das linhas
+   de `loadPdfPageLines` — busca, seleção e destaques compartilham o mesmo
+   espaço de offsets dentro da sessão. Paridade com eager vira
+   **equivalência** (mesmas consultas casam; contagens iguais para
+   consultas robustas), não byte-paridade, e os testes da seção §6 são
+   escritos nessa chave.
+
 **Deltas documentados vs eager** (mesma seção de deltas do EPUB no
 design.md):
 

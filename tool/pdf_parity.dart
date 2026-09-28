@@ -40,6 +40,7 @@ import 'package:unseal/src/features/pdf/codec/pdf_stream_decoder.dart';
 import 'package:unseal/src/features/pdf/header/pdf_document.dart';
 import 'package:unseal/src/features/pdf/header/pdf_object.dart';
 import 'package:unseal/src/features/pdf/image/pdf_bitmap.dart';
+import 'package:unseal/src/features/pdf/reader/pdf_byte_source.dart';
 import 'package:unseal/src/features/pdf/reader/pdf_page_tree.dart';
 import 'package:unseal/unseal.dart';
 
@@ -1230,7 +1231,7 @@ Future<void> _runImageParity(final _Options options) async {
     final relative = p.relative(pdf.path);
     PdfDocument document;
     try {
-      document = PdfDocument.parse(pdf.readAsBytesSync());
+      document = PdfDocument.parse(MemoryPdfByteSource(pdf.readAsBytesSync()));
     } on PdfException catch (error) {
       stdout.writeln('scanning $relative... skipped ($error)');
 
