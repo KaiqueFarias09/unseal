@@ -342,7 +342,13 @@ linhas no relatório da sessão; resumo do contrato):
    `Range` (total via `session.byteLength`). Io: `_servePdfDocument` vira
    async mapeando cada range pedido a uma chamada; web: blob montado por
    fatias na primeira página de fac-símile (o worker já segura os bytes;
-   memória no main thread ≈ eager — documentado).
+   memória no main thread ≈ eager — documentado). (implementado no
+   Grimoire, 2026-09-28: `BookServer` (io + web) ganha `byteRangeLoader` +
+   `pdfDocumentByteLength`; io — 1 chamada por Range, montagem chunked
+   256 KiB sem Range, 416/Content-Range pelo total do handshake, caminho
+   eager preservado sem loader; web — blob lazy por fatias de 1 MiB na
+   primeira página de fac-símile, cacheado; `start()` liga o loader
+   quando há sessão e `book is PdfBook`.)
 2. Camada de texto do fac-símile: hidratar por página via
    `session.loadPdfPageLines(i)` (geometria preservada; sem degradação).
    A leitura síncrona de `pdf.pageTexts[i]` permanece só para o caminho
@@ -354,7 +360,9 @@ linhas no relatório da sessão; resumo do contrato):
    (reader_controller.dart ~228) — ajustar para respeitar a decisão.
 4. `goToPdfPage`/`positionPageLocator` → generalize para qualquer livro
    paginado (`PdfBook` e `ComicBook`; seção i = página i; header comic já
-   traz `pages` completo).
+   traz `pages` completo). (implementado no Grimoire, 2026-09-28: helper
+   `_flatPageCount` cobre `PdfBook` e `ComicBook`; nomes públicos
+   mantidos; livros sem páginas planas continuam ignorando o salto.)
 5. Imagens embutidas `images/pdf-image-<n>.<ext>`: **verificado** — o reflow
    HTML as referencia (`pdf_reflow.dart` renderiza `<div class="elv-pdf-image">
    <img src="images/...">`), logo o BookServer em modo resolver precisa passar
@@ -364,11 +372,20 @@ linhas no relatório da sessão; resumo do contrato):
    demanda pelo número de objeto embutido no nome (sem página dona
    materializada); delta de paridade: sem o teto global de 128 do eager
    (o header nunca lista imagens; serving é por demanda).
+   (implementado no Grimoire, 2026-09-28: io `_serveBookFile` e web
+   `urlForPathAsync`/`_withResolvedResources`/`_preparedResolve` passam
+   caminhos fora do inventário ao resolver exatamente como referenciados
+   — sem fuzzy matching no pass-through; 404 só em null.)
 6. Exemplo: fixtures grandes gerados localmente (gitignored:
    `/assets/books/large-pdf.pdf`, `/assets/books/large-cbr.cbr`);
    `_renderPdfCovers` faz full-parse para capa — tornar session-aware ou
    não cachear `entry.book` para PDF, senão a abertura por sessão é
-   mascarada na prateleira.
+   mascarada na prateleira. (implementado no Grimoire, 2026-09-28:
+   fixtures locais gitignored `synthetic-400p.pdf`, `medium-cbr.cbr`,
+   `large-cbr.cbr` + entradas de prateleira; `_renderPdfCovers` não
+   cacheia mais `entry.book` — capa renderiza de um parse local, então
+   o leitor pega o caminho de sessão; livros sem sessão continuam
+   reaproveitando `entry.book` quando já presente.)
 7. Testes: estender `book_server_session_test` (PDF com ranges via
    `loadBytesRange`), `viewer_controller_session_test` (PDF: sonda de modo,
    reflow `/book/page_1.html`, fac-símile `/__pdfpage__/0`, paridade de
