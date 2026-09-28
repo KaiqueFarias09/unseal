@@ -132,16 +132,12 @@ void main() {
     });
 
     test('rejects unsupported formats typed', () {
-      for (final fixture in <String>[
-        'books/txt/synthetic.txt',
-        'books/comic/american-beauty-trading-cards-1909.cbr',
-      ]) {
-        expect(
-          () => runWorkerOp(op: workerOpSessionOpen, bytes: _bytes(fixture)),
-          throwsA(isA<SessionUnsupportedFormatException>()),
-          reason: fixture,
-        );
-      }
+      const fixture = 'books/txt/synthetic.txt';
+      expect(
+        () => runWorkerOp(op: workerOpSessionOpen, bytes: _bytes(fixture)),
+        throwsA(isA<SessionUnsupportedFormatException>()),
+        reason: fixture,
+      );
     });
 
     test('rejects broken containers with the parse failure hierarchy', () {
@@ -365,8 +361,9 @@ void main() {
   });
 
   group('comic session ops', () {
+    final comicBytes = _bytes('books/comic/halfpenny-surprise-1895.cbz');
+
     test('sessionOpen replies with a comic header whose pages load on demand', () {
-      final comicBytes = _bytes('books/comic/halfpenny-surprise-1895.cbz');
       final reply = runWorkerOp(op: workerOpSessionOpen, bytes: comicBytes);
       addTearDown(reply.session!.close);
       expect(reply.kind, wireReplySessionOpen);
@@ -384,6 +381,69 @@ void main() {
         residentSession: reply.session,
       );
       expect(_referencedBlob(pageReply), isNotEmpty);
+    });
+
+    test('sessionOpen reports the container byte length', () {
+      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: comicBytes);
+      addTearDown(reply.session!.close);
+
+      expect(reply.json[wireKeyByteLength], comicBytes.length);
+    });
+  });
+
+  group('session range op', () {
+    final cbrBytes = _bytes('books/comic/synthetic-stored-pages.cbr');
+    late final SessionEngine resident;
+
+    setUpAll(() {
+      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: cbrBytes);
+      resident = reply.session!;
+      addTearDown(resident.close);
+    });
+
+    Map<String, Object?> rangePayload(final int offset, final int count) => <String, Object?>{
+      wireKeyOffset: offset,
+      wireKeyCount: count,
+    };
+
+    test('serves a raw slice as a blob, clamped to the end', () {
+      final reply = runWorkerOp(
+        op: workerOpSessionRange,
+        payload: rangePayload(0, 16),
+        residentSession: resident,
+      );
+
+      expect(reply.kind, wireReplySessionRange);
+      expect(_referencedBlob(reply), cbrBytes.sublist(0, 16));
+      expect(
+        _referencedBlob(
+          runWorkerOp(
+            op: workerOpSessionRange,
+            payload: rangePayload(cbrBytes.length - 5, 100),
+            residentSession: resident,
+          ),
+        ),
+        cbrBytes.sublist(cbrBytes.length - 5),
+        reason: 'EOF clamp',
+      );
+    });
+
+    test('invalid ranges keep the RangeError type across the wire', () {
+      expect(
+        () => runWorkerOp(
+          op: workerOpSessionRange,
+          payload: rangePayload(-1, 4),
+          residentSession: resident,
+        ),
+        throwsA(isA<RangeError>()),
+      );
+    });
+
+    test('range without a resident session is the typed closed failure', () {
+      expect(
+        () => runWorkerOp(op: workerOpSessionRange, payload: rangePayload(0, 4)),
+        throwsA(isA<SessionClosedException>()),
+      );
     });
   });
 }

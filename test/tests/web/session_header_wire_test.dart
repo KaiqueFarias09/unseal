@@ -216,6 +216,28 @@ void main() {
     });
   });
 
+  group('CBR session header round-trip', () {
+    const fixture = 'books/comic/synthetic-stored-pages.cbr';
+    final (header, decoded) = _comicHeaderAndDecoded(fixture);
+    final full = Unseal.parse(_bytes(fixture)) as ComicBook;
+
+    test('the cbr book format survives intact', () {
+      expect(header.format, BookFormat.cbr);
+      expect(decoded.format, BookFormat.cbr);
+    });
+
+    test('page placeholders survive without bytes', () {
+      expect(decoded.pageCount, full.pageCount);
+      expect(
+        [for (final page in decoded.pages) page.path],
+        [for (final page in full.pages) page.path],
+      );
+      for (final page in decoded.pages) {
+        expect(page.content, isEmpty, reason: 'placeholder pages carry no bytes');
+      }
+    });
+  });
+
   test('rejects a book that cannot be a session header', () {
     final bytes = _bytes('books/txt/synthetic.txt');
 

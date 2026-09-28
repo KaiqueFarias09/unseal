@@ -97,13 +97,93 @@ void main() {
       expect(page, isNotNull);
       expect(page, isNotEmpty);
     });
+
+    test('CBR sessions open from bytes and files and load pages', () async {
+      const fixture = 'test/resources/books/comic/synthetic-stored-pages.cbr';
+      final bytes = File(fixture).readAsBytesSync();
+      final fromBytes = await BookSession.open(bytes);
+      addTearDown(fromBytes.dispose);
+      final fromFile = await BookSession.openFile(fixture);
+      addTearDown(fromFile.dispose);
+
+      for (final session in [fromBytes, fromFile]) {
+        final book = session.book as ComicBook;
+        expect(book.format, BookFormat.cbr);
+        expect(book.pageCount, greaterThan(0));
+        expect(await session.loadResource(book.pages.first.path), isNotNull);
+      }
+      expect(
+        (fromBytes.book as ComicBook).pages.first.path,
+        (fromFile.book as ComicBook).pages.first.path,
+      );
+    });
+  });
+
+  group('BookSession container range ops', () {
+    test('byteLength and loadBytesRange serve clamped raw slices', () async {
+      const epubFixture = 'test/resources/books/epub/elements-of-chemistry.epub';
+      const cbrFixture = 'test/resources/books/comic/synthetic-stored-pages.cbr';
+
+      for (final fixture in [epubFixture, cbrFixture]) {
+        final bytes = File(fixture).readAsBytesSync();
+        final session = await BookSession.openFile(fixture);
+        addTearDown(session.dispose);
+
+        expect(session.byteLength, bytes.length, reason: fixture);
+        expect(await session.loadBytesRange(0, 16), bytes.sublist(0, 16), reason: fixture);
+        expect(
+          await session.loadBytesRange(bytes.length - 5, 100),
+          bytes.sublist(bytes.length - 5),
+          reason: 'EOF clamp of $fixture',
+        );
+      }
+    });
+
+    test('invalid ranges cross the isolate as RangeError', () async {
+      const fixture = 'test/resources/books/comic/synthetic-stored-pages.cbr';
+      final session = await BookSession.openFile(fixture);
+      addTearDown(session.dispose);
+
+      await expectLater(session.loadBytesRange(-1, 4), throwsA(isA<RangeError>()));
+      await expectLater(session.loadBytesRange(0, -4), throwsA(isA<RangeError>()));
+      await expectLater(
+        session.loadBytesRange(session.byteLength + 1, 4),
+        throwsA(isA<RangeError>()),
+      );
+    });
+
+    test('sessions opened together stay isolated', () async {
+      const epub = 'test/resources/books/epub/elements-of-chemistry.epub';
+      const cbz = 'test/resources/books/comic/halfpenny-surprise-1895.cbz';
+      const cbr = 'test/resources/books/comic/synthetic-stored-pages.cbr';
+
+      final sessions = await Future.wait([
+        BookSession.openFile(epub),
+        BookSession.openFile(cbz),
+        BookSession.openFile(cbr),
+      ]);
+      addTearDown(sessions[0].dispose);
+      addTearDown(sessions[1].dispose);
+      addTearDown(sessions[2].dispose);
+
+      // Interleave one load per session, then retire the CBR session:
+      // the other two keep serving.
+      final epubPath = (sessions[0].book as EpubBook).readingOrder.first.name;
+      final cbzPath = (sessions[1].book as ComicBook).pages.first.path;
+      final cbrPath = (sessions[2].book as ComicBook).pages.first.path;
+      expect(await sessions[0].loadResource(epubPath), isNotNull);
+      expect(await sessions[2].loadResource(cbrPath), isNotNull);
+      expect(await sessions[1].loadResource(cbzPath), isNotNull);
+
+      sessions[2].dispose();
+      await expectLater(sessions[2].loadResource(cbrPath), throwsA(isA<SessionClosedException>()));
+      expect(await sessions[0].loadResource(epubPath), isNotNull);
+      expect(await sessions[1].loadResource(cbzPath), isNotNull);
+    });
   });
 
   test('unsupported formats provide the typed fallback signal for byte and file opens', () async {
-    const fixtures = <String>[
-      'test/resources/books/comic/american-beauty-trading-cards-1909.cbr',
-      'test/resources/books/txt/synthetic.txt',
-    ];
+    const fixtures = <String>['test/resources/books/txt/synthetic.txt'];
 
     for (final fixture in fixtures) {
       final bytes = File(fixture).readAsBytesSync();
