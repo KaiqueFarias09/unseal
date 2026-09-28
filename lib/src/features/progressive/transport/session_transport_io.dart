@@ -9,6 +9,8 @@ import '../../../platform/io/zip_byte_source_io.dart';
 import '../../cfi/epub_cfi_resolver.dart';
 import '../../comic/exceptions/comic_exception.dart';
 import '../../epub/exceptions/exceptions.dart';
+import '../../pdf/entities/pdf_page_text.dart';
+import '../../pdf/exceptions/pdf_exception.dart';
 import '../../reading/book_progression.dart';
 import '../../search/entities/search_mode.dart';
 import '../../search/entities/search_results.dart';
@@ -21,24 +23,31 @@ import 'session_transport.dart';
 /// File opens pass the PATH and the isolate reads the container itself
 /// with seek-and-slice reads, so neither side materializes the
 /// compressed source. Byte opens send the bytes once at spawn. Only
-/// small messages — structure, one resource at a time, search results —
-/// cross the boundary afterwards. When the runtime refuses to spawn
-/// isolates, the engine runs inline in the caller instead.
+/// small messages — structure, one resource at a time, search results,
+/// one page's text lines — cross the boundary afterwards. When the
+/// runtime refuses to spawn isolates, the engine runs inline in the
+/// caller instead.
 Future<(SessionTransport, Book)> openSessionTransport({
   required final Uint8List? bytes,
   required final String? path,
+  required final String password,
   required final SessionPolicy policy,
 }) async {
   try {
-    final transport = await _IsolateSessionTransport.open(bytes: bytes, path: path, policy: policy);
+    final transport = await _IsolateSessionTransport.open(
+      bytes: bytes,
+      path: path,
+      password: password,
+      policy: policy,
+    );
 
     return (transport, transport.header);
   } on UnsupportedError {
-    final engine = _openInlineEngine(bytes: bytes, path: path, policy: policy);
+    final engine = _openInlineEngine(bytes: bytes, path: path, password: password, policy: policy);
 
     return (InlineSessionTransport(engine), engine.book);
   } on ArgumentError {
-    final engine = _openInlineEngine(bytes: bytes, path: path, policy: policy);
+    final engine = _openInlineEngine(bytes: bytes, path: path, password: password, policy: policy);
 
     return (InlineSessionTransport(engine), engine.book);
   }
@@ -47,28 +56,30 @@ Future<(SessionTransport, Book)> openSessionTransport({
 SessionEngine _openInlineEngine({
   required final Uint8List? bytes,
   required final String? path,
+  required final String password,
   required final SessionPolicy policy,
 }) {
   if (path != null) {
     final source = FileZipByteSource.open(path);
     try {
-      return SessionEngine.openSource(source, policy: policy);
+      return SessionEngine.openSource(source, password: password, policy: policy);
     } on Object {
       source.close();
       rethrow;
     }
   }
 
-  return SessionEngine.openBytes(bytes!, policy: policy);
+  return SessionEngine.openBytes(bytes!, password: password, policy: policy);
 }
 
 /// Handshake message: caller's reply port plus the open recipe.
 final class _SessionBootstrap {
-  _SessionBootstrap(this.replyPort, this.bytes, this.path, this.policy);
+  _SessionBootstrap(this.replyPort, this.bytes, this.path, this.password, this.policy);
 
   final SendPort replyPort;
   final Uint8List? bytes;
   final String? path;
+  final String password;
   final SessionPolicy policy;
 }
 
@@ -80,13 +91,21 @@ void _isolateMain(final _SessionBootstrap bootstrap) {
     if (bootstrap.path != null) {
       final byteSource = FileZipByteSource.open(bootstrap.path!);
       try {
-        engine = SessionEngine.openSource(byteSource, policy: bootstrap.policy);
+        engine = SessionEngine.openSource(
+          byteSource,
+          password: bootstrap.password,
+          policy: bootstrap.policy,
+        );
       } on Object {
         byteSource.close();
         rethrow;
       }
     } else {
-      engine = SessionEngine.openBytes(bootstrap.bytes!, policy: bootstrap.policy);
+      engine = SessionEngine.openBytes(
+        bootstrap.bytes!,
+        password: bootstrap.password,
+        policy: bootstrap.policy,
+      );
     }
   } on Object catch (error) {
     bootstrap.replyPort.send(<Object?>['error', _errorType(error), _errorMessage(error)]);
@@ -113,6 +132,7 @@ void _dispatch(final SessionEngine engine, final SendPort replyPort, final List<
       },
       _opText => engine.documentText(message[2]! as String),
       _opSource => engine.documentSource(message[2]! as String),
+      _opPdfLines => engine.loadPdfPageLines(message[2]! as int),
       _opSearch => engine.search(
         message[2]! as String,
         mode: SearchMode.values.byName(message[3]! as String),
@@ -142,6 +162,7 @@ const _opResources = 'resources';
 const _opRange = 'range';
 const _opText = 'text';
 const _opSource = 'source';
+const _opPdfLines = 'pdfLines';
 const _opSearch = 'search';
 const _opProgression = 'progression';
 const _opStatistics = 'statistics';
@@ -160,6 +181,8 @@ Object rebuildSessionError(final String type, final String message) {
     'InvalidBookException' => InvalidBookException(message),
     'EpubException' => EpubException(message),
     'ComicException' => ComicException(message),
+    'PdfException' => PdfException(message),
+    'PdfEncryptedException' => const PdfEncryptedException(),
     'RangeError' => RangeError(message),
     'FormatException' => FormatException(message),
     'ArgumentError' => ArgumentError(message),
@@ -192,12 +215,13 @@ final class _IsolateSessionTransport implements SessionTransport {
   static Future<_IsolateSessionTransport> open({
     required final Uint8List? bytes,
     required final String? path,
+    required final String password,
     required final SessionPolicy policy,
   }) async {
     final replies = ReceivePort();
     final isolate = await Isolate.spawn(
       _isolateMain,
-      _SessionBootstrap(replies.sendPort, bytes, path, policy),
+      _SessionBootstrap(replies.sendPort, bytes, path, password, policy),
       errorsAreFatal: true,
     );
 
@@ -307,6 +331,11 @@ final class _IsolateSessionTransport implements SessionTransport {
   @override
   Future<String?> documentSource(final String path) async {
     return await _request([_opSource, path]) as String?;
+  }
+
+  @override
+  Future<PdfPageText?> pdfLines(final int pageIndex) async {
+    return await _request([_opPdfLines, pageIndex]) as PdfPageText?;
   }
 
   @override

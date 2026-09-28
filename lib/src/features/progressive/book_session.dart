@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../foundation/entities/entities.dart';
 import '../cfi/epub_cfi_resolver.dart';
+import '../pdf/entities/pdf_page_text.dart';
 import '../reading/book_progression.dart';
 import '../search/entities/search_mode.dart';
 import '../search/entities/search_results.dart';
@@ -35,11 +36,12 @@ final class BookSession {
 
   /// The session header: complete book structure (metadata,
   /// navigation, reading order, format-specific spine and inventory
-  /// data) with no content files. A concrete `EpubBook` or `ComicBook`.
+  /// data) with no content files. A concrete `EpubBook`, `ComicBook`
+  /// or `PdfBook`.
   final Book book;
 
   /// Whether content loads entry by entry. The session currently supports
-  /// EPUB, CBZ and CBR, and all of them load content progressively.
+  /// EPUB, CBZ, CBR and PDF, and all of them load content progressively.
   /// Other formats throw [SessionUnsupportedFormatException] when
   /// opened.
   final bool isProgressive;
@@ -52,7 +54,8 @@ final class BookSession {
   ///
   /// Throws the parse-time `UnsealException` hierarchy on broken
   /// containers and `SessionUnsupportedFormatException` when the
-  /// format has no progressive support.
+  /// format has no progressive support. PDF documents open with
+  /// [password], like the eager parse.
   static Future<BookSession> open(
     final Uint8List bytes, {
     final String password = '',
@@ -61,6 +64,7 @@ final class BookSession {
     final (transport, header) = await openSessionTransport(
       bytes: bytes,
       path: null,
+      password: password,
       policy: policy,
     );
 
@@ -76,7 +80,12 @@ final class BookSession {
     final String password = '',
     final SessionPolicy policy = const SessionPolicy(),
   }) async {
-    final (transport, header) = await openSessionTransport(bytes: null, path: path, policy: policy);
+    final (transport, header) = await openSessionTransport(
+      bytes: null,
+      path: path,
+      password: password,
+      policy: policy,
+    );
 
     return BookSession._(header, isProgressive: true, transport: transport);
   }
@@ -99,6 +108,14 @@ final class BookSession {
   /// Loads the raw decoded source of a content document (the HTML/CSS
   /// text with markup), or null when the entry does not exist.
   Future<String?> loadDocumentSource(final String path) => _transport.documentSource(path);
+
+  /// Loads one PDF page's text with preserved line geometry — the
+  /// canonical post-reflow line set whose joined text is exactly the
+  /// page's [loadDocumentText] — the input the facsimile text layer
+  /// positions line by line. Negative indexes and indexes past the
+  /// page count throw [RangeError]; extraction failures surface typed.
+  /// PDF sessions only.
+  Future<PdfPageText?> loadPdfPageLines(final int pageIndex) => _transport.pdfLines(pageIndex);
 
   /// Loads a raw slice of the session's container source: [count] bytes
   /// at [offset], clamped to the end of the source and to

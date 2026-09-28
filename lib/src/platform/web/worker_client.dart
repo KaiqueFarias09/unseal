@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:web/web.dart' as web;
 
 import '../../features/cfi/epub_cfi_resolver.dart';
+import '../../features/pdf/entities/pdf_page_text.dart';
 import '../../features/progressive/session_policy.dart';
 import '../../features/reading/book_progression.dart';
 import '../../features/search/entities/search_mode.dart';
@@ -157,6 +158,7 @@ final class WorkerClient {
   /// resident sessions stay alive.
   Future<({Book book, int sessionId, int byteLength})?> sessionOpenInWorker(
     final Uint8List bytes, {
+    final String password = '',
     final SessionPolicy policy = const SessionPolicy(),
   }) async {
     final sessionId = _nextSessionId++;
@@ -166,6 +168,7 @@ final class WorkerClient {
               bytes: bytes,
               payload: <String, Object?>{
                 wireKeySessionId: sessionId,
+                wireKeyPassword: password,
                 wireKeyCacheBytes: policy.cacheBytes,
                 wireKeyCoverMaxBytes: policy.coverMaxBytes,
                 wireKeyRangeMaxBytes: policy.rangeMaxBytes,
@@ -253,6 +256,22 @@ final class WorkerClient {
             payload: _sessionPayload(sessionId, <String, Object?>{wireKeyPath: path}),
           )
           as String?,
+    );
+  }
+
+  /// One PDF page's text with line geometry from the resident
+  /// session. Throws [SessionClosedException] when no live session is
+  /// resident and [RangeError] for indexes outside the page count.
+  Future<PdfPageText?> sessionPdfLinesInWorker(final int sessionId, final int pageIndex) async {
+    _ensureResidentSession(sessionId);
+
+    return _nullOrClosed(
+      sessionId,
+      await _request(
+            workerOpSessionPdfLines,
+            payload: _sessionPayload(sessionId, <String, Object?>{wireKeyPageIndex: pageIndex}),
+          )
+          as PdfPageText?,
     );
   }
 
@@ -530,6 +549,10 @@ final class WorkerClient {
                 )
                 as String?,
           );
+        case wireReplySessionPdfLines:
+          final reply = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
+          final page = reply[wireKeyPage] as Map<String, Object?>?;
+          completer.complete(page == null ? null : decodePdfPageLinesWire(page));
         case wireReplySessionSearch:
           completer.complete(
             decodeSearchResultsWire(

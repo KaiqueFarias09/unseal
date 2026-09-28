@@ -239,28 +239,9 @@ class PdfTextExtractor {
     // DCTDecode (JPEG) leaves a file the HTML can point at
     // byte-for-byte; the bitmap codecs decode here to a grayscale
     // PNG. Undecodable placements still record their geometry.
-    String extension = '';
-    Uint8List? imageBytes;
-    if (number != 0) {
-      final lastFilter = _lastFilterName(stream);
-      if (lastFilter == 'DCTDecode') {
-        extension = 'jpg';
-        imageBytes = stream.bytes;
-      } else if (lastFilter == 'CCITTFaxDecode' || lastFilter == 'JBIG2Decode') {
-        try {
-          final packed = decodePdfStream(stream, document.resolve);
-          final bitmap = PdfBitmap.fromPacked(
-            width: _imageDimension(stream, 'Width', 'W'),
-            height: _imageDimension(stream, 'Height', 'H'),
-            packed: packed,
-          );
-          extension = 'png';
-          imageBytes = bitmap.toPngBytes();
-        } on PdfException {
-          // Degrade to geometry-only, like every unsupported image.
-        }
-      }
-    }
+    final decoded = number != 0 ? decodePdfImageStream(document, stream) : null;
+    final extension = decoded?.$2 ?? '';
+    final imageBytes = decoded?.$1;
 
     final path = extension.isEmpty ? '' : 'images/pdf-image-$number.$extension';
     if (images.length < 256) {
@@ -272,32 +253,6 @@ class PdfTextExtractor {
     if (onImage != null && imageBytes != null) {
       onImage(number, imageBytes, extension);
     }
-  }
-
-  /// The innermost filter name of an image stream's `/Filter` (a
-  /// bare name or an array), null when the stream is unfiltered.
-  String? _lastFilterName(final PdfStream stream) {
-    final filter = document.resolve(stream.dictionary['Filter'] ?? const PdfNull());
-    if (filter is PdfName) return filter.value;
-    if (filter is PdfArray) {
-      String? last;
-      for (final item in filter.items) {
-        if (item is PdfName) last = item.value;
-      }
-
-      return last;
-    }
-
-    return null;
-  }
-
-  int _imageDimension(final PdfStream stream, final String long, final String short) {
-    final value = document.resolve(
-      stream.dictionary[long] ?? stream.dictionary[short] ?? const PdfNull(),
-    );
-    if (value is PdfNumber) return value.intValue;
-
-    return 0;
   }
 
   PdfPageText _toPageText(
@@ -1167,4 +1122,78 @@ bool _isRegular(final int byte) {
       byte != 0x7D &&
       byte != 0x2F &&
       byte != 0x25;
+}
+
+/// Decodes the drawable bytes of the image object [objectNumber] the
+/// way the extractor's placements do: JPEG passthrough for DCTDecode,
+/// the bitmap codecs to a grayscale PNG for CCITT/JBIG2. Returns null
+/// when the number carries no image stream or its codec stays
+/// unsupported — the on-demand path sessions use to serve
+/// `images/pdf-image-<n>.<ext>` without a materialized owning page.
+(Uint8List, String)? decodePdfImageObject(final PdfDocument document, final int objectNumber) {
+  if (objectNumber <= 0) return null;
+
+  final object = document.object(objectNumber);
+  if (object is! PdfStream) return null;
+
+  final subtype = document.resolve(object.dictionary['Subtype']);
+  if (subtype is! PdfName || subtype.value != 'Image') return null;
+
+  return decodePdfImageStream(document, object);
+}
+
+/// Decodes one image [stream] already resolved to a `/Subtype /Image`
+/// object: `(bytes, extension)` when a file format comes out, null
+/// when the codec stays unsupported (geometry-only placement).
+(Uint8List, String)? decodePdfImageStream(final PdfDocument document, final PdfStream stream) {
+  final lastFilter = pdfLastFilterName(document, stream);
+  if (lastFilter == 'DCTDecode') return (stream.bytes, 'jpg');
+  if (lastFilter != 'CCITTFaxDecode' && lastFilter != 'JBIG2Decode') return null;
+
+  try {
+    final packed = decodePdfStream(stream, document.resolve);
+    final bitmap = PdfBitmap.fromPacked(
+      width: pdfImageDimension(document, stream, 'Width', 'W'),
+      height: pdfImageDimension(document, stream, 'Height', 'H'),
+      packed: packed,
+    );
+
+    return (bitmap.toPngBytes(), 'png');
+  } on PdfException {
+    // Degrade to geometry-only, like every unsupported image.
+    return null;
+  }
+}
+
+/// The innermost filter name of an image stream's `/Filter` (a
+/// bare name or an array), null when the stream is unfiltered.
+String? pdfLastFilterName(final PdfDocument document, final PdfStream stream) {
+  final filter = document.resolve(stream.dictionary['Filter'] ?? const PdfNull());
+  if (filter is PdfName) return filter.value;
+  if (filter is PdfArray) {
+    String? last;
+    for (final item in filter.items) {
+      if (item is PdfName) last = item.value;
+    }
+
+    return last;
+  }
+
+  return null;
+}
+
+/// The integer image dimension an image stream carries under [long]
+/// or its PDF short form [short]; 0 when neither is a number.
+int pdfImageDimension(
+  final PdfDocument document,
+  final PdfStream stream,
+  final String long,
+  final String short,
+) {
+  final value = document.resolve(
+    stream.dictionary[long] ?? stream.dictionary[short] ?? const PdfNull(),
+  );
+  if (value is PdfNumber) return value.intValue;
+
+  return 0;
 }

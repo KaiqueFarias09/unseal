@@ -4,6 +4,7 @@ import '../../features/cfi/epub_cfi.dart';
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/epub/entities/book/book.dart';
 import '../../features/mobi/header/pdb_header.dart';
+import '../../features/pdf/entities/pdf_book.dart';
 import '../../features/progressive/session_engine.dart';
 import '../../features/progressive/session_policy.dart';
 import '../../features/reading/book_dispatch.dart';
@@ -77,6 +78,8 @@ import 'wire/book_components_wire.dart';
       return _sessionRange(payload!, residentSession);
     case workerOpSessionSource:
       return _sessionSource(payload!, residentSession);
+    case workerOpSessionPdfLines:
+      return _sessionPdfLines(payload!, residentSession);
     case workerOpSessionText:
       return _sessionText(payload!, residentSession);
     case workerOpSessionSearch:
@@ -166,6 +169,7 @@ import 'wire/book_components_wire.dart';
   final defaults = const SessionPolicy();
   final session = SessionEngine.openBytes(
     bytes,
+    password: (payload?[wireKeyPassword] as String?) ?? '',
     policy: SessionPolicy(
       cacheBytes: (payload?[wireKeyCacheBytes] as int?) ?? defaults.cacheBytes,
       coverMaxBytes: (payload?[wireKeyCoverMaxBytes] as int?) ?? defaults.coverMaxBytes,
@@ -243,6 +247,23 @@ _sessionSource(final Map<String, Object?> payload, final SessionEngine? resident
     blobs: blobs,
     session: null,
   );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionPdfLines(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+  final session = _sessionFor(residentSession);
+  final pageIndex = payload[wireKeyPageIndex] as int;
+  final page = session.loadPdfPageLines(pageIndex);
+  final geometry = (session.book as PdfBook).pages[pageIndex];
+  final json = <String, Object?>{
+    wireKeyPage: encodePdfPageLinesWire(
+      page,
+      pageWidth: geometry.width,
+      pageHeight: geometry.height,
+    ),
+  };
+
+  return (kind: wireReplySessionPdfLines, json: json, blobs: const <Object>[], session: null);
 }
 
 ({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session}) _sessionText(

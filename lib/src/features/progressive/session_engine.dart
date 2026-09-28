@@ -17,6 +17,13 @@ import '../detection/entities/detected_format.dart';
 import '../epub/codec/epub_xml.dart';
 import '../epub/entities/entities.dart';
 import '../epub/exceptions/exceptions.dart';
+import '../pdf/entities/pdf_book.dart';
+import '../pdf/entities/pdf_page.dart';
+import '../pdf/entities/pdf_page_text.dart';
+import '../pdf/header/pdf_document.dart';
+import '../pdf/reader/pdf_byte_source.dart';
+import '../pdf/reader/pdf_content_stream.dart';
+import '../pdf/reflow/pdf_reflow.dart';
 import '../reading/book_progression.dart';
 import '../search/book_search.dart';
 import '../search/entities/search_match.dart';
@@ -25,9 +32,18 @@ import '../search/entities/search_results.dart';
 import '../search/query_compiler.dart';
 import 'comic_session_header.dart';
 import 'epub_session_header.dart';
+import 'pdf_session_header.dart';
 import 'session_policy.dart';
 
 const _sessionFormatProbeBytes = 1024;
+
+/// 1-based page path of the PDF branch: exactly the names
+/// `PdfReflow` emits for its per-page documents.
+final RegExp _pdfPagePathPattern = RegExp(r'^page_(\d+)\.html$');
+
+/// Image paths the session decodes on demand: the same names the
+/// eager extraction records for drawable images.
+final RegExp _pdfImagePathPattern = RegExp(r'^images/pdf-image-(\d+)\.(\w+)$');
 
 /// Parses a book's structure up front and serves its content on demand.
 ///
@@ -45,10 +61,11 @@ final class SessionEngine {
   /// documents.
   ///
   /// Throws [SessionUnsupportedFormatException] for formats the
-  /// progressive slice does not cover (everything but EPUB, CBZ and
-  /// CBR today); callers fall back to `Unseal.read`.
+  /// progressive slice does not cover (everything but EPUB, CBZ, CBR
+  /// and PDF today); callers fall back to `Unseal.read`.
   factory SessionEngine.openBytes(
     final Uint8List bytes, {
+    final String password = '',
     final SessionPolicy policy = const SessionPolicy(),
   }) {
     if (bytes.isEmpty) throw EmptyBytesException();
@@ -65,6 +82,12 @@ final class SessionEngine {
         final container = MemoryZipByteSource(bytes);
 
         return _openComicSource(RarRandomAccess.open(container), container, policy);
+      case DetectedFormat.pdf:
+        // The document parser keeps the bytes as views; the raw
+        // source stays addressable for the range op.
+        final container = MemoryZipByteSource(bytes);
+
+        return _openPdfSource(MemoryPdfByteSource(bytes), container, policy, password);
       default:
         throw SessionUnsupportedFormatException(
           'The ${detected.name} format has no progressive session support; '
@@ -80,6 +103,7 @@ final class SessionEngine {
   /// from here.
   factory SessionEngine.openSource(
     final ZipByteSource source, {
+    final String password = '',
     final SessionPolicy policy = const SessionPolicy(),
   }) {
     if (source.length == 0) {
@@ -118,6 +142,16 @@ final class SessionEngine {
           source.close();
           rethrow;
         }
+      case DetectedFormat.pdf:
+        // One file handle serves both the document parser and the
+        // range op: the PdfByteSource is a view over the same
+        // ZipByteSource, so no second file descriptor opens.
+        try {
+          return _openPdfSource(_PdfSourceOverZip(source), source, policy, password);
+        } on Object {
+          source.close();
+          rethrow;
+        }
       default:
         source.close();
         throw SessionUnsupportedFormatException(
@@ -128,14 +162,17 @@ final class SessionEngine {
   }
 
   /// The header book: complete structure, empty content. A concrete
-  /// `EpubBook` or `ComicBook`, so spine-driven consumers work
-  /// unchanged.
+  /// `EpubBook`, `ComicBook` or `PdfBook`, so spine-driven consumers
+  /// work unchanged.
   final Book book;
 
-  final ArchiveRandomAccess _source;
+  /// The archive container for the zip/RAR branches; null for PDF,
+  /// which owns no archive — its content ops route through [_pdf].
+  final ArchiveRandomAccess? _source;
 
   /// The raw container source the range op slices; both archive
-  /// wrappers are built over it.
+  /// wrappers are built over it, and the PDF parser reads the same
+  /// source through a [PdfByteSource] view.
   final ZipByteSource _bytes;
 
   /// Total byte length of the raw container source.
@@ -144,6 +181,9 @@ final class SessionEngine {
   final SessionPolicy _policy;
   final bool _htmlPathSpace;
   bool _closed = false;
+
+  /// The PDF content state; null for the zip/RAR branches.
+  PdfSessionContent? _pdf;
 
   /// LRU of inflated entries keyed by container path: text entries keep
   /// their [TextFile] (the document-text memo hangs off the instance),
@@ -163,7 +203,10 @@ final class SessionEngine {
   /// exist.
   Uint8List? resource(final String path) {
     _ensureOpen();
-    final record = _source.find(path);
+    if (_pdf != null) return _pdfResource(path);
+
+    final source = _source!;
+    final record = source.find(path);
     if (record == null) return null;
 
     final cached = _cache[record.name];
@@ -173,7 +216,7 @@ final class SessionEngine {
       return cached.bytes;
     }
 
-    final bytes = _source.inflate(record);
+    final bytes = source.inflate(record);
     _store(record.name, _CacheEntry(bytes: bytes));
 
     return bytes;
@@ -181,9 +224,19 @@ final class SessionEngine {
 
   /// Byte lengths of several entries, without inflating: the serving
   /// layer uses this for byte-range headers.
+  ///
+  /// PDF paths carry no container length: page documents are
+  /// generated HTML whose length would need materializing, and image
+  /// lengths are known only once the image decoded — null for both.
   int? resourceLength(final String path) {
     _ensureOpen();
-    final record = _source.find(path);
+    if (_pdf != null) {
+      final cached = _cache[path];
+
+      return cached?.bytes?.length;
+    }
+
+    final record = _source!.find(path);
 
     return record?.uncompressedSize;
   }
@@ -207,7 +260,10 @@ final class SessionEngine {
   /// entry does not exist.
   TextFile? textFile(final String path) {
     _ensureOpen();
-    final record = _source.find(path);
+    if (_pdf != null) return _pdfTextFile(path);
+
+    final source = _source!;
+    final record = source.find(path);
     if (record == null) return null;
 
     final cached = _cache[record.name];
@@ -217,7 +273,7 @@ final class SessionEngine {
       return cached.text;
     }
 
-    final bytes = _source.inflate(record);
+    final bytes = source.inflate(record);
     final text = _htmlPathSpace
         ? decodeEpubText(bytes)
         : convert.utf8.decode(bytes, allowMalformed: true);
@@ -230,6 +286,21 @@ final class SessionEngine {
     _store(record.name, _CacheEntry(text: file));
 
     return file;
+  }
+
+  /// Geometry lines of one PDF page (0-based) — the canonical
+  /// post-reflow line set whose joined text is exactly the page's
+  /// `documentText`. Negative indexes and indexes past the page count
+  /// throw [RangeError]; extraction failures surface typed.
+  PdfPageText loadPdfPageLines(final int pageIndex) {
+    _ensureOpen();
+    final pdf = _pdf;
+    final pageCount = pdf?.book.pageCount ?? 0;
+    if (pageIndex < 0 || pageIndex >= pageCount) {
+      throw RangeError.range(pageIndex, 0, pageCount - 1, 'pageIndex');
+    }
+
+    return _pdfMaterialize(pageIndex + 1).pdfPage!;
   }
 
   /// Document text of a content document — the canonical offset space
@@ -370,7 +441,13 @@ final class SessionEngine {
 
     _closed = true;
     _cache.clear();
-    _source.close();
+    // The PDF branch owns no archive wrapper: the raw source itself
+    // carries the file handle (the PdfByteSource is a view over it).
+    if (_source != null) {
+      _source.close();
+    } else {
+      _bytes.close();
+    }
   }
 
   void _ensureOpen() {
@@ -452,6 +529,138 @@ final class SessionEngine {
       final oldest = _cache.keys.first;
       budget -= _cache.remove(oldest)!.weightBytes;
     }
+  }
+
+  /// PDF session over a random-access byte source. The header build
+  /// parses the structure and samples the reflow plan, so a broken or
+  /// encrypted document fails right here with the eager parse's typed
+  /// error. The engine seeds its cache with the sampled extractions.
+  static SessionEngine _openPdfSource(
+    final PdfByteSource pdfSource,
+    final ZipByteSource bytes,
+    final SessionPolicy policy,
+    final String password,
+  ) {
+    final header = buildPdfSessionHeader(pdfSource, password: password, policy: policy);
+    final engine = SessionEngine._(header.book, null, bytes, bytes.length, policy)
+      .._pdf = PdfSessionContent(
+        book: header.book,
+        source: pdfSource,
+        document: header.document,
+        extractor: header.extractor,
+        plan: header.plan,
+      );
+
+    for (var i = 0; i < header.sampledPageTexts.length; i++) {
+      engine._store('page_${i + 1}.html', _CacheEntry(pdfPage: header.sampledPageTexts[i]));
+    }
+
+    return engine;
+  }
+
+  /// The PDF page document at [path] (`page_<i>.html`, 1-based), or
+  /// null for any other path.
+  TextFile? _pdfTextFile(final String path) {
+    final match = _pdfPagePathPattern.firstMatch(path);
+    if (match == null) return null;
+
+    final page = int.parse(match.group(1)!);
+    if (page < 1 || page > (_pdf!.book.pageCount)) return null;
+
+    final cached = _cache[path];
+    if (cached != null && cached.text != null) {
+      _touch(path);
+
+      return cached.text;
+    }
+
+    return _pdfMaterialize(page).text;
+  }
+
+  /// Materializes page [page] (1-based): the page's text plus — the
+  /// frozen §3.4 decision — page [page] − 1's geometry when it exists,
+  /// reflowed together so the continuation flag between the two pages
+  /// is computed exactly, then the pair's canonical line set. Both
+  /// extractions cache; the target's entry carries its [TextFile] and
+  /// canonical [PdfPageText] together.
+  _CacheEntry _pdfMaterialize(final int page) {
+    final pdf = _pdf!;
+    final path = 'page_$page.html';
+    final cached = _cache[path];
+    if (cached != null && cached.text != null) {
+      _touch(path);
+
+      return cached;
+    }
+
+    final pdfBook = pdf.book;
+    final previousPage = page - 1;
+    final List<PdfPageText> texts;
+    final List<PdfPage> pages;
+    if (previousPage >= 1) {
+      texts = <PdfPageText>[_pdfExtract(previousPage), _pdfExtract(page)];
+      pages = <PdfPage>[pdfBook.pages[previousPage - 1], pdfBook.pages[page - 1]];
+    } else {
+      texts = <PdfPageText>[_pdfExtract(page)];
+      pages = <PdfPage>[pdfBook.pages[0]];
+    }
+
+    final (files, canonicalTexts) = PdfReflow.applyWithPlan(
+      texts,
+      pages,
+      pdf.plan,
+      firstPageNumber: previousPage >= 1 ? previousPage : 1,
+      computeContinuations: true,
+    );
+    final entry = _CacheEntry(text: files.last, pdfPage: canonicalTexts.last);
+    _store(path, entry);
+
+    return entry;
+  }
+
+  /// The extracted text of page [page] (1-based), reusing the
+  /// extraction cached at open or by an earlier materialization.
+  PdfPageText _pdfExtract(final int page) {
+    final pdf = _pdf!;
+    final path = 'page_$page.html';
+    final cached = _cache[path];
+    if (cached != null && cached.pdfPage != null) {
+      _touch(path);
+
+      return cached.pdfPage!;
+    }
+
+    final extracted = pdf.extractor.extract(pdf.book.pages[page - 1], onImage: _discardPdfImage);
+    // Seeding only fills empty slots: a materialized entry (text +
+    // lines) is never downgraded to an extraction-only one.
+    if (_cache[path] == null) _store(path, _CacheEntry(pdfPage: extracted));
+
+    return extracted;
+  }
+
+  /// The image bytes a `images/pdf-image-<n>.<ext>` path names,
+  /// decoded on demand by object number; null for unknown paths,
+  /// absent objects and undecodable codecs. No eager-style cap: the
+  /// header never lists images, so serving is the only dedup that
+  /// matters (documented delta against `_extractPageContent`).
+  Uint8List? _pdfResource(final String path) {
+    final match = _pdfImagePathPattern.firstMatch(path);
+    if (match == null) return null;
+
+    final cached = _cache[path];
+    if (cached != null && cached.bytes != null) {
+      _touch(path);
+
+      return cached.bytes;
+    }
+
+    final extension = match.group(2)!;
+    final decoded = decodePdfImageObject(_pdf!.document, int.parse(match.group(1)!));
+    if (decoded == null || decoded.$2 != extension) return null;
+
+    _store(path, _CacheEntry(bytes: decoded.$1));
+
+    return decoded.$1;
   }
 
   /// Inventory dispatch over a zip container: EPUB when the structure
@@ -547,18 +756,87 @@ final class SessionEngine {
 
 /// One cached container entry: at most one of the payloads is set.
 final class _CacheEntry {
-  _CacheEntry({this.bytes, this.text});
+  _CacheEntry({this.bytes, this.text, this.pdfPage});
 
   final Uint8List? bytes;
   final TextFile? text;
+
+  /// The PDF branch's canonical post-reflow line set for the same
+  /// page [text] holds — the geometry `loadPdfPageLines` serves.
+  final PdfPageText? pdfPage;
 
   int get weightBytes {
     final raw = bytes;
     if (raw != null) return raw.length;
 
     final text = this.text;
-    if (text != null) return text.content.length * 2;
+    if (text != null) {
+      // Text counts by UTF-16 code units, like the EPUB branch; the
+      // line set rides along at a per-line estimate (geometry objects,
+      // not raw bytes).
+      return text.content.length * 2 + (pdfPage?.lines.length ?? 0) * 64;
+    }
+
+    final lines = pdfPage?.lines;
+    if (lines != null) return lines.length * 64;
 
     return 0;
   }
+}
+
+/// The PDF branch's resident state: the header book, the byte source,
+/// the parsed document, the shared extractor and the sampled reflow
+/// plan.
+///
+/// Lives only on PDF sessions; the zip/RAR branches keep theirs in the
+/// archive container and cache.
+final class PdfSessionContent {
+  /// Builds the state from the open header's parts.
+  PdfSessionContent({
+    required this.book,
+    required this.source,
+    required this.document,
+    required this.extractor,
+    required this.plan,
+  });
+
+  /// The header book (placeholder pages), so page geometry and the
+  /// page count sit next to the extraction state.
+  final PdfBook book;
+
+  /// The byte source the document parsed from; `close` releases it.
+  final PdfByteSource source;
+
+  /// The parsed document structure the extractor reads through.
+  final PdfDocument document;
+
+  /// The one extractor the session materializes pages with — its font
+  /// caches stay warm across pages, like the eager parse's.
+  final PdfTextExtractor extractor;
+
+  /// The sampled reflow plan every page materializes under.
+  final PdfReflowPlan plan;
+}
+
+/// A [PdfByteSource] view over a [ZipByteSource] — the file-backed
+/// open path keeps a single descriptor serving both the document
+/// parser and the range op.
+final class _PdfSourceOverZip implements PdfByteSource {
+  _PdfSourceOverZip(this._zip);
+
+  final ZipByteSource _zip;
+
+  @override
+  int get length => _zip.length;
+
+  @override
+  Uint8List read(final int offset, final int count) => _zip.read(offset, count);
+
+  @override
+  void close() => _zip.close();
+}
+
+void _discardPdfImage(final int objectNumber, final Uint8List bytes, final String extension) {
+  // Session pages keep image placements, not image bytes: files
+  // decode on demand through the resource op.
 }

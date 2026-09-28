@@ -67,13 +67,30 @@ class PdfReflow {
   /// anchors and file names, and the plan's continuation flags), so
   /// rendering a slice — a single page, in the lazy path — must know
   /// where the slice starts.
+  ///
+  /// [computeContinuations] replaces the plan's precomputed
+  /// continuation marks with a fresh decision over the consecutive
+  /// pairs inside the slice, exactly the pass the full pipeline runs —
+  /// the lazy reader's way to learn whether page i continues page i−1
+  /// when the slice carries both pages. Every input of that decision
+  /// is pair-local except the document statistics, which arrive with
+  /// [plan], so the verdict matches the whole-document pass.
   static (List<TextFile>, List<PdfPageText>) applyWithPlan(
     final List<PdfPageText> pageTexts,
     final List<PdfPage> pages,
     final PdfReflowPlan plan, {
     final int firstPageNumber = 1,
+    final bool computeContinuations = false,
   }) {
-    return _render(_Document.withPlan(pageTexts, pages, plan, firstPageNumber: firstPageNumber));
+    return _render(
+      _Document.withPlan(
+        pageTexts,
+        pages,
+        plan,
+        firstPageNumber: firstPageNumber,
+        computeContinuations: computeContinuations,
+      ),
+    );
   }
 
   static (List<TextFile>, List<PdfPageText>) _render(final _Document document) {
@@ -339,17 +356,21 @@ final class _Document {
     for (final page in this.pages) {
       page.secondPass(stats);
     }
-    _markContinuations();
+    _markContinuations(stats);
   }
 
   /// The plan-driven pipeline: the global decisions arrive with
   /// [plan], so only per-page work runs — the path a lazy reader
-  /// takes when pages materialize one at a time.
+  /// takes when pages materialize one at a time. With
+  /// [computeContinuations] the slice's own consecutive pairs get a
+  /// fresh continuation pass (under the plan's statistics) instead of
+  /// the plan's precomputed marks.
   _Document.withPlan(
     final List<PdfPageText> pageTexts,
     final List<PdfPage> pages,
     final PdfReflowPlan plan, {
     final int firstPageNumber = 1,
+    final bool computeContinuations = false,
   }) {
     _buildPages(pageTexts, pages, firstPageNumber);
     if (this.pages.isEmpty) return;
@@ -364,7 +385,11 @@ final class _Document {
     for (final page in this.pages) {
       page.secondPass(plan.stats);
     }
-    _applyPlanContinuations(plan);
+    if (computeContinuations) {
+      _markContinuations(plan.stats);
+    } else {
+      _applyPlanContinuations(plan);
+    }
   }
 
   /// The plan capturing everything this document computed globally.
@@ -606,11 +631,15 @@ final class _Document {
   /// flush-left mid-sentence, the next page's first paragraph is
   /// marked as a continuation — it keeps its own page (sections are
   /// 1:1 with pages) but renders unindented and flush to the top.
-  void _markContinuations() {
+  ///
+  /// [statistics] are the document-level stats the decision reads:
+  /// the full pipeline passes its own, the plan-driven pipeline the
+  /// plan's — identical objects in the eager path.
+  void _markContinuations(final PdfReflowStats statistics) {
     const orphanLines = 5;
 
-    if (stats.lineSpace <= 0) return;
-    final orphanSpace = stats.bottom - orphanLines * stats.lineSpace;
+    if (statistics.lineSpace <= 0) return;
+    final orphanSpace = statistics.bottom - orphanLines * statistics.lineSpace;
     for (var i = 1; i < pages.length; i++) {
       final previous = pages[i - 1];
       final next = pages[i];
@@ -635,7 +664,7 @@ final class _Document {
         mergedLen = first.right;
       }
 
-      if (first.top <= stats.top + previous.averageTextHeight && !(lastSpare > mergedLen)) {
+      if (first.top <= statistics.top + previous.averageTextHeight && !(lastSpare > mergedLen)) {
         first.continuesPreviousPage = true;
         first.indented = 0;
       }

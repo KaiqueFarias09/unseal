@@ -5,6 +5,7 @@ import '../../../foundation/entities/entities.dart';
 import '../../../foundation/exceptions/unseal_exception.dart';
 import '../../../platform/web/worker_client.dart';
 import '../../cfi/epub_cfi_resolver.dart';
+import '../../pdf/entities/pdf_page_text.dart';
 import '../../reading/book_progression.dart';
 import '../../search/entities/search_mode.dart';
 import '../../search/entities/search_results.dart';
@@ -22,17 +23,18 @@ import 'session_transport.dart';
 Future<(SessionTransport, Book)> openSessionTransport({
   required final Uint8List? bytes,
   required final String? path,
+  required final String password,
   required final SessionPolicy policy,
 }) async {
   if (path != null) throw UnsupportedError('Opening a book from a path is not supported on web');
 
   final client = WorkerClient.instance;
-  final opened = await client.sessionOpenInWorker(bytes!, policy: policy);
+  final opened = await client.sessionOpenInWorker(bytes!, password: password, policy: policy);
   if (opened != null) {
     return (_WorkerSessionTransport(client, opened.sessionId, opened.byteLength), opened.book);
   }
 
-  final engine = SessionEngine.openBytes(bytes, policy: policy);
+  final engine = SessionEngine.openBytes(bytes, password: password, policy: policy);
 
   return (InlineSessionTransport(engine), engine.book);
 }
@@ -113,6 +115,11 @@ final class _WorkerSessionTransport implements SessionTransport {
   @override
   Future<String?> documentSource(final String path) {
     return _dispatch(() => _client.sessionSourceInWorker(_sessionId, path));
+  }
+
+  @override
+  Future<PdfPageText?> pdfLines(final int pageIndex) {
+    return _dispatch(() => _client.sessionPdfLinesInWorker(_sessionId, pageIndex));
   }
 
   @override

@@ -9,7 +9,12 @@ export 'wire/json_wire.dart' show decodeJson, encodeJson;
 export 'wire/metadata_wire.dart' show decodeMetadataWire, encodeMetadataWire;
 export 'wire/mobi_wire.dart' show mobiWireRecord0;
 export 'wire/search_wire.dart' show decodeSearchResultsWire, encodeSearchResultsWire;
-export 'wire/session_header_wire.dart' show decodeSessionHeaderWire, encodeSessionHeaderWire;
+export 'wire/session_header_wire.dart'
+    show
+        decodePdfPageLinesWire,
+        decodeSessionHeaderWire,
+        encodePdfPageLinesWire,
+        encodeSessionHeaderWire;
 
 /// Wire protocol op: parse a whole book.
 const String workerOpParse = 'parse';
@@ -46,6 +51,10 @@ const String workerOpSessionRange = 'sessionRange';
 /// Wire protocol op: raw decoded source (markup included) of one
 /// content document of the resident session.
 const String workerOpSessionSource = 'sessionSource';
+
+/// Wire protocol op: one PDF page's text with line geometry from the
+/// resident session.
+const String workerOpSessionPdfLines = 'sessionPdfLines';
 
 /// Wire protocol op: canonical document text of one content document
 /// of the resident session.
@@ -109,6 +118,10 @@ const String wireReplySessionRange = 'sessionRange';
 /// Wire protocol reply kind: one raw document source (JSON null in its
 /// blob reference when the document does not exist).
 const String wireReplySessionSource = 'sessionSource';
+
+/// Wire protocol reply kind: one PDF page's encoded text lines (JSON
+/// null page when the session carries none).
+const String wireReplySessionPdfLines = 'sessionPdfLines';
 
 /// Wire protocol reply kind: one canonical document text (JSON null in
 /// its blob reference when the document does not exist).
@@ -215,12 +228,25 @@ const String wireKeyOffset = 'offset';
 /// request.
 const String wireKeyCount = 'count';
 
+/// Op payload key: the 0-based page index a `sessionPdfLines` request
+/// addresses.
+const String wireKeyPageIndex = 'pageIndex';
+
+/// Reply key: the encoded PDF page text (lines, image placements,
+/// page geometry) of a `sessionPdfLines` reply, JSON null when the
+/// session carries no such page.
+const String wireKeyPage = 'page';
+
 /// Op payload key: the worker-side LRU budget of the session, in
 /// bytes.
 const String wireKeyCacheBytes = 'cacheBytes';
 
 /// Op payload key: the cover cap of the session header, in bytes.
 const String wireKeyCoverMaxBytes = 'coverMaxBytes';
+
+/// Op payload key: the password a session open authenticates with
+/// (PDF documents), empty when the book needs none.
+const String wireKeyPassword = 'password';
 
 /// Op payload key: the raw-slice cap of the session, in bytes.
 const String wireKeyRangeMaxBytes = 'rangeMaxBytes';
