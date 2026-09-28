@@ -71,7 +71,11 @@ Map<FuzzFamily, List<MapEntry<String, Uint8List>>> _groupSeeds() {
   return grouped;
 }
 
-FuzzFamily _familyOfSeed(final String name) {
+FuzzFamily _familyOfSeed(final String name) => familyOfSeed(name);
+
+/// The fuzz family a seed name belongs to (stable grouping for
+/// family-targeted sweeps and session coverage).
+FuzzFamily familyOfSeed(final String name) {
   if (name.startsWith('pdf')) return FuzzFamily.pdf;
   if (name.startsWith('mobi')) return FuzzFamily.mobi;
   if (name.startsWith('azw4')) return FuzzFamily.azw4;
@@ -79,7 +83,7 @@ FuzzFamily _familyOfSeed(final String name) {
   if (name.startsWith('epub') || name.startsWith('docx') || name.startsWith('odt')) {
     return FuzzFamily.zip;
   }
-  if (name.startsWith('cbz')) return FuzzFamily.comic;
+  if (name.startsWith('cbz') || name.startsWith('cbr')) return FuzzFamily.comic;
   return FuzzFamily.text;
 }
 

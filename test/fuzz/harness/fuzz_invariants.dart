@@ -12,6 +12,11 @@
 /// 4. no unbounded recursion (deep nesting must not crash the
 ///    isolate with a stack overflow).
 ///
+/// The progressive session front door holds the same invariants plus
+/// its own: a successful `BookSession.open` carries a supported header
+/// book, a non-negative reading order and a `byteLength` equal to the
+/// input (see [runBoundedSessionOpen]).
+///
 /// Every input is executed inside a dedicated worker isolate. The caller kills
 /// the isolate on timeout so a wedged parser cannot hang the suite. This uses
 /// the same pattern as `benchmark/library_sweep.dart`.
@@ -57,6 +62,10 @@ enum FuzzEntryPoint {
 
   /// `Unseal.read` — the flagship async reader.
   open,
+
+  /// `BookSession.open` — the progressive session front door, with the
+  /// session header invariants checked on success.
+  session,
 }
 
 /// Verdict for one entry point.
@@ -153,12 +162,33 @@ FuzzEntryVerdict classifyError(final Object error) {
 Future<FuzzVerdict> runBoundedParse(
   final Uint8List bytes, {
   final Duration timeout = const Duration(seconds: 20),
+}) => _runBounded(_WorkerMode.parse, bytes, timeout: timeout);
+
+/// Runs `BookSession.open` over [bytes] inside a killable worker
+/// isolate with a total wall-clock budget of [timeout].
+///
+/// The session contract over hostile input: the open either succeeds —
+/// and then the header invariants hold (a supported header book type,
+/// a non-negative reading order, `byteLength` equal to the input
+/// length) — or fails with a typed [UnsealException]-hierarchy error,
+/// or is killed at the budget (a bounded timeout). An untyped error, a
+/// worker death or a violated header invariant is a defect.
+Future<FuzzVerdict> runBoundedSessionOpen(
+  final Uint8List bytes, {
+  final Duration timeout = const Duration(seconds: 20),
+}) => _runBounded(_WorkerMode.session, bytes, timeout: timeout);
+
+Future<FuzzVerdict> _runBounded(
+  final _WorkerMode mode,
+  final Uint8List bytes, {
+  required final Duration timeout,
 }) async {
   final port = ReceivePort();
   final errorPort = ReceivePort();
   final entries = <FuzzEntryPoint, FuzzEntryVerdict>{};
   final done = Completer<void>();
-  var inFlight = FuzzEntryPoint.detect;
+  final firstEntry = mode == _WorkerMode.parse ? FuzzEntryPoint.detect : FuzzEntryPoint.session;
+  var inFlight = firstEntry;
 
   errorPort.listen((final message) {
     entries[inFlight] = FuzzEntryVerdict(
@@ -185,7 +215,11 @@ Future<FuzzVerdict> runBoundedParse(
 
   final Isolate isolate;
   try {
-    isolate = await Isolate.spawn(_worker, _FuzzJob(port.sendPort, bytes), errorsAreFatal: true);
+    isolate = await Isolate.spawn(
+      _worker,
+      _FuzzJob(port.sendPort, bytes, mode),
+      errorsAreFatal: true,
+    );
   } on Object {
     port.close();
     errorPort.close();
@@ -217,17 +251,35 @@ Future<FuzzVerdict> runBoundedParse(
   return FuzzVerdict(entries);
 }
 
+/// What the killable worker isolate exercises for one input.
+enum _WorkerMode {
+  /// Every parse entry point, sequentially.
+  parse,
+
+  /// The progressive session open with its header invariants.
+  session,
+}
+
 /// Wire message for the invariants worker isolate.
 final class _FuzzJob {
-  _FuzzJob(this.sendPort, this.bytes);
+  _FuzzJob(this.sendPort, this.bytes, [this.mode = _WorkerMode.parse]);
 
   final SendPort sendPort;
   final Uint8List bytes;
+  final _WorkerMode mode;
 }
 
-/// Worker entry: exercises every entry point sequentially, reporting a
-/// verdict per entry so the killer can attribute timeouts.
+/// Worker entry: exercises the mode's entry points sequentially,
+/// reporting a verdict per entry so the killer can attribute timeouts.
 Future<void> _worker(final _FuzzJob job) async {
+  if (job.mode == _WorkerMode.session) {
+    await _sessionWorker(job);
+    return;
+  }
+  await _parseWorker(job);
+}
+
+Future<void> _parseWorker(final _FuzzJob job) async {
   final port = job.sendPort;
 
   Future<void> attempt(final FuzzEntryPoint entry, final Future<Object?> Function() action) async {
@@ -274,6 +326,50 @@ Future<void> _worker(final _FuzzJob job) async {
         detail: _truncate('$error'),
       ).toJson(),
     });
+  }
+  port.send(<String, Object?>{'event': 'done'});
+}
+
+/// Session worker entry: opens one `BookSession` and checks the
+/// header invariants on success. Every failure mode — typed parse
+/// error, invariant violation, isolate death — reports before `done`.
+Future<void> _sessionWorker(final _FuzzJob job) async {
+  final port = job.sendPort;
+  port.send(<String, Object?>{'event': 'enter', 'entry': FuzzEntryPoint.session.name});
+
+  void report(final FuzzEntryVerdict verdict) {
+    port.send(<String, Object?>{
+      'event': 'verdict',
+      'entry': FuzzEntryPoint.session.name,
+      'verdict': verdict.toJson(),
+    });
+  }
+
+  try {
+    final session = await BookSession.open(job.bytes);
+    final book = session.book;
+    // readingOrder length >= 0 holds by construction; the checks that
+    // can actually fail are the header type and the byte length.
+    final violations = <String>[
+      if (book is! EpubBook && book is! ComicBook && book is! PdfBook)
+        'header book type ${book.runtimeType} is not a supported session book',
+      if (session.byteLength != job.bytes.length)
+        'byteLength ${session.byteLength} != input length ${job.bytes.length}',
+    ];
+    session.dispose();
+    if (violations.isEmpty) {
+      report(FuzzEntryVerdict(FuzzStatus.ok));
+    } else {
+      report(
+        FuzzEntryVerdict(
+          FuzzStatus.untyped,
+          errorType: 'InvariantViolation',
+          detail: _truncate(violations.join('; ')),
+        ),
+      );
+    }
+  } on Object catch (error) {
+    report(classifyError(error));
   }
   port.send(<String, Object?>{'event': 'done'});
 }

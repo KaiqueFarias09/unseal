@@ -290,6 +290,7 @@ Future<void> Function(Uint8List) _parserFor(final FuzzEntryPoint entryPoint) =>
       FuzzEntryPoint.parse => _parse,
       FuzzEntryPoint.metadata => _readMetadata,
       FuzzEntryPoint.open => _read,
+      FuzzEntryPoint.session => _openSession,
     };
 
 Future<void> _detectFormat(final Uint8List bytes) async {
@@ -306,4 +307,9 @@ Future<void> _readMetadata(final Uint8List bytes) async {
 
 Future<void> _read(final Uint8List bytes) async {
   await Unseal.read(bytes);
+}
+
+Future<void> _openSession(final Uint8List bytes) async {
+  final session = await BookSession.open(bytes);
+  session.dispose();
 }

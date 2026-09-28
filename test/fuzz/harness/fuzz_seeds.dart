@@ -1,16 +1,20 @@
 /// Deterministic, minimal-but-valid seed documents per format family.
 ///
-/// Seeds are built PROGRAMMATICALLY (no tracked binaries) so the fuzz
-/// front works on any checkout. Valid seeds matter as much as hostile
+/// Seeds are built PROGRAMMATICALLY (no dedicated seed binaries) so the
+/// fuzz front works on any checkout. One exception reads an already
+/// tracked test resource: the real method-29 CBR, because the RAR 2.9
+/// packer has no in-code encoder. Valid seeds matter as much as hostile
 /// ones: mutations of a seed that parses cleanly exercise the deep
 /// parser paths, not just the sniffers.
 library;
 
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 
+import '../../support/rar_fixtures.dart' as rar_fixtures;
 import '../../tests/mobi/mobi_fixture_builder.dart' as mobi_fixtures;
 import '../../tests/pdf/pdf_fixture_builder.dart' as pdf_fixtures;
 
@@ -18,6 +22,9 @@ import '../../tests/pdf/pdf_fixture_builder.dart' as pdf_fixtures;
 Map<String, Uint8List> fuzzSeeds() {
   final seeds = <String, Uint8List>{
     'pdf-minimal': pdf_fixtures.textPageFixture().build(),
+    'pdf-multipage': pdf_fixtures
+        .multipageTextFixture(pageCount: 6, withHeaderFooter: true)
+        .build(),
     'txt-plain': _text(_plainTxt),
     'html-plain': _text(_plainHtml),
     'txtz': _zip(<String, List<int>>{
@@ -52,6 +59,21 @@ Map<String, Uint8List> fuzzSeeds() {
       '002.png': Uint8List.fromList(mobi_fixtures.tinyPng),
       'ComicInfo.xml': _text('<ComicInfo><Title>CBZ</Title></ComicInfo>'),
     }),
+    // A stored RAR 4 comic built in-code from the shared test builders:
+    // a valid CBR seed whose mutations reach the RAR header grammar.
+    'cbr-stored': Uint8List.fromList(
+      rar_fixtures.buildRar4Files(<String, List<int>>{
+        'ComicInfo.xml': rar_fixtures.comicInfoXml.codeUnits,
+        '001.jpg': rar_fixtures.tinyJpegPage,
+        '002.jpg': rar_fixtures.tinyJpegPage,
+      }),
+    ),
+    // The tracked real method-29 (RAR 2.9 packed, non-solid) comic:
+    // the compressed-payload decode path no in-code builder can
+    // synthesize. Tracked test resource, so it exists on any checkout.
+    'cbr-method29': File(
+      'test/resources/books/comic/american-beauty-trading-cards-1909.cbr',
+    ).readAsBytesSync(),
     'mobi-palmdoc': mobi_fixtures.buildPdb('Fuzz seed', <Uint8List>[
       mobi_fixtures.buildMobiRecord0(title: 'Fuzz seed'),
       Uint8List.fromList(utf8.encode('Deterministic MOBI body for the fuzz harness. ' * 4)),

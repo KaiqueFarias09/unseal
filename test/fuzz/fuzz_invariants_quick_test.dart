@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
@@ -15,6 +16,7 @@ import 'harness/fuzz_seeds.dart';
 /// suites; this file stays fast enough for every `dart test` run.
 void main() {
   const timeout = Duration(seconds: 30);
+  const sessionTimeout = Duration(seconds: 20);
 
   test('every valid seed parses or throws a typed exception', () async {
     final failures = <String>[];
@@ -52,6 +54,61 @@ void main() {
     }
     expect(failures, isEmpty, reason: 'degenerate-input invariants violated: $failures');
   });
+
+  test('session opens over valid seeds hold the header invariants', () async {
+    final counts = <String, int>{};
+    final failures = <String>[];
+    for (final seed in fuzzSeeds().entries) {
+      if (!_sessionFamilies.contains(familyOfSeed(seed.key))) continue;
+      final verdict = await runBoundedSessionOpen(seed.value, timeout: sessionTimeout);
+      counts[verdict.status.name] = (counts[verdict.status.name] ?? 0) + 1;
+      if (_isSessionDefect(verdict)) failures.add('${seed.key}: ${verdict.defectSummary}');
+    }
+    _report('session seeds', counts);
+    expect(failures, isEmpty, reason: 'session seed invariants violated: $failures');
+  });
+
+  test('session opens over hostile zip/comic/pdf mutations stay typed', () async {
+    final counts = <String, int>{};
+    final failures = <String>[];
+    const perFamily = 16; // 4 strategies × 4 escalation steps.
+    for (final family in _sessionFamilies) {
+      for (var index = 0; index < perFamily; index++) {
+        final input = generateFuzzInput(family: family, seed: quickSeed, index: index);
+        final verdict = await runBoundedSessionOpen(input.bytes, timeout: sessionTimeout);
+        counts[verdict.status.name] = (counts[verdict.status.name] ?? 0) + 1;
+        if (_isSessionDefect(verdict)) {
+          failures.add('${input.fixtureId} (${input.bytes.length}B): ${verdict.defectSummary}');
+        }
+      }
+    }
+    _report('session mutations', counts);
+    expect(failures, isEmpty, reason: 'session fuzz invariants violated: $failures');
+  });
+}
+
+/// The families whose containers open through `BookSession`: zip
+/// (EPUB/CBZ), comics (CBR/CBZ) and PDF.
+const Set<FuzzFamily> _sessionFamilies = <FuzzFamily>{
+  FuzzFamily.zip,
+  FuzzFamily.comic,
+  FuzzFamily.pdf,
+};
+
+/// A session-open defect is an untyped error, a worker death or a
+/// violated header invariant. A bounded timeout is an accepted
+/// classification (the killer reaps the wedged open at the budget);
+/// a hang beyond the budget cannot exist by construction.
+bool _isSessionDefect(final FuzzVerdict verdict) =>
+    verdict.status == FuzzStatus.untyped || verdict.status == FuzzStatus.crash;
+
+/// One-line classification trace for campaign reports.
+void _report(final String label, final Map<String, int> counts) {
+  final summary = [
+    for (final status in FuzzStatus.values)
+      if (counts.containsKey(status.name)) '${status.name}=${counts[status.name]}',
+  ].join(' ');
+  stdout.writeln('$label: $summary');
 }
 
 /// Campaign seed used by the quick suite (fixed, never wall-clock).
