@@ -39,9 +39,14 @@ final class BookSession {
   final Book book;
 
   /// Whether content loads entry by entry. The session currently supports
-  /// EPUB and CBZ, and both load content progressively. Other formats throw
-  /// [SessionUnsupportedFormatException] when opened.
+  /// EPUB, CBZ and CBR, and all of them load content progressively.
+  /// Other formats throw [SessionUnsupportedFormatException] when
+  /// opened.
   final bool isProgressive;
+
+  /// Total length of the session's raw container source in bytes — the
+  /// compressed file for every supported format.
+  int get byteLength => _transport.byteLength;
 
   /// Opens a progressive session over [bytes].
   ///
@@ -94,6 +99,13 @@ final class BookSession {
   /// Loads the raw decoded source of a content document (the HTML/CSS
   /// text with markup), or null when the entry does not exist.
   Future<String?> loadDocumentSource(final String path) => _transport.documentSource(path);
+
+  /// Loads a raw slice of the session's container source: [count] bytes
+  /// at [offset], clamped to the end of the source and to
+  /// [SessionPolicy.rangeMaxBytes]. Negative offsets or counts, and
+  /// offsets past the end, throw [RangeError].
+  Future<Uint8List?> loadBytesRange(final int offset, final int count) =>
+      _transport.bytesRange(offset, count);
 
   /// Full-text search over the whole book with the `BookSearch.search`
   /// contract, executed against the resident content.

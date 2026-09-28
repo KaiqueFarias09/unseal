@@ -73,6 +73,8 @@ import 'wire/book_components_wire.dart';
       return _sessionResource(payload!, residentSession);
     case workerOpSessionResources:
       return _sessionResources(payload!, residentSession);
+    case workerOpSessionRange:
+      return _sessionRange(payload!, residentSession);
     case workerOpSessionSource:
       return _sessionSource(payload!, residentSession);
     case workerOpSessionText:
@@ -167,6 +169,7 @@ import 'wire/book_components_wire.dart';
     policy: SessionPolicy(
       cacheBytes: (payload?[wireKeyCacheBytes] as int?) ?? defaults.cacheBytes,
       coverMaxBytes: (payload?[wireKeyCoverMaxBytes] as int?) ?? defaults.coverMaxBytes,
+      rangeMaxBytes: (payload?[wireKeyRangeMaxBytes] as int?) ?? defaults.rangeMaxBytes,
     ),
   );
   // A fresh open replaces only the session selected by this request;
@@ -176,6 +179,7 @@ import 'wire/book_components_wire.dart';
 
   final (json, blobs) = encodeSessionHeaderWire(session.book);
   json[wireKeyProgressive] = true;
+  json[wireKeyByteLength] = session.byteLength;
 
   return (kind: wireReplySessionOpen, json: json, blobs: blobs, session: session);
 }
@@ -208,6 +212,21 @@ _sessionResources(final Map<String, Object?> payload, final SessionEngine? resid
   return (
     kind: wireReplySessionResources,
     json: <String, Object?>{wireKeyPaths: found},
+    blobs: blobs,
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionRange(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+  final slice = _sessionFor(
+    residentSession,
+  ).bytesRange(payload[wireKeyOffset] as int, payload[wireKeyCount] as int);
+  final blobs = <Object>[];
+
+  return (
+    kind: wireReplySessionRange,
+    json: <String, Object?>{wireKeyBlobIndex: pushWireBlob(blobs, slice)},
     blobs: blobs,
     session: null,
   );

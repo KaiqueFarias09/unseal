@@ -39,6 +39,10 @@ const String workerOpSessionResource = 'sessionResource';
 /// session in one round trip.
 const String workerOpSessionResources = 'sessionResources';
 
+/// Wire protocol op: a raw slice of the resident session's container
+/// source.
+const String workerOpSessionRange = 'sessionRange';
+
 /// Wire protocol op: raw decoded source (markup included) of one
 /// content document of the resident session.
 const String workerOpSessionSource = 'sessionSource';
@@ -98,6 +102,9 @@ const String wireReplySessionResource = 'sessionResource';
 /// Wire protocol reply kind: inflated container entries, the blob list
 /// aligned with the paths in the JSON half.
 const String wireReplySessionResources = 'sessionResources';
+
+/// Wire protocol reply kind: one raw container-source slice as a blob.
+const String wireReplySessionRange = 'sessionRange';
 
 /// Wire protocol reply kind: one raw document source (JSON null in its
 /// blob reference when the document does not exist).
@@ -201,12 +208,26 @@ const String wireKeyPath = 'path';
 /// load.
 const String wireKeyPaths = 'paths';
 
+/// Op payload key: the start offset of a session range request.
+const String wireKeyOffset = 'offset';
+
+/// Op payload key: the requested byte count of a session range
+/// request.
+const String wireKeyCount = 'count';
+
 /// Op payload key: the worker-side LRU budget of the session, in
 /// bytes.
 const String wireKeyCacheBytes = 'cacheBytes';
 
 /// Op payload key: the cover cap of the session header, in bytes.
 const String wireKeyCoverMaxBytes = 'coverMaxBytes';
+
+/// Op payload key: the raw-slice cap of the session, in bytes.
+const String wireKeyRangeMaxBytes = 'rangeMaxBytes';
+
+/// Reply key: the total byte length of the session's container
+/// source.
+const String wireKeyByteLength = 'byteLength';
 
 /// Op payload key / reply key: whether the opened session serves its
 /// content entry by entry.

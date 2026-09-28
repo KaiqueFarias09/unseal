@@ -155,12 +155,12 @@ final class WorkerClient {
   /// and the caller should run the engine inline. A failed open (a
   /// broken container) surfaces as the original typed error; other
   /// resident sessions stay alive.
-  Future<({Book book, int sessionId})?> sessionOpenInWorker(
+  Future<({Book book, int sessionId, int byteLength})?> sessionOpenInWorker(
     final Uint8List bytes, {
     final SessionPolicy policy = const SessionPolicy(),
   }) async {
     final sessionId = _nextSessionId++;
-    final header =
+    final opened =
         await _request(
               workerOpSessionOpen,
               bytes: bytes,
@@ -168,13 +168,38 @@ final class WorkerClient {
                 wireKeySessionId: sessionId,
                 wireKeyCacheBytes: policy.cacheBytes,
                 wireKeyCoverMaxBytes: policy.coverMaxBytes,
+                wireKeyRangeMaxBytes: policy.rangeMaxBytes,
               },
             )
-            as Book?;
-    if (header == null) return null;
+            as (Book, int?)?;
+    if (opened == null) return null;
     _residentSessions.add(sessionId);
 
-    return (book: header, sessionId: sessionId);
+    return (book: opened.$1, sessionId: sessionId, byteLength: opened.$2 ?? 0);
+  }
+
+  /// A raw slice of the resident session's container source, clamped to
+  /// the end and to the session's range cap. Throws
+  /// [SessionClosedException] when no live session is resident and
+  /// [RangeError] for invalid offsets or counts.
+  Future<Uint8List?> sessionRangeInWorker(
+    final int sessionId,
+    final int offset,
+    final int count,
+  ) async {
+    _ensureResidentSession(sessionId);
+
+    return _nullOrClosed(
+      sessionId,
+      await _request(
+            workerOpSessionRange,
+            payload: _sessionPayload(sessionId, <String, Object?>{
+              wireKeyOffset: offset,
+              wireKeyCount: count,
+            }),
+          )
+          as Uint8List?,
+    );
   }
 
   /// Inflated bytes of one container entry of the resident session;
@@ -467,12 +492,11 @@ final class WorkerClient {
           final cfiJson = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           completer.complete(cfiJson[wireKeyCfi] as String?);
         case wireReplySessionOpen:
-          completer.complete(
-            decodeSessionHeaderWire(
-              decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart),
-              _blobsOf(data),
-            ),
-          );
+          final headerJson = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
+          final header = decodeSessionHeaderWire(headerJson, _blobsOf(data));
+          // The op tags its reply with the container byte length the
+          // session reports; the client hands both to the transport.
+          completer.complete((header, headerJson[wireKeyByteLength] as int?));
         case wireReplySessionResource:
           completer.complete(
             _referencedBlob(
@@ -489,6 +513,14 @@ final class WorkerClient {
             for (var index = 0; index < paths.length; index++)
               paths[index]: blobs[index] as Uint8List,
           });
+        case wireReplySessionRange:
+          completer.complete(
+            _referencedBlob(
+                  decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart),
+                  _blobsOf(data),
+                )
+                as Uint8List?,
+          );
         case wireReplySessionSource:
         case wireReplySessionText:
           completer.complete(

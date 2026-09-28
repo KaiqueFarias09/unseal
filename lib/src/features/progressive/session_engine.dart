@@ -1,6 +1,8 @@
 import 'dart:convert' as convert;
+import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../../foundation/archive/archive_random_access.dart';
 import '../../foundation/archive/zip_byte_source.dart';
 import '../../foundation/archive/zip_random_access.dart';
 import '../../foundation/entities/entities.dart';
@@ -9,6 +11,7 @@ import '../../foundation/images/image_type_sniffer.dart';
 import '../../foundation/text/canonical_document_text.dart';
 import '../cfi/epub_cfi.dart';
 import '../cfi/epub_cfi_resolver.dart';
+import '../comic/archive/rar_random_access.dart';
 import '../detection/detect_format.dart';
 import '../detection/entities/detected_format.dart';
 import '../epub/codec/epub_xml.dart';
@@ -28,20 +31,22 @@ const _sessionFormatProbeBytes = 1024;
 
 /// Parses a book's structure up front and serves its content on demand.
 ///
-/// The engine is pure and synchronous: it owns a [ZipRandomAccess]
-/// source plus a byte-budgeted LRU of inflated entries and runs inside
-/// whatever host the platform layer chooses — a long-lived isolate, a
-/// Web Worker, or the calling thread as a fallback. Transports turn its
-/// results into small messages; the parsed book never crosses a
-/// boundary whole.
+/// The engine is pure and synchronous: it owns an [ArchiveRandomAccess]
+/// source (zip or RAR) plus a byte-budgeted LRU of inflated entries and
+/// runs inside whatever host the platform layer chooses — a long-lived
+/// isolate, a Web Worker, or the calling thread as a fallback.
+/// Transports turn its results into small messages; the parsed book
+/// never crosses a boundary whole.
 final class SessionEngine {
-  SessionEngine._(this.book, this._source, this._policy) : _htmlPathSpace = book is EpubBook;
+  SessionEngine._(this.book, this._source, this._bytes, this._byteLength, this._policy)
+    : _htmlPathSpace = book is EpubBook;
 
-  /// Opens [bytes], inflating only the container's structural documents.
+  /// Opens [bytes], inflating only the container's structural
+  /// documents.
   ///
   /// Throws [SessionUnsupportedFormatException] for formats the
-  /// progressive slice does not cover (everything but EPUB and CBZ
-  /// today); callers fall back to `Unseal.read`.
+  /// progressive slice does not cover (everything but EPUB, CBZ and
+  /// CBR today); callers fall back to `Unseal.read`.
   factory SessionEngine.openBytes(
     final Uint8List bytes, {
     final SessionPolicy policy = const SessionPolicy(),
@@ -49,21 +54,28 @@ final class SessionEngine {
     if (bytes.isEmpty) throw EmptyBytesException();
 
     final detected = detectFormat(bytes);
-    if (detected != DetectedFormat.epub) {
-      throw SessionUnsupportedFormatException(
-        'The ${detected.name} format has no progressive session support; '
-        'open it with Unseal.read instead.',
-      );
+    switch (detected) {
+      case DetectedFormat.epub:
+        // Zip containers are refined by inventory: EPUB or CBZ.
+        final container = MemoryZipByteSource(bytes);
+
+        return _openZipSource(ZipRandomAccess.open(container), container, detected, policy);
+      case DetectedFormat.comic:
+        // The comic detection signature is the RAR marker.
+        final container = MemoryZipByteSource(bytes);
+
+        return _openComicSource(RarRandomAccess.open(container), container, policy);
+      default:
+        throw SessionUnsupportedFormatException(
+          'The ${detected.name} format has no progressive session support; '
+          'open it with Unseal.read instead.',
+        );
     }
-
-    final source = ZipRandomAccess.open(MemoryZipByteSource(bytes));
-
-    return _openSource(source, detected, policy);
   }
 
   /// Opens a random-access byte source (file-backed on the VM). A
-  /// bounded prefix rejects formats that are not ZIP containers; the
-  /// inventory then distinguishes EPUB from comics. Container-level
+  /// bounded prefix rejects formats that are not ZIP or RAR containers;
+  /// the inventory then distinguishes EPUB from CBZ. Container-level
   /// guard failures (including [Zip64NotSupportedException]) surface
   /// from here.
   factory SessionEngine.openSource(
@@ -91,21 +103,27 @@ final class SessionEngine {
       rethrow;
     }
 
-    if (detected != DetectedFormat.epub) {
-      source.close();
-      throw SessionUnsupportedFormatException(
-        'The ${detected.name} format has no progressive session support; '
-        'open it with Unseal.readFile instead.',
-      );
-    }
-
-    try {
-      final archive = ZipRandomAccess.open(source);
-
-      return _openSource(archive, detected, policy);
-    } on Object {
-      source.close();
-      rethrow;
+    switch (detected) {
+      case DetectedFormat.comic:
+        try {
+          return _openComicSource(RarRandomAccess.open(source), source, policy);
+        } on Object {
+          source.close();
+          rethrow;
+        }
+      case DetectedFormat.epub:
+        try {
+          return _openZipSource(ZipRandomAccess.open(source), source, detected, policy);
+        } on Object {
+          source.close();
+          rethrow;
+        }
+      default:
+        source.close();
+        throw SessionUnsupportedFormatException(
+          'The ${detected.name} format has no progressive session support; '
+          'open it with Unseal.readFile instead.',
+        );
     }
   }
 
@@ -114,7 +132,15 @@ final class SessionEngine {
   /// unchanged.
   final Book book;
 
-  final ZipRandomAccess _source;
+  final ArchiveRandomAccess _source;
+
+  /// The raw container source the range op slices; both archive
+  /// wrappers are built over it.
+  final ZipByteSource _bytes;
+
+  /// Total byte length of the raw container source.
+  final int _byteLength;
+
   final SessionPolicy _policy;
   final bool _htmlPathSpace;
   bool _closed = false;
@@ -128,6 +154,10 @@ final class SessionEngine {
   /// Whether the format materializes eagerly (always false for the
   /// progressive slice today).
   bool get isProgressive => true;
+
+  /// Total length of the raw container source in bytes — the
+  /// compressed file for every supported format.
+  int get byteLength => _byteLength;
 
   /// Raw bytes of a container entry, or null when the entry does not
   /// exist.
@@ -156,6 +186,21 @@ final class SessionEngine {
     final record = _source.find(path);
 
     return record?.uncompressedSize;
+  }
+
+  /// A raw slice of the container source: [count] bytes at [offset],
+  /// clamped to the end of the source and to
+  /// [SessionPolicy.effectiveRangeMaxBytes]. Negative offsets/counts
+  /// and offsets past the end throw [RangeError].
+  Uint8List bytesRange(final int offset, final int count) {
+    _ensureOpen();
+    if (offset < 0) throw RangeError.range(offset, 0, _byteLength, 'offset');
+    if (count < 0) throw RangeError.range(count, 0, null, 'count');
+    if (offset > _byteLength) throw RangeError.range(offset, 0, _byteLength, 'offset');
+
+    final clamped = math.min(math.min(count, _byteLength - offset), _policy.effectiveRangeMaxBytes);
+
+    return _bytes.read(offset, clamped);
   }
 
   /// The canonical [TextFile] of a content document, or null when the
@@ -409,8 +454,13 @@ final class SessionEngine {
     }
   }
 
-  static SessionEngine _openSource(
+  /// Inventory dispatch over a zip container: EPUB when the structure
+  /// says so, CBZ for comic inventories, explicit refusal for other zip
+  /// books (office documents, zipped FB2/HTML/TXT, Calibre comic
+  /// collections).
+  static SessionEngine _openZipSource(
     final ZipRandomAccess source,
+    final ZipByteSource bytes,
     final DetectedFormat? detected,
     final SessionPolicy policy,
   ) {
@@ -450,7 +500,7 @@ final class SessionEngine {
       if (epubCandidate && looksLikeEpub) {
         final book = buildEpubSessionHeader(source, policy: policy);
 
-        return SessionEngine._(book, source, policy);
+        return SessionEngine._(book, source, bytes, bytes.length, policy);
       }
 
       var hasImages = false;
@@ -463,12 +513,31 @@ final class SessionEngine {
         }
       }
       if (!hasImages) throw unsupported(detected?.name ?? '');
-      final book = buildComicSessionHeader(source, policy: policy);
+      final book = buildComicSessionHeader(source, format: BookFormat.cbz, policy: policy);
 
-      return SessionEngine._(book, source, policy);
+      return SessionEngine._(book, source, bytes, bytes.length, policy);
     } on SessionUnsupportedFormatException {
       source.close();
       rethrow;
+    } on UnsealException {
+      source.close();
+      rethrow;
+    }
+  }
+
+  /// Comic session over a RAR container. The header build sniffs every
+  /// entry, so a CBR the eager parse would reject (undecodable
+  /// compressed entries, bombs past the guards) fails right here with
+  /// the same typed error.
+  static SessionEngine _openComicSource(
+    final RarRandomAccess source,
+    final ZipByteSource bytes,
+    final SessionPolicy policy,
+  ) {
+    try {
+      final book = buildComicSessionHeader(source, format: BookFormat.cbr, policy: policy);
+
+      return SessionEngine._(book, source, bytes, bytes.length, policy);
     } on UnsealException {
       source.close();
       rethrow;

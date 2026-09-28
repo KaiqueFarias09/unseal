@@ -10,11 +10,19 @@ import '../session_engine.dart';
 /// The delivery layer behind the public `BookSession`: one session's ops
 /// its resident engine.
 abstract interface class SessionTransport {
+  /// Total length of the session's raw container source in bytes.
+  int get byteLength;
+
   /// Inflated bytes of one container entry, or null when missing.
   Future<Uint8List?> resource(final String path);
 
   /// Inflated bytes of several entries; missing paths are omitted.
   Future<Map<String, Uint8List>> resources(final Set<String> paths);
+
+  /// A raw slice of the container source, clamped to the end of the
+  /// source and to the policy's range cap; [RangeError] for invalid
+  /// offsets or counts.
+  Future<Uint8List?> bytesRange(final int offset, final int count);
 
   /// Canonical document text of a content document, or null when
   /// missing.
@@ -67,7 +75,14 @@ final class InlineSessionTransport implements SessionTransport {
   final SessionEngine _engine;
 
   @override
+  int get byteLength => _engine.byteLength;
+
+  @override
   Future<Uint8List?> resource(final String path) async => _engine.resource(path);
+
+  @override
+  Future<Uint8List?> bytesRange(final int offset, final int count) async =>
+      _engine.bytesRange(offset, count);
 
   @override
   Future<Map<String, Uint8List>> resources(final Set<String> paths) async {

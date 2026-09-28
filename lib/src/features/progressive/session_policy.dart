@@ -28,10 +28,15 @@ final class SessionUnsupportedFormatException extends UnsealException {
 /// its code-unit count); the oldest entries evict first and the
 /// container inventory never evicts. [coverMaxBytes] caps the cover
 /// carried inside the header book: larger covers load like any other
-/// resource instead.
+/// resource instead. [rangeMaxBytes] caps the raw source slices
+/// `BookSession.loadBytesRange` hands out.
 final class SessionPolicy {
   /// Creates a policy; the defaults target reader-class devices.
-  const SessionPolicy({this.cacheBytes = 64 << 20, this.coverMaxBytes = 8 << 20});
+  const SessionPolicy({
+    this.cacheBytes = 64 << 20,
+    this.coverMaxBytes = 8 << 20,
+    this.rangeMaxBytes = 8 << 20,
+  });
 
   /// Worker-side LRU budget in bytes. Values below 1 MiB clamp to 1 MiB
   /// so a working chapter always fits.
@@ -40,6 +45,14 @@ final class SessionPolicy {
   /// Largest cover (in inflated bytes) kept inside the header book.
   final int coverMaxBytes;
 
+  /// Largest raw source slice (in bytes) one `loadBytesRange` call
+  /// returns. Values below 64 KiB clamp to 64 KiB so range serving
+  /// stays practical.
+  final int rangeMaxBytes;
+
   /// The effective cache budget after clamping.
   int get effectiveCacheBytes => cacheBytes < 1 << 20 ? 1 << 20 : cacheBytes;
+
+  /// The effective range cap after clamping.
+  int get effectiveRangeMaxBytes => rangeMaxBytes < 1 << 16 ? 1 << 16 : rangeMaxBytes;
 }

@@ -7,6 +7,7 @@ import '../../../foundation/entities/entities.dart';
 import '../../../foundation/exceptions/unseal_exception.dart';
 import '../../../platform/io/zip_byte_source_io.dart';
 import '../../cfi/epub_cfi_resolver.dart';
+import '../../comic/exceptions/comic_exception.dart';
 import '../../epub/exceptions/exceptions.dart';
 import '../../reading/book_progression.dart';
 import '../../search/entities/search_mode.dart';
@@ -94,7 +95,7 @@ void _isolateMain(final _SessionBootstrap bootstrap) {
   }
 
   final port = ReceivePort();
-  bootstrap.replyPort.send(<Object?>['ready', port.sendPort, engine.book]);
+  bootstrap.replyPort.send(<Object?>['ready', port.sendPort, engine.book, engine.byteLength]);
   port.listen((final message) {
     _dispatch(engine, bootstrap.replyPort, message as List<Object?>);
   });
@@ -105,6 +106,7 @@ void _dispatch(final SessionEngine engine, final SendPort replyPort, final List<
   try {
     final result = switch (message[0]! as String) {
       _opResource => engine.resource(message[2]! as String),
+      _opRange => engine.bytesRange(message[2]! as int, message[3]! as int),
       _opResources => <String, Uint8List>{
         for (final path in (message[2]! as List).cast<String>())
           if (engine.resource(path) case final Uint8List bytes) path: bytes,
@@ -137,6 +139,7 @@ void _dispatch(final SessionEngine engine, final SendPort replyPort, final List<
 
 const _opResource = 'resource';
 const _opResources = 'resources';
+const _opRange = 'range';
 const _opText = 'text';
 const _opSource = 'source';
 const _opSearch = 'search';
@@ -156,6 +159,7 @@ Object rebuildSessionError(final String type, final String message) {
     'EmptyBytesException' => EmptyBytesException(),
     'InvalidBookException' => InvalidBookException(message),
     'EpubException' => EpubException(message),
+    'ComicException' => ComicException(message),
     'RangeError' => RangeError(message),
     'FormatException' => FormatException(message),
     'ArgumentError' => ArgumentError(message),
@@ -203,7 +207,7 @@ final class _IsolateSessionTransport implements SessionTransport {
       final reply = message as List<Object?>;
       switch (reply[0] as String) {
         case 'ready':
-          transport._bind(reply[1]! as SendPort, reply[2]! as Book);
+          transport._bind(reply[1]! as SendPort, reply[2]! as Book, reply[3]! as int);
           ready.complete();
         case 'error':
           if (!ready.isCompleted) {
@@ -229,6 +233,7 @@ final class _IsolateSessionTransport implements SessionTransport {
   final ReceivePort _replies;
   SendPort? _port;
   Book? _header;
+  int? _byteLength;
   var _nextId = 0;
   var _disposed = false;
   final Map<int, Completer<Object?>> _pending = <int, Completer<Object?>>{};
@@ -236,9 +241,14 @@ final class _IsolateSessionTransport implements SessionTransport {
   /// The header book handed over during the handshake.
   Book get header => _header!;
 
-  void _bind(final SendPort port, final Book header) {
+  /// The container byte length handed over during the handshake.
+  @override
+  int get byteLength => _byteLength!;
+
+  void _bind(final SendPort port, final Book header, final int byteLength) {
     _port = port;
     _header = header;
+    _byteLength = byteLength;
   }
 
   Future<Object?> _request(final List<Object> message) {
@@ -277,6 +287,11 @@ final class _IsolateSessionTransport implements SessionTransport {
   @override
   Future<Uint8List?> resource(final String path) async {
     return await _request([_opResource, path]) as Uint8List?;
+  }
+
+  @override
+  Future<Uint8List?> bytesRange(final int offset, final int count) async {
+    return await _request([_opRange, offset, count]) as Uint8List?;
   }
 
   @override

@@ -29,7 +29,7 @@ Future<(SessionTransport, Book)> openSessionTransport({
   final client = WorkerClient.instance;
   final opened = await client.sessionOpenInWorker(bytes!, policy: policy);
   if (opened != null) {
-    return (_WorkerSessionTransport(client, opened.sessionId), opened.book);
+    return (_WorkerSessionTransport(client, opened.sessionId, opened.byteLength), opened.book);
   }
 
   final engine = SessionEngine.openBytes(bytes, policy: policy);
@@ -43,10 +43,15 @@ Future<(SessionTransport, Book)> openSessionTransport({
 /// request this transport has not yet observed completes typed when
 /// [dispose] or [cancelPending] lands, like the isolate transport.
 final class _WorkerSessionTransport implements SessionTransport {
-  _WorkerSessionTransport(this._client, this._sessionId);
+  _WorkerSessionTransport(this._client, this._sessionId, this.byteLength);
 
   final WorkerClient _client;
   final int _sessionId;
+
+  /// The container byte length the open handshake reported.
+  @override
+  final int byteLength;
+
   var _disposed = false;
   var _nextRequest = 0;
   final Map<int, void Function(UnsealException error)> _pending =
@@ -88,6 +93,11 @@ final class _WorkerSessionTransport implements SessionTransport {
   @override
   Future<Uint8List?> resource(final String path) {
     return _dispatch(() => _client.sessionResourceInWorker(_sessionId, path));
+  }
+
+  @override
+  Future<Uint8List?> bytesRange(final int offset, final int count) {
+    return _dispatch(() => _client.sessionRangeInWorker(_sessionId, offset, count));
   }
 
   @override
