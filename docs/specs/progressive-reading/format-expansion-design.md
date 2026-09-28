@@ -414,12 +414,25 @@ linhas no relatório da sessão; resumo do contrato):
 2. Camada de texto do fac-símile: hidratar por página via
    `session.loadPdfPageLines(i)` (geometria preservada; sem degradação).
    A leitura síncrona de `pdf.pageTexts[i]` permanece só para o caminho
-   eager.
+   eager. (implementado no Grimoire, 2026-09-28: `BookServer` (io + web)
+   ganha `pdfPageLinesLoader`, ligado a `session.loadPdfPageLines` em
+   `start()`; `/__pdfpage__/<i>` (io) e o blob da página (web) hidratam
+   as linhas canônicas com geometria antes de renderizar a camada de
+   texto, com cache por índice; falha tipada (sessão fechada/RangeError)
+   degrada para página só-canvas; a invariante de espaço de offsets
+   (linhas do fac-símile == texto canônico da página, join por \n) está
+   pinada em teste no lado do Grimoire.)
 3. Seleção de modo PDF session-aware: em `start()`, com sessão anexada,
    sondar `session.loadDocumentText('page_1.html')` (bounded) para decidir
    reflow × fac-símile no lugar de `hasTextLayer` (header tem pageTexts
    vazio). Nota: o exemplo força fac-símile na abertura
    (reader_controller.dart ~228) — ajustar para respeitar a decisão.
+   (implementado no Grimoire, 2026-09-28: `ViewerController.start()` tem
+   sessão PDF sondando a página 1 — texto não-branco ⇒ reflow, branco ou
+   ausente ⇒ fac-símile, falha tipada ⇒ fac-símile — resolvido antes do
+   servidor arrancar, sem reload inicial; caminho eager mantém
+   `hasTextLayer`; exemplo não força mais fac-símile em livros com
+   sessão e respeita a decisão sondada.)
 4. `goToPdfPage`/`positionPageLocator` → generalize para qualquer livro
    paginado (`PdfBook` e `ComicBook`; seção i = página i; header comic já
    traz `pages` completo). (implementado no Grimoire, 2026-09-28: helper
