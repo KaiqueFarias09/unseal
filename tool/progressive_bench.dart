@@ -15,13 +15,14 @@
 // * read-isolate       `Unseal.read(bytes)` (background isolate).
 // * read-file-isolate  `Unseal.readFile(path)` (file read + isolate).
 //
-// Session modes over the BookSession API (EPUB + CBZ today; PDF and
-// CBR sessions are a later wave — opening one reports the clean typed
-// `status: "unsupported"` instead of failing):
+// Session modes over the BookSession API (EPUB, CBZ, CBR and PDF):
 //
 // * session-header          bytes -> session header ready (t_open_ms).
-// * session-first-content   header + first spine chapter HTML and its
-//                           CSS loaded (t_first_content_ms).
+// * session-first-content   header + the first page of content, the
+//                           recipe a reader follows per format: EPUB =
+//                           first spine chapter HTML + its CSS; PDF =
+//                           page 1's reflow document; comics = the
+//                           first page image bytes.
 //
 // Output: ONE JSON object on stdout (nothing else — the sweep driver
 // parses stdout). Shape, identical across modes:
@@ -81,9 +82,8 @@ import 'package:unseal/unseal.dart';
 /// Modes that exist today, in the order the sweep runs them by default.
 const List<String> implementedModes = ['parse-sync', 'read-isolate', 'read-file-isolate'];
 
-/// Session modes over the BookSession API. PDF/CBR sessions are a
-/// later wave (format-expansion-design.md); opening one today reports
-/// the typed `unsupported` status.
+/// Session modes over the BookSession API (EPUB, CBZ, CBR and PDF);
+/// other formats report the typed `unsupported` status.
 const List<String> sessionModes = ['session-header', 'session-first-content'];
 
 Future<void> main(final List<String> arguments) async {
@@ -133,9 +133,9 @@ Future<void> main(final List<String> arguments) async {
       };
     exitCode = 69;
   } on SessionUnsupportedFormatException catch (error) {
-    // Session modes over formats the engine does not serve yet (PDF,
-    // CBR — later waves of format-expansion-design.md). A clean typed
-    // status the sweep aggregates, never a crash.
+    // Session modes over formats the engine does not serve (MOBI,
+    // FB2, ...). A clean typed status the sweep aggregates, never a
+    // crash.
     record
       ..['status'] = 'unsupported'
       ..['error'] = {'type': 'SessionUnsupportedFormatException', 'message': '$error'};
@@ -412,9 +412,11 @@ Future<void> _sampleRss(final List<Object> arguments) async {
 }
 
 /// Opens a session and, for the first-content mode, loads the "first
-/// page" recipe: the first HTML spine document plus every CSS it links.
-/// The returned carry keeps the session resident for the caller's RSS
-/// sampling and reports the separately-timed first-content span.
+/// page" recipe per format (file header documents it): the first HTML
+/// spine document plus its CSS for EPUB, page 1's reflow document for
+/// PDF, the first page image for comics. The returned carry keeps the
+/// session resident for the caller's RSS sampling and reports the
+/// separately-timed first-content span.
 final class _SessionCarry {
   _SessionCarry(this.session, this.firstContentMs);
 
@@ -440,7 +442,26 @@ Future<_SessionCarry> _openSession(
   final session = await BookSession.open(bytes, password: password);
   if (!firstContent) return _SessionCarry(session, null);
 
-  final order = session.book.readingOrder;
+  final book = session.book;
+  if (book is PdfBook) {
+    final contentWatch = Stopwatch()..start();
+    final source = await session.loadDocumentSource('page_1.html') ?? '';
+    contentWatch.stop();
+    _sink = Object.hash(_sink, source.length);
+
+    return _SessionCarry(session, _ms(contentWatch.elapsedMicroseconds));
+  }
+  if (book is ComicBook) {
+    final contentWatch = Stopwatch()..start();
+    final path = book.pages.isEmpty ? null : book.pages.first.path;
+    final bytes = path == null ? null : await session.loadResource(path);
+    contentWatch.stop();
+    _sink = Object.hash(_sink, bytes?.length);
+
+    return _SessionCarry(session, _ms(contentWatch.elapsedMicroseconds));
+  }
+
+  final order = book.readingOrder;
   final firstHtml = order.firstWhere((final item) => item.isHtml, orElse: () => order.first);
 
   final contentWatch = Stopwatch()..start();
