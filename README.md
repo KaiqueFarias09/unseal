@@ -184,15 +184,22 @@ session.cancelPending(); // fail in-flight requests with SessionCancelledExcepti
 session.dispose(); // end the session; later requests fail with SessionClosedException
 ```
 
-`session.book` is a real `EpubBook` or `ComicBook` whose structure is complete
-(spine, rendition data, navigation, container inventory, the cover when it
-fits `SessionPolicy.coverMaxBytes`) while `files` carries no content —
-spine-driven consumers such as fixed-layout readers work unchanged, and
-`loadResource(path)` serves any container entry on demand. EPUB and CBZ open
-progressively today; other formats throw
-`SessionUnsupportedFormatException` and should use `Unseal.read` instead.
-The classic entry points are unchanged and remain the right choice whenever
-the whole book is needed at once.
+`session.book` is a real `EpubBook`, `ComicBook` or `PdfBook` whose structure
+is complete (spine, rendition data, navigation, container inventory, the
+cover when it fits `SessionPolicy.coverMaxBytes`, page geometry for PDFs)
+while `files` carries no content — spine-driven consumers such as
+fixed-layout readers work unchanged, and `loadResource(path)` serves any
+container entry on demand. EPUB, CBZ, CBR and PDF open progressively today;
+other formats throw `SessionUnsupportedFormatException` and should use
+`Unseal.read` instead. PDF sessions materialize pages on demand
+(`loadDocumentSource('page_<i>.html')`, `loadPdfPageLines(i)` for the
+facsimile text-layer geometry) and serve byte ranges of the original
+document via `loadBytesRange` — see
+[the format-expansion A/B report](docs/specs/progressive-reading/ab-report-2026-09-28.md)
+for measured gains and the honest regressions (compressed CBRs open eagerly
+inside the session; very small books pay a fixed session floor). The classic
+entry points are unchanged and remain the right choice whenever the whole
+book is needed at once.
 
 ### Format-specific APIs
 
