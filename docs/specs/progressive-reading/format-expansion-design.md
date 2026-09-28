@@ -142,16 +142,59 @@ Novo arquivo `lib/src/features/comic/archive/rar_random_access.dart`:
   `lib/src/platform/io/pdf_byte_source_io.dart` (`FilePdfByteSource`),
   importada condicionalmente (padrão `zip_byte_source_io.dart`) — `lib/`
   continua sem depender de Flutter e sem io fora da plataforma.
+  (implementado: interface e `MemoryPdfByteSource` espelham
+  `MemoryZipByteSource` — inclusive o fast path `read(0, length)` que
+  devolve a lista original; `FilePdfByteSource` segue o padrão
+  `FileZipByteSource` (seek+read, `close` idempotente) como arquivo NOVO
+  em `platform/io/` — ainda sem fachada de import condicional, pois nada
+  fora de `platform/io` a consome nesta onda; a onda de engine (§3.6)
+  liga `openFile`.)
 - Refactor mecânico: `PdfObjectParser(bytes)` → `PdfObjectParser(PdfByteSource)`;
   `PdfDocument.bytes` → `PdfDocument.source`; todo consumidor de
-  `document.bytes` no feature pdf se adapta. Parser ganha janelas de leitura
-  (sem leitura byte-a-byte no arquivo); parse de memória mantém views.
-  **Invariante**: parse eager de memória com saída idêntica (testes de
-  paridade PDF existentes continuam verdes sem mudanças).
+  `document.bytes` no feature pdf se adapta. Parser ganha janelas de
+  leitura (sem leitura byte-a-byte no arquivo); parse de memória mantém
+  views. **Invariante**: parse eager de memória com saída idêntica (testes
+  de paridade PDF existentes continuam verdes sem mudanças).
+  (implementado: janela deslizante de 64 KiB no parser; fast path de
+  memória = UMA view do arquivo inteiro na construção — zero refills,
+  indexação direta, comportamento idêntico ao antigo; corpos de stream =
+  um `source.read` limitado (view na memória, uma fatia no arquivo);
+  `_scanObjects`/`_scanHeader`/`_scanForTrailer` viraram varreduras
+  sequenciais pela janela; `_startXrefOffset` lê só a cauda ≤ 2048 bytes e
+  `_pdfHeaderOffset` só o preâmbulo ≤ 1028; `PdfDocument` ganhou
+  `int get byteLength => source.length`. Desvio de superfície: a troca de
+  assinatura de `PdfDocument.parse` é breaking para quem importa `src/` —
+  call sites dos testes adaptados (wrapper `MemoryPdfByteSource`,
+  asserções intactas) e `tool/pdf_parity.dart:1233` fica devendo UMA linha
+  do mesmo wrap (`tool/` era no-touch nesta onda); `parsePdfBook`/
+  `readPdfMetadata` mantêm assinatura pública `Uint8List` — zero quebra
+  na API publicada. Paridade memória×arquivo pinada por teste (dickens +
+  pg11: cada objeto 1..Size, page tree, metadata, outline).)
 - `PdfReflow` ganha plano explícito mantendo `apply` intacto como fachada:
   `PdfReflowPlan.scan(pageTexts, pages)` (amostra ≤ 20 páginas) e
   `PdfReflow.applyWithPlan(pageTexts, pages, plan)`; saída byte-idêntica à
   de hoje para o eager (paridade por teste com fixture atual).
+  (implementado, com desvio de contrato consciente: o plano carrega TUDO
+  que `_Document` precomputa globalmente — skip de cabeçalho/rodapé,
+  `dominantFontSize` (voto sobre TODAS as linhas), as estatísticas de
+  documento (`PdfReflowStats`: top, bottom, right, lineSpace, paraSpace,
+  margens/indentações odd/even — estas mudam o texto canônico via
+  coalescing) e as flags de continuação entre páginas — porque
+  `render`/`canonicalText` da página i depende de tudo isso, não só dos
+  skips. `applyWithPlan` ganhou `{firstPageNumber}`: paridade odd/even,
+  âncoras `page_N` e flags de continuação são indexadas pelo número
+  absoluto da página. `apply` segue um único passe (sem custo duplo no
+  eager); a equivalência `scan` + `applyWithPlan` por página e por fatia
+  é pinada byte-a-byte por teste. Consequência precisa para a onda de
+  engine: o corte de cabeçalho/rodapé É amostrável em ≤ 20 páginas
+  (pinado: plano da amostra == plano completo nos skips), mas o plano
+  COMPLETO não é computável de uma amostra — `dominantFontSize`,
+  estatísticas e continuações exigem o texto de todas as páginas. Um
+  plano de amostra ≤ 20 só é byte-idêntico ao eager para documentos com
+  ≤ 20 páginas (ou coincidência). Para valer "canônico idêntico ao eager"
+  (§3.5) em livros maiores, a sessão precisa calcular o plano sobre o
+  conjunto completo de textos (ex.: preguiçoso no primeiro uso após todas
+  as páginas materializarem) ou aceitar delta documentado no canônico.)
 
 ### 3.4 Header da sessão PDF
 
