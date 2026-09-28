@@ -4,6 +4,7 @@ import '../../foundation/entities/entities.dart';
 import 'entities/entities.dart';
 import 'exceptions/pdf_exception.dart';
 import 'header/pdf_document.dart';
+import 'reader/pdf_byte_source.dart';
 import 'reader/pdf_content_stream.dart';
 import 'reader/pdf_metadata.dart';
 import 'reader/pdf_outline.dart';
@@ -19,7 +20,7 @@ import 'reflow/pdf_reflow.dart';
 /// throws [PdfEncryptedException] carrying `requiresNonEmptyPassword`
 /// semantics. Permission flags are exposed, not enforced.
 PdfBook parsePdfBook(final Uint8List bytes, {final String password = ''}) {
-  final document = PdfDocument.parse(bytes, password: password);
+  final document = PdfDocument.parse(MemoryPdfByteSource(bytes), password: password);
   final pages = PdfPageTree.parse(document);
   if (pages.isEmpty) throw const PdfException('PDF document has no pages.');
 
@@ -42,7 +43,7 @@ PdfBook parsePdfBook(final Uint8List bytes, {final String password = ''}) {
 /// Reads only the metadata of a PDF document from [bytes], opening
 /// encrypted documents with [password].
 BookMetadata readPdfMetadata(final Uint8List bytes, {final String password = ''}) {
-  return PdfMetadataReader.read(PdfDocument.parse(bytes, password: password));
+  return PdfMetadataReader.read(PdfDocument.parse(MemoryPdfByteSource(bytes), password: password));
 }
 
 ({List<PdfPageText> pageTexts, List<BinaryFile> images}) _extractPageContent(

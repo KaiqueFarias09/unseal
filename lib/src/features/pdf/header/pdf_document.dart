@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../codec/pdf_stream_decoder.dart';
 import '../exceptions/pdf_exception.dart';
+import '../reader/pdf_byte_source.dart';
 import '../security/pdf_object_decryptor.dart';
 import '../security/pdf_security_handler.dart';
 import 'pdf_object.dart';
@@ -57,28 +58,28 @@ final class _ObjectStreamData {
 /// dictionary itself and cross-reference streams stay clear, and
 /// the library does not enforce the `/P` permission bits.
 class PdfDocument {
-  PdfDocument._(this.bytes, this._entries, this.trailer, this._security);
+  PdfDocument._(this.source, this._entries, this.trailer, this._security);
 
-  /// Parses the document structure out of [bytes], opening
+  /// Parses the document structure out of [source], opening
   /// encrypted documents with [password].
   ///
   /// Only the cross-reference layer is read; page trees, content
   /// streams and metadata resolve lazily through [object].
-  static PdfDocument parse(final Uint8List bytes, {final String password = ''}) {
-    if (_pdfHeaderOffset(bytes) == null) {
+  static PdfDocument parse(final PdfByteSource source, {final String password = ''}) {
+    if (_pdfHeaderOffset(source) == null) {
       throw const PdfException('Not a PDF document (missing %PDF header).');
     }
 
     final entries = <int, _XrefEntry>{};
-    final parser = PdfObjectParser(bytes);
+    final parser = PdfObjectParser(source);
     PdfDictionary? trailer;
     PdfDictionary? encryptDictionary;
     var encryptReference = false;
     final visited = <int>{};
-    var offset = _startXrefOffset(bytes);
+    var offset = _startXrefOffset(source);
     while (offset != null &&
         offset > 0 &&
-        offset < bytes.length &&
+        offset < source.length &&
         !visited.contains(offset) &&
         entries.length <= _maxXrefEntries) {
       visited.add(offset);
@@ -91,7 +92,7 @@ class PdfDocument {
         final streamOffset = _intValue(trailerDictionary['XRefStm']);
         if (streamOffset != null &&
             streamOffset > 0 &&
-            streamOffset < bytes.length &&
+            streamOffset < source.length &&
             !visited.contains(streamOffset)) {
           visited.add(streamOffset);
           final streamTrailer = _readXrefAt(parser, streamOffset, entries);
@@ -105,7 +106,7 @@ class PdfDocument {
 
     if (entries.isEmpty) {
       trailer ??= _scanForTrailer(parser);
-      _scanObjects(parser.bytes, entries);
+      _scanObjects(parser, entries);
     }
 
     if (trailer == null) throw const PdfException('PDF document has no trailer dictionary.');
@@ -124,7 +125,7 @@ class PdfDocument {
       encryptReference,
     );
 
-    return PdfDocument._(bytes, entries, trailer, security);
+    return PdfDocument._(source, entries, trailer, security);
   }
 
   /// Pulls the `/Encrypt` dictionary out of a trailer, following an
@@ -165,7 +166,7 @@ class PdfDocument {
       if (header != null && header.$1 == number) return header;
     }
 
-    return _scanHeader(parser.bytes, number);
+    return _scanHeader(parser, number);
   }
 
   /// Parses an object body from an already-read [header].
@@ -173,15 +174,18 @@ class PdfDocument {
     return parser.parseAt(header.$3);
   }
 
-  /// Scans the whole file for [number]'s object header — the bounded
-  /// tail walk cannot serve here: encryption objects sit anywhere in
-  /// the body, not near the trailer.
-  static (int, int, int)? _scanHeader(final Uint8List bytes, final int number) {
+  /// Scans the whole source for [number]'s object header — the
+  /// bounded tail walk cannot serve here: encryption objects sit
+  /// anywhere in the body, not near the trailer. The scan runs
+  /// through the parser's read window, so a file-backed source pays
+  /// sequential bounded reads, never byte-at-a-time access.
+  static (int, int, int)? _scanHeader(final PdfObjectParser parser, final int number) {
     final needle = convert.ascii.encode('$number ');
-    for (var pos = 0; pos + needle.length < bytes.length; pos++) {
+    final length = parser.byteLength;
+    for (var pos = 0; pos + needle.length < length; pos++) {
       var matched = true;
       for (var i = 0; i < needle.length; i++) {
-        if (bytes[pos + i] != needle[i]) {
+        if (parser.byteAt(pos + i) != needle[i]) {
           matched = false;
           break;
         }
@@ -189,7 +193,6 @@ class PdfDocument {
 
       if (!matched) continue;
 
-      final parser = PdfObjectParser(bytes);
       final header = parser.objectHeaderAt(pos);
       if (header != null && header.$1 == number) return header;
     }
@@ -199,21 +202,24 @@ class PdfDocument {
 
   /// Finds `%PDF` after only the bounded preamble accepted by the format
   /// detector: an optional UTF-8 BOM at byte zero and ASCII whitespace.
-  /// The original [bytes] remain intact so every xref/object offset stays
-  /// absolute, including when a preamble is present.
-  static int? _pdfHeaderOffset(final Uint8List bytes) {
-    final lastOffset = bytes.length - _pdfMagic.length;
+  /// The source stays untouched so every xref/object offset stays
+  /// absolute, including when a preamble is present; the scan itself
+  /// is one bounded read over the first kilobyte.
+  static int? _pdfHeaderOffset(final PdfByteSource source) {
+    final length = source.length;
+    final lastOffset = length - _pdfMagic.length;
     if (lastOffset < 0) return null;
 
     final boundedLastOffset = lastOffset < _maxPdfPreambleBytes ? lastOffset : _maxPdfPreambleBytes;
+    final window = source.read(0, boundedLastOffset + _pdfMagic.length);
     for (var offset = 0; offset <= boundedLastOffset; offset++) {
-      if (!_startsAt(bytes, offset, _pdfMagic)) continue;
+      if (!_startsAt(window, offset, _pdfMagic)) continue;
 
       var preambleEnd = 0;
-      if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+      if (window.length >= 3 && window[0] == 0xEF && window[1] == 0xBB && window[2] == 0xBF) {
         preambleEnd = 3;
       }
-      while (preambleEnd < offset && _isPdfWhitespace(bytes[preambleEnd])) {
+      while (preambleEnd < offset && _isPdfWhitespace(window[preambleEnd])) {
         preambleEnd++;
       }
 
@@ -296,8 +302,11 @@ class PdfDocument {
     return value;
   }
 
-  /// The document bytes.
-  final Uint8List bytes;
+  /// The document's random-access byte source.
+  final PdfByteSource source;
+
+  /// Total document length in bytes.
+  int get byteLength => source.length;
 
   /// The newest trailer dictionary of the cross-reference chain.
   final PdfDictionary trailer;
@@ -320,7 +329,10 @@ class PdfDocument {
 
   final Map<PdfStream, _ObjectStreamData> _objectStreams = <PdfStream, _ObjectStreamData>{};
 
-  late final PdfObjectParser _parser = PdfObjectParser(bytes, streamLengthOf: _resolveStreamLength);
+  late final PdfObjectParser _parser = PdfObjectParser(
+    source,
+    streamLengthOf: _resolveStreamLength,
+  );
 
   /// Reads the object with the given [number], or null when the
   /// cross-reference does not carry it or its entry is stale.
@@ -398,7 +410,7 @@ class PdfDocument {
     final bodyOffset = decoded.first + relative;
     if (bodyOffset < 0 || bodyOffset >= decoded.data.length) return null;
 
-    return PdfObjectParser(decoded.data).parseAt(bodyOffset);
+    return PdfObjectParser(MemoryPdfByteSource(decoded.data)).parseAt(bodyOffset);
   }
 
   _ObjectStreamData? _decodeObjectStream(final PdfStream container) {
@@ -453,7 +465,7 @@ class PdfDocument {
     final int offset,
     final Map<int, _XrefEntry> entries,
   ) {
-    if (_keywordAt(parser.bytes, offset, 'xref')) return _readClassicXref(parser, offset, entries);
+    if (parser.keywordAt(offset, 'xref')) return _readClassicXref(parser, offset, entries);
 
     final header = parser.objectHeaderAt(offset);
     if (header == null) return null;
@@ -469,41 +481,41 @@ class PdfDocument {
     final int offset,
     final Map<int, _XrefEntry> entries,
   ) {
-    final bytes = parser.bytes;
+    final length = parser.byteLength;
     var pos = offset + 4; // past 'xref'
     PdfDictionary? trailer;
-    while (pos < bytes.length) {
-      pos = _skipWhitespace(bytes, pos);
-      if (pos >= bytes.length) break;
-      if (_keywordAt(bytes, pos, 'trailer')) {
-        final trailerObject = parser.parseAt(_skipWhitespace(bytes, pos + 7));
+    while (pos < length) {
+      pos = parser.skipWhitespaceAt(pos);
+      if (pos >= length) break;
+      if (parser.keywordAt(pos, 'trailer')) {
+        final trailerObject = parser.parseAt(parser.skipWhitespaceAt(pos + 7));
         if (trailerObject is PdfDictionary) trailer = trailerObject;
 
         return trailer;
       }
 
-      final first = _readIntAt(bytes, pos);
+      final first = parser.readIntAt(pos);
       if (first == null) break;
 
-      pos = _skipWhitespace(bytes, _intEnd(bytes, pos));
-      final count = _readIntAt(bytes, pos);
+      pos = parser.skipWhitespaceAt(parser.intEndAt(pos));
+      final count = parser.readIntAt(pos);
       if (count == null || count < 0) break;
 
-      pos = _skipWhitespace(bytes, _intEnd(bytes, pos));
+      pos = parser.skipWhitespaceAt(parser.intEndAt(pos));
 
       for (var i = 0; i < count; i++) {
-        final entryOffset = _readIntAt(bytes, pos);
+        final entryOffset = parser.readIntAt(pos);
         if (entryOffset == null) break;
 
-        final afterOffset = _skipWhitespace(bytes, _intEnd(bytes, pos));
-        final generation = _readIntAt(bytes, afterOffset);
+        final afterOffset = parser.skipWhitespaceAt(parser.intEndAt(pos));
+        final generation = parser.readIntAt(afterOffset);
         if (generation == null) break;
 
-        final afterGeneration = _skipWhitespace(bytes, _intEnd(bytes, afterOffset));
-        if (afterGeneration >= bytes.length) break;
+        final afterGeneration = parser.skipWhitespaceAt(parser.intEndAt(afterOffset));
+        if (afterGeneration >= length) break;
 
-        final type = bytes[afterGeneration];
-        pos = _skipWhitespace(bytes, afterGeneration + 1);
+        final type = parser.byteAt(afterGeneration);
+        pos = parser.skipWhitespaceAt(afterGeneration + 1);
 
         final number = first + i;
         if (type == 0x6E && !entries.containsKey(number)) {
@@ -569,9 +581,12 @@ class PdfDocument {
     return dictionary;
   }
 
-  static int? _startXrefOffset(final Uint8List bytes) {
+  static int? _startXrefOffset(final PdfByteSource source) {
     // Search from the tail; %%EOF may repeat in incremental updates.
-    final tail = bytes.length < 2048 ? bytes : Uint8List.sublistView(bytes, bytes.length - 2048);
+    // One bounded read covers the whole tail window.
+    final length = source.length;
+    final tailLength = length < 2048 ? length : 2048;
+    final tail = source.read(length - tailLength, tailLength);
     for (var i = tail.length - 9; i >= 0; i--) {
       if (!_keywordAt(tail, i, 'startxref')) continue;
 
@@ -587,27 +602,29 @@ class PdfDocument {
   /// is broken: collects every `num gen obj` header (the last
   /// occurrence of a number wins — incremental updates append newer
   /// revisions). Stream payloads can hold look-alike byte runs; the
-  /// entries stay unvalidated until [object] parses them.
-  static void _scanObjects(final Uint8List bytes, final Map<int, _XrefEntry> entries) {
+  /// entries stay unvalidated until [object] parses them. The scan
+  /// walks the source once through the parser's read window.
+  static void _scanObjects(final PdfObjectParser parser, final Map<int, _XrefEntry> entries) {
+    final length = parser.byteLength;
     var pos = 0;
-    while (pos < bytes.length) {
-      final number = _readIntAt(bytes, pos);
+    while (pos < length) {
+      final number = parser.readIntAt(pos);
       if (number == null) {
         pos++;
 
         continue;
       }
 
-      final cursor0 = _skipWhitespace(bytes, _intEnd(bytes, pos));
-      final generation = _readIntAt(bytes, cursor0);
+      final cursor0 = parser.skipWhitespaceAt(parser.intEndAt(pos));
+      final generation = parser.readIntAt(cursor0);
       if (generation == null) {
         pos++;
 
         continue;
       }
 
-      final cursor = _skipWhitespace(bytes, _intEnd(bytes, cursor0));
-      if (_keywordAt(bytes, cursor, 'obj') && _atDelimiter(bytes, cursor + 3)) {
+      final cursor = parser.skipWhitespaceAt(parser.intEndAt(cursor0));
+      if (parser.keywordAt(cursor, 'obj') && _atDelimiter(parser, cursor + 3)) {
         entries[number] = _OffsetEntry(pos);
         pos = cursor + 3;
         continue;
@@ -620,14 +637,13 @@ class PdfDocument {
   /// Finds the first `trailer` dictionary carrying `/Root`; broken
   /// files may emit several.
   static PdfDictionary? _scanForTrailer(final PdfObjectParser parser) {
-    final bytes = parser.bytes;
     var searchFrom = 0;
     PdfDictionary? found;
     while (found == null) {
-      final at = _findKeyword(bytes, 'trailer', searchFrom);
+      final at = parser.findKeyword('trailer', searchFrom);
       if (at < 0) break;
 
-      final candidate = parser.parseAt(_skipWhitespace(bytes, at + 7));
+      final candidate = parser.parseAt(parser.skipWhitespaceAt(at + 7));
       if (candidate is PdfDictionary && candidate.containsKey('Root')) found = candidate;
       searchFrom = at + 7;
     }
@@ -635,23 +651,15 @@ class PdfDocument {
     return found;
   }
 
-  static bool _atDelimiter(final Uint8List bytes, final int pos) {
-    if (pos >= bytes.length) return true;
+  static bool _atDelimiter(final PdfObjectParser parser, final int pos) {
+    if (pos >= parser.byteLength) return true;
 
-    final byte = bytes[pos];
+    final byte = parser.byteAt(pos);
     if (byte == 0 || byte == 0x09 || byte == 0x0A || byte == 0x0C || byte == 0x0D || byte == 0x20) {
       return true;
     }
 
     return byte == 0x3C || byte == 0x28 || byte == 0x2F || byte == 0x5B;
-  }
-
-  static int _findKeyword(final Uint8List bytes, final String keyword, final int from) {
-    for (var pos = from; pos + keyword.length <= bytes.length; pos++) {
-      if (_keywordAt(bytes, pos, keyword)) return pos;
-    }
-
-    return -1;
   }
 
   static bool _keywordAt(final Uint8List bytes, final int offset, final String keyword) {

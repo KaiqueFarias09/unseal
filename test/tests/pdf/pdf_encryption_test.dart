@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 import 'package:unseal/src/features/pdf/header/pdf_document.dart';
 import 'package:unseal/src/features/pdf/header/pdf_object.dart';
+import 'package:unseal/src/features/pdf/reader/pdf_byte_source.dart';
 import 'package:unseal/unseal.dart';
 
 import 'pdf_fixture_builder.dart';
@@ -79,7 +80,10 @@ void main() {
 
     test('the correct owner password opens user-password documents', () {
       for (final name in ['r3-rc4-128.pdf', 'r4-aes128.pdf', 'r6.pdf']) {
-        final document = PdfDocument.parse(fixture(name), password: ownerPassword);
+        final document = PdfDocument.parse(
+          MemoryPdfByteSource(fixture(name)),
+          password: ownerPassword,
+        );
 
         expect(document.security, isNotNull);
         expect(document.security!.isOwnerAuthenticated, isTrue);
@@ -161,7 +165,10 @@ void main() {
 
   group('PDF encryption (real-world fixture)', () {
     test('pdf.js pr6531_1.pdf opens with its documented password', () {
-      final document = PdfDocument.parse(fixture('pr6531_1.pdf'), password: 'asdfasdf');
+      final document = PdfDocument.parse(
+        MemoryPdfByteSource(fixture('pr6531_1.pdf')),
+        password: 'asdfasdf',
+      );
       final book = parsePdfBook(fixture('pr6531_1.pdf'), password: 'asdfasdf');
 
       expect(book.pageCount, 1);

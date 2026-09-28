@@ -8,6 +8,7 @@ import 'package:unseal/src/features/pdf/codec/pdf_stream_decoder.dart';
 import 'package:unseal/src/features/pdf/header/pdf_document.dart';
 import 'package:unseal/src/features/pdf/header/pdf_object.dart';
 import 'package:unseal/src/features/pdf/image/pdf_bitmap.dart';
+import 'package:unseal/src/features/pdf/reader/pdf_byte_source.dart';
 import 'package:unseal/unseal.dart';
 
 /// JBIG2Decode, the pure-Dart port of pdf.js's Jbig2Image, checked
@@ -115,7 +116,7 @@ void main() {
 
     test('renders the decode to a valid grayscale PNG', () {
       final bytes = File('test/resources/pdf/jbig2/jbig2_symbol_offset.pdf').readAsBytesSync();
-      final document = PdfDocument.parse(bytes);
+      final document = PdfDocument.parse(MemoryPdfByteSource(bytes));
       final stream = document.resolve(PdfIndirectRef(6, 0)) as PdfStream;
       final packed = decodePdfStream(stream, document.resolve);
       final png = PdfBitmap.fromPacked(width: 132, height: 14, packed: packed).toPngBytes();
@@ -146,7 +147,7 @@ void main() {
   group('JBIG2Decode robustness', () {
     test('reports corruption as PdfException instead of crashing', () {
       final bytes = File('test/resources/pdf/jbig2/jbig2_symbol_offset.pdf').readAsBytesSync();
-      final document = PdfDocument.parse(bytes);
+      final document = PdfDocument.parse(MemoryPdfByteSource(bytes));
       final stream = document.resolve(PdfIndirectRef(6, 0)) as PdfStream;
       final payload = stream.bytes;
 
@@ -182,7 +183,7 @@ void main() {
 
     test('survives pseudo-random byte mutations without crashing', () {
       final bytes = File('test/resources/pdf/jbig2/jbig2_symbol_offset.pdf').readAsBytesSync();
-      final document = PdfDocument.parse(bytes);
+      final document = PdfDocument.parse(MemoryPdfByteSource(bytes));
       final stream = document.resolve(PdfIndirectRef(6, 0)) as PdfStream;
       final random = Random(20260906);
       for (var trial = 0; trial < 32; trial++) {
@@ -203,8 +204,9 @@ void main() {
 
 const _pngSignature = <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
-PdfDocument _document(final String name) =>
-    PdfDocument.parse(File('test/resources/pdf/jbig2/$name').readAsBytesSync());
+PdfDocument _document(final String name) => PdfDocument.parse(
+  MemoryPdfByteSource(File('test/resources/pdf/jbig2/$name').readAsBytesSync()),
+);
 
 Uint8List _globalsBytes(final PdfDocument document, final int objectNumber) {
   final stream = document.resolve(PdfIndirectRef(objectNumber, 0)) as PdfStream;

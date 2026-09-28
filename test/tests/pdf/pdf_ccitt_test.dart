@@ -7,6 +7,7 @@ import 'package:unseal/src/features/pdf/codec/pdf_stream_decoder.dart';
 import 'package:unseal/src/features/pdf/header/pdf_document.dart';
 import 'package:unseal/src/features/pdf/header/pdf_object.dart';
 import 'package:unseal/src/features/pdf/image/pdf_bitmap.dart';
+import 'package:unseal/src/features/pdf/reader/pdf_byte_source.dart';
 import 'package:unseal/src/features/pdf/reader/pdf_content_stream.dart';
 import 'package:unseal/src/features/pdf/reader/pdf_page_tree.dart';
 
@@ -35,7 +36,7 @@ void main() {
         decodeParms: '<< /K 0 /Columns 10 /Rows 2 >>',
         data: Uint8List.fromList([135, 16, 224]),
       );
-      final document = PdfDocument.parse(bytes);
+      final document = PdfDocument.parse(MemoryPdfByteSource(bytes));
       final stream = document.resolve(const PdfIndirectRef(6, 0)) as PdfStream;
       final packed = decodePdfStream(stream, document.resolve);
       // pdf.js oracle bytes: row 1 plus row 2's first byte (the EOF
@@ -71,7 +72,7 @@ void main() {
         decodeParms: '<< /K 1 /Columns 10 /Rows 2 >>',
         data: Uint8List.fromList([67, 143]),
       );
-      final document = PdfDocument.parse(bytes);
+      final document = PdfDocument.parse(MemoryPdfByteSource(bytes));
       final stream = document.resolve(const PdfIndirectRef(6, 0)) as PdfStream;
       final packed = decodePdfStream(stream, document.resolve);
       // pdf.js oracle bytes, row-aligned (0 = black convention).
@@ -122,7 +123,7 @@ void main() {
         decodeParms: '<< /K -1 /Columns 10 /Rows 1 >>',
         data: Uint8List.fromList([48, 224, 0, 64, 4]),
       );
-      final document = PdfDocument.parse(bytes);
+      final document = PdfDocument.parse(MemoryPdfByteSource(bytes));
       final stream = document.resolve(const PdfIndirectRef(6, 0)) as PdfStream;
       final packed = decodePdfStream(stream, document.resolve);
       // pdf.js oracle bytes, row-aligned (0 = black convention).
@@ -217,7 +218,7 @@ void main() {
         data: Uint8List.fromList([48, 224, 0, 64, 4]),
         extraObjects: {8: '<< /K -1 /Columns 10 /Rows 1 >>'},
       );
-      final document = PdfDocument.parse(bytes);
+      final document = PdfDocument.parse(MemoryPdfByteSource(bytes));
       final stream = document.resolve(const PdfIndirectRef(6, 0)) as PdfStream;
       final packed = decodePdfStream(stream, document.resolve);
       expect(packed, hasLength(3));
@@ -229,7 +230,7 @@ void main() {
     for (final name in _placedImageFixtures.keys) {
       test('decodes every CCITT image drawn in $name', () {
         final bytes = _fixtureBytes(name);
-        final document = PdfDocument.parse(bytes);
+        final document = PdfDocument.parse(MemoryPdfByteSource(bytes));
         final captured = <int, Uint8List>{};
         final extractor = PdfTextExtractor(document);
         for (final page in PdfPageTree.parse(document)) {
@@ -255,7 +256,7 @@ void main() {
 
     test('fixture images decode to their dictionary dimensions', () {
       for (final name in _resourceFixtureDims.keys) {
-        final document = PdfDocument.parse(_fixtureBytes(name));
+        final document = PdfDocument.parse(MemoryPdfByteSource(_fixtureBytes(name)));
         final xobjects = _resourceImages(document);
         expect(xobjects, isNotEmpty, reason: '$name should carry image XObjects');
         for (final entry in xobjects.entries) {
