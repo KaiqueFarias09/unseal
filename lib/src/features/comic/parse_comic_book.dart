@@ -6,12 +6,12 @@ import '../../foundation/archive/archive_access.dart';
 import '../../foundation/entities/entities.dart';
 import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';
+import 'archive/rar4_method29_decoder.dart';
 import 'entities/entities.dart';
 import 'exceptions/exceptions.dart';
 import 'metadata/comic_info.dart';
 import 'natural_page_sort.dart';
 
-part 'archive/rar4_decoder.dart';
 part 'archive/rar_reader.dart';
 
 /// A comic page candidate extracted from an archive.

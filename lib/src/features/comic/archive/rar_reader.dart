@@ -149,7 +149,7 @@ Uint8List _decodeRar4Entry(
   if (flags & 0x0017 != 0) return Uint8List(0);
 
   try {
-    return _decodeRar4Method29(packed, unpackedSize);
+    return decodeRar4Method29(packed, unpackedSize);
   } on FormatException {
     return Uint8List(0);
   }

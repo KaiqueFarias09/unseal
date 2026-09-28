@@ -1,11 +1,15 @@
-part of '../parse_comic_book.dart';
+import 'dart:typed_data';
 
 /// Decodes the classic RAR 2.9/3.x compression stream used by RAR 4 files.
 ///
 /// This covers the non-solid LZSS/Huffman stream used by ordinary CBR files. RAR VM filters and
 /// PPMd blocks remain unsupported and are reported as a compressed entry that the comic parser
 /// cannot decode.
-Uint8List _decodeRar4Method29(final Uint8List packed, final int unpackedSize) {
+///
+/// Shared by the eager reader (a `part` of the comic parser) and the session's random-access
+/// reader. The output is bounded by [unpackedSize] — the decoder refuses matches that would run
+/// past it — which is the RAR counterpart of the zip path's bounded output stream.
+Uint8List decodeRar4Method29(final Uint8List packed, final int unpackedSize) {
   if (unpackedSize < 0) throw const FormatException('Invalid RAR4 output size.');
   if (unpackedSize == 0) return Uint8List(0);
 
