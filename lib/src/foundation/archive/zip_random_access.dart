@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 
 import '../exceptions/unseal_exception.dart';
 import 'archive_access.dart';
+import 'archive_random_access.dart';
 import 'bounded_output_stream.dart';
 import 'zip_byte_source.dart';
 
@@ -18,7 +19,7 @@ final class Zip64NotSupportedException extends UnsealException {
 
 /// One central-directory record: everything needed to inflate a single
 /// entry later without touching any other entry.
-final class ZipEntryRecord {
+final class ZipEntryRecord implements ArchiveEntry {
   const ZipEntryRecord._({
     required this.name,
     required this.isFile,
@@ -30,9 +31,11 @@ final class ZipEntryRecord {
   });
 
   /// Archive path as stored in the container.
+  @override
   final String name;
 
   /// Whether the record carries a payload (directories do not).
+  @override
   final bool isFile;
 
   /// 0 = stored, 8 = deflate; other methods are rejected at open.
@@ -46,6 +49,7 @@ final class ZipEntryRecord {
   final int compressedSize;
 
   /// Declared uncompressed size from the central directory.
+  @override
   final int uncompressedSize;
 
   /// File offset of the entry's local header.
@@ -66,7 +70,7 @@ final class ZipEntryRecord {
 /// Entries are inflated one at a time from freshly read compressed
 /// slices, so implementations of [ZipByteSource] never need more than
 /// one entry's worth of resident payload.
-final class ZipRandomAccess {
+final class ZipRandomAccess implements ArchiveRandomAccess {
   ZipRandomAccess._(this._source, this._records) : _byLowerPath = _indexByLowerPath(_records);
 
   final ZipByteSource _source;
@@ -84,6 +88,7 @@ final class ZipRandomAccess {
 
   /// Every central-directory record in container order, directories
   /// included (with [ZipEntryRecord.isFile] false).
+  @override
   List<ZipEntryRecord> get entries => List.unmodifiable(_records);
 
   /// Declared uncompressed total across all records.
@@ -93,6 +98,7 @@ final class ZipRandomAccess {
   /// Finds an entry by [entryPath] with the same matching preference as
   /// `findArchiveFile`: the first record with an exact or normalized
   /// case-insensitive path match wins.
+  @override
   ZipEntryRecord? find(final String entryPath) {
     final normalized = normalizeZipPath(entryPath);
     if (normalized.isEmpty) return null;
@@ -106,7 +112,8 @@ final class ZipRandomAccess {
   /// Inflates one entry, bounded by [maxBytes] (default: the entry's
   /// declared size capped at [maxZipEntryUncompressedBytes]), verifying
   /// the declared CRC. Missing entries surface through [find].
-  Uint8List inflate(final ZipEntryRecord entry, {final int? maxBytes}) {
+  @override
+  Uint8List inflate(covariant final ZipEntryRecord entry, {final int? maxBytes}) {
     final limit = math.min(maxBytes ?? maxZipEntryUncompressedBytes, maxZipEntryUncompressedBytes);
     final compressed = _readCompressedSlice(entry);
 
@@ -136,7 +143,8 @@ final class ZipRandomAccess {
   /// many as the entry yields — enough for content sniffing without
   /// materializing the payload. Never throws for truncated deflate
   /// input: a partial prefix is a valid answer.
-  Uint8List head(final ZipEntryRecord entry, final int byteCount) {
+  @override
+  Uint8List head(covariant final ZipEntryRecord entry, final int byteCount) {
     if (entry.compressionMethod != _deflateMethod) {
       final compressed = _readCompressedSlice(entry);
 
@@ -158,6 +166,7 @@ final class ZipRandomAccess {
   }
 
   /// Releases the underlying byte source.
+  @override
   void close() => _source.close();
 
   Uint8List _readCompressedSlice(final ZipEntryRecord entry, {final int? capBytes}) {
