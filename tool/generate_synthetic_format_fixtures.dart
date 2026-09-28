@@ -328,7 +328,8 @@ Map<String, Uint8List> buildFxlEpubFixtures() {
     'fxl-spread-hints.epub': _epub(
       slug: 'spread-hints',
       title: 'unseal FXL Spread Hints Fixture',
-      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>'
+      renditionMetadata:
+          '<meta property="rendition:layout">pre-paginated</meta>'
           '<meta property="rendition:spread">both</meta>',
       content: [
         for (var page = 1; page <= 5; page++)
@@ -345,7 +346,8 @@ Map<String, Uint8List> buildFxlEpubFixtures() {
     'fxl-spread-portrait.epub': _epub(
       slug: 'spread-portrait',
       title: 'unseal FXL Portrait Spread Fixture',
-      renditionMetadata: '<meta property="rendition:layout">pre-paginated</meta>'
+      renditionMetadata:
+          '<meta property="rendition:layout">pre-paginated</meta>'
           '<meta property="rendition:spread">portrait</meta>',
       content: [
         for (var page = 1; page <= 4; page++)

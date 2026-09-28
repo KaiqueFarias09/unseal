@@ -27,8 +27,10 @@ Future<(SessionTransport, Book)> openSessionTransport({
   if (path != null) throw UnsupportedError('Opening a book from a path is not supported on web');
 
   final client = WorkerClient.instance;
-  final header = await client.sessionOpenInWorker(bytes!, policy: policy);
-  if (header != null) return (_WorkerSessionTransport(client), header);
+  final opened = await client.sessionOpenInWorker(bytes!, policy: policy);
+  if (opened != null) {
+    return (_WorkerSessionTransport(client, opened.sessionId), opened.book);
+  }
 
   final engine = SessionEngine.openBytes(bytes, policy: policy);
 
@@ -41,9 +43,10 @@ Future<(SessionTransport, Book)> openSessionTransport({
 /// request this transport has not yet observed completes typed when
 /// [dispose] or [cancelPending] lands, like the isolate transport.
 final class _WorkerSessionTransport implements SessionTransport {
-  _WorkerSessionTransport(this._client);
+  _WorkerSessionTransport(this._client, this._sessionId);
 
   final WorkerClient _client;
+  final int _sessionId;
   var _disposed = false;
   var _nextRequest = 0;
   final Map<int, void Function(UnsealException error)> _pending =
@@ -84,22 +87,22 @@ final class _WorkerSessionTransport implements SessionTransport {
 
   @override
   Future<Uint8List?> resource(final String path) {
-    return _dispatch(() => _client.sessionResourceInWorker(path));
+    return _dispatch(() => _client.sessionResourceInWorker(_sessionId, path));
   }
 
   @override
   Future<Map<String, Uint8List>> resources(final Set<String> paths) {
-    return _dispatch(() => _client.sessionResourcesInWorker(paths));
+    return _dispatch(() => _client.sessionResourcesInWorker(_sessionId, paths));
   }
 
   @override
   Future<String?> documentText(final String path) {
-    return _dispatch(() => _client.sessionTextInWorker(path));
+    return _dispatch(() => _client.sessionTextInWorker(_sessionId, path));
   }
 
   @override
   Future<String?> documentSource(final String path) {
-    return _dispatch(() => _client.sessionSourceInWorker(path));
+    return _dispatch(() => _client.sessionSourceInWorker(_sessionId, path));
   }
 
   @override
@@ -114,6 +117,7 @@ final class _WorkerSessionTransport implements SessionTransport {
   }) {
     return _dispatch(
       () => _client.sessionSearchInWorker(
+        _sessionId,
         query,
         mode: mode,
         isCaseSensitive: isCaseSensitive,
@@ -126,20 +130,26 @@ final class _WorkerSessionTransport implements SessionTransport {
   }
 
   @override
-  Future<BookProgression> computeProgression() => _dispatch(_client.sessionProgressionInWorker);
+  Future<BookProgression> computeProgression() =>
+      _dispatch(() => _client.sessionProgressionInWorker(_sessionId));
 
   @override
-  Future<BookStatistics> computeStatistics() => _dispatch(_client.sessionStatisticsInWorker);
+  Future<BookStatistics> computeStatistics() =>
+      _dispatch(() => _client.sessionStatisticsInWorker(_sessionId));
 
   @override
   Future<EpubCfiLocation?> resolveCfi(final String cfi) {
-    return _dispatch(() => _client.sessionResolveCfiInWorker(cfi));
+    return _dispatch(() => _client.sessionResolveCfiInWorker(_sessionId, cfi));
   }
 
   @override
   Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) {
     return _dispatch(
-      () => _client.sessionBuildCfiInWorker(contentIndex: contentIndex, offsetInText: offsetInText),
+      () => _client.sessionBuildCfiInWorker(
+        sessionId: _sessionId,
+        contentIndex: contentIndex,
+        offsetInText: offsetInText,
+      ),
     );
   }
 
@@ -151,7 +161,7 @@ final class _WorkerSessionTransport implements SessionTransport {
     if (_disposed) return;
 
     _disposed = true;
-    _client.sessionDisposeInWorker();
+    _client.sessionDisposeInWorker(_sessionId);
     _drain(const SessionClosedException());
   }
 }

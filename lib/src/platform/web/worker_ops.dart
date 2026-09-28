@@ -18,23 +18,22 @@ import 'wire/book_components_wire.dart';
 
 /// Runs one worker op against the request [bytes], the
 /// [residentBook] left behind by the last successful parse and the
-/// [residentSession] left behind by the last successful
-/// [workerOpSessionOpen], producing the reply the worker shell posts
-/// back: the reply kind, its JSON half, the blob list the JSON
-/// references and the session the shell must keep resident (the
-/// freshly opened engine of a `sessionOpen`, null for every other
-/// op).
+/// [residentSession] selected by the request's session ID, producing
+/// the reply the worker shell posts back: the reply kind, its JSON half,
+/// the blob list the JSON references and the session the shell must
+/// keep resident (the freshly opened engine of a `sessionOpen`, null
+/// for every other op).
 ///
 /// Pure and VM-testable: no browser types, no message channel — the
 /// shell in `web/unseal_worker.dart` only unwraps the incoming
 /// message, calls this and wraps the result.
 ///
-/// `parse` / `metadata` / `sessionOpen` read [bytes]; `search`,
-/// `cfiResolve`, `cfiBuild` and every `session*` op read [payload]
-/// (see the `wireKey*` payload keys) and act on the resident book or
-/// session, throwing [UnsealException] (the session ops
-/// [SessionClosedException]) when nothing is resident or the resident
-/// state cannot serve the op. Unknown ops throw [UnsealException]; a
+/// `parse` / `metadata` / `sessionOpen` read [bytes]; `sessionOpen`
+/// also reads its policy payload. `search`, `cfiResolve`, `cfiBuild`
+/// and later `session*` ops read [payload] (see the `wireKey*` keys)
+/// and act on the resident book or selected session, throwing
+/// [UnsealException] (the session ops [SessionClosedException]) when
+/// nothing is resident or the state cannot serve the op. Unknown ops throw [UnsealException]; a
 /// bad [SearchMode.regex] pattern or proximity query surfaces as
 /// [FormatException] untouched, so the error reply keeps the exception
 /// type.
@@ -170,9 +169,9 @@ import 'wire/book_components_wire.dart';
       coverMaxBytes: (payload?[wireKeyCoverMaxBytes] as int?) ?? defaults.coverMaxBytes,
     ),
   );
-  // A fresh open replaces the prior session; closing only after the
-  // new container parsed keeps a failed open from destroying the
-  // session that was still serving.
+  // A fresh open replaces only the session selected by this request;
+  // closing only after the new container parsed keeps a failed open
+  // from destroying the session that was still serving.
   residentSession?.close();
 
   final (json, blobs) = encodeSessionHeaderWire(session.book);

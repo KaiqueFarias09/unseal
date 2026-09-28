@@ -24,6 +24,8 @@ import 'comic_session_header.dart';
 import 'epub_session_header.dart';
 import 'session_policy.dart';
 
+const _sessionFormatProbeBytes = 1024;
+
 /// Parses a book's structure up front and serves its content on demand.
 ///
 /// The engine is pure and synchronous: it owns a [ZipRandomAccess]
@@ -47,7 +49,7 @@ final class SessionEngine {
     if (bytes.isEmpty) throw EmptyBytesException();
 
     final detected = detectFormat(bytes);
-    if (detected != DetectedFormat.epub && detected != DetectedFormat.comic) {
+    if (detected != DetectedFormat.epub) {
       throw SessionUnsupportedFormatException(
         'The ${detected.name} format has no progressive session support; '
         'open it with Unseal.read instead.',
@@ -59,16 +61,52 @@ final class SessionEngine {
     return _openSource(source, detected, policy);
   }
 
-  /// Opens an already built random-access byte source (file-backed on
-  /// the VM). The caller owns detection for bytes-less sources: this
-  /// entry point assumes a zip container and classifies EPUB vs comic
-  /// from the inventory. Container-level guard failures (including
-  /// [Zip64NotSupportedException]) surface from here.
+  /// Opens a random-access byte source (file-backed on the VM). A
+  /// bounded prefix rejects formats that are not ZIP containers; the
+  /// inventory then distinguishes EPUB from comics. Container-level
+  /// guard failures (including [Zip64NotSupportedException]) surface
+  /// from here.
   factory SessionEngine.openSource(
     final ZipByteSource source, {
     final SessionPolicy policy = const SessionPolicy(),
   }) {
-    return _openSource(ZipRandomAccess.open(source), null, policy);
+    if (source.length == 0) {
+      source.close();
+      throw EmptyBytesException();
+    }
+
+    final prefixLength = source.length < _sessionFormatProbeBytes
+        ? source.length
+        : _sessionFormatProbeBytes;
+    final DetectedFormat detected;
+    try {
+      detected = detectFormat(source.read(0, prefixLength));
+    } on FormatNotSupportedException {
+      source.close();
+      throw const SessionUnsupportedFormatException(
+        'This format has no progressive session support; open it with Unseal.readFile instead.',
+      );
+    } on Object {
+      source.close();
+      rethrow;
+    }
+
+    if (detected != DetectedFormat.epub) {
+      source.close();
+      throw SessionUnsupportedFormatException(
+        'The ${detected.name} format has no progressive session support; '
+        'open it with Unseal.readFile instead.',
+      );
+    }
+
+    try {
+      final archive = ZipRandomAccess.open(source);
+
+      return _openSource(archive, detected, policy);
+    } on Object {
+      source.close();
+      rethrow;
+    }
   }
 
   /// The header book: complete structure, empty content. A concrete

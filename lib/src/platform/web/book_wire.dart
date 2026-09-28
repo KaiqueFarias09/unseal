@@ -28,7 +28,7 @@ const String workerOpCfiResolve = 'cfiResolve';
 const String workerOpCfiBuild = 'cfiBuild';
 
 /// Wire protocol op: open a progressive session over the request
-/// bytes; replaces any session open before it.
+/// bytes under its request-scoped session identifier.
 const String workerOpSessionOpen = 'sessionOpen';
 
 /// Wire protocol op: inflate one container entry of the resident
@@ -65,8 +65,8 @@ const String workerOpSessionCfiResolve = 'sessionCfiResolve';
 /// resident session.
 const String workerOpSessionCfiBuild = 'sessionCfiBuild';
 
-/// Wire protocol op: end the resident session; later session ops fail
-/// typed until the next [workerOpSessionOpen].
+/// Wire protocol op: end only the session identified by the request
+/// payload. Later ops with that ID fail typed; other sessions stay live.
 const String workerOpSessionDispose = 'sessionDispose';
 
 /// Wire protocol reply kind: a decoded book.
@@ -140,6 +140,10 @@ const String wireKeyBytes = 'bytes';
 /// read their arguments from; carried next to [wireKeyBytes], either
 /// side may be absent.
 const String wireKeyPayload = 'payload';
+
+/// Session op payload key: identifies the independent progressive
+/// session addressed by this request.
+const String wireKeySessionId = 'sessionId';
 
 /// Wire protocol key: reply discriminator.
 const String wireKeyKind = 'kind';

@@ -1,23 +1,25 @@
 # Measurement harness notes — progressive-reading A/B
 
 Handoff record for the benchmark harness built for the frozen metrics
-contract in [design.md](design.md) section 6. Everything below was
-smoke-verified on 2026-09-26; no heavy campaign was started from this
-session (a parallel compilation was running).
+contract in [design.md](design.md) section 6. The original probe was
+smoke-verified on 2026-09-26; its session modes were subsequently
+implemented and the campaign results are in
+[the A/B report](ab-report-2026-09-26.md). The descriptions below reflect
+the current harness, while the caveats record issues found during setup.
 
 ## Files
 
-Unseal (`/Volumes/SSD/Projects/eLivre`):
+Unseal checkout:
 
 | File | Role |
 | --- | --- |
 | `tool/large_fixture_kit.dart` | Shared kit: SplitMix64 PRNG, incompressible-noise PNG encoder (hand-built IHDR/IDAT/IEND), reproducible zip writer (stored `mimetype` first, deflate rest, pinned mtimes), seeded English word-bag prose. |
 | `tool/generate_large_epub.dart` | `reflowable` (300 × ~40 KB chapters, 1 CSS, 20 × ~787 KB PNGs, EPUB 3 OPF + nav + NCX), `fxl` (60 pages, viewport 1200×1700, `layout-pre-paginated` manifest properties + `rendition:layout` OPF metadata, 60 × ~397 KB PNGs), `all`. Flags: `--out=<dir>` (default `build/fixtures/`), `--verify` (re-parses through `Unseal.parse`, checks reading order + PNG header round-trip). Prints a manifest JSON. |
 | `tool/generate_large_cbz.dart` | 160 PNG pages ~507 KB each, `page-001.png…` + `ComicInfo.xml`. `--pages=<n>`, `--out=`, `--verify`. |
-| `tool/progressive_bench.dart` | Per-process open probe. Modes now: `parse-sync`, `read-isolate`, `read-file-isolate`. Session stubs: `session-header`, `session-first-content` (throw `UnimplementedError`, exit 69). |
+| `tool/progressive_bench.dart` | Per-process open probe with `parse-sync`, `read-isolate`, `read-file-isolate`, `session-header`, and `session-first-content` modes. |
 | `tool/progressive_bench_sweep.dart` | Serial sweep driver: one fresh child process per (book, mode, repetition), mode order rotated per repetition (A/B alternation), aggregates median/p90/min/max per (book, mode). |
 
-Grimoire (`/Volumes/SSD/Projects/e_livre_viewer`):
+Grimoire checkout:
 
 | File | Role |
 | --- | --- |
@@ -94,31 +96,21 @@ Fixture manifest (generator stdout): `{schemaVersion, kind:
 "large-fixture-manifest", seed, files: [{path, bytes, chapters|pages,
 images, verification?}]}`.
 
-## Extension points the parent agent must fill (session modes)
+## Session modes and reader integration
 
-All in `tool/progressive_bench.dart`:
+`session-header` measures `BookSession.open`; `session-first-content`
+also fetches the first document and linked resources. Both use the
+session header for structure fields rather than parsing the book a
+second time. The Grimoire probe chooses full parse or `BookSession`
+with `E2E_OPEN_BOOK_MODE`; both variants retain the same post-layout
+page signal. The VM sweep with five repetitions is stored outside Git
+as `unseal-ab-session.json` under the campaign artifact root.
 
-1. `_openSession(...)` — replace the `UnimplementedError` throw:
-   - `session-header`: time `BookSession.open(bytes, password: …)`
-     into `t_open_ms`; leave `t_first_content_ms` null.
-   - `session-first-content`: after the header, load the first-page
-     content recipe (first spine item document + the CSS files it
-     links) via `session.loadResources([...])`; time that span into
-     `t_first_content_ms` (header time stays in `t_open_ms`).
-2. Structure fields: read `readingOrderLength` /
-   `declaredUncompressedBytes` from `session.book` (the header), NOT a
-   second parse — restructure `_inspectStructure` to accept it (see the
-   TODO in `_openSession` / `_inspectStructure` doc comments).
-3. RSS sampling stays valid as long as the session's worker/isolate is
-   spawned inside the measured window; keep the record fields identical
-   so the sweep needs no changes.
-4. Then sweep them: `dart run tool/progressive_bench_sweep.dart --mode=session-header
-   --mode=session-first-content …` already aggregates their exit-69
-   runs as `unimplemented`; once implemented they aggregate as `ok`.
-   In Grimoire, `e2e_open_probe_test.dart`'s open step
-   (`Unseal.read`) is the session insertion point
-   (`BookSession.openFile` / controller session wiring) — keep the
-   first-post-layout-report signal untouched.
+`rss_delta_mb` in a probe or reader JSON is the difference between two
+samples, **not peak RSS**. The original external reader sampler did not
+save its computed peak. The corrected macOS sampler and run instructions
+are in Grimoire's `tool/sample_app_peak_rss_macos.sh` and
+`tool/measure_open_device.md`; the peak-memory A/B must be repeated.
 
 ## Measurement caveats found while building this
 

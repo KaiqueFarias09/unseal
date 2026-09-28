@@ -42,7 +42,7 @@ jobs:
       - name: Run VM tests
         run: dart test --exclude-tags fuzz
 
-  # Browser lane: the four `@TestOn('browser')` files under test/web/ are
+  # Browser lane: the `@TestOn('browser')` files under test/web/ are
   # compiled with dart2js and executed in Chrome. ubuntu-latest runners ship
   # Google Chrome preinstalled, which the test runner discovers on PATH.
   chrome:
@@ -62,5 +62,10 @@ jobs:
       - name: Install dependencies
         run: dart pub get --no-example
 
+      - name: Compile worker used by progressive-session browser tests
+        run: dart compile js web/unseal_worker.dart -o test/web/unseal_worker.js
+
       - name: Run browser-only tests in Chrome
-        run: dart test -p chrome test/web/
+        run: |
+          trap 'rm -f test/web/unseal_worker.js test/web/unseal_worker.js.deps test/web/unseal_worker.js.map' EXIT
+          dart test -p chrome test/web/

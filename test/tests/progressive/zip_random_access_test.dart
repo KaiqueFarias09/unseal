@@ -55,6 +55,20 @@ void main() {
       expect(source.find('does/not/exist.xml'), isNull);
     });
 
+    test('case-insensitive duplicate paths select the first archive entry', () {
+      final bytes = _builtZip(<(String, Uint8List)>[
+        ('images/Cover.PNG', Uint8List.fromList(<int>[1])),
+        ('images/cover.png', Uint8List.fromList(<int>[2])),
+      ]);
+      final archive = decodeBookZip(bytes);
+      final expected = findArchiveFile(archive, 'images/cover.png')!;
+      final source = ZipRandomAccess.open(MemoryZipByteSource(bytes));
+      final actual = source.find('images/cover.png')!;
+
+      expect(actual.name, expected.name);
+      expect(source.inflate(actual), contentBytes(expected));
+    });
+
     test('head returns a prefix usable for image sniffing', () {
       final bytes = File(
         'test/resources/books/comic/halfpenny-surprise-1895.cbz',

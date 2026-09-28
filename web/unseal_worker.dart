@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:unseal/src/features/epub/exceptions/empty_bytes_exception.dart';
 import 'package:unseal/src/features/progressive/session_engine.dart';
+import 'package:unseal/src/features/progressive/session_policy.dart';
 import 'package:unseal/src/foundation/entities/book/book.dart';
 import 'package:unseal/src/foundation/exceptions/unseal_exception.dart';
 import 'package:unseal/src/platform/web/book_wire.dart';
@@ -15,10 +16,10 @@ import 'package:web/web.dart' as web;
 /// replaces it.
 Book? _book;
 
-/// The session engine retained from the last successful
-/// `sessionOpen`; the `session*` ops run against it until the next
-/// open replaces it or `sessionDispose` closes it.
-SessionEngine? _session;
+/// Session engines retained by their client-assigned IDs. A session op
+/// can address only the engine associated with its own ID, and dispose
+/// removes only that entry.
+final Map<int, SessionEngine> _sessions = <int, SessionEngine>{};
 
 /// Entry point of the unseal parsing worker.
 ///
@@ -32,8 +33,8 @@ SessionEngine? _session;
 /// The worker answers `parse` (whole book), `metadata` (fast path),
 /// `search`, `cfiResolve` and `cfiBuild` — the last three against the
 /// book kept back from the most recent successful parse — and the
-/// progressive `session*` ops against the engine kept back from the
-/// most recent successful `sessionOpen`. Every reply carries a JSON
+/// progressive `session*` ops against the engine selected by its
+/// `sessionId`. Every reply carries a JSON
 /// wire payload plus the blob list it references (binary bytes and
 /// text strings side by side). Failures travel back as typed errors;
 /// infrastructure failures (script unreachable, worker killed) make
@@ -48,8 +49,9 @@ void _handle(final web.MessageEvent event) {
 
   final id = (data.getProperty(wireKeyId.toJS) as JSNumber).toDartInt;
   final op = (data.getProperty(wireKeyOp.toJS) as JSString).toDart;
-  // `parse` / `metadata` / `sessionOpen` carry bytes and no payload;
-  // the stateful ops carry a payload and no bytes.
+  // `parse` / `metadata` carry bytes and no payload. `sessionOpen`
+  // carries both bytes and its ID/policy payload; later session ops
+  // carry a payload and no bytes.
   final bytes = data.hasProperty(wireKeyBytes.toJS).toDart
       ? (data.getProperty(wireKeyBytes.toJS) as JSUint8Array).toDart
       : null;
@@ -58,12 +60,20 @@ void _handle(final web.MessageEvent event) {
       : null;
 
   try {
+    final rawSessionId = op.startsWith('session') && payload != null
+        ? payload[wireKeySessionId]
+        : null;
+    if (op.startsWith('session') && (rawSessionId is! int || rawSessionId < 0)) {
+      throw const SessionClosedException();
+    }
+    final int? sessionId = rawSessionId is int ? rawSessionId : null;
+
     final reply = runWorkerOp(
       op: op,
       payload: payload,
       bytes: bytes,
       residentBook: _book,
-      residentSession: _session,
+      residentSession: sessionId == null ? null : _sessions[sessionId],
     );
     if (op == workerOpParse) {
       // Retain the freshly parsed book for the stateful ops; the
@@ -73,12 +83,12 @@ void _handle(final web.MessageEvent event) {
       _book = decodeBookWire(reply.json, reply.blobs);
     }
     if (op == workerOpSessionOpen) {
-      // The op already closed the session it replaced; adopt the new
-      // engine it built.
-      _session = reply.session;
+      // The op already closed the engine with this ID, if any; adopt
+      // the new engine without affecting other resident sessions.
+      _sessions[sessionId!] = reply.session!;
     }
     if (op == workerOpSessionDispose) {
-      _session = null;
+      _sessions.remove(sessionId!);
     }
     _reply(id, reply.kind, reply.json, reply.blobs);
   } on EmptyBytesException catch (error) {

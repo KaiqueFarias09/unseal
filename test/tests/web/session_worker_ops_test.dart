@@ -132,10 +132,16 @@ void main() {
     });
 
     test('rejects unsupported formats typed', () {
-      expect(
-        () => runWorkerOp(op: workerOpSessionOpen, bytes: _bytes('books/txt/synthetic.txt')),
-        throwsA(isA<SessionUnsupportedFormatException>()),
-      );
+      for (final fixture in <String>[
+        'books/txt/synthetic.txt',
+        'books/comic/american-beauty-trading-cards-1909.cbr',
+      ]) {
+        expect(
+          () => runWorkerOp(op: workerOpSessionOpen, bytes: _bytes(fixture)),
+          throwsA(isA<SessionUnsupportedFormatException>()),
+          reason: fixture,
+        );
+      }
     });
 
     test('rejects broken containers with the parse failure hierarchy', () {

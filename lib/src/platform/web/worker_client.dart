@@ -24,15 +24,12 @@ import 'book_wire.dart';
 /// as the original [UnsealException] hierarchy, rebuilt through
 /// [decodeErrorWire].
 ///
-/// The worker is stateful along two independent slots: a successful
-/// [parseInWorker] leaves a book resident inside it and
-/// [searchInWorker], [resolveCfiInWorker] and [buildCfiInWorker] run
-/// against that resident book; a successful [sessionOpenInWorker]
-/// leaves a progressive session engine resident and the `session*`
-/// methods run against it until the next open, [dispose] or a
-/// breakage. Session ops cannot fall back inline (the engine holds
-/// the content), so a lost session fails them with the typed
-/// [SessionClosedException] instead of a null result.
+/// The worker keeps a parsed book for [searchInWorker],
+/// [resolveCfiInWorker] and [buildCfiInWorker], plus independently
+/// identified progressive sessions for the `session*` methods. Session
+/// ops cannot fall back inline (the engine holds the content), so a
+/// lost session fails them with the typed [SessionClosedException]
+/// instead of a null result.
 final class WorkerClient {
   WorkerClient._();
 
@@ -43,8 +40,9 @@ final class WorkerClient {
   Uri? _script;
   bool _broken = false;
   bool _residentBook = false;
-  bool _residentSession = false;
   int _nextId = 0;
+  int _nextSessionId = 0;
+  final Set<int> _residentSessions = <int>{};
   final Map<int, Completer<Object?>> _pending = <int, Completer<Object?>>{};
 
   /// Whether a worker script has been configured and not broken.
@@ -67,7 +65,7 @@ final class WorkerClient {
     _script = null;
     _broken = false;
     _residentBook = false;
-    _residentSession = false;
+    _residentSessions.clear();
     _drainPending();
   }
 
@@ -152,31 +150,31 @@ final class WorkerClient {
         as String?;
   }
 
-  /// Opens a progressive session over [bytes] inside the worker;
-  /// `null` means the worker was unavailable and the caller should run
-  /// the engine inline. On success the session header book crosses
-  /// back and the engine stays resident inside the worker, serving the
-  /// session ops until the next open, [dispose] or a breakage. A
-  /// failed open (a broken container) surfaces as the original typed
-  /// error, like [parseInWorker]; the previously resident session
-  /// stays alive in that case.
-  Future<Book?> sessionOpenInWorker(
+  /// Opens an independently identified progressive session over
+  /// [bytes] inside the worker. `null` means the worker was unavailable
+  /// and the caller should run the engine inline. A failed open (a
+  /// broken container) surfaces as the original typed error; other
+  /// resident sessions stay alive.
+  Future<({Book book, int sessionId})?> sessionOpenInWorker(
     final Uint8List bytes, {
     final SessionPolicy policy = const SessionPolicy(),
   }) async {
+    final sessionId = _nextSessionId++;
     final header =
         await _request(
               workerOpSessionOpen,
               bytes: bytes,
               payload: <String, Object?>{
+                wireKeySessionId: sessionId,
                 wireKeyCacheBytes: policy.cacheBytes,
                 wireKeyCoverMaxBytes: policy.coverMaxBytes,
               },
             )
             as Book?;
-    _residentSession = header != null;
+    if (header == null) return null;
+    _residentSessions.add(sessionId);
 
-    return header;
+    return (book: header, sessionId: sessionId);
   }
 
   /// Inflated bytes of one container entry of the resident session;
@@ -185,11 +183,15 @@ final class WorkerClient {
   /// session never opened, ended through
   /// [sessionDisposeInWorker], or the worker broke while the request
   /// was in flight.
-  Future<Uint8List?> sessionResourceInWorker(final String path) async {
-    _ensureResidentSession();
+  Future<Uint8List?> sessionResourceInWorker(final int sessionId, final String path) async {
+    _ensureResidentSession(sessionId);
 
     return _nullOrClosed(
-      await _request(workerOpSessionResource, payload: <String, Object?>{wireKeyPath: path})
+      sessionId,
+      await _request(
+            workerOpSessionResource,
+            payload: _sessionPayload(sessionId, <String, Object?>{wireKeyPath: path}),
+          )
           as Uint8List?,
     );
   }
@@ -197,13 +199,17 @@ final class WorkerClient {
   /// Inflated bytes of several container entries of the resident
   /// session in one round trip; missing paths are omitted. Throws
   /// [SessionClosedException] when no live session is resident.
-  Future<Map<String, Uint8List>> sessionResourcesInWorker(final Set<String> paths) async {
-    _ensureResidentSession();
+  Future<Map<String, Uint8List>> sessionResourcesInWorker(
+    final int sessionId,
+    final Set<String> paths,
+  ) async {
+    _ensureResidentSession(sessionId);
 
     return _requireLive(
+      sessionId,
       await _request(
             workerOpSessionResources,
-            payload: <String, Object?>{wireKeyPaths: paths.toList()},
+            payload: _sessionPayload(sessionId, <String, Object?>{wireKeyPaths: paths.toList()}),
           )
           as Map<String, Uint8List>?,
     );
@@ -212,11 +218,15 @@ final class WorkerClient {
   /// Raw decoded source (markup included) of one content document of
   /// the resident session; `null` when the document does not exist.
   /// Throws [SessionClosedException] when no live session is resident.
-  Future<String?> sessionSourceInWorker(final String path) async {
-    _ensureResidentSession();
+  Future<String?> sessionSourceInWorker(final int sessionId, final String path) async {
+    _ensureResidentSession(sessionId);
 
     return _nullOrClosed(
-      await _request(workerOpSessionSource, payload: <String, Object?>{wireKeyPath: path})
+      sessionId,
+      await _request(
+            workerOpSessionSource,
+            payload: _sessionPayload(sessionId, <String, Object?>{wireKeyPath: path}),
+          )
           as String?,
     );
   }
@@ -224,11 +234,16 @@ final class WorkerClient {
   /// Canonical document text of one content document of the resident
   /// session; `null` when the document does not exist. Throws
   /// [SessionClosedException] when no live session is resident.
-  Future<String?> sessionTextInWorker(final String path) async {
-    _ensureResidentSession();
+  Future<String?> sessionTextInWorker(final int sessionId, final String path) async {
+    _ensureResidentSession(sessionId);
 
     return _nullOrClosed(
-      await _request(workerOpSessionText, payload: <String, Object?>{wireKeyPath: path}) as String?,
+      sessionId,
+      await _request(
+            workerOpSessionText,
+            payload: _sessionPayload(sessionId, <String, Object?>{wireKeyPath: path}),
+          )
+          as String?,
     );
   }
 
@@ -236,6 +251,7 @@ final class WorkerClient {
   /// `BookSearch.search` contract and defaults. Throws
   /// [SessionClosedException] when no live session is resident.
   Future<SearchResults> sessionSearchInWorker(
+    final int sessionId,
     final String query, {
     final SearchMode mode = SearchMode.contains,
     final bool isCaseSensitive = false,
@@ -244,12 +260,13 @@ final class WorkerClient {
     final int contextChars = 48,
     final int maxMatches = 200,
   }) async {
-    _ensureResidentSession();
+    _ensureResidentSession(sessionId);
 
     return _requireLive(
+      sessionId,
       await _request(
             workerOpSessionSearch,
-            payload: <String, Object?>{
+            payload: _sessionPayload(sessionId, <String, Object?>{
               wireKeyQuery: query,
               wireKeyMode: mode.name,
               wireKeyCaseSensitive: isCaseSensitive,
@@ -257,7 +274,7 @@ final class WorkerClient {
               wireKeyNearChars: nearChars,
               wireKeyContextChars: contextChars,
               wireKeyMaxMatches: maxMatches,
-            },
+            }),
           )
           as SearchResults?,
     );
@@ -265,28 +282,40 @@ final class WorkerClient {
 
   /// Whole-book reading progression inside the resident session.
   /// Throws [SessionClosedException] when no live session is resident.
-  Future<BookProgression> sessionProgressionInWorker() async {
-    _ensureResidentSession();
+  Future<BookProgression> sessionProgressionInWorker(final int sessionId) async {
+    _ensureResidentSession(sessionId);
 
-    return _requireLive(await _request(workerOpSessionProgression) as BookProgression?);
+    return _requireLive(
+      sessionId,
+      await _request(workerOpSessionProgression, payload: _sessionPayload(sessionId))
+          as BookProgression?,
+    );
   }
 
   /// Whole-book statistics inside the resident session. Throws
   /// [SessionClosedException] when no live session is resident.
-  Future<BookStatistics> sessionStatisticsInWorker() async {
-    _ensureResidentSession();
+  Future<BookStatistics> sessionStatisticsInWorker(final int sessionId) async {
+    _ensureResidentSession(sessionId);
 
-    return _requireLive(await _request(workerOpSessionStatistics) as BookStatistics?);
+    return _requireLive(
+      sessionId,
+      await _request(workerOpSessionStatistics, payload: _sessionPayload(sessionId))
+          as BookStatistics?,
+    );
   }
 
   /// Resolves [cfi] against the resident session; `null` when the CFI
   /// is malformed or resolves nowhere. Throws
   /// [SessionClosedException] when no live session is resident.
-  Future<EpubCfiLocation?> sessionResolveCfiInWorker(final String cfi) async {
-    _ensureResidentSession();
+  Future<EpubCfiLocation?> sessionResolveCfiInWorker(final int sessionId, final String cfi) async {
+    _ensureResidentSession(sessionId);
 
     return _nullOrClosed(
-      await _request(workerOpSessionCfiResolve, payload: <String, Object?>{wireKeyCfi: cfi})
+      sessionId,
+      await _request(
+            workerOpSessionCfiResolve,
+            payload: _sessionPayload(sessionId, <String, Object?>{wireKeyCfi: cfi}),
+          )
           as EpubCfiLocation?,
     );
   }
@@ -296,18 +325,20 @@ final class WorkerClient {
   /// resident; a reading position outside the book keeps the inline
   /// contract as [RangeError].
   Future<String> sessionBuildCfiInWorker({
+    required final int sessionId,
     required final int contentIndex,
     required final int offsetInText,
   }) async {
-    _ensureResidentSession();
+    _ensureResidentSession(sessionId);
 
     return _requireLive(
+      sessionId,
       await _request(
             workerOpSessionCfiBuild,
-            payload: <String, Object?>{
+            payload: _sessionPayload(sessionId, <String, Object?>{
               wireKeyContentIndex: contentIndex,
               wireKeyOffsetInText: offsetInText,
-            },
+            }),
           )
           as String?,
     );
@@ -315,34 +346,42 @@ final class WorkerClient {
 
   /// Ends the resident session inside the worker (the message is
   /// fire-and-forget, like the isolate transport killing its
-  /// isolate). Later session ops throw [SessionClosedException] until
-  /// the next [sessionOpenInWorker].
-  void sessionDisposeInWorker() {
-    if (!_residentSession) return;
-    _residentSession = false;
-    unawaited(_request(workerOpSessionDispose));
+  /// isolate). Later ops for this ID throw [SessionClosedException];
+  /// other resident sessions stay usable.
+  void sessionDisposeInWorker(final int sessionId) {
+    if (!_residentSessions.remove(sessionId)) return;
+    unawaited(_request(workerOpSessionDispose, payload: _sessionPayload(sessionId)));
   }
 
-  /// Rejects session requests before they reach the worker when no
-  /// live session exists.
-  void _ensureResidentSession() {
-    if (!_residentSession) throw const SessionClosedException();
+  Map<String, Object?> _sessionPayload(
+    final int sessionId, [
+    final Map<String, Object?> fields = const <String, Object?>{},
+  ]) => <String, Object?>{wireKeySessionId: sessionId, ...fields};
+
+  /// Rejects session requests before they reach the worker when that
+  /// specific session is no longer live.
+  void _ensureResidentSession(final int sessionId) {
+    if (!_residentSessions.contains(sessionId)) throw const SessionClosedException();
   }
 
   /// A nullable session result (a missing entry, an unresolved CFI) is
   /// legitimate only while the session is still live; a null from a
   /// broken worker means the request was drained, not that the entry
   /// is missing.
-  T? _nullOrClosed<T extends Object?>(final T? result) {
-    if (!_residentSession && result == null) throw const SessionClosedException();
+  T? _nullOrClosed<T extends Object?>(final int sessionId, final T? result) {
+    if (!_residentSessions.contains(sessionId) && result == null) {
+      throw const SessionClosedException();
+    }
 
     return result;
   }
 
   /// A non-nullable session result arriving as null means the request
   /// was drained by a broken worker.
-  T _requireLive<T extends Object?>(final T? result) {
-    if (!_residentSession || result == null) throw const SessionClosedException();
+  T _requireLive<T extends Object?>(final int sessionId, final T? result) {
+    if (!_residentSessions.contains(sessionId) || result == null) {
+      throw const SessionClosedException();
+    }
 
     return result;
   }
@@ -428,7 +467,6 @@ final class WorkerClient {
           final cfiJson = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           completer.complete(cfiJson[wireKeyCfi] as String?);
         case wireReplySessionOpen:
-          _residentSession = true;
           completer.complete(
             decodeSessionHeaderWire(
               decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart),
@@ -490,7 +528,6 @@ final class WorkerClient {
           final reply = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           completer.complete(reply[wireKeyCfi] as String?);
         case wireReplySessionDispose:
-          _residentSession = false;
           completer.complete(null);
         case wireReplyError:
           completer.completeError(
@@ -513,7 +550,7 @@ final class WorkerClient {
     _broken = true;
     _worker = null;
     _residentBook = false;
-    _residentSession = false;
+    _residentSessions.clear();
     _drainPending();
   }
 

@@ -38,9 +38,9 @@ final class BookSession {
   /// data) with no content files. A concrete `EpubBook` or `ComicBook`.
   final Book book;
 
-  /// Whether content loads entry by entry. False when the format has no
-  /// random-access container the session supports — those formats open
-  /// eagerly; the header book still keeps the caller's memory small.
+  /// Whether content loads entry by entry. The session currently supports
+  /// EPUB and CBZ, and both load content progressively. Other formats throw
+  /// [SessionUnsupportedFormatException] when opened.
   final bool isProgressive;
 
   /// Opens a progressive session over [bytes].

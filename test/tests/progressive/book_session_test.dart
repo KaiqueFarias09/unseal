@@ -98,4 +98,25 @@ void main() {
       expect(page, isNotEmpty);
     });
   });
+
+  test('unsupported formats provide the typed fallback signal for byte and file opens', () async {
+    const fixtures = <String>[
+      'test/resources/books/comic/american-beauty-trading-cards-1909.cbr',
+      'test/resources/books/txt/synthetic.txt',
+    ];
+
+    for (final fixture in fixtures) {
+      final bytes = File(fixture).readAsBytesSync();
+      await expectLater(
+        BookSession.open(bytes),
+        throwsA(isA<SessionUnsupportedFormatException>()),
+        reason: 'byte open of $fixture',
+      );
+      await expectLater(
+        BookSession.openFile(fixture),
+        throwsA(isA<SessionUnsupportedFormatException>()),
+        reason: 'file open of $fixture',
+      );
+    }
+  });
 }

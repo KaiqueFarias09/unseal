@@ -67,11 +67,7 @@ final class ZipEntryRecord {
 /// slices, so implementations of [ZipByteSource] never need more than
 /// one entry's worth of resident payload.
 final class ZipRandomAccess {
-  ZipRandomAccess._(this._source, this._records)
-    : _byLowerPath = <String, ZipEntryRecord>{
-        for (final record in _records)
-          if (record.isFile) normalizeZipPath(record.name).toLowerCase(): record,
-      };
+  ZipRandomAccess._(this._source, this._records) : _byLowerPath = _indexByLowerPath(_records);
 
   final ZipByteSource _source;
   final List<ZipEntryRecord> _records;
@@ -95,16 +91,11 @@ final class ZipRandomAccess {
       _records.fold(0, (final total, final record) => total + record.uncompressedSize);
 
   /// Finds an entry by [entryPath] with the same matching preference as
-  /// `findArchiveFile`: exact name first, then normalized
-  /// case-insensitive; the first record in container order wins.
+  /// `findArchiveFile`: the first record with an exact or normalized
+  /// case-insensitive path match wins.
   ZipEntryRecord? find(final String entryPath) {
     final normalized = normalizeZipPath(entryPath);
     if (normalized.isEmpty) return null;
-
-    for (final record in _records) {
-      if (!record.isFile) continue;
-      if (record.name == normalized) return record;
-    }
 
     return _byLowerPath[normalized.toLowerCase()];
   }
@@ -190,6 +181,18 @@ final class ZipRandomAccess {
 
     return _source.read(dataStart, sliceLength);
   }
+}
+
+Map<String, ZipEntryRecord> _indexByLowerPath(final List<ZipEntryRecord> records) {
+  final index = <String, ZipEntryRecord>{};
+  for (final record in records) {
+    if (!record.isFile) continue;
+
+    final normalized = normalizeZipPath(record.name);
+    if (normalized.isNotEmpty) index.putIfAbsent(normalized.toLowerCase(), () => record);
+  }
+
+  return index;
 }
 
 const _localHeaderSignature = 0x04034b50;
