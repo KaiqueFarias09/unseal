@@ -16,8 +16,8 @@ Unseal checkout:
 | `tool/large_fixture_kit.dart` | Shared kit: SplitMix64 PRNG, incompressible-noise PNG encoder (hand-built IHDR/IDAT/IEND), reproducible zip writer (stored `mimetype` first, deflate rest, pinned mtimes), seeded English word-bag prose. |
 | `tool/generate_large_epub.dart` | `reflowable` (300 × ~40 KB chapters, 1 CSS, 20 × ~787 KB PNGs, EPUB 3 OPF + nav + NCX), `fxl` (60 pages, viewport 1200×1700, `layout-pre-paginated` manifest properties + `rendition:layout` OPF metadata, 60 × ~397 KB PNGs), `all`. Flags: `--out=<dir>` (default `build/fixtures/`), `--verify` (re-parses through `Unseal.parse`, checks reading order + PNG header round-trip). Prints a manifest JSON. |
 | `tool/generate_large_cbz.dart` | 160 PNG pages ~507 KB each, `page-001.png…` + `ComicInfo.xml`. `--pages=<n>`, `--out=`, `--verify`. |
-| `tool/progressive_bench.dart` | Per-process open probe with `parse-sync`, `read-isolate`, `read-file-isolate`, `session-header`, and `session-first-content` modes. |
-| `tool/progressive_bench_sweep.dart` | Serial sweep driver: one fresh child process per (book, mode, repetition), mode order rotated per repetition (A/B alternation), aggregates median/p90/min/max per (book, mode). |
+| `tool/progressive_bench.dart` | Per-process open probe with `parse-sync`, `read-isolate`, `read-file-isolate`, `session-header`, and `session-first-content` modes. Emits `rss_series_mb`/`rss_peak_mb` (whole-run series from a sampling isolate) and `t_first_content_ms` for the eager modes too (first resident content access per book type). |
+| `tool/progressive_bench_sweep.dart` | Serial sweep driver: one fresh child process per (book, mode, repetition), mode order rotated per repetition (A/B alternation), aggregates min/median/p90/p95/max per (book, mode) for `t_open_ms`, `t_first_content_ms`, `rss_delta_mb`, `rss_peak_mb` (+ warm pair when present). |
 
 Grimoire checkout:
 
@@ -68,8 +68,9 @@ schemaVersion, kind="progressive-open-probe", mode, bookId, bytes,
 t_open_ms, t_first_content_ms (null in full modes),
 t_warm_ms, rss_warm_before, rss_warm_after, rss_warm_delta_mb  (--warm only),
 rss_before, rss_after (bytes), rss_delta_mb,
+rss_series_mb, rss_peak_mb,  (only when ps sampling works),
 bookFormat, readingOrderLength, declaredUncompressedBytes,  (archive formats)
-status ("ok"|"fail"|"unimplemented"), error
+status ("ok"|"fail"|"unsupported"|"unimplemented"), error
 ```
 
 `bookId` = SHA-256 of the resolved absolute path, first 12 hex; paths
@@ -77,12 +78,57 @@ never appear. `rss_before` is sampled after the input bytes are
 resident and immediately before the open, so `rss_delta_mb` isolates
 the open's retained cost.
 
+## RSS series instrument (added 2026-09-28)
+
+Per the format-expansion design §5, the probe now records a whole-run
+RSS series and peak:
+
+- **Where it samples**: inside the probe process, in a dedicated
+  sampling isolate running `ps -o rss= -p <pid>` every ~10 ms
+  (serialized — no new `ps` before the previous finished), covering the
+  whole run: bytes load → open → warm open → teardown. Samples are
+  rounded to 0.1 MB; `rss_peak_mb` is the max sample.
+- **Why an isolate (not the sweep parent, not a main-isolate timer)**:
+  `parse-sync` blocks the main isolate's event loop for the whole open,
+  so a timer there would only catch the two endpoints, and the old
+  endpoint pairs demonstrably miss the peak (a dracula `parse-sync` run
+  measured `rss_delta_mb: -171` while its series peaked at +877 MB over
+  startup). Parent-side sampling of the child pid would work too, but
+  in-probe sampling needs no pid bookkeeping or kill-race cleanup and
+  the sweep — which spawns one fresh child per measurement — simply
+  inherits the series through the child's JSON line. The `ps` spawn
+  latency (well above 10 ms under load) gates the effective cadence;
+  overhead stays negligible against multi-second opens.
+- **Failure posture**: if `ps` is unavailable (non-macOS/Unix), the
+  fields are omitted and the probe still succeeds. The handshake
+  between the probe and the sampler isolate uses per-message reply
+  ports (a reply on the already-consumed startup port is silently
+  dropped — found and fixed during the smoke run).
+- **Sweep aggregation**: per (book, mode) the report now carries
+  `rss_peak_mb` stats (`{min, median, p90, p95, max, samples}` — the
+  peak of each repetition's series) alongside `rss_delta_mb`, plus
+  `t_first_content_ms` stats, and every summary gained a `p95` next to
+  `p90`. A child that exits nonzero but printed its JSON keeps its own
+  typed status (`unsupported` for session modes over pdf/cbr until
+  those waves land) in its failure cell.
+- **`t_first_content_ms` in the eager modes** times the first content
+  access right after the open, per book type: EPUB = first
+  reading-order HTML text; PDF = first page's canonical text lines;
+  comics = first page image bytes. Eager parses materialize all of
+  that at open time, so the eager values are near-zero by construction
+  (~0.5–1 ms measured) — the honest reading is that the first-content
+  cost sits inside `t_open_ms`; the campaign's time-to-first-page A/B
+  for the deferred path comes from the session modes (and the Grimoire
+  reader probe), where the value is a real load (e.g. 3.1 ms for the
+  sample CBZ's first page).
+
 Sweep report (`build/progressive-open-sweep.json`): envelope
 (`schemaVersion`, `kind="progressive-open-sweep"`, platform/sdk/commit,
 repetitions, modeOrder note) with per-(bookId, mode) rows:
-`t_open_ms` / `rss_delta_mb` / `t_warm_ms` / `rss_warm_delta_mb`
-objects `{min, median, p90, max, samples}` plus `ok`/`fail` counts.
-Failed child runs never abort the sweep.
+`t_open_ms` / `t_first_content_ms` / `rss_delta_mb` / `rss_peak_mb` /
+`t_warm_ms` / `rss_warm_delta_mb` (the latter two when warmed)
+objects `{min, median, p90, p95, max, samples}` plus `ok`/`fail`
+counts. Failed child runs never abort the sweep.
 
 Open-probe integration report (`example/build/integration_open_probe.json`):
 `scenario: "open-probe"`, `bookSource` (`path`|`asset`|`fallback-dracula`),
@@ -121,7 +167,9 @@ are in Grimoire's `tool/sample_app_peak_rss_macos.sh` and
   exactly why the generator writes 24–83 MB books.
 - Dart has no peak-RSS API; if the peak (not post-open resident) is
   needed for the A/B verdict, sample externally (`ps`/`footprint` on
-  macOS, `dumpsys meminfo` on device — runbook section 4).
+  macOS, `dumpsys meminfo` on device — runbook section 4). Since
+  2026-09-28 the probe does this for you on macOS/Unix: see the RSS
+  series instrument section above.
 - `example/assets/books/` bundling grows the app by the full book size
   (profile APK was already 98.9 MB on the S23); `E2E_OPEN_BOOK_PATH`
   avoids it on desktop. Device path config must use `--dart-define`

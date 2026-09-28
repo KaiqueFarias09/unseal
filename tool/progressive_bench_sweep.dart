@@ -3,8 +3,13 @@
 // serially, so RSS numbers never compete — over a list of books x
 // modes x repetitions, with the mode order ROTATED each repetition so
 // every mode leads equally often (the A/B alternation rule from the
-// baseline methodology). Aggregates median/p90/min/max per
-// (book, mode) into one JSON report.
+// baseline methodology). Aggregates min/median/p90/p95/max per
+// (book, mode) into one JSON report; t_open_ms, t_first_content_ms,
+// rss_delta_mb and rss_peak_mb are aggregated when the child reported
+// them. The child self-samples its RSS series (`ps -o rss=` every
+// ~10 ms from a sampling isolate — see progressive_bench.dart), so the
+// sweep inherits rss_series_mb / rss_peak_mb through the child's JSON
+// line while keeping one fresh process per measurement.
 //
 //     dart run tool/progressive_bench_sweep.dart \
 //       --book=<path> [--book=<path> ...] \
@@ -21,9 +26,12 @@
 // never reach the report — the children report opaque path-hash ids
 // (see progressive_bench.dart for the id caveat).
 //
-// Default modes are the implemented full-parse modes; session modes can
-// be requested explicitly and aggregate as `unimplemented` until the
-// BookSession API lands. Default repetitions: 5. Default report:
+// Default modes are the implemented full-parse modes; session modes
+// can be requested explicitly. A child that exits nonzero but still
+// printed its JSON record keeps its own typed status ("unsupported"
+// for session modes over pdf/cbr until those waves land, "fail",
+// "timeout") and aggregates in the failure cell for its (book, mode).
+// Default repetitions: 5. Default report:
 // build/progressive-open-sweep.json (git-ignored).
 //
 // MEASUREMENT HYGIENE: run this alone — no builds, no browsers, no
@@ -119,7 +127,9 @@ Future<void> main(final List<String> arguments) async {
         stdout.writeln(
           '[$runs] rep ${repetition + 1} $mode ${record['bookId']} '
           't_open=${record['t_open_ms']}ms '
-          'rss_delta=${record['rss_delta_mb']}MB $status',
+          't_first=${record['t_first_content_ms']}ms '
+          'rss_delta=${record['rss_delta_mb']}MB '
+          'rss_peak=${record['rss_peak_mb']}MB $status',
         );
       }
     }
@@ -189,6 +199,14 @@ Future<Map<String, Object?>> _spawnProbe(
       };
     }
     if (exitCode != 0) {
+      // The probe prints its full JSON record even on failure, so the
+      // typed status ("unsupported", "fail", error type/message) comes
+      // straight from the child when available; the constructed record
+      // below is only the fallback for a child that died without one.
+      final typed = _recordFrom(probeStdout);
+      if (typed != null) {
+        return typed;
+      }
       return <String, Object?>{
         'status': exitCode == 69 ? 'unimplemented' : 'fail',
         'bookId': _bookIdFrom(probeStdout),
@@ -196,21 +214,40 @@ Future<Map<String, Object?>> _spawnProbe(
       };
     }
     // The probe's stdout contract is ONE compact JSON line.
-    final line = probeStdout.trim();
-    if (!line.startsWith('{')) {
-      return <String, Object?>{
-        'status': 'fail',
-        'bookId': null,
-        'error': {'type': 'MissingJson', 'message': 'probe printed no JSON object'},
-      };
+    final typed = _recordFrom(probeStdout);
+    if (typed != null) {
+      return typed;
     }
-    return jsonDecode(line) as Map<String, Object?>;
+    return <String, Object?>{
+      'status': 'fail',
+      'bookId': null,
+      'error': {'type': 'MissingJson', 'message': 'probe printed no JSON object'},
+    };
   } on Object catch (error) {
     return <String, Object?>{
       'status': 'fail',
       'bookId': null,
       'error': {'type': error.runtimeType.toString(), 'message': '$error'},
     };
+  }
+}
+
+/// Parses the probe's ONE compact JSON stdout line into its record, or
+/// null when the child printed no parseable record (so callers can
+/// fall back to a constructed one).
+Map<String, Object?>? _recordFrom(final String probeStdout) {
+  final line = probeStdout.trim();
+  if (!line.startsWith('{')) {
+    return null;
+  }
+  try {
+    final record = jsonDecode(line);
+    if (record is Map<String, Object?> && record['status'] is String) {
+      return record;
+    }
+    return null;
+  } on Object {
+    return null;
   }
 }
 
@@ -235,7 +272,9 @@ Map<String, Object?> _errorFrom(final String probeStderr) {
 /// repetitions, kept raw for the report and summarized on demand.
 final class _SampleSet {
   final List<double> tOpenMs = [];
+  final List<double> tFirstContentMs = [];
   final List<double> rssDeltaMb = [];
+  final List<double> rssPeakMb = [];
   final List<double> tWarmMs = [];
   final List<double> rssWarmDeltaMb = [];
   final List<int> bytesValues = [];
@@ -243,7 +282,9 @@ final class _SampleSet {
 
   void add(final Map<String, Object?> record) {
     _addDouble(tOpenMs, record['t_open_ms']);
+    _addDouble(tFirstContentMs, record['t_first_content_ms']);
     _addDouble(rssDeltaMb, record['rss_delta_mb']);
+    _addDouble(rssPeakMb, record['rss_peak_mb']);
     _addDouble(tWarmMs, record['t_warm_ms']);
     _addDouble(rssWarmDeltaMb, record['rss_warm_delta_mb']);
     final bytes = record['bytes'];
@@ -265,7 +306,6 @@ final class _SampleSet {
   Map<String, Object?> toRecord(final String key, final _FailureSet? failures) {
     final parts = key.split('|');
     tOpenMs.sort();
-    rssDeltaMb.sort();
     return <String, Object?>{
       'bookId': parts[0],
       'mode': parts[1],
@@ -274,7 +314,11 @@ final class _SampleSet {
       'ok': tOpenMs.length,
       'fail': failures?.count ?? 0,
       't_open_ms': _summary(tOpenMs),
-      'rss_delta_mb': _summary(rssDeltaMb),
+      if (tFirstContentMs.isNotEmpty) 't_first_content_ms': _summary(tFirstContentMs..sort()),
+      'rss_delta_mb': _summary(rssDeltaMb..sort()),
+      // Peak of the child's whole-run RSS series, per repetition; the
+      // campaign's peak-memory A/B reads this (not rss_delta_mb).
+      if (rssPeakMb.isNotEmpty) 'rss_peak_mb': _summary(rssPeakMb..sort()),
       if (tWarmMs.isNotEmpty) 't_warm_ms': _summary(tWarmMs..sort()),
       if (rssWarmDeltaMb.isNotEmpty) 'rss_warm_delta_mb': _summary(rssWarmDeltaMb..sort()),
     };
@@ -310,16 +354,22 @@ final class _FailureSet {
 
 Map<String, Object?> _summary(final List<double> sorted) {
   if (sorted.isEmpty) {
-    return <String, Object?>{'min': 0.0, 'median': 0.0, 'p90': 0.0, 'max': 0.0};
+    return <String, Object?>{'min': 0.0, 'median': 0.0, 'p90': 0.0, 'p95': 0.0, 'max': 0.0};
   }
   return <String, Object?>{
     'min': sorted.first,
     'median': sorted[sorted.length ~/ 2],
-    'p90': sorted[((sorted.length - 1) * 0.90).round().clamp(0, sorted.length - 1)],
+    'p90': _percentile(sorted, 0.90),
+    'p95': _percentile(sorted, 0.95),
     'max': sorted.last,
     'samples': List.of(sorted),
   };
 }
+
+/// Nearest-rank-ish percentile over a sorted list (same convention the
+/// p90 used before: closest index, clamped to the list).
+double _percentile(final List<double> sorted, final double fraction) =>
+    sorted[((sorted.length - 1) * fraction).round().clamp(0, sorted.length - 1)];
 
 final class _Options {
   List<String> books = [];

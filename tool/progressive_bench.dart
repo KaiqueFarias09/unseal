@@ -15,9 +15,9 @@
 // * read-isolate       `Unseal.read(bytes)` (background isolate).
 // * read-file-isolate  `Unseal.readFile(path)` (file read + isolate).
 //
-// Modes stubbed for the parallel BookSession implementation — they
-// throw UnimplementedError until the session API lands; the JSON
-// contract is already identical:
+// Session modes over the BookSession API (EPUB + CBZ today; PDF and
+// CBR sessions are a later wave — opening one reports the clean typed
+// `status: "unsupported"` instead of failing):
 //
 // * session-header          bytes -> session header ready (t_open_ms).
 // * session-first-content   header + first spine chapter HTML and its
@@ -29,9 +29,10 @@
 //     schemaVersion, kind, mode, bookId, bytes,
 //     t_open_ms, t_warm_ms (only with --warm), t_first_content_ms,
 //     rss_before, rss_after (bytes), rss_delta_mb,
+//     rss_series_mb, rss_peak_mb (only when ps sampling works),
 //     rss_warm_before, rss_warm_after, rss_warm_delta_mb (--warm only),
 //     bookFormat, readingOrderLength, declaredUncompressedBytes,
-//     status, error
+//     status ("ok"|"fail"|"unsupported"|"unimplemented"), error
 //
 // rss_before is sampled immediately before the open call (after the
 // book bytes are already resident for the byte modes), rss_after right
@@ -42,6 +43,25 @@
 // are emitted for every format that has an archive container (EPUB and
 // the comic formats).
 //
+// t_first_content_ms times the first content access AFTER the open,
+// chosen per book type the way a reader consumes the book: EPUB = the
+// first reading-order HTML document's text; PDF = the first page's
+// canonical text lines; comics = the first page image bytes. Eager
+// parses already materialize all of that at open time, so for the
+// full-parse modes the value is near-zero by construction — the honest
+// reading is that the first-content cost sits inside t_open_ms; the
+// session modes measure the deferred header + first-page load instead
+// and report their own timing. Null when the book has no content to
+// touch.
+//
+// rss_series_mb / rss_peak_mb: a dedicated SAMPLING ISOLATE runs
+// `ps -o rss= -p <pid>` every ~10 ms for the whole probe run. It is an
+// isolate (not a timer on the main isolate) because parse-sync blocks
+// the main event loop for the whole open; the sampler's own event loop
+// keeps firing. Samples are rounded to 0.1 MB; the peak is the max
+// sample. When ps is unavailable the fields are omitted — sampling
+// never fails the probe.
+//
 // bookId is the SHA-256 of the resolved absolute path, first 12 hex
 // chars — the path itself never reaches the output. Note:
 // benchmark/library_sweep.dart deliberately moved private-library ids
@@ -49,8 +69,10 @@
 // hashes paths per the progressive-reading spec; reports over the
 // private library must still live only in the artifacts folder.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -59,7 +81,9 @@ import 'package:unseal/unseal.dart';
 /// Modes that exist today, in the order the sweep runs them by default.
 const List<String> implementedModes = ['parse-sync', 'read-isolate', 'read-file-isolate'];
 
-/// Session modes reserved for the BookSession implementation.
+/// Session modes over the BookSession API. PDF/CBR sessions are a
+/// later wave (format-expansion-design.md); opening one today reports
+/// the typed `unsupported` status.
 const List<String> sessionModes = ['session-header', 'session-first-content'];
 
 Future<void> main(final List<String> arguments) async {
@@ -108,6 +132,14 @@ Future<void> main(final List<String> arguments) async {
         'message': 'session modes land with BookSession (TODO(parent-agent))',
       };
     exitCode = 69;
+  } on SessionUnsupportedFormatException catch (error) {
+    // Session modes over formats the engine does not serve yet (PDF,
+    // CBR — later waves of format-expansion-design.md). A clean typed
+    // status the sweep aggregates, never a crash.
+    record
+      ..['status'] = 'unsupported'
+      ..['error'] = {'type': 'SessionUnsupportedFormatException', 'message': '$error'};
+    exitCode = 69;
   } on Object catch (error) {
     record
       ..['status'] = 'fail'
@@ -122,6 +154,29 @@ bool _isKnownMode(final String mode) =>
     implementedModes.contains(mode) || sessionModes.contains(mode);
 
 Future<void> _runMode(
+  final String mode,
+  final String bookPath, {
+  required final String password,
+  required final bool warm,
+  required final Map<String, Object?> record,
+}) async {
+  // RSS series for the WHOLE probe run (bytes load -> open -> warm ->
+  // teardown), sampled by a dedicated isolate so the series still
+  // covers a parse-sync open that blocks the main event loop.
+  final rssSampler = await _RssSampler.start();
+  try {
+    await _runMeasured(mode, bookPath, password: password, warm: warm, record: record);
+  } finally {
+    final series = await rssSampler?.stop();
+    if (series != null && series.isNotEmpty) {
+      record
+        ..['rss_series_mb'] = series
+        ..['rss_peak_mb'] = series.reduce((final a, final b) => a > b ? a : b);
+    }
+  }
+}
+
+Future<void> _runMeasured(
   final String mode,
   final String bookPath, {
   required final String password,
@@ -147,7 +202,14 @@ Future<void> _runMode(
   final rssAfter = ProcessInfo.currentRss;
 
   double? firstContentMs;
-  if (result is _SessionCarry) firstContentMs = result.firstContentMs;
+  if (result is _SessionCarry) {
+    firstContentMs = result.firstContentMs;
+  } else {
+    // Eager modes: time the first content access on the parsed book
+    // (see the file header for the per-format recipe; near-zero for
+    // eager parses because everything is already resident).
+    firstContentMs = _measureFirstContentEager(result);
+  }
 
   record
     ..['t_open_ms'] = _ms(openWatch.elapsedMicroseconds)
@@ -212,6 +274,141 @@ int _sink = 0;
 
 void _consume(final Object? result) {
   _sink = Object.hash(_sink, result.runtimeType);
+}
+
+/// Times the first content access on an eagerly parsed book, per
+/// format (file header documents the recipe): PDF = first page's
+/// canonical text lines; comics = first page image bytes; everything
+/// else = the first reading-order HTML document's text. Returns null
+/// when the book has no such content. All of it is memory-resident
+/// after an eager parse, so the measured span is the access itself.
+double? _measureFirstContentEager(final Object? result) {
+  if (result is! Book) {
+    return null;
+  }
+
+  final watch = Stopwatch()..start();
+  var touched = false;
+  if (result is PdfBook) {
+    final lines = result.pageTexts.isEmpty ? const <PdfTextLine>[] : result.pageTexts.first.lines;
+    _sink = Object.hash(_sink, lines.length, lines.isEmpty ? 0 : lines.first.text.length);
+    touched = lines.isNotEmpty;
+  } else if (result is ComicBook) {
+    final page = result.pages.isEmpty ? null : result.pages.first.content;
+    _sink = Object.hash(_sink, page?.length);
+    touched = page != null && page.isNotEmpty;
+  } else {
+    final order = result.readingOrder;
+    if (order.isEmpty) {
+      return null;
+    }
+    final first = order.firstWhere((final item) => item.isHtml, orElse: () => order.first);
+    TextFile? file;
+    for (final candidate in result.files.html) {
+      if (candidate.path == first.name) {
+        file = candidate;
+        break;
+      }
+    }
+    file ??= result.files.html.isEmpty ? null : result.files.html.first;
+    final content = file?.content;
+    _sink = Object.hash(_sink, content?.length);
+    touched = content != null && content.isNotEmpty;
+  }
+  watch.stop();
+
+  return touched ? _ms(watch.elapsedMicroseconds) : null;
+}
+
+/// RSS series sampler for the probe process. Runs `ps -o rss= -p <pid>`
+/// every ~10 ms — serialized (no new ps before the previous finished) —
+/// in a DEDICATED ISOLATE: parse-sync blocks the main isolate's event
+/// loop for the whole open, so an in-isolate timer could only sample
+/// the two endpoints. Any failure (ps missing, spawn denied) yields an
+/// empty series and the fields are omitted; this never fails the probe.
+final class _RssSampler {
+  _RssSampler._(this._isolate, this._commandPort);
+
+  final Isolate _isolate;
+  final SendPort _commandPort;
+
+  /// Spawns the sampler isolate, or returns null when unavailable.
+  static Future<_RssSampler?> start() async {
+    try {
+      final ready = ReceivePort();
+      final isolate = await Isolate.spawn(_sampleRss, <Object>[ready.sendPort, pid]);
+      final Object? message = await ready.first.timeout(const Duration(seconds: 5));
+      if (message is! SendPort) {
+        isolate.kill(priority: Isolate.immediate);
+        return null;
+      }
+      return _RssSampler._(isolate, message);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Stops sampling and returns the MB series (0.1 rounded), or an
+  /// empty list when nothing was sampled.
+  Future<List<double>> stop() async {
+    final done = ReceivePort();
+    try {
+      // The stop message carries its own reply port: the handshake
+      // port's listener is already gone (start() consumed it), so a
+      // reply there would be silently dropped.
+      _commandPort.send(done.sendPort);
+      final Object? series = await done.first.timeout(const Duration(seconds: 5));
+      return series is List<double> ? series : const <double>[];
+    } on Object {
+      return const <double>[];
+    } finally {
+      done.close();
+      _isolate.kill(priority: Isolate.immediate);
+    }
+  }
+}
+
+/// Sampler-isolate entry: samples until the main isolate sends a reply
+/// port, flushes the accumulated series through it, then exits.
+Future<void> _sampleRss(final List<Object> arguments) async {
+  final ready = arguments[0] as SendPort;
+  final targetPid = arguments[1] as int;
+  final commands = ReceivePort();
+  ready.send(commands.sendPort);
+
+  final series = <double>[];
+  Future<void>? inFlight;
+  var running = true;
+
+  Timer.periodic(const Duration(milliseconds: 10), (final _) {
+    if (!running || inFlight != null) {
+      return;
+    }
+    inFlight = Process.run('ps', <String>['-o', 'rss=', '-p', '$targetPid'])
+        .then((final result) {
+          final kilobytes = int.tryParse('${result.stdout}'.trim());
+          if (kilobytes != null && kilobytes >= 0) {
+            series.add(double.parse((kilobytes / 1024).toStringAsFixed(1)));
+          }
+        })
+        .catchError((final Object _) {
+          // ps unavailable or failed — skip this sample.
+        })
+        .whenComplete(() => inFlight = null);
+  });
+
+  await for (final message in commands) {
+    if (message is! SendPort) {
+      continue;
+    }
+    running = false;
+    final pending = inFlight;
+    if (pending != null) {
+      await pending;
+    }
+    message.send(series);
+    break;
+  }
 }
 
 /// Opens a session and, for the first-content mode, loads the "first
