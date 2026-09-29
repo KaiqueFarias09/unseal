@@ -514,6 +514,12 @@ Unseal VM:
 
 Chrome: wire roundtrip PDF/CBR, worker session, ranges, isolamento.
 
+Limite de escopo (registrado): **busca em CBR/CBZ é inerentemente vazia** —
+o formato não carrega texto (sem OCR no escopo do pacote). "Busca real no
+Grimoire" aplica-se a PDF (páginas materializam no mesmo espaço canônico
+do EPUB); para comics o entregável de navegação é o salto numérico de
+página e a paginação, cobertos na onda D.
+
 Grimoire: citados em §4.5.
 
 ## 7. Ordem de execução
