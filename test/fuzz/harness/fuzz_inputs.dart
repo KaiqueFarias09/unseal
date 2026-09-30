@@ -29,6 +29,9 @@ enum FuzzFamily {
   /// FB2 XML documents.
   fb2,
 
+  /// DjVu documents (IFF chunks, BZZ streams, shared dictionaries).
+  djvu,
+
   /// Plain TXT/HTML and their zip wrappers.
   text,
 
@@ -79,6 +82,7 @@ FuzzFamily familyOfSeed(final String name) {
   if (name.startsWith('pdf')) return FuzzFamily.pdf;
   if (name.startsWith('mobi')) return FuzzFamily.mobi;
   if (name.startsWith('azw4')) return FuzzFamily.azw4;
+  if (name.startsWith('djvu')) return FuzzFamily.djvu;
   if (name.startsWith('fb2')) return FuzzFamily.fb2;
   if (name.startsWith('epub') || name.startsWith('docx') || name.startsWith('odt')) {
     return FuzzFamily.zip;
@@ -124,6 +128,7 @@ Uint8List _magicRandom(final FuzzFamily family, final Random random) {
     FuzzFamily.pdf: <int>[0x25, 0x50, 0x44, 0x46, 0x2D],
     FuzzFamily.mobi: <int>[],
     FuzzFamily.fb2: <int>[0x3C, 0x3F, 0x78, 0x6D, 0x6C],
+    FuzzFamily.djvu: <int>[0x41, 0x54, 0x26, 0x54],
     FuzzFamily.text: <int>[],
     FuzzFamily.azw4: <int>[],
     FuzzFamily.comic: <int>[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07],
@@ -174,6 +179,8 @@ Uint8List _structuralHostile(final FuzzFamily family, final Random random, final
         1 => const <int>[0xFF, 0xD8, 0xFF],
         _ => const <int>[0x47, 0x49, 0x46, 0x38],
       }, random);
+    case FuzzFamily.djvu:
+      return randomBytesWithMagic(const <int>[0x41, 0x54, 0x26, 0x54], random);
     case FuzzFamily.text:
       return randomPrintableText(random, maxLength: 8192);
   }

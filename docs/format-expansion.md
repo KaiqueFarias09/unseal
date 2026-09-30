@@ -37,9 +37,14 @@ on web decoding or wire transport.
 - Broaden IW44 real-file coverage beyond the current Unlicense photo and
   compound assets; the checked references cover selected real producers and
   do not claim complete DjVu v3 conformance.
-- Add shared `Djbz` dictionaries, `INCL` resolution, reset records, compressed
-  `TXTz`/`NAVM`, and indirect component resolution before broadening the DjVu
-  contract.
+- Compressed `TXTz`, `NAVM`, shared `Djbz` dictionaries with `INCL`, and
+  indirect component resolution are implemented and verified against the
+  scanned-archive corpus (byte-exact `djvutxt` text parity, `ddjvu` pixel
+  parity for mask and photo pages, and the derived indirect fixture); the
+  composed-MRC rendering keeps the house hard-selection convention with a
+  bounded, pinned deviation from ddjvu's blended stencil. Still open inside
+  DjVu: `FGjp`/`Smmr` layer replacements, `ANTz` annotation parsing, chained
+  shared dictionaries, and `BMKz` (no corpus fixture exists).
 - Add redistributable samples for CHM codepages beyond Windows-1251/1252/1256
   and find or generate a licensed real CHM whose LZX stream enables Intel E8.
   The current PuTTY fixture has the E8 flag clear; the Free Pascal

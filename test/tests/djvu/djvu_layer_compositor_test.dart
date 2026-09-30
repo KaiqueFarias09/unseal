@@ -93,7 +93,7 @@ void main() {
     expect(_bmpPixel(image, 1, 1, 0, 0), <int>[12, 34, 56]);
   });
 
-  test('rejects foreground and selection mask unless supplied together', () {
+  test('rejects a foreground without its selection mask', () {
     expect(
       () => composeDjvuLayersBmp(
         background: _raster(1, 1, <int>[0, 0, 0]),
@@ -104,16 +104,28 @@ void main() {
       ),
       throwsA(isA<DjvuException>()),
     );
-    expect(
-      () => composeDjvuLayersBmp(
-        background: _raster(1, 1, <int>[0, 0, 0]),
-        mask: _mask(1, 1, <int>[0]),
-        pageWidth: 1,
-        pageHeight: 1,
-        budget: DjvuDecodeBudget(),
-      ),
-      throwsA(isA<DjvuException>()),
+  });
+
+  test('renders a mask without a foreground as black ink over the background', () {
+    // An FGbz page whose color layer is ignored keeps its mask: ink pixels
+    // render black over the expanded background instead of pairing with a
+    // foreground layer.
+    final image = composeDjvuLayersBmp(
+      background: _raster(1, 1, <int>[200, 210, 220]),
+      mask: _mask(1, 1, <int>[1]),
+      pageWidth: 1,
+      pageHeight: 1,
+      budget: DjvuDecodeBudget(),
     );
+    expect(_bmpPixel(image, 1, 1, 0, 0), <int>[0, 0, 0]);
+    final background = composeDjvuLayersBmp(
+      background: _raster(1, 1, <int>[200, 210, 220]),
+      mask: _mask(1, 1, <int>[0]),
+      pageWidth: 1,
+      pageHeight: 1,
+      budget: DjvuDecodeBudget(),
+    );
+    expect(_bmpPixel(background, 1, 1, 0, 0), <int>[200, 210, 220]);
   });
 
   test('rejects dimensions that cannot share a permitted sub-sampling factor', () {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 /// Synthetic DjVu IFF structures for parser boundary tests.
@@ -8,6 +9,7 @@ import 'dart:typed_data';
 Uint8List djvuJpegPage(
   final Uint8List jpeg, {
   final String? text,
+  final Uint8List? txtz,
   final int width = 8,
   final int height = 8,
 }) {
@@ -16,9 +18,116 @@ Uint8List djvuJpegPage(
     ..._chunk('BGjp', jpeg),
     if (text != null)
       ..._chunk('TXTa', <int>[..._int24(utf8.encode(text).length), ...utf8.encode(text), 1]),
+    if (txtz != null) ..._chunk('TXTz', txtz),
   ];
   return Uint8List.fromList(<int>[...ascii.encode('AT&T'), ..._form('DJVU', chunks)]);
 }
+
+/// Extracts the data of the [nth] chunk with [id] anywhere in [bytes].
+///
+/// Corpus fixtures ship as whole documents; tests pull individual chunks
+/// (TXTz, NAVM, Djbz) out of them to build focused synthetic documents.
+Uint8List djvuCorpusChunk(final Uint8List bytes, final String id, [final int nth = 0]) {
+  final chunks = djvuCorpusChunks(bytes, id);
+  if (nth >= chunks.length) {
+    throw StateError('Corpus fixture has no $id chunk #$nth.');
+  }
+  return chunks[nth];
+}
+
+/// All chunk payloads with [id], in document order.
+List<Uint8List> djvuCorpusChunks(final Uint8List bytes, final String id) {
+  final view = ByteData.sublistView(bytes);
+  final result = <Uint8List>[];
+  void visit(final int start, final int end) {
+    var offset = start;
+    while (offset + 8 <= end) {
+      final chunkId = String.fromCharCodes(bytes, offset, offset + 4);
+      final length = view.getUint32(offset + 4);
+      final dataStart = offset + 8;
+      final dataEnd = dataStart + length;
+      final next = dataEnd == end ? dataEnd : dataEnd + (length & 1);
+      if (chunkId == id) {
+        result.add(Uint8List.sublistView(bytes, dataStart, dataEnd));
+      }
+      if (chunkId == 'FORM') visit(dataStart + 4, dataEnd);
+      offset = next;
+    }
+  }
+
+  visit(4, bytes.length);
+  return result;
+}
+
+/// Builds a standalone page around arbitrary extra chunks (TXTz, INCL, Sjbz).
+Uint8List djvuPageWithChunks(
+  final Uint8List jpeg, {
+  final List<(String, Uint8List)> chunks = const <(String, Uint8List)>[],
+  final int width = 8,
+  final int height = 8,
+}) {
+  final encoded = <int>[
+    ..._chunk('INFO', <int>[..._int16(width), ..._int16(height), 26, 0, 44, 1, 22, 1]),
+    ..._chunk('BGjp', jpeg),
+    for (final (id, data) in chunks) ..._chunk(id, data),
+  ];
+  return Uint8List.fromList(<int>[...ascii.encode('AT&T'), ..._form('DJVU', encoded)]);
+}
+
+/// A bundled document whose DJVM carries a top-level outline chunk.
+Uint8List djvuBundleWithOutline(final List<Uint8List> standalonePages, final Uint8List navm) {
+  final components = <List<int>>[for (final page in standalonePages) page.sublist(4)];
+  final dirmDataLength = 3 + components.length * 4;
+  final directoryChunkLength = 8 + dirmDataLength + (dirmDataLength & 1);
+  var offset = 4 + 8 + 4 + directoryChunkLength + 8 + navm.length + (navm.length & 1);
+  final offsets = <int>[];
+  for (final component in components) {
+    offsets.add(offset);
+    offset += component.length;
+  }
+  final directory = _chunk('DIRM', <int>[
+    0x81,
+    ..._int16(components.length),
+    for (final value in offsets) ..._int32(value),
+  ]);
+  return Uint8List.fromList(<int>[
+    ...ascii.encode('AT&T'),
+    ..._form('DJVM', <int>[
+      ...directory,
+      ..._chunk('NAVM', navm),
+      for (final c in components) ...c,
+    ]),
+  ]);
+}
+
+/// Writes an indirect DjVu directory: [indexBytes] next to the named
+/// component files inside [directory]. Returns the index file path.
+String djvuWriteIndirect(
+  final Directory directory,
+  final Uint8List indexBytes,
+  final Map<String, Uint8List> components,
+) {
+  for (final entry in components.entries) {
+    File('${directory.path}${Platform.pathSeparator}${entry.key}').writeAsBytesSync(entry.value);
+  }
+  final indexPath = '${directory.path}${Platform.pathSeparator}index-${components.length}.djvu';
+  File(indexPath).writeAsBytesSync(indexBytes);
+  return indexPath;
+}
+
+/// Builds an indirect DjVu index that lists [componentNames] by name.
+///
+/// The DIRM header flags the document indirect and omits offsets; the BZZ
+/// name table is copied verbatim from [namesTable] (sizes, flags, and
+/// NUL-terminated strings), so tests can splice real corpus name tables.
+Uint8List djvuIndirectIndex(final Uint8List namesTable, final List<String> componentNames) =>
+    Uint8List.fromList(<int>[
+      ...ascii.encode('AT&T'),
+      ..._form(
+        'DJVM',
+        _chunk('DIRM', <int>[0x01, ..._int16(componentNames.length), ...namesTable]),
+      ),
+    ]);
 
 Uint8List djvuUnsupportedPage() => Uint8List.fromList(<int>[
   ...ascii.encode('AT&T'),

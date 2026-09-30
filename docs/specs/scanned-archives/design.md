@@ -85,6 +85,19 @@ proveniência):
   navigation segue o codec genérico de navigation (verificar e estender se
   o ramo Djvu não a carrega). Testes Chrome espelham (djvu_wire_test com
   TXTz/NAVM).
+  - "(implementado: TXTz via BZZ próprio validado byte a byte contra
+    `djvutxt` nos 207 páginas de texto do corpus — 310.032 bytes; texto da
+    página prefere TXTz sobre TXTa quando ambos existem — corpus real não
+    tem página com ambos; separadores: NUL de zona-página vira LF+FF e o
+    separador entre páginas é LF+FF, regra derivada empiricamente do oráculo
+    e pinada por hash nos testes. NAVM vira Navigation real com árvore
+    iterativa e claims verificados; URLs ficam verbatim no `content` do
+    ponto. Wire carrega navigation no ramo Djvu; chrome test cobre TXTz+NAVM.
+    FGbz passou de tipado para ignorado (tinta preta sobre o background)
+    para que spec-bundled/navm-fgbz abram inteiros — o desenho §4 já
+    permitia 'tipados/ignorados'; Smmr/FGjp seguem tipados. Orçamentos de
+    documento subiram para 2048 MP / 1 GiB porque speller mede 1.414 MP de
+    página; os testes de budget usam as constantes e seguem verdes.)"
 - Explícito não coberto (W2): FGjp, FGbz, Smmr, ANTa/ANAZ, TH44 — continuam
   tipados/ignorados conforme incidência medida; tabela final no README.
 
@@ -103,6 +116,24 @@ proveniência):
   filesystem/pacote).
 - Paridade: páginas do indireto derivado == páginas do bundled original
   (hash de pixels `ddjvu`).
+  - "(implementado: DIRM decodificado (header + nomes BZZ com sizes/flags/
+    ids); `parseDjvuBook(bytes)` segue rejeitando indiretos tipada;
+    `Unseal.readFile` resolve irmãos no adaptador io (nomes simples, sem
+    traversal, sizes conferidos; tabela de nomes original copiada verbatim
+    para o DIRM montado, então INCL continua resolvendo); web/bytes segue
+    rejeição tipada documentada. Fixture rastreado derivado: 1 página +
+    dicionário de cyrillic via `djvm -d` + `djvmcvt -i` (PROVENANCE.md);
+    paridade de página/texto contra o bundled original pinada. Dicionários:
+    Djbz decodifica (streams de dicionário só aceitam records 2/5/9/10/11);
+    ledger de 64 MP por documento; herança via record 9 + INCL resolvido
+    pelos ids do DIRM; troca de dicionário no meio do documento
+    (spec-bundled, 4 dicionários + 1 inline) validada por renders
+    byte-idênticos do ddjvu nas páginas 1/36/71. Dicionários encadeados
+    (record 9 com contagem > 0 num Djbz) seguem tipados-não-suportados.
+    Paridade MRC composta: o compositor da casa usa seleção dura de máscara
+    com expansão bilinear — desvio limitado e documentado vs o stencil
+    mesclado do ddjvu (média ≤ 3,3/255 em goody); páginas de máscara e foto
+    ficam byte-idênticas.)"
 
 ## 6. Onda W4 — TIFF multipágina → BigTIFF (unseal, paralela)
 

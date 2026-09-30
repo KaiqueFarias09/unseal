@@ -82,6 +82,11 @@ Map<String, Uint8List> fuzzSeeds() {
       mobi_fixtures.buildMobiRecord0(title: 'Fuzz AZW4'),
       pdf_fixtures.textPageFixture().build(),
     ]),
+    // Tracked corpus DjVu documents (public domain, PROVENANCE.md): the
+    // shared-dictionary document exercises DIRM/INCL/Sjbz/TXTz/BZZ, the
+    // minimal one exercises NAVM outline decoding.
+    'djvu-shared-dicts': File('test/resources/djvu/cyrillic.djvu').readAsBytesSync(),
+    'djvu-navm': File('test/resources/djvu/links.djvu').readAsBytesSync(),
   };
   return seeds;
 }

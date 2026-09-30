@@ -27,6 +27,14 @@ List<NavPoint> decodeDjvuNavm(final Uint8List encoded) {
     truncatedMessage: 'Truncated DjVu NAVM chunk.',
     maxOutputBytes: _maxOutlineBytes,
   );
+  return decodeDjvuNavmRecords(raw);
+}
+
+/// Assembles the decompressed NAVM record stream into navigation points.
+///
+/// Split from [decodeDjvuNavm] so hostile decompressed record streams can be
+/// exercised directly.
+List<NavPoint> decodeDjvuNavmRecords(final Uint8List raw) {
   if (raw.length < 2) {
     throw const DjvuException('Truncated DjVu NAVM chunk.');
   }
@@ -99,6 +107,11 @@ List<NavPoint> decodeDjvuNavm(final Uint8List encoded) {
   }
   while (stack.isNotEmpty) {
     finish(stack.removeLast());
+  }
+  for (var index = 0; index < count; index++) {
+    if (claimed[index] != childCounts[index]) {
+      throw const DjvuException('DjVu NAVM child counts exceed the bookmark count.');
+    }
   }
   if (assembled != count || roots.isEmpty) {
     throw const DjvuException('DjVu NAVM child counts exceed the bookmark count.');

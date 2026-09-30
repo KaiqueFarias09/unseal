@@ -10,11 +10,7 @@ const _maxIndirectComponents = 2048;
 /// The parsed DIRM of a DjVu document directory.
 final class DjvuDirectory {
   /// Creates a parsed directory.
-  const DjvuDirectory({
-    required this.bundled,
-    required this.entries,
-    required this.encodedNames,
-  });
+  const DjvuDirectory({required this.bundled, required this.entries, required this.encodedNames});
 
   /// Whether the document embeds its components (true) or references
   /// external files (false).
@@ -108,10 +104,7 @@ DjvuDirectory _parseDirm(final Uint8List payload) {
     throw const DjvuException('Invalid DjVu component count or DIRM offsets.');
   }
   final encodedNames = Uint8List.sublistView(payload, 3 + (bundled ? count * 4 : 0));
-  final names = decodeDjvuBzz(
-    encodedNames,
-    truncatedMessage: 'Truncated DjVu DIRM names.',
-  );
+  final names = decodeDjvuBzz(encodedNames, truncatedMessage: 'Truncated DjVu DIRM names.');
 
   // The name table groups three-byte component sizes, then all flag bytes,
   // then one to three NUL-terminated strings per component.
@@ -212,7 +205,8 @@ Uint8List assembleIndirectDjvu(
     if (component.length >= 4 && String.fromCharCodes(component, 0, 4) == 'AT&T') {
       component = Uint8List.sublistView(component, 4);
     }
-    final validForm = component.length >= 12 &&
+    final validForm =
+        component.length >= 12 &&
         String.fromCharCodes(component, 0, 4) == 'FORM' &&
         ByteData.sublistView(component).getUint32(4) == component.length - 8;
     if (!validForm) {

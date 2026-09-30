@@ -61,7 +61,7 @@ document renderer.
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
-| DjVu (JPEG, JB2, and IW44 subset) | Direct `BGjp` JPEG pages, page-local `Sjbz` masks, progressive `BG44`/`FG44` layers, and INFO dimensions and rotation in single-page or bundled documents; optional uncompressed `TXTa` OCR | JB2 masks and composed IW44 pages become BMP images. Shared JB2 dictionaries, other visual codecs, compressed `TXTz`/`NAVM`, and indirect documents are not decoded. |
+| DjVu (JPEG, JB2, and IW44 subset) | Direct `BGjp` JPEG pages, `Sjbz` masks with shared `Djbz` dictionaries and `INCL` references, progressive `BG44`/`FG44` layers, and INFO dimensions and rotation in single-page or bundled documents; compressed `TXTz` hidden text, legacy `TXTa` OCR, and `NAVM` bookmark outlines | JB2 masks and composed IW44 pages become BMP images. Compressed text is byte-exact against `djvutxt`. Indirect document directories resolve through file-based opens only; `FGbz` recoloring, `FGjp`/`Smmr` layer replacements, `ANTz` annotations, and thumbnails are ignored or rejected as described below. |
 
 `OPF` is not a standalone reading format. When unseal finds `metadata.opf`
 inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
@@ -326,14 +326,18 @@ an application that offers OCR; it does not prove that a page is a scan.
 `columnOrderApplied` indicates that Unseal reordered clearly separated,
 text-only columns for reflow and the canonical text stream.
 
-`DjvuBook.pages` exposes directly stored JPEG pages, decoded page-local JB2
-masks as black-on-white 1-bit BMP images, and bounded IW44 photo or composed
-pages as 24-bit BMP images. It preserves dimensions, DPI, rotation, and
-optional uncompressed OCR text. Its `readingOrder` points to per-page HTML
-that displays each image and keeps OCR searchable. The complete source stays
-in `DjvuBook.bytes` for applications with a dedicated DjVu renderer. Shared
-JB2 dictionaries, alternate image codecs, indirect documents, and unsupported
-text/navigation encodings still fail with typed errors.
+`DjvuBook.pages` exposes directly stored JPEG pages, decoded JB2 masks as
+black-on-white 1-bit BMP images, and bounded IW44 photo or composed pages as
+24-bit BMP images. It preserves dimensions, DPI, rotation, and hidden text:
+compressed `TXTz` chunks (preferred over the legacy `TXTa` encoding when a
+page stores both) carry the page text in reading order, rendered with the
+separator conventions of positional text extraction. A top-level `NAVM`
+chunk becomes real navigation; bookmark URLs stay verbatim on each point's
+content target. Per-page HTML keeps the text searchable. The complete source
+stays in `DjvuBook.bytes` for applications with a dedicated DjVu renderer.
+JB2 pages inherit the shared `Djbz` dictionary their `INCL` chunk names —
+including documents that switch dictionaries mid-document — and alternate
+image codecs that replace a supported layer still fail with typed errors.
 
 ```dart
 final pdf = parsePdfBook(pdfBytes);
@@ -426,16 +430,20 @@ annotations, and image codecs outside the supported extraction contract may be
 omitted. The original PDF bytes are retained for an application that provides
 its own facsimile renderer.
 
-DjVu visual reading covers direct JPEG pages, page-local JB2 masks encoded
-with direct symbols, matched refinements, and symbol copies, plus progressive
-IW44 `BG44` and `FG44` layers. IW44 supports v1.0 through v1.2, including
-photo pages and compound color pages selected by an `Sjbz` mask. Photo pages
-with a reduced BG44 layer are rejected because they cannot be expanded without
-a mask. Shared `Djbz` dictionaries, `INCL`, alternate image encodings,
-indirect files, compressed `TXTz`/`NAVM`, and DRM are outside the supported
-subset. Layer decoding is bounded by chunk, slice, coefficient-work,
+DjVu visual reading covers direct JPEG pages, JB2 masks encoded with direct
+symbols, matched refinements, symbol copies, and shared-dictionary
+inheritance, plus progressive IW44 `BG44` and `FG44` layers. IW44 supports
+v1.0 through v1.2, including photo pages (reduced BG44 layers are expanded
+bilinearly), compound color pages selected by an `Sjbz` mask, and `FGbz`
+pages whose color recoding is ignored so the mask renders as black ink over
+the background. Layer decoding is bounded by chunk, slice, coefficient-work,
 cumulative-pixel, and raster-byte limits. `readDjvuMetadata` validates the
-container and page INFO without decoding its image layer.
+container and page INFO without decoding its image layer. Text and pixel
+output are cross-checked against djvulibre 3.5.29: page text decodes
+byte-identically to `djvutxt` across the tracked public-domain corpus, and
+mask and photo pages render byte-identically to `ddjvu`; composed MRC pages
+use a deterministic hard mask selection whose bounded channel deviation from
+ddjvu's blended stencil is pinned by raster-hash goldens.
 
 ### Input and archive boundaries
 
@@ -479,15 +487,31 @@ container and page INFO without decoding its image layer.
   IDs; other encodings use the shared text detector.
 - DjVu input is limited to 128 MiB, 1024 pages, 65536 IFF chunks, 100 million
   declared pixels per page, 32 MiB per directly stored JPEG, and 8 MiB per
-  uncompressed OCR chunk. JB2 decoding further caps a mask at 16 megapixels,
-  one symbol at 4 megapixels, cumulative symbol decoding and blitting at 64
-  megapixels each, stored symbols at 16 megapixels total, records at 65536,
-  arithmetic-number context nodes at 1,048,576, and comments at 64 KiB. The
-  arithmetic decoder permits at most 16 synthetic end-of-stream bytes.
-  Across one document, decoded visual layers are limited to 256 million pixels
-  and 128 MiB of materialized raster bytes; each page reserves this budget
-  before its decoder allocates output. Indirect DjVu documents require
-  external component files and are rejected.
+  OCR chunk (uncompressed TXTa or BZZ-decompressed TXTz). JB2 decoding further
+  caps a mask at 16 megapixels, one symbol at 4 megapixels, cumulative symbol
+  decoding and blitting at 64 megapixels each, stored symbols at 16 megapixels
+  total, records at 65536, arithmetic-number context nodes at 1,048,576, and
+  comments at 64 KiB. Shared dictionaries add a 64-megapixel per-document cap
+  charged before each symbol bitmap is allocated. BZZ streams (TXTz, NAVM,
+  DIRM names) validate every declared block size against the 4 MiB format
+  limit and the chunk's output cap before allocating, and NAVM record streams
+  are bounded by their 16-bit bookmark count with child claims verified
+  against the record pool. Across one document, decoded visual layers are
+  limited to 2048 million pixels and 1 GiB of materialized raster bytes —
+  sized for real scanned books, which the speller corpus document approaches
+  at 1.4 gigapixels; each page reserves this budget before its decoder
+  allocates output. Indirect document directories are rejected over bytes and
+  resolved only by the file-based open path, which loads DIRM-named sibling
+  components (plain file names only, declared sizes matched) from the
+  document's own directory.
+- DjVu chunks that neither carry displayable content nor replace a supported
+  layer are ignored: `ANTz`/`ANTa` annotations, `CIDa` identifiers, `TH44`
+  thumbnails, and `FGbz` blit recoloring. Chunks that replace a supported
+  layer — `Smmr` MMR masks and `FGjp` JPEG foregrounds — fail with
+  `DjvuUnsupportedCodecException`. Measured across the tracked corpus and the
+  1,196-page stress set, these cover every chunk observed in the wild except
+  the supported ones; `BMKz`, `TXTa`, `BGjp`, `FGjp`, and `Smmr` never appear
+  in the corpus files.
 - LRF input is limited to 128 MiB, 20,000 indexed objects, 10,000 pages,
   32 MiB per expanded stream, 64 MiB of total expanded content, 4 Mi code units
   of rendered HTML per page, and 64 Mi code units of rendered HTML per book.
@@ -572,11 +596,14 @@ Compatibility work draws on:
 - PDF.js and Poppler as independent references for PDF extraction and image
   behavior.
 - The [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf)
-  for IFF structure, JB2 records, and ZP coding. JB2 ZP state-table constants
-  were cross-checked against the independent [MIT-licensed djvu-rs
+  for IFF structure, JB2 records, ZP coding, and the BZZ byte stream (BWT,
+  modified MTF-4, and the 262-context decision tree). JB2 ZP state-table
+  constants and the BZZ decode order were cross-checked against the
+  independent [MIT-licensed djvu-rs
   implementation](https://github.com/matyushkin/djvu-rs/tree/main/crates/djvu-zp);
   its notice is in `licenses/djvu-rs-MIT.txt`. No DjVuLibre GPL source is
-  copied into this parser.
+  copied into this parser; behavioral parity comes from the spec plus the
+  public-domain corpus verified against local djvulibre renders.
 
 ## Development
 

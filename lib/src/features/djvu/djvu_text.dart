@@ -37,6 +37,14 @@ DjvuTextChunk decodeDjvuTextChunk(final Uint8List encoded) {
     truncatedMessage: 'Truncated DjVu TXTz chunk.',
     maxOutputBytes: _maxTextChunkBytes,
   );
+  return decodeDjvuTextChunkRaw(raw);
+}
+
+/// Validates the decompressed TXTz grammar of [raw] and extracts its text.
+///
+/// Split from [decodeDjvuTextChunk] so hostile decompressed payloads can be
+/// exercised directly.
+DjvuTextChunk decodeDjvuTextChunkRaw(final Uint8List raw) {
   if (raw.length < 4) {
     throw const DjvuException('Truncated DjVu TXTz text.');
   }
