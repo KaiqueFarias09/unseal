@@ -431,7 +431,9 @@ final class CcittFaxDecoder {
 
       return true;
     }
-    if (code == ccittEof) eof = true;
+    if (code == ccittEof) {
+      eof = true;
+    }
 
     return false;
   }
@@ -489,7 +491,9 @@ final class CcittFaxDecoder {
     // that consumed no input bits would repeat forever on hostile
     // payloads, so force EOF at the first non-progress row.
     final bitsRemaining = (source.length - _sourcePos) * 8 + inputBits;
-    if (bitsRemaining == _bitsRemainingAtRowStart) eof = true;
+    if (bitsRemaining == _bitsRemainingAtRowStart) {
+      eof = true;
+    }
     _bitsRemainingAtRowStart = bitsRemaining;
   }
 
@@ -593,8 +597,11 @@ final class CcittFaxDecoder {
   /// with a one-pixel run.
   static const int _tableMiss = 0;
 
-  // pdf.js ccitt.js <_findTableCode>: returns (found, runLength).
-  (bool, int) _findTableCode(
+  // pdf.js ccitt.js <_findTableCode>: returns (found, runLength,
+  // matchedCode) — the third flag distinguishes a real table hit from
+  // the end-of-input short circuit, which only `_getTwoDimCode`
+  // rejects.
+  (bool, int, bool) _findTableCode(
     final int start,
     final int end,
     final List<List<int>> table, [
@@ -603,7 +610,7 @@ final class CcittFaxDecoder {
     for (var i = start; i <= end; ++i) {
       var code = _lookBits(i);
       if (code == ccittEof) {
-        return (true, 1);
+        return (true, 1, false);
       }
       if (i < end) {
         code <<= end - i;
@@ -612,12 +619,12 @@ final class CcittFaxDecoder {
         final entry = table[code - limit];
         if (entry[0] == i) {
           _eatBits(i);
-          return (true, entry[1]);
+          return (true, entry[1], true);
         }
       }
     }
 
-    return (false, _tableMiss);
+    return (false, _tableMiss, false);
   }
 
   // pdf.js ccitt.js <_getTwoDimCode>
@@ -633,8 +640,8 @@ final class CcittFaxDecoder {
         }
       }
     } else {
-      final (found, value) = _findTableCode(1, 7, twoDimTable);
-      if (found) {
+      final (found, value, matched) = _findTableCode(1, 7, twoDimTable);
+      if (found && matched) {
         return value;
       }
     }
@@ -657,12 +664,12 @@ final class CcittFaxDecoder {
         return entry[1];
       }
     } else {
-      var (found, value) = _findTableCode(1, 9, whiteTable2);
+      var (found, value, _) = _findTableCode(1, 9, whiteTable2);
       if (found) {
         return value;
       }
 
-      (found, value) = _findTableCode(11, 12, whiteTable1);
+      (found, value, _) = _findTableCode(11, 12, whiteTable1);
       if (found) {
         return value;
       }
@@ -695,17 +702,17 @@ final class CcittFaxDecoder {
         return entry[1];
       }
     } else {
-      var (found, value) = _findTableCode(2, 6, blackTable3);
+      var (found, value, _) = _findTableCode(2, 6, blackTable3);
       if (found) {
         return value;
       }
 
-      (found, value) = _findTableCode(7, 12, blackTable2, 64);
+      (found, value, _) = _findTableCode(7, 12, blackTable2, 64);
       if (found) {
         return value;
       }
 
-      (found, value) = _findTableCode(10, 13, blackTable1);
+      (found, value, _) = _findTableCode(10, 13, blackTable1);
       if (found) {
         return value;
       }
@@ -716,16 +723,13 @@ final class CcittFaxDecoder {
   }
 
   /// Peeks [n] bits without consuming them, MSB-first over [source]
-  /// (pdf.js ccitt.js <_lookBits>): the EOF sentinel once the input
-  /// is exhausted with no buffered bits, the zero-padded window while
-  /// buffered bits remain. pdf.js only fires the sentinel at exactly
-  /// zero and spins forever if `_eatBits` drives the counter negative
-  /// on hostile input; firing it at `<= 0` is the one deliberate
-  /// reader deviation and keeps every path terminating.
+  /// (pdf.js ccitt.js <_lookBits>): the EOF sentinel once the input is
+  /// exhausted with no buffered bits, the zero-padded window while
+  /// buffered bits remain.
   int _lookBits(final int n) {
     while (inputBits < n) {
       if (_sourcePos >= source.length) {
-        if (inputBits <= 0) {
+        if (inputBits == 0) {
           return ccittEof;
         }
 
@@ -738,8 +742,12 @@ final class CcittFaxDecoder {
     return (inputBuf >> (inputBits - n)) & (0xffff >> (16 - n));
   }
 
-  // pdf.js ccitt.js <_eatBits>
+  // pdf.js ccitt.js <_eatBits>: the consumed-bits counter clamps at
+  // zero, exactly as in pdf.js — over-eating (hostile or padding-heavy
+  // streams) must not corrupt the _lookBits window arithmetic.
   void _eatBits(final int n) {
-    inputBits -= n;
+    if ((inputBits -= n) < 0) {
+      inputBits = 0;
+    }
   }
 }

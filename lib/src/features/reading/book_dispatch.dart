@@ -27,6 +27,7 @@ import '../palmdoc/parse_palmdoc_book.dart';
 import '../pdf/parse_pdf_book.dart';
 import '../plucker/parse_plucker_book.dart';
 import '../rtf/parse_rtf_book.dart';
+import '../tiff/parse_tiff_book.dart';
 import '../txt/parse_txt_book.dart';
 
 /// Owns platform-neutral format detection and parse/read dispatch.
@@ -66,6 +67,8 @@ abstract final class BookDispatch {
         return parsePdfBook(bytes, password: password);
       case DetectedFormat.djvu:
         return parseDjvuBook(bytes);
+      case DetectedFormat.tiff:
+        return parseTiffBook(bytes);
       case DetectedFormat.txt:
         return parseTxtBook(bytes);
       case DetectedFormat.rtf:
@@ -139,6 +142,8 @@ abstract final class BookDispatch {
         return readPdfMetadata(bytes, password: password);
       case DetectedFormat.djvu:
         return readDjvuMetadata(bytes);
+      case DetectedFormat.tiff:
+        return readTiffMetadata(bytes);
       case DetectedFormat.txt:
         return readTxtMetadata(bytes);
       case DetectedFormat.rtf:

@@ -24,6 +24,9 @@ enum BookFormat {
   /// DjVu document with directly extractable JPEG pages.
   djvu,
 
+  /// TIFF or BigTIFF document with decodable page images.
+  tiff,
+
   /// Plain UTF text document.
   txt,
 

@@ -11,6 +11,7 @@ import '../../../features/mobi/exceptions/mobi_exception.dart';
 import '../../../features/odt/exceptions/odt_exception.dart';
 import '../../../features/pdf/exceptions/pdf_exception.dart';
 import '../../../features/progressive/session_policy.dart';
+import '../../../features/tiff/tiff_exception.dart';
 import '../../../foundation/exceptions/unseal_exception.dart';
 
 /// Rebuilds the exception hierarchy behind a worker error reply:
@@ -77,6 +78,10 @@ Object decodeErrorWire(final String type, final String message) {
       return DjvuException(message);
     case 'DjvuUnsupportedCodecException':
       return DjvuUnsupportedCodecException(message);
+    case 'TiffException':
+      return TiffException(message);
+    case 'TiffUnsupportedCodecException':
+      return TiffUnsupportedCodecException(message);
     default:
       return UnsealException(message);
   }

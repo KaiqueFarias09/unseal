@@ -10,6 +10,7 @@ import '../../../features/mobi/header/mobi_header.dart';
 import '../../../features/pdf/entities/pdf_book.dart';
 import '../../../features/pdf/entities/pdf_page.dart';
 import '../../../features/pdf/entities/pdf_page_text.dart';
+import '../../../features/tiff/tiff_book.dart';
 import '../../../foundation/entities/entities.dart';
 import 'book_components_wire.dart';
 import 'epub_package_wire.dart';
@@ -147,6 +148,19 @@ import 'metadata_wire.dart';
     return (json, blobs);
   }
 
+  if (book is TiffBook) {
+    json['metadata'] = encodeMetadataWireValue(book.metadata, blobs);
+    json['tiff'] = <String, Object?>{
+      'bytes': pushWireBlob(blobs, book.bytes),
+      'isBigTiff': book.isBigTiff,
+      'pages': <Object?>[
+        for (final page in book.pages)
+          <String, Object?>{'width': page.width, 'height': page.height, 'dpi': page.dpi},
+      ],
+    };
+    return (json, blobs);
+  }
+
   if (book is DocumentBook) {
     json['metadata'] = encodeMetadataWireValue(book.metadata, blobs);
     json['document'] = <String, Object?>{'order': book.order};
@@ -235,6 +249,28 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
             dpi: (pageEntries[index] as Map<String, Object?>)['dpi'] as int,
             rotation: (pageEntries[index] as Map<String, Object?>)['rotation'] as int,
             text: (pageEntries[index] as Map<String, Object?>)['text'] as String,
+            image: files.images[index],
+          ),
+      ],
+    );
+  }
+
+  final tiff = json['tiff'] as Map<String, Object?>?;
+  if (tiff != null) {
+    final pageEntries = tiff['pages'] as List<Object?>;
+    if (pageEntries.length != files.images.length) {
+      throw ArgumentError('TIFF wire pages and images differ in count');
+    }
+    return TiffBook(
+      bytes: blobs[tiff['bytes'] as int] as Uint8List,
+      metadata: decodeMetadataWireValue(json['metadata'] as Map<String, Object?>, blobs),
+      isBigTiff: (tiff['isBigTiff'] as bool?) ?? false,
+      pages: <TiffPage>[
+        for (var index = 0; index < pageEntries.length; index++)
+          TiffPage(
+            width: (pageEntries[index] as Map<String, Object?>)['width'] as int,
+            height: (pageEntries[index] as Map<String, Object?>)['height'] as int,
+            dpi: (pageEntries[index] as Map<String, Object?>)['dpi'] as int,
             image: files.images[index],
           ),
       ],
@@ -377,6 +413,7 @@ BinaryFile _coverOf(final Book book) {
   if (book is ComicBook) return book.cover;
   if (book is PdfBook) return book.cover;
   if (book is DjvuBook) return book.cover;
+  if (book is TiffBook) return book.cover;
   if (book is DocumentBook) return book.cover ?? BinaryFile.empty();
 
   throw ArgumentError('Unsupported book type for the wire: ${book.runtimeType}');

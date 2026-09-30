@@ -64,4 +64,5 @@ export 'src/foundation/text/xml_encoding.dart';
 export 'src/heuristics.dart';
 export 'src/platform/unseal_reader.dart';
 export 'src/platform/unseal_worker.dart';
+export 'tiff.dart';
 export 'txt.dart';

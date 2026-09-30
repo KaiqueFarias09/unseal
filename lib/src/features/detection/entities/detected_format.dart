@@ -23,6 +23,9 @@ enum DetectedFormat {
   /// DjVu single-page or bundled document.
   djvu,
 
+  /// TIFF or BigTIFF document (version refined by the parser).
+  tiff,
+
   /// Plain text document.
   txt,
 
