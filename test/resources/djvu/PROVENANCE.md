@@ -112,3 +112,27 @@ The derived INDIRECT bundle built from `cyrillic.djvu` renders all 12 pages
 byte-identically to the bundled original with
 `djvmcvt -i <in> <dir> <idx>`; see
 `/Volumes/SSD/Projects/bench-artifacts/scanned-2026-09-30/derived/README.md`.
+
+## Derived indirect bundle (added 2026-09-30)
+
+`derived/` holds the tracked INDIRECT DjVu document used by the file-based
+open path. It was derived locally with djvulibre 3.5.29 from the in-git
+`cyrillic.djvu` (same rights: pre-1928 US public domain): `djvm -d` pruned
+the document to page 1 plus its shared dictionary, then
+`djvmcvt -i one.djvu <dir> index.djvu` split it into an indirect directory.
+No component byte was rewritten — the page and dictionary FORMs are verbatim
+copies of the bundled original's components, and `ddjvu -format=ppm -page=1`
+renders of the indirect directory and the pruned bundled document are
+byte-identical.
+
+| File | Role | SHA-256 |
+| --- | --- | --- |
+| `derived/cyrillic-page1-index.djvu` | Indirect index (DIRM, 2 files, 1 page) | `a38a5cbc332b21993bbaa0293065ec0dfe7b3f853886e1dd4b7e4a16f56ff8a7` |
+| `derived/00001.djvu` | Page component (verbatim from `cyrillic.djvu`) | `5cdf26087eadcbacec269ccbeae5fc5988c4741ad4eb8c4a1267a646925b9d67` |
+| `derived/00012.djbz` | Shared JB2 dictionary component (verbatim) | `e2d34aa415cc6ae174bb31dd6f6be78ee8c13f59e6b8192f38ab6c4534833b73` |
+
+The full 12-page indirect derivation (13 components) stays out of git at
+`/Volumes/SSD/Projects/bench-artifacts/scanned-2026-09-30/derived/` with its
+own hashes and djvudump record. `parseDjvuBook` keeps rejecting indirect
+directories over bytes with `DjvuUnsupportedCodecException`; only the
+file-based open path resolves sibling components.

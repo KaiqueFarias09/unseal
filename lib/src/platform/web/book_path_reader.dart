@@ -18,3 +18,8 @@ Future<T?> readBookSidecar<T>(
   final String sourcePath,
   final T Function(String content) parse,
 ) async => null;
+
+/// Indirect DjVu components cannot resolve on web: there is no filesystem to
+/// load sibling files from. Bytes-only callers keep the typed rejection.
+Future<Uint8List?> resolveIndirectDjvu(final Uint8List bytes, final String sourcePath) async =>
+    null;

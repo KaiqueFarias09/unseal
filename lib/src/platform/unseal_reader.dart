@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../features/detection/detect_format.dart';
 import '../features/detection/entities/detected_format.dart';
+import '../features/djvu/parse_djvu_book.dart';
 import '../features/epub/metadata/epub_metadata.dart';
 import '../features/epub/package/parse_epub_package.dart';
 import '../features/markdown/parse_markdown_book.dart';
@@ -51,10 +52,17 @@ abstract final class Unseal {
   }
 
   /// Reads a book from the file at [path], opening encrypted PDFs with [password].
+  ///
+  /// Indirect DjVu document directories resolve their DIRM-named component
+  /// files from the same directory before parsing.
   static Future<Book> readFile(final String path, {final String password = ''}) {
-    return withBookPath(path, (final bytes, final sourcePath) {
+    return withBookPath(path, (final bytes, final sourcePath) async {
       if (_isMarkdownPath(sourcePath)) {
         return parseBookInBackground(() => parseMarkdownBook(bytes, sourceName: sourcePath), bytes);
+      }
+      final indirect = await resolveIndirectDjvu(bytes, sourcePath);
+      if (indirect != null) {
+        return parseBookInBackground(() => parseDjvuBook(indirect), indirect);
       }
       return read(bytes, password: password);
     });
