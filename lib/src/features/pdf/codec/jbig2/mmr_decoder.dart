@@ -13,8 +13,8 @@ library;
 
 import 'dart:typed_data';
 
+import '../../../../foundation/images/ccitt/ccitt_tables.dart';
 import '../../exceptions/pdf_exception.dart';
-import '../ccitt/ccitt_tables.dart';
 
 /// A byte-source view over one segment payload: `_lookBits` pulls
 /// whole bytes (0xFF fills past the end, matching pdf.js's `Reader`

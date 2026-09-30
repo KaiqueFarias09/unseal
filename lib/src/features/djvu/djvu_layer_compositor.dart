@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 
+import '../../foundation/images/bmp_encoder.dart';
 import 'djvu_decode_budget.dart';
 import 'djvu_exception.dart';
 import 'jb2_decoder.dart';
 
 const _maxDjvuInfoDimension = 0xFFFF;
-const _bmpHeaderBytes = 54;
 
 /// A decoded DjVu color layer in top-to-bottom, row-major RGB888 order.
 ///
@@ -60,9 +60,9 @@ Uint8List composeDjvuLayersBmp({
     throw const DjvuException('DjVu BG44-only photo dimensions must match the INFO chunk.');
   }
 
-  final rowStride = _checkedBmpRowStride(pageWidth);
+  final rowStride = bmpRowStride(pageWidth);
   final pixelBytes = rowStride * pageHeight;
-  final outputBytes = _bmpHeaderBytes + pixelBytes;
+  final outputBytes = bmpHeaderBytes + pixelBytes;
   budget.reserve(pixels: pagePixels, rasterBytes: outputBytes);
 
   if (mask != null) {
@@ -76,13 +76,13 @@ Uint8List composeDjvuLayersBmp({
   }
 
   final output = Uint8List(outputBytes);
-  _writeBmpHeader(output, pageWidth, pageHeight, pixelBytes);
+  writeBmpHeader(output, pageWidth, pageHeight, pixelBytes);
   final backgroundSampler = _RasterSampler(background, backgroundFactor);
   final foregroundSampler = foreground == null
       ? null
       : _RasterSampler(foreground, foregroundFactor);
   final selection = mask?.pixels;
-  final bottomUpBase = _bmpHeaderBytes;
+  final bottomUpBase = bmpHeaderBytes;
 
   for (var y = 0; y < pageHeight; y++) {
     final sourceRow = (pageHeight - 1 - y) * rowStride;
@@ -151,29 +151,6 @@ int? _subsamplingFactor(
   return null;
 }
 
-int _checkedBmpRowStride(final int width) {
-  final unpaddedBytes = width * 3;
-  return (unpaddedBytes + 3) & ~3;
-}
-
-void _writeBmpHeader(
-  final Uint8List output,
-  final int width,
-  final int height,
-  final int pixelBytes,
-) {
-  final view = ByteData.sublistView(output);
-  output[0] = 0x42;
-  output[1] = 0x4D;
-  view.setUint32(2, output.length, Endian.little);
-  view.setUint32(10, _bmpHeaderBytes, Endian.little);
-  view.setUint32(14, 40, Endian.little);
-  view.setInt32(18, width, Endian.little);
-  view.setInt32(22, height, Endian.little);
-  view.setUint16(26, 1, Endian.little);
-  view.setUint16(28, 24, Endian.little);
-  view.setUint32(34, pixelBytes, Endian.little);
-}
 
 final class _RasterSampler {
   const _RasterSampler(this.raster, this.factor);

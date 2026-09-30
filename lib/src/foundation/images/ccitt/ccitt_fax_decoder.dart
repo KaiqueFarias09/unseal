@@ -1,0 +1,745 @@
+import 'dart:typed_data';
+
+import 'ccitt_tables.dart';
+
+/// Maximum supported row width. Wider rows are rejected before allocation.
+const int ccittMaxColumns = 1 << 16;
+
+/// Maximum decoded payload returned by [decodeCcittFaxBytes].
+const int ccittMaxOutputBytes = 64 << 20;
+
+/// The parameters of one CCITT fax stream (ITU-T T.4/T.6 coding).
+///
+/// [encoding] selects the coding: `0` = Group 3 1D, negative = Group 4,
+/// positive = Group 3 2D. [columns] is the row width in pixels, [rows]
+/// the expected row count (0 = decode until the stream ends).
+/// [endOfLine] expects EOL codes between rows, [byteAlign] re-aligns
+/// each row to a byte boundary, [endOfBlock] honors EOFB codes and
+/// stops on them, and [blackIs1] flips the default output polarity
+/// (white runs emit `1` bits) so `1` = black.
+final class CcittFaxOptions {
+  /// Creates the decoder options.
+  const CcittFaxOptions({
+    this.encoding = 0,
+    this.columns = 1728,
+    this.rows = 0,
+    this.endOfLine = false,
+    this.byteAlign = false,
+    this.endOfBlock = true,
+    this.blackIs1 = false,
+  });
+
+  /// The T.4 coding selector (`/K` in PDF): 0 = G3 1D, < 0 = G4,
+  /// > 0 = G3 2D.
+  final int encoding;
+
+  /// Row width in pixels.
+  final int columns;
+
+  /// Expected row count; 0 decodes until the stream signals EOF.
+  final int rows;
+
+  /// Whether EOL codes appear between rows.
+  final bool endOfLine;
+
+  /// Whether rows re-align to byte boundaries.
+  final bool byteAlign;
+
+  /// Whether end-of-block (EOFB) sequences terminate the stream.
+  final bool endOfBlock;
+
+  /// When true, output samples are flipped so `1` = black.
+  final bool blackIs1;
+}
+
+/// Decodes a CCITT fax payload into packed 1-bit rows: most significant
+/// bit first, rows padded to whole bytes, `rows * ceil(columns / 8)`
+/// bytes for a full decode.
+///
+/// This implementation is based on pdf.js v3.11.174 `src/core/ccitt.js`
+/// (`CCITTFaxDecoder` and the `CCITTFaxStream.readBlock` drain loop).
+/// Comments identify the corresponding pdf.js operations. pdf.js is
+/// Apache-2.0 (Copyright 2012 Mozilla Foundation; the original CCITT
+/// stream implementation is a JavaScript port of XPDF's, Copyright
+/// 1996-2003 Glyph & Cog, LLC, also Apache-2.0).
+///
+/// Two deliberate deviations make malformed streams fail with a
+/// [CcittFaxException] instead of hanging or exhausting memory:
+///
+/// 1. absurd [CcittFaxOptions.columns]/[CcittFaxOptions.rows]
+///    combinations are rejected up front;
+/// 2. the drain loop caps the returned payload size, and a row that
+///    consumes no input bits forces EOF (pdf.js spins forever on the
+///    same input inside its stream worker).
+Uint8List decodeCcittFaxBytes(final Uint8List data, final CcittFaxOptions options) {
+  var columns = options.columns;
+  if (columns <= 0) columns = 1728;
+  if (columns > ccittMaxColumns || options.rows > ccittMaxRows) {
+    throw CcittFaxException('CCITT fax geometry out of range: ${columns}x${options.rows}.');
+  }
+
+  final decoder = CcittFaxDecoder(
+    data,
+    encoding: options.encoding,
+    eoline: options.endOfLine,
+    byteAlign: options.byteAlign,
+    columns: columns,
+    rows: options.rows,
+    eoblock: options.endOfBlock,
+    black: options.blackIs1,
+  );
+
+  // pdf.js ccitt.js CCITTFaxStream <readBlock>: drain one byte per
+  // `readNextChar` until the decoder signals EOF.
+  final chunks = BytesBuilder(copy: false);
+  while (!decoder.eof) {
+    final byte = decoder.readNextChar();
+    if (byte == ccittEof) break;
+    chunks.addByte(byte);
+    if (chunks.length > ccittMaxOutputBytes) {
+      throw const CcittFaxException('CCITT fax output exceeded the size cap.');
+    }
+  }
+
+  return chunks.toBytes();
+}
+
+/// Maximum supported row count, checked before allocation.
+const int ccittMaxRows = 1 << 20;
+
+/// A malformed CCITT fax stream.
+class CcittFaxException implements Exception {
+  /// Creates the failure with a describing [message].
+  const CcittFaxException(this.message);
+
+  /// What went wrong.
+  final String message;
+
+  @override
+  String toString() => 'CcittFaxException: $message';
+}
+
+/// The bit-level CCITT fax decoder: a faithful port of pdf.js
+/// v3.11.174 `src/core/ccitt.js` (`CCITTFaxDecoder`).
+///
+/// The bit reader mirrors pdf.js exactly: at end of input `_lookBits`
+/// returns the zero-padded window while buffered bits remain and the
+/// EOF sentinel once they drain to zero through `_eatBits`.
+final class CcittFaxDecoder {
+  /// Creates a decoder over [source] with pdf.js's option names.
+  CcittFaxDecoder(
+    this.source, {
+    required this.encoding,
+    required this.eoline,
+    required this.byteAlign,
+    required this.columns,
+    required this.rows,
+    required this.eoblock,
+    required this.black,
+  }) : codingLine = Uint32List(columns + 1),
+       refLine = Uint32List(columns + 2) {
+    // pdf.js ccitt.js <constructor>: skip a leading all-zero run and
+    // any EOL prefix, then read the first row's 1D/2D tag for K > 0.
+    nextLine2D = encoding < 0;
+    codingLine[0] = columns;
+
+    int code1;
+    while ((code1 = _lookBits(12)) == 0) {
+      _eatBits(1);
+    }
+    if (code1 == 1) {
+      _eatBits(12);
+    }
+    if (encoding > 0) {
+      nextLine2D = _lookBits(1) == 0;
+      _eatBits(1);
+    }
+  }
+
+  /// The payload bytes, read MSB-first through [_lookBits].
+  final Uint8List source;
+
+  /// The coding selector: 0 = Group 3 1D, < 0 = Group 4, > 0 = G3 2D.
+  final int encoding;
+
+  /// Expect EOL codes between rows.
+  final bool eoline;
+
+  /// Re-align to a byte boundary before each row.
+  final bool byteAlign;
+
+  /// Row width in pixels.
+  final int columns;
+
+  /// Row-count bound carried for pdf.js parity (the drain loop reads
+  /// until the stream signals EOF either way).
+  final int rows;
+
+  /// Honor EOFB codes and stop on them.
+  final bool eoblock;
+
+  /// When true, `readNextChar` flips its default sample polarity
+  /// (0 = black) per byte.
+  final bool black;
+
+  /// The changing-element positions of the row being decoded.
+  final Uint32List codingLine;
+
+  /// The changing-element positions of the previous row.
+  final Uint32List refLine;
+
+  /// Whether the decoder signaled EOF.
+  bool eof = false;
+
+  /// Whether the current row hit a recoverable decode error.
+  bool err = false;
+
+  /// Whether the declared [rows] count has been produced.
+  bool rowsDone = false;
+
+  /// Index into [codingLine] of the run currently being emitted.
+  int codingPos = 0;
+
+  /// Number of complete rows produced so far.
+  int row = 0;
+
+  /// Whether the next row decodes in 2D mode (the G3 2D line tag).
+  bool nextLine2D = false;
+
+  /// Bits currently buffered from [source] and not yet consumed.
+  int inputBits = 0;
+
+  /// The buffered bit window fed by [source] bytes.
+  int inputBuf = 0;
+
+  /// Run bits of the current run still to emit as output bytes.
+  int outputBits = 0;
+
+  /// Read cursor into [source].
+  int _sourcePos = 0;
+
+  /// Bits left unread at the start of the current row; a row that
+  /// finishes without consuming any forces EOF (see the class doc).
+  int _bitsRemainingAtRowStart = -1;
+
+  /// One output byte per call, packed MSB-first with pdf.js's
+  /// white-as-1 convention flipped by [black] (`readNextChar`).
+  int readNextChar() {
+    if (eof) return ccittEof;
+    if (outputBits == 0 && !_startNextRow()) return ccittEof;
+
+    return _readOutputByte();
+  }
+
+  bool _startNextRow() {
+    if (rowsDone) eof = true;
+    if (eof) return false;
+    err = false;
+    if (nextLine2D) {
+      _decodeTwoDimensionalRow();
+    } else {
+      _decodeOneDimensionalRow();
+    }
+
+    final gotEol = _consumeRowTerminator();
+    _selectNextLineMode();
+    if (eoblock && gotEol && byteAlign) {
+      _consumeEndOfBlock();
+    } else if (err && eoline && !_recoverFromBadRow()) {
+      return false;
+    }
+
+    outputBits = codingLine[0] > 0 ? codingLine[(codingPos = 0)] : codingLine[(codingPos = 1)];
+    row++;
+    _recordRowProgress();
+
+    return true;
+  }
+
+  void _decodeTwoDimensionalRow() {
+    final refLine = this.refLine;
+    final codingLine = this.codingLine;
+    final columns = this.columns;
+    var i = 0;
+    while (codingLine[i] < columns) {
+      refLine[i] = codingLine[i];
+      i++;
+    }
+    refLine[i++] = columns;
+    refLine[i] = columns;
+    codingLine[0] = 0;
+    codingPos = 0;
+    var refPos = 0;
+    var blackPixels = 0;
+    var remainingCodes = 8 * columns + 512;
+    while (codingLine[codingPos] < columns) {
+      if (--remainingCodes < 0) {
+        throw const CcittFaxException('CCITT fax 2D row failed to terminate.');
+      }
+      final code = _getTwoDimCode();
+      final result = _applyTwoDimensionalCode(code, refPos, blackPixels);
+      refPos = result.$1;
+      blackPixels = result.$2;
+    }
+  }
+
+  (int, int) _applyTwoDimensionalCode(final int code, int refPos, int blackPixels) {
+    switch (code) {
+      case twoDimPass:
+        _addPixels(refLine[refPos + 1], blackPixels);
+        if (refLine[refPos + 1] < columns) refPos += 2;
+      case twoDimHoriz:
+        final runs = _readHorizontalRuns(blackPixels);
+        _addPixels(codingLine[codingPos] + runs.$1, blackPixels);
+        if (codingLine[codingPos] < columns) {
+          _addPixels(codingLine[codingPos] + runs.$2, blackPixels ^ 1);
+        }
+        while (refLine[refPos] <= codingLine[codingPos] && refLine[refPos] < columns) {
+          refPos += 2;
+        }
+      case twoDimVertR3:
+        _addPixels(refLine[refPos] + 3, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) {
+          refPos = _advanceReference(refLine, codingPos, refPos);
+        }
+      case twoDimVertR2:
+        _addPixels(refLine[refPos] + 2, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) {
+          refPos = _advanceReference(refLine, codingPos, refPos);
+        }
+      case twoDimVertR1:
+        _addPixels(refLine[refPos] + 1, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) {
+          refPos = _advanceReference(refLine, codingPos, refPos);
+        }
+      case twoDimVert0:
+        _addPixels(refLine[refPos], blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) {
+          refPos = _advanceReference(refLine, codingPos, refPos);
+        }
+      case twoDimVertL3:
+        _addPixelsNeg(refLine[refPos] - 3, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) refPos = _advanceNegativeReference(refLine, refPos);
+      case twoDimVertL2:
+        _addPixelsNeg(refLine[refPos] - 2, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) refPos = _advanceNegativeReference(refLine, refPos);
+      case twoDimVertL1:
+        _addPixelsNeg(refLine[refPos] - 1, blackPixels);
+        blackPixels ^= 1;
+        if (codingLine[codingPos] < columns) refPos = _advanceNegativeReference(refLine, refPos);
+      case ccittEof:
+        _addPixels(columns, 0);
+        eof = true;
+      default:
+        _addPixels(columns, 0);
+        err = true;
+    }
+
+    return (refPos, blackPixels);
+  }
+
+  (int, int) _readHorizontalRuns(final int blackPixels) {
+    var first = 0;
+    var second = 0;
+    var run = 0;
+    if (blackPixels != 0) {
+      do {
+        first += run = _getBlackCode();
+      } while (run >= 64);
+      do {
+        second += run = _getWhiteCode();
+      } while (run >= 64);
+    } else {
+      do {
+        first += run = _getWhiteCode();
+      } while (run >= 64);
+      do {
+        second += run = _getBlackCode();
+      } while (run >= 64);
+    }
+
+    return (first, second);
+  }
+
+  int _advanceReference(final Uint32List line, final int position, int refPos) {
+    refPos++;
+    while (line[refPos] <= codingLine[position] && line[refPos] < columns) {
+      refPos += 2;
+    }
+
+    return refPos;
+  }
+
+  int _advanceNegativeReference(final Uint32List line, int refPos) {
+    refPos = refPos > 0 ? refPos - 1 : refPos + 1;
+    while (line[refPos] <= codingLine[codingPos] && line[refPos] < columns) {
+      refPos += 2;
+    }
+
+    return refPos;
+  }
+
+  void _decodeOneDimensionalRow() {
+    codingLine[0] = 0;
+    codingPos = 0;
+    var blackPixels = 0;
+    while (codingLine[codingPos] < columns) {
+      var run = 0;
+      var code = 0;
+      if (blackPixels != 0) {
+        do {
+          run += code = _getBlackCode();
+        } while (code >= 64);
+      } else {
+        do {
+          run += code = _getWhiteCode();
+        } while (code >= 64);
+      }
+      _addPixels(codingLine[codingPos] + run, blackPixels);
+      blackPixels ^= 1;
+    }
+  }
+
+  bool _consumeRowTerminator() {
+    if (byteAlign) inputBits &= ~7;
+    if (!eoblock && row == rows - 1) {
+      rowsDone = true;
+
+      return false;
+    }
+
+    var code = _lookBits(12);
+    if (eoline) {
+      while (code != ccittEof && code != 1) {
+        _eatBits(1);
+        code = _lookBits(12);
+      }
+    } else {
+      while (code == 0) {
+        _eatBits(1);
+        code = _lookBits(12);
+      }
+    }
+    if (code == 1) {
+      _eatBits(12);
+
+      return true;
+    }
+    if (code == ccittEof) eof = true;
+
+    return false;
+  }
+
+  void _selectNextLineMode() {
+    if (eof || encoding <= 0 || rowsDone) return;
+    nextLine2D = _lookBits(1) == 0;
+    _eatBits(1);
+  }
+
+  void _consumeEndOfBlock() {
+    final code = _lookBits(12);
+    if (code != 1) return;
+    _eatBits(12);
+    if (encoding > 0) {
+      _lookBits(1);
+      _eatBits(1);
+    }
+    if (encoding >= 0) {
+      for (var i = 0; i < 4; ++i) {
+        _lookBits(12);
+        _eatBits(12);
+        if (encoding > 0) {
+          _lookBits(1);
+          _eatBits(1);
+        }
+      }
+    }
+    eof = true;
+  }
+
+  bool _recoverFromBadRow() {
+    while (true) {
+      final code = _lookBits(13);
+      if (code == ccittEof) {
+        eof = true;
+
+        return false;
+      }
+      if (code >> 1 == 1) {
+        _eatBits(12);
+        if (encoding > 0) {
+          _eatBits(1);
+          nextLine2D = (code & 1) == 0;
+        }
+
+        return true;
+      }
+      _eatBits(1);
+    }
+  }
+
+  void _recordRowProgress() {
+    // Safety net: pdf.js relies on its stream to end; here a row
+    // that consumed no input bits would repeat forever on hostile
+    // payloads, so force EOF at the first non-progress row.
+    final bitsRemaining = (source.length - _sourcePos) * 8 + inputBits;
+    if (bitsRemaining == _bitsRemainingAtRowStart) eof = true;
+    _bitsRemainingAtRowStart = bitsRemaining;
+  }
+
+  int _readOutputByte() {
+    final columns = this.columns;
+    int c;
+    if (outputBits >= 8) {
+      c = (codingPos & 1) != 0 ? 0 : 0xff;
+      outputBits -= 8;
+      if (outputBits == 0 && codingLine[codingPos] < columns) {
+        codingPos++;
+        outputBits = codingLine[codingPos] - codingLine[codingPos - 1];
+      }
+    } else {
+      c = _readPartialOutputByte();
+    }
+    if (black) c ^= 0xff;
+
+    return c;
+  }
+
+  int _readPartialOutputByte() {
+    var bits = 8;
+    var c = 0;
+    do {
+      if (outputBits > bits) {
+        c <<= bits;
+        if ((codingPos & 1) == 0) c |= 0xff >> (8 - bits);
+        outputBits -= bits;
+        bits = 0;
+      } else {
+        c <<= outputBits;
+        if ((codingPos & 1) == 0) {
+          c |= outputBits == 8 ? 0xff : 0xff >> (8 - outputBits);
+        }
+        bits -= outputBits;
+        outputBits = 0;
+        if (codingLine[codingPos] < columns) {
+          codingPos++;
+          outputBits = codingLine[codingPos] - codingLine[codingPos - 1];
+        } else if (bits > 0) {
+          c <<= bits;
+          bits = 0;
+        }
+      }
+    } while (bits != 0);
+
+    return c;
+  }
+
+  // pdf.js ccitt.js <_addPixels>
+  void _addPixels(final int a1Raw, final int blackPixels) {
+    final codingLine = this.codingLine;
+    var codingPos = this.codingPos;
+    var a1 = a1Raw;
+    if (a1 > codingLine[codingPos]) {
+      if (a1 > columns) {
+        err = true;
+        a1 = columns;
+      }
+      if (((codingPos & 1) ^ blackPixels) != 0) {
+        ++codingPos;
+      }
+
+      codingLine[codingPos] = a1;
+    }
+    this.codingPos = codingPos;
+  }
+
+  // pdf.js ccitt.js <_addPixelsNeg>
+  void _addPixelsNeg(final int a1Raw, final int blackPixels) {
+    final codingLine = this.codingLine;
+    var codingPos = this.codingPos;
+    var a1 = a1Raw;
+    if (a1 > codingLine[codingPos]) {
+      if (a1 > columns) {
+        err = true;
+        a1 = columns;
+      }
+      if (((codingPos & 1) ^ blackPixels) != 0) {
+        ++codingPos;
+      }
+
+      codingLine[codingPos] = a1;
+    } else if (a1 < codingLine[codingPos]) {
+      if (a1 < 0) {
+        err = true;
+        a1 = 0;
+      }
+      while (codingPos > 0 && a1 < codingLine[codingPos - 1]) {
+        --codingPos;
+      }
+      codingLine[codingPos] = a1;
+    }
+
+    this.codingPos = codingPos;
+  }
+
+  /// Run length of a failed table lookup: pdf.js's `_findTableCode`
+  /// returns a `found`/`value` pair where a miss keeps decoding going
+  /// with a one-pixel run.
+  static const int _tableMiss = 0;
+
+  // pdf.js ccitt.js <_findTableCode>: returns (found, runLength).
+  (bool, int) _findTableCode(
+    final int start,
+    final int end,
+    final List<List<int>> table, [
+    final int limit = 0,
+  ]) {
+    for (var i = start; i <= end; ++i) {
+      var code = _lookBits(i);
+      if (code == ccittEof) {
+        return (true, 1);
+      }
+      if (i < end) {
+        code <<= end - i;
+      }
+      if (limit == 0 || code >= limit) {
+        final entry = table[code - limit];
+        if (entry[0] == i) {
+          _eatBits(i);
+          return (true, entry[1]);
+        }
+      }
+    }
+
+    return (false, _tableMiss);
+  }
+
+  // pdf.js ccitt.js <_getTwoDimCode>
+  int _getTwoDimCode() {
+    int code;
+    if (eoblock) {
+      code = _lookBits(7);
+      if (code >= 0 && code < twoDimTable.length) {
+        final entry = twoDimTable[code];
+        if (entry[0] > 0) {
+          _eatBits(entry[0]);
+          return entry[1];
+        }
+      }
+    } else {
+      final (found, value) = _findTableCode(1, 7, twoDimTable);
+      if (found) {
+        return value;
+      }
+    }
+
+    return ccittEof;
+  }
+
+  // pdf.js ccitt.js <_getWhiteCode>
+  int _getWhiteCode() {
+    int code;
+    if (eoblock) {
+      code = _lookBits(12);
+      if (code == ccittEof) {
+        return 1;
+      }
+
+      final entry = code >> 5 == 0 ? whiteTable1[code] : whiteTable2[code >> 3];
+      if (entry[0] > 0) {
+        _eatBits(entry[0]);
+        return entry[1];
+      }
+    } else {
+      var (found, value) = _findTableCode(1, 9, whiteTable2);
+      if (found) {
+        return value;
+      }
+
+      (found, value) = _findTableCode(11, 12, whiteTable1);
+      if (found) {
+        return value;
+      }
+    }
+    _eatBits(1);
+
+    return 1;
+  }
+
+  // pdf.js ccitt.js <_getBlackCode>
+  int _getBlackCode() {
+    int code;
+    if (eoblock) {
+      code = _lookBits(13);
+      if (code == ccittEof) {
+        return 1;
+      }
+
+      List<int> entry;
+      if (code >> 7 == 0) {
+        entry = blackTable1[code];
+      } else if (code >> 9 == 0 && code >> 7 != 0) {
+        entry = blackTable2[(code >> 1) - 64];
+      } else {
+        entry = blackTable3[code >> 7];
+      }
+
+      if (entry[0] > 0) {
+        _eatBits(entry[0]);
+        return entry[1];
+      }
+    } else {
+      var (found, value) = _findTableCode(2, 6, blackTable3);
+      if (found) {
+        return value;
+      }
+
+      (found, value) = _findTableCode(7, 12, blackTable2, 64);
+      if (found) {
+        return value;
+      }
+
+      (found, value) = _findTableCode(10, 13, blackTable1);
+      if (found) {
+        return value;
+      }
+    }
+    _eatBits(1);
+
+    return 1;
+  }
+
+  /// Peeks [n] bits without consuming them, MSB-first over [source]
+  /// (pdf.js ccitt.js <_lookBits>): the EOF sentinel once the input
+  /// is exhausted with no buffered bits, the zero-padded window while
+  /// buffered bits remain. pdf.js only fires the sentinel at exactly
+  /// zero and spins forever if `_eatBits` drives the counter negative
+  /// on hostile input; firing it at `<= 0` is the one deliberate
+  /// reader deviation and keeps every path terminating.
+  int _lookBits(final int n) {
+    while (inputBits < n) {
+      if (_sourcePos >= source.length) {
+        if (inputBits <= 0) {
+          return ccittEof;
+        }
+
+        return (inputBuf << (n - inputBits)) & (0xffff >> (16 - n));
+      }
+      inputBuf = (inputBuf << 8) | source[_sourcePos++];
+      inputBits += 8;
+    }
+
+    return (inputBuf >> (inputBits - n)) & (0xffff >> (16 - n));
+  }
+
+  // pdf.js ccitt.js <_eatBits>
+  void _eatBits(final int n) {
+    inputBits -= n;
+  }
+}
