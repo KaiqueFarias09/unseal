@@ -15,7 +15,12 @@
       "license_file": "licenses/LICENSE-CC-BY-SA-3.0.txt",
       "bytes": 4051892,
       "sha256": "67f75b8e3cd1abe4bb143d91d5424191d5af3115c9d26ff029a38e19f8d16feb",
-      "focus": ["accessibility", "landmarks", "reading-order", "language-markup"]
+      "focus": [
+        "accessibility",
+        "landmarks",
+        "reading-order",
+        "language-markup"
+      ]
     },
     {
       "id": "CHEM-PD",
@@ -30,7 +35,13 @@
       "license_url": "https://www.gutenberg.org/policy/license",
       "bytes": 10194479,
       "sha256": "ef5da0283e8e3b5b76e541d3469bcc4e26f3c0dbb5e3396be708d5117f4f768b",
-      "focus": ["chemistry", "tables", "illustrations", "scientific-notation", "tts"]
+      "focus": [
+        "chemistry",
+        "tables",
+        "illustrations",
+        "scientific-notation",
+        "tts"
+      ]
     },
     {
       "id": "CHEM-RUBY",
@@ -45,7 +56,12 @@
       "license_file": "licenses/LICENSE-CC-BY-SA-3.0.txt",
       "bytes": 3683,
       "sha256": "1133a872bbe50df15b9a4928c33f693fd264f83276041b478aa6b076b1183fb3",
-      "focus": ["chemistry", "ruby", "epub-switch", "fallback"]
+      "focus": [
+        "chemistry",
+        "ruby",
+        "epub-switch",
+        "fallback"
+      ]
     },
     {
       "id": "CJK-ZH",
@@ -60,7 +76,12 @@
       "license_url": "https://www.gutenberg.org/policy/license",
       "bytes": 928786,
       "sha256": "6b79064bcbd2fef24bd92ea9407fdc5ca6271e1bb29a4b53c4eb595a3a8527cf",
-      "focus": ["chinese", "cjk-line-breaking", "search", "large-text"]
+      "focus": [
+        "chinese",
+        "cjk-line-breaking",
+        "search",
+        "large-text"
+      ]
     },
     {
       "id": "FXL",
@@ -75,7 +96,12 @@
       "license_file": "licenses/LICENSE-CC-BY-SA-3.0.txt",
       "bytes": 3136922,
       "sha256": "d2efb562f17d43cef50578d4d67dd7fd991f8f254b6f5a7c28bde7461ea783eb",
-      "focus": ["fixed-layout", "orientation", "spreads", "bitmap-pages"]
+      "focus": [
+        "fixed-layout",
+        "orientation",
+        "spreads",
+        "bitmap-pages"
+      ]
     },
     {
       "id": "LOCALE-ES",
@@ -90,7 +116,12 @@
       "license_url": "https://www.gutenberg.org/policy/license",
       "bytes": 918869,
       "sha256": "1e8a26017d9b58797fa20aab9ba0016153c2ca6613031ad7500fec9f1fcb2655",
-      "focus": ["spanish", "punctuation", "metadata", "tts"]
+      "focus": [
+        "spanish",
+        "punctuation",
+        "metadata",
+        "tts"
+      ]
     },
     {
       "id": "LOCALE-FR",
@@ -105,7 +136,13 @@
       "license_url": "https://www.gutenberg.org/policy/license",
       "bytes": 349990,
       "sha256": "80d4b5b3d5d4d3756848db9fb8a65e43b0ad06177170acd84f1d36727c411f10",
-      "focus": ["french", "elision", "diacritics", "metadata", "tts"]
+      "focus": [
+        "french",
+        "elision",
+        "diacritics",
+        "metadata",
+        "tts"
+      ]
     },
     {
       "id": "LOCALE-PT",
@@ -120,7 +157,12 @@
       "license_url": "https://www.gutenberg.org/policy/license",
       "bytes": 220810,
       "sha256": "6af63f38babff2631ceff374de2ce9f121372a5a25d10456c4b9f9cf9620d64b",
-      "focus": ["portuguese", "accents", "metadata", "tts"]
+      "focus": [
+        "portuguese",
+        "accents",
+        "metadata",
+        "tts"
+      ]
     },
     {
       "id": "MATH-PD",
@@ -135,7 +177,13 @@
       "license_url": "https://www.gutenberg.org/policy/license",
       "bytes": 1330699,
       "sha256": "8bc2452a06192e98da82a9880811f6e2a2ddebcec9e70c1678677833c05f1d70",
-      "focus": ["mathematics", "diagrams", "symbols", "index", "pagination"]
+      "focus": [
+        "mathematics",
+        "diagrams",
+        "symbols",
+        "index",
+        "pagination"
+      ]
     },
     {
       "id": "MO-EN",
@@ -150,7 +198,12 @@
       "license_file": "licenses/LICENSE-CC-BY-SA-3.0.txt",
       "bytes": 10627796,
       "sha256": "749a9de094c26bc79351722a2bf320845dc5f6af2d5bf41a96d720d723b29a4c",
-      "focus": ["media-overlays", "smil", "audio", "timing"]
+      "focus": [
+        "media-overlays",
+        "smil",
+        "audio",
+        "timing"
+      ]
     },
     {
       "id": "ODD-PD",
@@ -165,7 +218,13 @@
       "license_file": "licenses/LICENSE-CC0-1.0.txt",
       "bytes": 1855666,
       "sha256": "e72746e7783c4708353c45c40ba2cc1a40e8d044fc49d24a85ac05fa25ccd69e",
-      "focus": ["semantic-markup", "notes", "svg", "unusual-pages", "accessibility"]
+      "focus": [
+        "semantic-markup",
+        "notes",
+        "svg",
+        "unusual-pages",
+        "accessibility"
+      ]
     },
     {
       "id": "KEPUB-SE-RED-BADGE",
@@ -180,7 +239,13 @@
       "license_file": "licenses/LICENSE-CC0-1.0.txt",
       "bytes": 677545,
       "sha256": "7075073bba72242ade634cbd9f50546664ac3d39613efc7d91403da5545219f8",
-      "focus": ["kobo-produced", "kepub", "navigation", "kobo-spans", "images"]
+      "focus": [
+        "kobo-produced",
+        "kepub",
+        "navigation",
+        "kobo-spans",
+        "images"
+      ]
     },
     {
       "id": "RTL-AR",
@@ -195,7 +260,13 @@
       "license_file": "licenses/LICENSE-CC-BY-SA-3.0.txt",
       "bytes": 110694,
       "sha256": "5d10bf6a73f461b7b23294b6e34b72f2a1184c9543a424b4a0f737ed33967e96",
-      "focus": ["arabic", "rtl", "bidi", "native-fonts", "glyph-shaping"]
+      "focus": [
+        "arabic",
+        "rtl",
+        "bidi",
+        "native-fonts",
+        "glyph-shaping"
+      ]
     },
     {
       "id": "RTL-HE",
@@ -210,7 +281,12 @@
       "license_file": "licenses/LICENSE-CC-BY-SA-2.5.html",
       "bytes": 1358190,
       "sha256": "10c397036d2eb54db172d05c9e3cda4382d04e8e9ce3ddd8741ba7058c3dcd4a",
-      "focus": ["hebrew", "rtl", "bidi", "page-progression"]
+      "focus": [
+        "hebrew",
+        "rtl",
+        "bidi",
+        "page-progression"
+      ]
     },
     {
       "id": "SCRIPT-SA",
@@ -225,7 +301,13 @@
       "license_file": "licenses/LICENSE-CC-BY-SA-3.0.txt",
       "bytes": 11118097,
       "sha256": "fd1b19a1258857fe31081e2a22b3013e84663501c731d88a27bc06cf476a8a06",
-      "focus": ["devanagari", "native-fonts", "glyph-shaping", "search", "tts"]
+      "focus": [
+        "devanagari",
+        "native-fonts",
+        "glyph-shaping",
+        "search",
+        "tts"
+      ]
     },
     {
       "id": "VERT-JA",
@@ -240,7 +322,12 @@
       "license_file": "licenses/LICENSE-CC-BY-SA-3.0.txt",
       "bytes": 267252,
       "sha256": "6623732b1aa7cefed26e2db95f7ac14c80360b99d328ed927b93548a96990c62",
-      "focus": ["japanese", "vertical-writing", "alternate-stylesheets", "rtl-page-progression"]
+      "focus": [
+        "japanese",
+        "vertical-writing",
+        "alternate-stylesheets",
+        "rtl-page-progression"
+      ]
     }
   ],
   "format_fixtures": [
@@ -257,7 +344,13 @@
       "license_url": "https://www.gutenberg.org/policy/license",
       "bytes": 241000,
       "sha256": "29448cd44f3e6d3db391c6aefc438f53283142d9e8a41ef439718a5d84f36240",
-      "focus": ["mobi6", "palmdoc", "legacy-kindle", "images", "toc"]
+      "focus": [
+        "mobi6",
+        "palmdoc",
+        "legacy-kindle",
+        "images",
+        "toc"
+      ]
     },
     {
       "id": "FORMAT-AZW3",
@@ -272,7 +365,14 @@
       "license_url": "https://www.gutenberg.org/policy/license",
       "bytes": 255486,
       "sha256": "b3c9067848d28f8c0f36adbb198b306791884319e8b2f8ea7083f844d8876815",
-      "focus": ["kf8", "azw3", "css", "fonts", "images", "toc"]
+      "focus": [
+        "kf8",
+        "azw3",
+        "css",
+        "fonts",
+        "images",
+        "toc"
+      ]
     },
     {
       "id": "FORMAT-FB2",
@@ -285,7 +385,15 @@
       "license_file": "../../../LICENSE",
       "bytes": 1554,
       "sha256": "c29d04f5e0ebc00f2206d0bcc1b16e127ef309dc2e50b4da94a646c3c356f7f5",
-      "focus": ["fb2", "xml", "sections", "multilingual", "bidi", "unicode", "science-notation"]
+      "focus": [
+        "fb2",
+        "xml",
+        "sections",
+        "multilingual",
+        "bidi",
+        "unicode",
+        "science-notation"
+      ]
     },
     {
       "id": "FORMAT-CBZ",
@@ -298,7 +406,13 @@
       "license_file": "../../../LICENSE",
       "bytes": 627,
       "sha256": "798192fa8e065a18aaf9867e1aa1323011290e75e4b7a7472a33be44feb9d03f",
-      "focus": ["cbz", "zip", "natural-page-order", "comicinfo", "cover"]
+      "focus": [
+        "cbz",
+        "zip",
+        "natural-page-order",
+        "comicinfo",
+        "cover"
+      ]
     },
     {
       "id": "FORMAT-CBR",
@@ -311,7 +425,12 @@
       "license_file": "../../../LICENSE",
       "bytes": 106,
       "sha256": "19871d020affba36788fe403f4c0cb0bc5b2ca1eb9deee0f4c830f369fe916a4",
-      "focus": ["cbr", "rar4", "stored-entries", "natural-page-order"]
+      "focus": [
+        "cbr",
+        "rar4",
+        "stored-entries",
+        "natural-page-order"
+      ]
     },
     {
       "id": "FORMAT-PDF",
@@ -324,7 +443,13 @@
       "license_file": "../../../LICENSE",
       "bytes": 14946,
       "sha256": "97444cb3bf7199d3ef8320780053a76376a732a43f0e7011755c4338f6ff1f4f",
-      "focus": ["pdf-1.3", "real-writer", "text-extraction", "reflow", "search"]
+      "focus": [
+        "pdf-1.3",
+        "real-writer",
+        "text-extraction",
+        "reflow",
+        "search"
+      ]
     },
     {
       "id": "FORMAT-TXT",
@@ -337,7 +462,13 @@
       "license_file": "../../../LICENSE",
       "bytes": 137,
       "sha256": "65d07576d9363a42add5654b87f198bd362cfdd6cc224a08bb199ea16a8d724c",
-      "focus": ["txt", "utf-8", "paragraphs", "unicode", "metadata-header"]
+      "focus": [
+        "txt",
+        "utf-8",
+        "paragraphs",
+        "unicode",
+        "metadata-header"
+      ]
     },
     {
       "id": "FORMAT-TXTZ",
@@ -350,7 +481,14 @@
       "license_file": "../../../LICENSE",
       "bytes": 945,
       "sha256": "47cc6f8699556e21c679411a68028aae072ca71fe8d801bfbfd20d49b6c11b08",
-      "focus": ["txtz", "zip", "opf-metadata", "markdown", "cover", "natural-order"]
+      "focus": [
+        "txtz",
+        "zip",
+        "opf-metadata",
+        "markdown",
+        "cover",
+        "natural-order"
+      ]
     },
     {
       "id": "FORMAT-MARKDOWN",
@@ -363,7 +501,12 @@
       "license_file": "../../../LICENSE",
       "bytes": 231,
       "sha256": "66538040b07e5876cb242a75d44ff434725da99868907c23e0d1e24848a1e296",
-      "focus": ["markdown", "front-matter", "headings", "links"]
+      "focus": [
+        "markdown",
+        "front-matter",
+        "headings",
+        "links"
+      ]
     },
     {
       "id": "FORMAT-RTF",
@@ -376,7 +519,13 @@
       "license_file": "../../../LICENSE",
       "bytes": 202,
       "sha256": "0947e56ce8951c565cb5fa04ebc2a5c2fe0b161d1a09dd18d9a299d35316dba9",
-      "focus": ["rtf", "unicode", "ansi", "metadata", "emphasis"]
+      "focus": [
+        "rtf",
+        "unicode",
+        "ansi",
+        "metadata",
+        "emphasis"
+      ]
     },
     {
       "id": "FORMAT-PALMDOC",
@@ -389,7 +538,12 @@
       "license_file": "../../../LICENSE",
       "bytes": 138,
       "sha256": "96613a923886c0b1aaa6942ec4c069d5c7eb7ebad28f8fb79ab06dcae7ca530a",
-      "focus": ["palmdoc", "pdb", "compression", "plain-text"]
+      "focus": [
+        "palmdoc",
+        "pdb",
+        "compression",
+        "plain-text"
+      ]
     },
     {
       "id": "FORMAT-EREADER",
@@ -402,7 +556,13 @@
       "license_file": "../../../LICENSE",
       "bytes": 401,
       "sha256": "0685dccfea126b3cfe6f57d84ac1973a3b56251912112d159aa2f8f4e579518d",
-      "focus": ["ereader", "pdb", "zlib", "metadata", "pml"]
+      "focus": [
+        "ereader",
+        "pdb",
+        "zlib",
+        "metadata",
+        "pml"
+      ]
     },
     {
       "id": "FORMAT-PLUCKER-ZLIB",
@@ -415,7 +575,12 @@
       "license_file": "../../../LICENSE",
       "bytes": 296,
       "sha256": "df734eda0d1cb568ebe518c521e4d8aa9442fdb321906e2e08a7498e37361174",
-      "focus": ["plucker", "pdb", "zlib", "text"]
+      "focus": [
+        "plucker",
+        "pdb",
+        "zlib",
+        "text"
+      ]
     },
     {
       "id": "FORMAT-PLUCKER-BITMAP-COLOR",
@@ -428,7 +593,13 @@
       "license_file": "../../../LICENSE",
       "bytes": 1353,
       "sha256": "e1ce8e7937d22b534c6a7679d97e1d73694410ff2c9cc2306a0db21333a91487",
-      "focus": ["plucker", "pdb", "bitmap", "custom-palette", "rgb565"]
+      "focus": [
+        "plucker",
+        "pdb",
+        "bitmap",
+        "custom-palette",
+        "rgb565"
+      ]
     },
     {
       "id": "FORMAT-PLUCKER-BITMAP-DEPTHS",
@@ -441,7 +612,14 @@
       "license_file": "../../../LICENSE",
       "bytes": 238,
       "sha256": "b5f34972af587d51679ef9a799d6f5da04d006a909dcff1b81a5b38673622370",
-      "focus": ["plucker", "pdb", "bitmap", "2-bit", "4-bit", "palette-boundary"]
+      "focus": [
+        "plucker",
+        "pdb",
+        "bitmap",
+        "2-bit",
+        "4-bit",
+        "palette-boundary"
+      ]
     },
     {
       "id": "FORMAT-LRF",
@@ -454,7 +632,13 @@
       "license_file": "lrf/PROVENANCE.md",
       "bytes": 2379,
       "sha256": "cf5e5e973569e0c9c9d9dea159dfd8958b13160ed48be4b111f807f51caa7175",
-      "focus": ["lrf", "bbeb", "toc", "unicode", "reflow"]
+      "focus": [
+        "lrf",
+        "bbeb",
+        "toc",
+        "unicode",
+        "reflow"
+      ]
     },
     {
       "id": "FORMAT-HTML",
@@ -467,7 +651,11 @@
       "license_file": "../../../LICENSE",
       "bytes": 180,
       "sha256": "2f8c0929b8e41313fc1844de3e9a775de98de5f58fafe64b08b275e442a2fa82",
-      "focus": ["html", "head-metadata", "heading-navigation"]
+      "focus": [
+        "html",
+        "head-metadata",
+        "heading-navigation"
+      ]
     },
     {
       "id": "FORMAT-HTMLZ",
@@ -480,7 +668,13 @@
       "license_file": "../../../LICENSE",
       "bytes": 989,
       "sha256": "ba137218384d189fc2889d71bc338f5de768c9c8a4f87a8c7eb31a418660e428",
-      "focus": ["htmlz", "zip", "top-level-index", "opf-sidecar", "resources"]
+      "focus": [
+        "htmlz",
+        "zip",
+        "top-level-index",
+        "opf-sidecar",
+        "resources"
+      ]
     },
     {
       "id": "FORMAT-DOCX",
@@ -493,7 +687,13 @@
       "license_file": "../../../LICENSE",
       "bytes": 919,
       "sha256": "f7c154495bcb73f8f9fdbefec5edb46475d678f54bd6386b1bd44c9de2b8e968",
-      "focus": ["docx", "open-xml", "document-xml", "styles", "metadata"]
+      "focus": [
+        "docx",
+        "open-xml",
+        "document-xml",
+        "styles",
+        "metadata"
+      ]
     },
     {
       "id": "FORMAT-AZW4",
@@ -506,7 +706,12 @@
       "license_file": "../../../LICENSE",
       "bytes": 2201,
       "sha256": "bb2eab58f9b9717caad41fcd09a9e0f9b5d77ab1f5ea2f40a7002d773f507d07",
-      "focus": ["azw4", "palmdb", "pdf-wrapper", "pdf-reuse"]
+      "focus": [
+        "azw4",
+        "palmdb",
+        "pdf-wrapper",
+        "pdf-reuse"
+      ]
     },
     {
       "id": "FORMAT-CB7",
@@ -519,7 +724,13 @@
       "license_file": "../../../LICENSE",
       "bytes": 306,
       "sha256": "dc22487dfe022c416fa387f5ee30e03c4d92d64006eb5410790f8d167fcb1beb",
-      "focus": ["cb7", "7z", "comicinfo", "natural-page-order", "cover"]
+      "focus": [
+        "cb7",
+        "7z",
+        "comicinfo",
+        "natural-page-order",
+        "cover"
+      ]
     },
     {
       "id": "FORMAT-CBC",
@@ -532,7 +743,12 @@
       "license_file": "../../../LICENSE",
       "bytes": 911,
       "sha256": "747f1ccb4015ba608f919755d4dde56c2e7daf050b381921f1e80519b1db93cb",
-      "focus": ["cbc", "comics-txt", "nested-cb7", "collection-order"]
+      "focus": [
+        "cbc",
+        "comics-txt",
+        "nested-cb7",
+        "collection-order"
+      ]
     },
     {
       "id": "FORMAT-ODT",
@@ -545,7 +761,12 @@
       "license_file": "../../../LICENSE",
       "bytes": 783,
       "sha256": "f98fad84d827126788c712c4ee606e75204d809edcbb65f0f22a547e9e559ac3",
-      "focus": ["odt", "opendocument", "content-xml", "metadata"]
+      "focus": [
+        "odt",
+        "opendocument",
+        "content-xml",
+        "metadata"
+      ]
     },
     {
       "id": "FORMAT-CHM-PUTTY",
@@ -561,7 +782,14 @@
       "bytes": 271652,
       "sha256": "317147468e9876d0465b3f1457b948e43911f3e713011d574fd325fab304ef34",
       "minimum_reading_order_items": 454,
-      "focus": ["real-manual", "chm", "lzx", "html-topics", "contents", "resources"]
+      "focus": [
+        "real-manual",
+        "chm",
+        "lzx",
+        "html-topics",
+        "contents",
+        "resources"
+      ]
     },
     {
       "id": "FORMAT-CHM-CP1251",
@@ -574,7 +802,14 @@
       "bytes": 4494,
       "sha256": "9e2669b133aafad11855a2a863165bdff70bf838056fb622a0db2939d62fa67c",
       "minimum_reading_order_items": 1,
-      "focus": ["generated", "chm", "windows-1251", "filename", "metadata", "contents"]
+      "focus": [
+        "generated",
+        "chm",
+        "windows-1251",
+        "filename",
+        "metadata",
+        "contents"
+      ]
     },
     {
       "id": "FORMAT-CHM-CP1252",
@@ -587,7 +822,14 @@
       "bytes": 4489,
       "sha256": "3e15ff2ddc20c924fcb53cd62535ce7c96561cbe4bf5684193f695091a1f5103",
       "minimum_reading_order_items": 1,
-      "focus": ["generated", "chm", "windows-1252", "filename", "metadata", "contents"]
+      "focus": [
+        "generated",
+        "chm",
+        "windows-1252",
+        "filename",
+        "metadata",
+        "contents"
+      ]
     },
     {
       "id": "FORMAT-CHM-CP1256",
@@ -600,7 +842,14 @@
       "bytes": 4490,
       "sha256": "8cbe7d39a71415dbff5ef379e9ffa797ed1d6b558ac44d43166947d27579f0bd",
       "minimum_reading_order_items": 1,
-      "focus": ["generated", "chm", "windows-1256", "filename", "metadata", "contents"]
+      "focus": [
+        "generated",
+        "chm",
+        "windows-1256",
+        "filename",
+        "metadata",
+        "contents"
+      ]
     },
     {
       "id": "FORMAT-DJVU",
@@ -613,10 +862,14 @@
       "license_file": "../../../LICENSE",
       "bytes": 210,
       "sha256": "7b6b77e5f140be8853e9a8f94f7099e3a547b9ef63d0da93cdc8d19205b832a6",
-      "focus": ["djvu", "iff", "jpeg-page", "ocr"]
-    }
-,
-{
+      "focus": [
+        "djvu",
+        "iff",
+        "jpeg-page",
+        "ocr"
+      ]
+    },
+    {
       "id": "FORMAT-FXL-XHTML-VIEWPORT",
       "file": "epub/fxl-xhtml-viewport.epub",
       "format": "epub",
@@ -636,7 +889,7 @@
         "prose"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-SPREAD-HINTS",
       "file": "epub/fxl-spread-hints.epub",
       "format": "epub",
@@ -656,7 +909,7 @@
         "rendition"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-SPREAD-PORTRAIT",
       "file": "epub/fxl-spread-portrait.epub",
       "format": "epub",
@@ -676,7 +929,7 @@
         "rendition"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-RTL",
       "file": "epub/fxl-rtl.epub",
       "format": "epub",
@@ -696,7 +949,7 @@
         "arabic"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-ORIENTATION",
       "file": "epub/fxl-orientation.epub",
       "format": "epub",
@@ -715,7 +968,7 @@
         "rendition-override"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-MIXED-FIXED",
       "file": "epub/fxl-mixed-fixed-override.epub",
       "format": "epub",
@@ -735,7 +988,7 @@
         "viewport"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-MIXED-REFLOW",
       "file": "epub/fxl-mixed-reflow-override.epub",
       "format": "epub",
@@ -754,7 +1007,7 @@
         "mixed-flow"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-SVG",
       "file": "epub/fxl-svg.epub",
       "format": "epub",
@@ -774,7 +1027,7 @@
         "viewbox"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-NONLINEAR",
       "file": "epub/fxl-nonlinear.epub",
       "format": "epub",
@@ -794,7 +1047,7 @@
         "internal-links"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-REPEATED-SPINE",
       "file": "epub/fxl-repeated-spine.epub",
       "format": "epub",
@@ -813,7 +1066,7 @@
         "reading-order"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-OVERLAYS",
       "file": "epub/fxl-overlays.epub",
       "format": "epub",
@@ -833,7 +1086,7 @@
         "image-only-page"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-SCRIPTED",
       "file": "epub/fxl-scripted.epub",
       "format": "epub",
@@ -852,7 +1105,7 @@
         "javascript"
       ]
     },
-{
+    {
       "id": "FORMAT-FXL-VIEWPORT-QUIRKS",
       "file": "epub/fxl-viewport-quirks.epub",
       "format": "epub",
@@ -870,6 +1123,22 @@
         "viewport",
         "malformed",
         "limits"
+      ]
+    },
+    {
+      "id": "FORMAT-TIFF",
+      "file": "tiff/sample.tif",
+      "format": "tiff",
+      "source": "Generated by this repository's tool/tiff_fixtures.dart",
+      "license": "Repository-generated fixture; no third-party content",
+      "license_file": "licenses/generated-tiff.txt",
+      "bytes": 6503,
+      "sha256": "6fa216fc25766c8e4fce2f421ae96f751a500a92ff05dae684de24d8e34ef006",
+      "focus": [
+        "tiff",
+        "multipage-readiness",
+        "metadata-tags",
+        "grayscale"
       ]
     }
   ],
@@ -889,7 +1158,14 @@
       "bytes": 24684,
       "sha256": "a404534bbd75771a3d62278e654bd12649224dab698128086ecdf532fc94bc7a",
       "minimum_reading_order_items": 1,
-      "focus": ["real-world", "fb2", "polish", "unicode", "sections", "footnotes"]
+      "focus": [
+        "real-world",
+        "fb2",
+        "polish",
+        "unicode",
+        "sections",
+        "footnotes"
+      ]
     },
     {
       "id": "REAL-CBZ-IA-1895",
@@ -905,7 +1181,14 @@
       "bytes": 8017532,
       "sha256": "8a14b99b228017ff88d5f180dfdc5ed88d49c467490ac42bf88261d7565dd03e",
       "minimum_reading_order_items": 20,
-      "focus": ["real-publication", "cbz", "deflate", "scanned-pages", "nested-paths", "natural-page-order"]
+      "focus": [
+        "real-publication",
+        "cbz",
+        "deflate",
+        "scanned-pages",
+        "nested-paths",
+        "natural-page-order"
+      ]
     },
     {
       "id": "REAL-CBR-IA-1909",
@@ -922,7 +1205,13 @@
       "sha256": "f822b233eb34e975811279056372219e08177fb431f4b9d222dc86f44659a446",
       "minimum_reading_order_items": 24,
       "externally_verified_page_entries": 24,
-      "focus": ["real-publication", "cbr", "rar4", "compressed-entries", "method-29"]
+      "focus": [
+        "real-publication",
+        "cbr",
+        "rar4",
+        "compressed-entries",
+        "method-29"
+      ]
     },
     {
       "id": "REAL-PDF-EUCLID",
@@ -938,7 +1227,14 @@
       "bytes": 1860807,
       "sha256": "fa77c91ea6b1e31fe09dea4d9a4310e7f8345dba5be0563603f62e7742ffce5c",
       "minimum_reading_order_items": 1,
-      "focus": ["real-publication", "pdf-1.5", "mathematics", "diagrams", "vector-content", "pagination"]
+      "focus": [
+        "real-publication",
+        "pdf-1.5",
+        "mathematics",
+        "diagrams",
+        "vector-content",
+        "pagination"
+      ]
     }
   ]
 }
