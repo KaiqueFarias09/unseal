@@ -40,29 +40,36 @@ class DjvuPage {
 /// display this supported subset without decoding DjVu itself.
 class DjvuBook extends Book {
   /// Creates a parsed DjVu book.
-  DjvuBook({required this.bytes, required this.pages, required this.metadata})
-    : files = Files(
-        images: <BinaryFile>[for (final page in pages) page.image],
-        html: <TextFile>[
-          for (var index = 0; index < pages.length; index++)
-            TextFile(
-              content:
-                  '<html><body><img src="../${pages[index].image.path}" '
-                  'width="${pages[index].width}" height="${pages[index].height}" '
-                  'alt="DjVu page ${index + 1}">'
-                  '${pages[index].text.isEmpty ? '' : '<span hidden>${_escape(pages[index].text)}</span>'}'
-                  '</body></html>',
-              name: 'page-${index + 1}.html',
-              type: 'html',
-              path: 'text/page-${index + 1}.html',
-            ),
-        ],
-        css: const <TextFile>[],
-        fonts: const <BinaryFile>[],
-        others: const <BinaryFile>[],
-      ),
-      navigation = Navigation(title: metadata.title ?? '', navPoints: const <NavPoint>[]),
-      super(format: BookFormat.djvu);
+  ///
+  /// [navigation] carries decoded NAVM bookmarks; it defaults to empty
+  /// navigation for documents without an outline chunk.
+  DjvuBook({
+    required this.bytes,
+    required this.pages,
+    required this.metadata,
+    Navigation? navigation,
+  }) : files = Files(
+         images: <BinaryFile>[for (final page in pages) page.image],
+         html: <TextFile>[
+           for (var index = 0; index < pages.length; index++)
+             TextFile(
+               content:
+                   '<html><body><img src="../${pages[index].image.path}" '
+                   'width="${pages[index].width}" height="${pages[index].height}" '
+                   'alt="DjVu page ${index + 1}">'
+                   '${pages[index].text.isEmpty ? '' : '<span hidden>${_escape(pages[index].text)}</span>'}'
+                   '</body></html>',
+               name: 'page-${index + 1}.html',
+               type: 'html',
+               path: 'text/page-${index + 1}.html',
+             ),
+         ],
+         css: const <TextFile>[],
+         fonts: const <BinaryFile>[],
+         others: const <BinaryFile>[],
+       ),
+       navigation = navigation ?? Navigation(title: '', navPoints: const <NavPoint>[]),
+       super(format: BookFormat.djvu);
 
   /// Complete source bytes, for external DjVu renderers.
   final Uint8List bytes;
@@ -78,7 +85,8 @@ class DjvuBook extends Book {
   @override
   final Files files;
 
-  /// DjVu navigation. Bookmarks in compressed NAVM are not decoded yet.
+  /// Navigation decoded from the compressed NAVM outline chunk, when the
+  /// document declares one. Bookmark URLs stay verbatim on each point.
   @override
   final Navigation navigation;
 

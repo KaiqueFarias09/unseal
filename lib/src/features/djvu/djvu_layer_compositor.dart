@@ -29,11 +29,13 @@ final class DjvuRgbRaster {
 /// Composes BG44 and optional FG44/Sjbz layers into a displayable 24-bit BMP.
 ///
 /// Black mask pixels select [foreground]; white pixels select [background].
-/// The foreground and mask must either both be supplied or both be omitted.
-/// The omitted case supports a photo DjVu page whose BG44 dimensions equal the
-/// INFO dimensions. MRC color layers are expanded with deterministic bilinear
-/// interpolation on a grid spaced by their validated integer sub-sampling
-/// factor. Samples outside the last grid point clamp to the layer edge.
+/// The foreground must always come with its mask; a mask without a foreground
+/// is a valid page whose FGbz color layer is ignored, and its ink renders
+/// black over the background. A page without mask or foreground is a photo
+/// whose BG44 layer is expanded to the INFO dimensions. MRC color layers and
+/// reduced photo layers are expanded with deterministic bilinear interpolation
+/// on a grid spaced by their validated integer sub-sampling factor. Samples
+/// outside the last grid point clamp to the layer edge.
 ///
 /// [budget] reserves the output page before its BMP bytes are allocated.
 Uint8List composeDjvuLayersBmp({
@@ -47,17 +49,17 @@ Uint8List composeDjvuLayersBmp({
   final pagePixels = _checkedPixelCount(pageWidth, pageHeight, 'page');
   final backgroundFactor = _validateRaster(background, pageWidth, pageHeight, 'background');
 
-  if ((foreground == null) != (mask == null)) {
-    throw const DjvuException('DjVu foreground color and selection mask must be present together.');
+  if (foreground != null && mask == null) {
+    throw const DjvuException('DjVu foreground color needs a selection mask.');
   }
   var foregroundFactor = 1;
-  if (foreground != null && mask != null) {
+  if (mask != null) {
     if (mask.width != pageWidth || mask.height != pageHeight || mask.pixels.length != pagePixels) {
       throw const DjvuException('DjVu selection mask dimensions do not match the INFO chunk.');
     }
-    foregroundFactor = _validateRaster(foreground, pageWidth, pageHeight, 'foreground');
-  } else if (backgroundFactor != 1) {
-    throw const DjvuException('DjVu BG44-only photo dimensions must match the INFO chunk.');
+    if (foreground != null) {
+      foregroundFactor = _validateRaster(foreground, pageWidth, pageHeight, 'foreground');
+    }
   }
 
   final rowStride = bmpRowStride(pageWidth);
@@ -88,10 +90,16 @@ Uint8List composeDjvuLayersBmp({
     final sourceRow = (pageHeight - 1 - y) * rowStride;
     for (var x = 0; x < pageWidth; x++) {
       final destinationPixel = y * pageWidth + x;
-      final source = selection != null && selection[destinationPixel] == 1
-          ? foregroundSampler!
-          : backgroundSampler;
+      final selectInk = selection != null && selection[destinationPixel] == 1;
       final byteOffset = bottomUpBase + sourceRow + x * 3;
+      if (selectInk && foregroundSampler == null) {
+        // The color layer is ignored: mask ink renders black.
+        output[byteOffset] = 0;
+        output[byteOffset + 1] = 0;
+        output[byteOffset + 2] = 0;
+        continue;
+      }
+      final source = selectInk ? foregroundSampler! : backgroundSampler;
       source.writeBgr(output, byteOffset, x, y);
     }
   }
@@ -150,7 +158,6 @@ int? _subsamplingFactor(
   }
   return null;
 }
-
 
 final class _RasterSampler {
   const _RasterSampler(this.raster, this.factor);

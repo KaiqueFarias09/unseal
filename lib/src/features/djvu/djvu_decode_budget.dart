@@ -1,10 +1,18 @@
 import 'djvu_exception.dart';
 
 /// Maximum decoded page pixels materialized by one DjVu document.
-const djvuMaxDecodedPixelsPerBook = 256 * 1000 * 1000;
+///
+/// Sized for real scanned books: the 121-page speller corpus file decodes to
+/// ~1.4 gigapixels, so the cap admits multi-hundred-page scans while still
+/// rejecting declarations beyond any legitimate book.
+const djvuMaxDecodedPixelsPerBook = 2048 * 1000 * 1000;
 
 /// Maximum raster bytes materialized by one DjVu document.
-const djvuMaxDecodedRasterBytesPerBook = 128 * 1024 * 1024;
+///
+/// Sized alongside [djvuMaxDecodedPixelsPerBook]: full 24-bit BMP pages of a
+/// real scanned book reach hundreds of MiB, and the cap must bound hostile
+/// multi-page documents, not reject legitimate ones.
+const djvuMaxDecodedRasterBytesPerBook = 1024 * 1024 * 1024;
 
 /// Tracks decoded visual work across every page before its output is allocated.
 ///

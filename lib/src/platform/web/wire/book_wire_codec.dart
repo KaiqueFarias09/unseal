@@ -226,6 +226,7 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
     return DjvuBook(
       bytes: blobs[djvu['bytes'] as int] as Uint8List,
       metadata: decodeMetadataWireValue(json['metadata'] as Map<String, Object?>, blobs),
+      navigation: navigation,
       pages: <DjvuPage>[
         for (var index = 0; index < pageEntries.length; index++)
           DjvuPage(
