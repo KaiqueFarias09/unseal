@@ -86,7 +86,9 @@ proveniência):
   o ramo Djvu não a carrega). Testes Chrome espelham (djvu_wire_test com
   TXTz/NAVM).
   - "(implementado: TXTz via BZZ próprio validado byte a byte contra
-    `djvutxt` nos 207 páginas de texto do corpus — 310.032 bytes; texto da
+    `djvutxt` nos 207 páginas de texto do corpus — 309.932 bytes (medido
+    sobre os oráculos arquivados; a nota original desta seção dizia
+    310.032, arredondamento impreciso); texto da
     página prefere TXTz sobre TXTa quando ambos existem — corpus real não
     tem página com ambos; separadores: NUL de zona-página vira LF+FF e o
     separador entre páginas é LF+FF, regra derivada empiricamente do oráculo

@@ -62,7 +62,7 @@ document renderer.
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
 | DjVu (JPEG, JB2, and IW44 subset) | Direct `BGjp` JPEG pages, `Sjbz` masks with shared `Djbz` dictionaries and `INCL` references, progressive `BG44`/`FG44` layers, and INFO dimensions and rotation in single-page or bundled documents; compressed `TXTz` hidden text, legacy `TXTa` OCR, and `NAVM` bookmark outlines | JB2 masks and composed IW44 pages become BMP images. Compressed text is byte-exact against `djvutxt`. Indirect document directories resolve through file-based opens only; `FGbz` recoloring, `FGjp`/`Smmr` layer replacements, `ANTz` annotations, and thumbnails are ignored or rejected as described below. |
-| TIFF / BigTIFF | Baseline uncompressed, PackBits, LZW, and Deflate/AdobeDeflate raster pages (8-bit gray and RGB, 16-bit gray, bilevel, with horizontal-differencing predictors), CCITT Group 4 and Group 3 (including modified Huffman and EOL-less producers), multi-page IFD chains in both byte orders, BigTIFF 64-bit offsets, ImageDescription/DateTime/Software/Artist metadata, and X/Y-resolution DPI | Pages become BMP images (JPEG passthrough when a page holds one self-contained strip). Tiled layouts, planar=2, palette, float/SampleFormat≠1, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and uncompressed-mode extensions are rejected typed. A page is capped at 256 megapixels; strips and tiles are bounds-checked before allocation; a document is capped at 128 MiB input, 1024 pages, and 128 MiB of decoded raster. Pixel parity with libtiff (`tiffcmp`) is pinned by tests. |
+| TIFF / BigTIFF | Baseline uncompressed, PackBits, LZW, and Deflate/AdobeDeflate raster pages (8-bit gray and RGB, 16-bit gray, bilevel, with horizontal-differencing predictors), CCITT Group 4 and Group 3 (including modified Huffman and EOL-less producers), multi-page IFD chains in both byte orders, BigTIFF 64-bit offsets, ImageDescription/DateTime/Software/Artist metadata, and X/Y-resolution DPI | Pages become BMP images (JPEG passthrough when a page holds one self-contained strip). Tiled layouts, planar=2, palette, float/SampleFormat≠1, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and uncompressed-mode extensions are rejected typed. A page is capped at 256 megapixels; strips and tiles are bounds-checked before allocation; a document is capped at 128 MiB input, 1024 pages, 256 megapixels of decoded pixels, and 128 MiB of decoded raster. Pixel parity with libtiff (`tiffcmp`) is pinned by tests. |
 
 `OPF` is not a standalone reading format. When unseal finds `metadata.opf`
 inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
@@ -510,7 +510,8 @@ verified against libtiff by `tiffcmp` parity over the tracked corpus
   decoding and blitting at 64 megapixels each, stored symbols at 16 megapixels
   total, records at 65536, arithmetic-number context nodes at 1,048,576, and
   comments at 64 KiB. Shared dictionaries add a 64-megapixel per-document cap
-  charged before each symbol bitmap is allocated. BZZ streams (TXTz, NAVM,
+  charged before each symbol bitmap is allocated; a shared dictionary that
+  itself inherits another dictionary is rejected typed. BZZ streams (TXTz, NAVM,
   DIRM names) validate every declared block size against the 4 MiB format
   limit and the chunk's output cap before allocating, and NAVM record streams
   are bounded by their 16-bit bookmark count with child claims verified
@@ -524,9 +525,9 @@ verified against libtiff by `tiffcmp` parity over the tracked corpus
   document's own directory.
 - DjVu chunks that neither carry displayable content nor replace a supported
   layer are ignored: `ANTz`/`ANTa` annotations, `CIDa` identifiers, `TH44`
-  thumbnails, and `FGbz` blit recoloring. Chunks that replace a supported
-  layer — `Smmr` MMR masks and `FGjp` JPEG foregrounds — fail with
-  `DjvuUnsupportedCodecException`. Measured across the tracked corpus and the
+  thumbnails, `BMKz` compressed bookmarks, and `FGbz` blit recoloring. Chunks
+  that replace a supported layer — `Smmr` MMR masks and `FGjp` JPEG foregrounds —
+  fail with `DjvuUnsupportedCodecException`. Measured across the tracked corpus and the
   1,196-page stress set, these cover every chunk observed in the wild except
   the supported ones; `BMKz`, `TXTa`, `BGjp`, `FGjp`, and `Smmr` never appear
   in the corpus files.
@@ -539,7 +540,8 @@ verified against libtiff by `tiffcmp` parity over the tracked corpus
   Unsupported tags and stream flags fail with typed exceptions.
 - TIFF/BigTIFF input is limited to 128 MiB, 1,024 pages, 65,536 IFD entries,
   4 samples per pixel, a 256-megapixel page, a million strips or tiles per
-  page, and 128 MiB of decoded raster per document. Strip and tile offsets
+  page, 256 megapixels of decoded pixels per document, and 128 MiB of decoded
+  raster per document. Strip and tile offsets
   and byte counts are validated against the file bounds before any
   allocation, and IFD chains are cycle-checked. Unsupported codecs and
   layouts fail with typed exceptions.
