@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:test/test.dart';
+import 'package:unseal/src/features/djvu/jb2_decoder.dart';
 import 'package:unseal/unseal.dart';
 
 import '../../support/djvu_fixture.dart';
@@ -18,13 +19,20 @@ import '../../support/djvu_fixture.dart';
 /// remaining composed pages follow the house MRC rendering convention
 /// (hard mask selection over bilinear layer expansion) whose bounded
 /// deviation from ddjvu's blended stencil is recorded in the README.
+///
+/// Manual dev-time check for the full 12-page derived indirect bundle (kept
+/// out of git at /Volumes/SSD/Projects/bench-artifacts/scanned-2026-09-30/
+/// derived/cyrillic-indirect/): open its index with `Unseal.readFile` and
+/// compare all 12 page rasters against the bundled cyrillic.djvu — the
+/// tracked fixture pins the same parity for page 1.
 void main() {
   final corpus = <String, Uint8List>{};
   Uint8List corpusBytes(final String name) =>
       corpus.putIfAbsent(name, () => File('test/resources/djvu/$name').readAsBytesSync());
 
   final books = <String, DjvuBook>{};
-  DjvuBook open(final String name) => books.putIfAbsent(name, () => parseDjvuBook(corpusBytes(name)));
+  DjvuBook open(final String name) =>
+      books.putIfAbsent(name, () => parseDjvuBook(corpusBytes(name)));
 
   /// Rebuilds the positional djvutxt document text from page texts: each
   /// text page contributes its rendered text and a trailing LF + form feed
@@ -319,6 +327,13 @@ void main() {
         ],
       );
       expect(() => parseDjvuBook(page), throwsA(isA<DjvuException>()));
+    });
+
+    test('shared dictionaries respect the 64-megapixel document ledger', () {
+      final ledger = DjvuSharedDictionaryLedger();
+      ledger.charge(djvuMaxSharedDictionaryPixelsPerBook - 1);
+      expect(() => ledger.charge(2), throwsA(isA<DjvuException>()));
+      expect(() => DjvuSharedDictionaryLedger().charge(-1), throwsA(isA<DjvuException>()));
     });
 
     test('a truncated NAVM chunk fails typed', () {
