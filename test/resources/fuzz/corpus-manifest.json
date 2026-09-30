@@ -564,6 +564,14 @@
       "landmarks": 0
     },
     {
+      "path": "test/resources/books/licenses/generated-tiff.txt",
+      "format": "txt",
+      "bytes": 185,
+      "sha256": "5abca37f46994404bda042d1cc53f2bde2a09c793c0afccbf3f9a3ea0c645d3e",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/books/licenses/putty-chm-LICENSE.txt",
       "format": "txt",
       "bytes": 1313,
@@ -622,8 +630,8 @@
     {
       "path": "test/resources/books/manifest.json",
       "format": "manifest",
-      "bytes": 38491,
-      "sha256": "db58c05cec8456393830f1c67ba405148861423f3042a0c0b02baf388ab678c7",
+      "bytes": 41309,
+      "sha256": "1b9c8ba7499cc6df81318e5935466193334ca381b296dea5cd3c126dadcf53ac",
       "container": "unknown",
       "landmarks": 0
     },
@@ -676,6 +684,14 @@
       "landmarks": 4409
     },
     {
+      "path": "test/resources/books/tiff/sample.tif",
+      "format": "tiff",
+      "bytes": 6503,
+      "sha256": "6fa216fc25766c8e4fce2f421ae96f751a500a92ff05dae684de24d8e34ef006",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/books/txt/synthetic.txt",
       "format": "txt",
       "bytes": 137,
@@ -710,8 +726,8 @@
     {
       "path": "test/resources/djvu/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 5401,
-      "sha256": "9674f76759bf6be18fc8d2090b6d9c8a8f7016d51f8c24685490ea5bf992380a",
+      "bytes": 13532,
+      "sha256": "aa0564660014e14f0d967fc38ac07a66ed59a0094e4fb3c2065a263246bce532",
       "container": "unknown",
       "landmarks": 0
     },
@@ -748,10 +764,82 @@
       "landmarks": 0
     },
     {
+      "path": "test/resources/djvu/cyrillic.djvu",
+      "format": "djvu",
+      "bytes": 171563,
+      "sha256": "596258ef4c283fc33be1e0f77a5778378a5a95220b09776d0fdd05d1744d14ad",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/00001.djvu",
+      "format": "djvu",
+      "bytes": 3465,
+      "sha256": "5cdf26087eadcbacec269ccbeae5fc5988c4741ad4eb8c4a1267a646925b9d67",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/00012.djbz",
+      "format": "djvu",
+      "bytes": 2384,
+      "sha256": "e2d34aa415cc6ae174bb31dd6f6be78ee8c13f59e6b8192f38ab6c4534833b73",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/cyrillic-page1-index.djvu",
+      "format": "djvu",
+      "bytes": 56,
+      "sha256": "a38a5cbc332b21993bbaa0293065ec0dfe7b3f853886e1dd4b7e4a16f56ff8a7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/goody-twoshoes.djvu",
+      "format": "djvu",
+      "bytes": 1060487,
+      "sha256": "20b594d3207d07b98b8ef0f8b6cd8744e94942575e71916cdac8684f5b5eeb97",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/djvu/happy-birthday-iw44.djvu",
       "format": "djvu",
       "bytes": 3224,
       "sha256": "cf56fb65a5c38d566f72e62032fffd07dabc361d01a03d642c423619ffc340cd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/links.djvu",
+      "format": "djvu",
+      "bytes": 440,
+      "sha256": "3d7740439e20ae48366f62740a64f9ab67fb2062a6a7afb726e30dee81e4403f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/navm-fgbz.djvu",
+      "format": "djvu",
+      "bytes": 100415,
+      "sha256": "aec189aa8a165580a87725f291e0da5ba9a16e25295b4e1e4aea162115d2d084",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/spec-bundled.djvu",
+      "format": "djvu",
+      "bytes": 489402,
+      "sha256": "2f5e8995c86902daf2038fa8833b6e0dec63cf5aac69202f6b5cd349f1bc6bbc",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/speller-1921.djvu",
+      "format": "djvu",
+      "bytes": 1298208,
+      "sha256": "4049d398289d2c79debc9dd8a3365457d0d09a936e843ecc48cd6ef55f922025",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1430,19 +1518,243 @@
       "sha256": "ef084c34aa9c1e00cfc96071f2a57eb884aad0d3bbf3cd0325ea10ec71e2996a",
       "container": "unknown",
       "landmarks": 1
+    },
+    {
+      "path": "test/resources/tiff/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 7115,
+      "sha256": "54099894b0cc5c468e9f6846c56e2ff16501fa1b25f3ba6c199f5304f6c34bd9",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/bigtiff-rgb-2page.tif",
+      "format": "tiff",
+      "bytes": 46754,
+      "sha256": "61b86ffa48d0247e671cc42e8996b3e07d630ce6d5bdf9833e44962b6402d425",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/deflate-last-strip-extra-data.tiff",
+      "format": "tiff",
+      "bytes": 12789,
+      "sha256": "031aa7e15c2dfb21fe2fdd89eff88c4505c306f641be8b98f3666707d698b5ae",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/g3-text-le.tif",
+      "format": "tiff",
+      "bytes": 722,
+      "sha256": "70f898516f703a382472451dcf60926ce4165b8f945c4e0f872cce36ac5a1bc0",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/g4-text-2page-be.tif",
+      "format": "tiff",
+      "bytes": 736,
+      "sha256": "07d5404b8a7cea3802db62ca9552d7d41df08b2163f6c87227abc8ae3e44b98a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/gray-none-2page-le.tif",
+      "format": "tiff",
+      "bytes": 12676,
+      "sha256": "f8bed9cdc85412aadb357a6ede301d51035a064b827c8a52d05d39a6c2785e45",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/gray16-deflate-predictor.tif",
+      "format": "tiff",
+      "bytes": 542,
+      "sha256": "bb26f3fc5330601fcbaccd88798ca1853486093e7589538c59a93d53f3542248",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/jpeg-external-tables.tif",
+      "format": "tiff",
+      "bytes": 1617,
+      "sha256": "6c34c932b871f2aee79f9de1fc62702dc8de6b0e88a9df8086cfa0f739f1c613",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/logluv-3c-16b.tiff",
+      "format": "tiff",
+      "bytes": 166,
+      "sha256": "a042e969b1f6ee47703e5187bdac782510023906cd99fdb81ad41e510f4c457d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/metadata-gray.tif",
+      "format": "tiff",
+      "bytes": 6503,
+      "sha256": "6fa216fc25766c8e4fce2f421ae96f751a500a92ff05dae684de24d8e34ef006",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/minisblack-1c-8b.pgm",
+      "format": "resource",
+      "bytes": 23722,
+      "sha256": "48cf4b9af76ed39b860be8f89030efef02435eabbd59642e387a8c9b8069cd72",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/minisblack-1c-8b.tiff",
+      "format": "tiff",
+      "bytes": 24001,
+      "sha256": "7993664077ea8898704d15128e563d9ddd9c85376b3e8b42b0865a2ba71ee175",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/minisblack-2c-8b-alpha.tiff",
+      "format": "tiff",
+      "bytes": 4068,
+      "sha256": "6fcb5238fb9bd583cd78b27c51b16492d17d4768032f9ee1ed10f2d2f45730c9",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/miniswhite-1c-1b.pbm",
+      "format": "resource",
+      "bytes": 3031,
+      "sha256": "80950ac73f1e59b84db100517f22ae91da5bc2f8a9afd2603217ab6bc3e4f3ae",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/miniswhite-1c-1b.tiff",
+      "format": "tiff",
+      "bytes": 3289,
+      "sha256": "9b303ec8e0dc83e9099af6a8c0d837772caad953d72995ad34e2f842fb66e83f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/ojpeg_zackthecat_subsamp22_single_strip.tiff",
+      "format": "tiff",
+      "bytes": 8258,
+      "sha256": "0d31f2acb25bfbde4d79975572369c3e4bea8e978fc1935075a545e3f8321b6e",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/palette-1c-8b.tiff",
+      "format": "tiff",
+      "bytes": 25548,
+      "sha256": "9ef8051e9aa19f7439fdec77c7e5bdffef442572937287a83b5938bd02464286",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/quad-lzw-compat.tiff",
+      "format": "tiff",
+      "bytes": 214342,
+      "sha256": "081118d951224d9909b105bb75f9667fd817e7b95122d141e91b43604dacd78b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/quad-tile.jpg.tiff",
+      "format": "tiff",
+      "bytes": 27576,
+      "sha256": "657062ada721390508c93606e2d7a33295722a171be65f55aa578f4aeeb96db4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/rgb-3c-8b.ppm",
+      "format": "resource",
+      "bytes": 71136,
+      "sha256": "67b1a84936ef6cb3e383aea5bf96ee24c2d16c5d82e405138f92c7a0f059f378",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/rgb-3c-8b.tiff",
+      "format": "tiff",
+      "bytes": 71470,
+      "sha256": "21a751d4d6cad3903e4833db726c1b645fc88a1161efffcabaf9ce9c8c8f7084",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/rgb-lzw-predictor.tif",
+      "format": "tiff",
+      "bytes": 1808,
+      "sha256": "e1829b9250f3d98e81cbd6d65c00ae76c65c1392c070d5a002d7ee46305eedd5",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/rgb-packbits.tif",
+      "format": "tiff",
+      "bytes": 37394,
+      "sha256": "d823643ff5d95368c0d6b0ebf525d856eb6313616e4135bd9fecf108091e2788",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/test_ifd_loop_to_self.tif",
+      "format": "tiff",
+      "bytes": 558,
+      "sha256": "38b3093d53a1a80fdb949992ee51d6cb184894cc82ddec7a7f71ea5817e49868",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/test_two_ifds.tif",
+      "format": "tiff",
+      "bytes": 312,
+      "sha256": "e8167ea8ec1d9e145798ac7fc19a3fd79c6eee55ed0923b17a305f4fca0d6810",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/testfax3_bug54_1dnoEOL.tif",
+      "format": "tiff",
+      "bytes": 39616,
+      "sha256": "a0617b2e2307e2f1abf567bc97e9dc48e7a2dd2ddfacd14cba81205d884f6743",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/testfax4.tiff",
+      "format": "tiff",
+      "bytes": 39637,
+      "sha256": "42df253cef26450582d4810ff237cb1a1725cce9a27afb50ea89aa42b3e172b9",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiff_with_subifd_chain.tif",
+      "format": "tiff",
+      "bytes": 19484,
+      "sha256": "e50130294baf254b8ab54a46b96e8d8d13abe840e4d8a447086028375de97c37",
+      "container": "unknown",
+      "landmarks": 0
     }
   ],
   "counts": {
-    "total": 173,
-    "totalBytes": 84754361,
+    "total": 212,
+    "totalBytes": 88603288,
     "byFormat": {
-      "manifest": 12,
+      "manifest": 13,
       "chm": 4,
       "cbr": 2,
       "cbz": 3,
       "cbc": 1,
       "cb7": 1,
-      "djvu": 6,
+      "djvu": 15,
       "docx": 1,
       "epub": 41,
       "fb2": 4,
@@ -1453,15 +1765,16 @@
       "palmdoc": 1,
       "plucker": 6,
       "htmlz": 1,
-      "txt": 5,
+      "txt": 6,
       "lrf": 2,
       "azw3": 2,
       "mobi": 5,
       "azw4": 1,
       "odt": 1,
       "pdf": 31,
+      "tiff": 25,
       "txtz": 1,
-      "resource": 14,
+      "resource": 17,
       "xml-sidecar": 7
     }
   }
