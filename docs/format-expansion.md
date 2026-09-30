@@ -17,6 +17,7 @@ DjVu reader. Fixture origins, hashes, and licenses are recorded in
 | Sony LRF | [Calibre reader](https://github.com/kovidgoyal/calibre/tree/master/src/calibre/ebooks/lrf); Calibre 9.4.0-generated text and image fixtures; synthetic legacy-header variants. Eruditio's independent writer at `c517504` was evaluated but its output is rejected by both readers because its BookAttr uses an unrecognized generic Link tag. | Ordered reflowed text pages and metadata for versions 1–800 and 801+, table of contents and inline images | Precise Sony layout, ruby styling, complex canvases, and a valid independently produced or device-origin fixture remain. The Eruditio output is excluded; see `test/resources/books/lrf/PROVENANCE.md`. |
 | Sony LRX | Sony's [Reader format list](https://www.sony.com/electronics/support/articles/S1F0504) separates unsecured BBeB from Marlin-protected BBeB; its [BBeB release](https://www.sony.com/ja/SonyInfo/News/Press/200403/04-0324A/) describes OpenMG rights protection. Calibre is only a behavioral oracle for `ftypLRX2` and the nested `bbeb` metadata layout. | Reads plaintext metadata found in that nested LRF stream; full LRX book parsing fails with a DRM-typed error. | Sony does not publish the LRX wrapper layout in these references. No protected payload is inspected or decrypted. Legacy LRX metadata and independently licensed LRX samples remain unsupported. |
 | DjVu JPEG, JB2, and IW44 | [DjVu 3 specification](https://www.sndjvu.org/spec.html); ZP and IW44 behavior cross-check against the independent [MIT-licensed djvu-rs implementation](https://github.com/matyushkin/djvu-rs); public-domain Sjbz and Unlicense BG44/FG44 photo and compound fixtures | Direct `BGjp`, page-local `Sjbz`, progressive IW44 v1.0-v1.2 `BG44`/`FG44`, and `Sjbz`-mask composition in single-page or bundled documents produce displayable images. Supports JB2 direct symbols, matched refinements, local copies, IW44 zero-slice chunks and chroma delay, dimensions, rotation, and uncompressed OCR. VM tests compare real grayscale and color photo/compound pages with upstream PNG references; Chrome tests verify grayscale display and wire preservation. | Shared `Djbz`/`INCL` symbols, alternate visual codecs, compressed `TXTz`/`NAVM`, reset records, and indirect documents remain unsupported. A document is capped at 256 million decoded pixels and 128 MiB of materialized raster bytes; IW44 adds chunk/slice/coefficient-work caps. A 62 MP source is rejected before plane allocation when its full-resolution work exceeds the byte budget. |
+| TIFF and BigTIFF | [TIFF 6.0 specification](https://download.osgeo.org/libtiff/doc/TIFF6.pdf) and libtiff 4.7.2 as the behavioral reference; libtiff's own MIT-licensed test images (real Group 4 fax, EOL-less Group 3, old-style compat LZW, multi-IFD and SubIFD chains, hostile IFD loops) plus deterministic fixtures transcoded with `tiffcp` | Multi-page IFD chains in both byte orders and BigTIFF 64-bit offsets produce BMP page images. Codecs: uncompressed, PackBits, LZW (standard and bit-reversed compat, late width change), Deflate/AdobeDeflate with horizontal-differencing predictors, CCITT Group 4 and Group 3 (modified Huffman included, EOL-less producers retried) through a strict row-oriented T.4/T.6 decoder; JPEG passthrough for self-contained strips. Every decodable fixture is verified page-by-page with `tiffcmp -t` against a `tiffcp -c none` reference; the real bilevel and gray images are additionally checked against libtiff's PBM/PGM pixel oracles, and raster SHA-256 goldens pin the bytes. | Typed `TiffUnsupportedCodecException` for tiled raster, planar=2, palette, float samples, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and uncompressed-mode extensions; `TiffException` before any declared allocation for hostile offsets, counts, cycles, and truncation. Limits: 128 MiB input, 1,024 pages, 65,536 IFD entries, 4 samples/pixel, 256 MP/page, 1M segments/page, 128 MiB decoded raster. |
 
 The parser implementations are pure Dart. The JB2 ZP state-table constants
 were cross-checked against djvu-rs; its MIT license is included in
@@ -45,6 +46,19 @@ on web decoding or wire transport.
   bounded, pinned deviation from ddjvu's blended stencil. Still open inside
   DjVu: `FGjp`/`Smmr` layer replacements, `ANTz` annotation parsing, chained
   shared dictionaries, and `BMKz` (no corpus fixture exists).
+- Add redistributable samples for CHM codepages beyond Windows-1251/1252/1256
+  and find or generate a licensed real CHM whose LZX stream enables Intel E8.
+  The current PuTTY fixture has the E8 flag clear; the Free Pascal
+  `paslzxcomp` compressor also writes the flag as zero. Current E8 tests use
+  synthetic frames only; details and source links are in
+  `test/resources/books/chm/PROVENANCE.md`.
+- Broaden the TIFF corpus with a redistributable real multi-page scanned
+  document (the Library of Congress free-to-use sets sit behind a Cloudflare
+  challenge that blocked scripted acquisition on 2026-09-30; the libtiff test
+  corpus was substituted). The historical Group 4 file `testfax4.tiff` decodes
+  pixel-identically through the new row-oriented decoder; its row-235
+  reference-state sequencing differs from pdf.js's port and is covered by the
+  libtiff-parity goldens rather than the pdf.js-derived core.
 - Add redistributable samples for CHM codepages beyond Windows-1251/1252/1256
   and find or generate a licensed real CHM whose LZX stream enables Intel E8.
   The current PuTTY fixture has the E8 flag clear; the Free Pascal

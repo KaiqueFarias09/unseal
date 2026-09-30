@@ -121,6 +121,7 @@ You only need a small set of format terms to understand most of the repository.
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
 | DjVu JPEG, JB2, and bounded IW44 subset | An IFF document whose pages have INFO plus direct BGjp JPEG, page-local Sjbz JB2 masks, or progressive BG44/FG44 IW44 layers in single-page or bundled files. | `DjvuBook` with JPEG, bilevel BMP, or composed color BMP page images, dimensions, rotation, optional TXTa text, and original bytes. Shared dictionaries, alternate visual codecs, and indirect files fail full opening. |
+| TIFF and BigTIFF | A classic TIFF or BigTIFF header whose IFD chains describe pages of strip- or tile-organized raster. | `TiffBook` with BMP page images (or a passed-through self-contained JPEG strip), dimensions, resolution, and original bytes. Tiled raster, planar=2, palette, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, and reversed FillOrder fail typed. |
 | CHM | An ITSF compiled HTML Help archive with compressed topic streams. | `DocumentBook` with ordered HTML topics, resources, title, and hierarchical contents. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
 | Standalone Markdown | CommonMark text with optional small front matter. | `DocumentBook` with converted HTML, heading navigation, and selected metadata. |
@@ -150,6 +151,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 | `lib/azw4.dart` | AZW4 extraction and parsing plus the `PdfBook` result type. |
 | `lib/pdf.dart` | PDF parsing, PDF entities and exceptions, and shared book entities. |
 | `lib/djvu.dart` | DjVu JPEG, bounded JB2, and bounded IW44 page parsing, page data, typed failures, and shared book entities. |
+| `lib/tiff.dart` | TIFF and BigTIFF page parsing, the `TiffBook` model, typed failures, and shared book entities. |
 | `lib/chm.dart` | CHM topic, resource, navigation, and metadata parsing. |
 | `lib/docx.dart` | DOCX parsing and DOCX exceptions. |
 | `lib/odt.dart` | ODT parsing and ODT exceptions. |
@@ -245,7 +247,7 @@ For ZIP, `BookDispatch` checks internal evidence in order: EPUB, CBC, FB2, DOCX,
 | File | What it does and why it exists |
 | --- | --- |
 | `features/detection/entities/detected_format.dart` | Defines broad families recognized from bytes. These values are intentionally less specific than `BookFormat` when deeper inspection is required. |
-| `features/detection/detect_format.dart` | Checks signatures and bounded content for PDF, DjVu, ZIP, 7-Zip, RAR, Palm Database, RTF, FB2, HTML, and text. It also rejects known unsupported families with clear errors. |
+| `features/detection/detect_format.dart` | Checks signatures and bounded content for PDF, DjVu, TIFF/BigTIFF, ZIP, 7-Zip, RAR, Palm Database, RTF, FB2, HTML, and text. It also rejects known unsupported families with clear errors. |
 | `features/detection/refine_mobi_format.dart` | Opens enough of a Palm Database header to distinguish legacy MOBI from KF8 or AZW3 after broad detection. |
 
 ## Reading: select a parser and resolve reading positions
@@ -740,6 +742,55 @@ The format reference is the [DjVu 3 specification](https://www.sndjvu.org/spec.h
 The shared ZP tables and codec behavior are cross-checked with the
 independent MIT-licensed [djvu-rs implementation](https://github.com/matyushkin/djvu-rs).
 Fixture and reference provenance is recorded in the repository.
+
+## TIFF and BigTIFF: decode multi-page raster books
+
+TIFF pages live in IFD chains: the header points at the first image file
+directory, and each directory's next-IFD pointer chains to the following
+page. BigTIFF widens offsets to 64 bits and entries to 20 bytes. Raster data
+sits in strips or tiles described by offset/byte-count arrays. The adapter
+walks the chain with cycle detection and per-entry bounds checks, expands the
+supported raster codecs to BMP images, and passes through a JPEG when a page
+holds exactly one self-contained strip.
+
+Raster codecs: uncompressed, PackBits, LZW (including old-style
+bit-reversed compat streams, detected through libtiff's heuristic), and
+Deflate/AdobeDeflate, with horizontal-differencing predictors for 8- and
+16-bit gray and 8-bit RGB; CCITT modified Huffman, Group 3, and Group 4
+through a strict row-oriented decoder that mirrors libtiff's reference-run
+state machine and retries EOL-less producers. Tiled raster, planar=2,
+palette, float samples, LogLuv, JPEGTables-abbreviated strips, old-style
+JPEG, reversed FillOrder, and uncompressed-mode extensions fail with
+`TiffUnsupportedCodecException`; malformed containers, hostile offsets and
+counts, IFD cycles, and truncated strips fail with `TiffException` before
+any declared allocation. Documents are capped at 128 MiB of input, 1,024
+pages, 65,536 IFD entries, 4 samples per pixel, a 256-megapixel page, a
+million segments per page, and 128 MiB of decoded raster.
+
+| File | What it does and why it exists |
+| --- | --- |
+| `lib/tiff.dart` | Exposes the narrow format API. |
+| `features/tiff/tiff_container.dart` | Parses classic and BigTIFF headers, walks IFD chains with cycle detection, and reads typed values with bounds and count checks. |
+| `features/tiff/tiff_page_decoder.dart` | Validates page geometry, strips and tiles, and dispatches per-codec decoding into BMP rasters or JPEG passthrough. |
+| `features/tiff/tiff_ccitt_decoder.dart` | Decodes CCITT modified Huffman, Group 3, and Group 4 rows with libtiff's reference-run state machine and typed failures. |
+| `features/tiff/tiff_codec.dart` | Implements PackBits and TIFF LZW (standard and bit-reversed compat), routes Deflate, applies horizontal differencing, and names codecs in typed failures. |
+| `features/tiff/tiff_limits.dart` | Reserves the input, page, strip, sample, and raster budgets before allocations. |
+| `features/tiff/tiff_book.dart` | Keeps page geometry, BMP/JPEG resources, and original source bytes together. |
+| `features/tiff/tiff_exception.dart` | Distinguishes malformed documents from valid pages needing an unsupported codec. |
+| `foundation/images/ccitt/` | The shared T.4/T.6 run-length tables and the pdf.js-derived fax decoder used by the PDF path. |
+| `foundation/images/bmp_encoder.dart` | The shared 24-bit BMP writer used by the TIFF and DjVu rasters. |
+
+Metadata-only reads validate the container and IFD chain and read the
+ImageDescription, DateTime, Software, Artist, Copyright, and resolution tags
+without decoding image layers. Pixels are verified against libtiff: every
+tracked fixture is compared page-by-page with `tiffcmp -t` against a
+`tiffcp -c none` reference, the real bilevel and gray libtiff images are
+checked against their PBM/PGM pixel oracles, and raster SHA-256 goldens pin
+the bytes. The corpus mixes generated fixtures (transcoded with libtiff
+4.7.2's `tiffcp`) with libtiff's own MIT-licensed test images, including a
+real 2453×3369 Group 4 fax page, an EOL-less Group 3 regression file, and an
+old-style bit-reversed LZW book. Fixture and reference provenance is
+recorded in `test/resources/tiff/PROVENANCE.md`.
 
 ## Search: query the HTML-backed content of a parsed book
 

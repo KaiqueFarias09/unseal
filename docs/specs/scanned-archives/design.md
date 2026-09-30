@@ -162,6 +162,44 @@ proveniência):
   `djvu_wire_test`.
 - Paridade: `tiffinfo` (estrutura), pixels via decodificação com libtiff
   (`tiffcp` para codec conhecido + comparação de raster) nas referências.
+- (implementado: `BookFormat.tiff`/`DetectedFormat.tiff` cobrem os quatro
+  magics — II/MM × 42/43 — com a versão desambiguada no parser; despacho
+  síncrono em `book_dispatch` para parse e metadata.)
+- (implementado: modelo `TiffBook` espelhando `DjvuBook` — páginas com
+  width/height/dpi e a imagem como `BinaryFile` BMP + wrappers HTML por
+  página; `hasTextLayer` false; capa = página 1; metadados de
+  ImageDescription/DateTime/Software/Artist/Copyright e DPI de
+  XResolution/ResolutionUnit.)
+- (implementado: codecs por incidência medida no corpus rastreado — none,
+  PackBits, LZW (inclusive compat bit-reverso com late change), Deflate/
+  AdobeDeflate com predictor 2, CCITT Group 4 e Group 3 (modified Huffman
+  incluído; produtores sem EOL reprovados num segundo layout contínuo);
+  JPEG passthrough só com strip única auto-contida. Cada codec não suportado
+  rejeita tipado com mensagem explícita: tiled, planar=2, palette,
+  SampleFormat≠1, LogLuv, JPEGTables, old JPEG, FillOrder 2, uncompressed
+  mode. Tabela no README e em `test/resources/tiff/PROVENANCE.md`.)
+- (implementado: limites ANTES de alocar — offsets/byte counts validados
+  contra o arquivo (subtração, sem wrap), caps de entrada 128 MiB, 1.024
+  páginas, 65.536 entradas por IFD, 4 samples/pixel, 256 MP/página, 1M
+  segmentos/página, 128 MiB de raster acumulado; ciclo de IFD detectado.)
+- (implementado: BigTIFF com offsets 64-bit lidos como par high/low com
+  rejeição acima de 4 GiB, entradas de 20 bytes, contagens 64-bit; ambas as
+  ordens de bytes.)
+- (implementado: multi-página — todo IFD da cadeia vira página, página 1
+  primeiro, SubIFDs ignorados, ciclo tipado.)
+- (implementado: decodificador CCITT próprio row-oriented que espelha a
+  máquina de estados de referência do libtiff — runs acumuladas, b1/pb
+  incrementais, walk-back no VL — porque o núcleo pdf.js diverge do libtiff
+  em linhas reais (arquivo testfax4, linha 235); o arquivo decodifica
+  pixel-idêntico ao `tiffcmp`.)
+- (implementado: corpus = 9 fixtures geradas com libtiff 4.7.2 `tiffcp` +
+  15 imagens reais do corpus MIT do libtiff (LoC bloqueado por Cloudflare em
+  2026-09-30 — substituição documentada; multi-página real via
+  `test_two_ifds.tif`/`tiff_with_subifd_chain.tif`); total em git ≈ 750 KB.)
+- (implementado: paridade — `tiffcmp -t` por página contra `tiffcp -c none`
+  para todos os fixtures decodificáveis (OK), oráculos de pixel PBM/PGM para
+  as imagens bilevel/gray reais, hashes SHA-256 de raster como goldens em
+  `test/tests/tiff/tiff_test.dart`.)
 
 ## 7. Ondas W5 — integração
 
@@ -184,3 +222,6 @@ push/publicação/tag; fixtures binários são dados-fonte (não reescrever
 para teste passar; proveniência na mesma commit). Irmãos limpos verificados
 (em 2026-09-30: unseal @b253f73 limpo, grimoire @6fcca33 limpo,
 narration intocado).
+- (implementado: commits atômicos por onda — foundation compartilhada,
+  feature+plumbing+corpus, testes, docs — com paths explícitos; proveniência
+  na mesma commit dos fixtures; sem push/publicação/tag.)

@@ -62,6 +62,7 @@ document renderer.
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
 | DjVu (JPEG, JB2, and IW44 subset) | Direct `BGjp` JPEG pages, `Sjbz` masks with shared `Djbz` dictionaries and `INCL` references, progressive `BG44`/`FG44` layers, and INFO dimensions and rotation in single-page or bundled documents; compressed `TXTz` hidden text, legacy `TXTa` OCR, and `NAVM` bookmark outlines | JB2 masks and composed IW44 pages become BMP images. Compressed text is byte-exact against `djvutxt`. Indirect document directories resolve through file-based opens only; `FGbz` recoloring, `FGjp`/`Smmr` layer replacements, `ANTz` annotations, and thumbnails are ignored or rejected as described below. |
+| TIFF / BigTIFF | Baseline uncompressed, PackBits, LZW, and Deflate/AdobeDeflate raster pages (8-bit gray and RGB, 16-bit gray, bilevel, with horizontal-differencing predictors), CCITT Group 4 and Group 3 (including modified Huffman and EOL-less producers), multi-page IFD chains in both byte orders, BigTIFF 64-bit offsets, ImageDescription/DateTime/Software/Artist metadata, and X/Y-resolution DPI | Pages become BMP images (JPEG passthrough when a page holds one self-contained strip). Tiled layouts, planar=2, palette, float/SampleFormat≠1, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and uncompressed-mode extensions are rejected typed. A page is capped at 256 megapixels; strips and tiles are bounds-checked before allocation; a document is capped at 128 MiB input, 1024 pages, and 128 MiB of decoded raster. Pixel parity with libtiff (`tiffcmp`) is pinned by tests. |
 
 `OPF` is not a standalone reading format. When unseal finds `metadata.opf`
 inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
@@ -445,6 +446,23 @@ mask and photo pages render byte-identically to `ddjvu`; composed MRC pages
 use a deterministic hard mask selection whose bounded channel deviation from
 ddjvu's blended stencil is pinned by raster-hash goldens.
 
+TIFF and BigTIFF reading covers multi-page IFD chains in both byte orders and
+64-bit BigTIFF offsets, with pages expanded to BMP images. Raster codecs:
+uncompressed, PackBits, LZW, and Deflate/AdobeDeflate (with horizontal
+differencing predictors) for gray, RGB, and bilevel samples; CCITT Group 4
+and Group 3 through a strict row-oriented T.4/T.6 decoder (including
+EOL-less producers and a Group 4 page decoded pixel-identically against
+libtiff); JPEG passthrough when a page holds a single self-contained strip.
+Old-style bit-reversed compat LZW decodes through libtiff's detection
+heuristic. Layouts outside the contract fail with
+`TiffUnsupportedCodecException`: tiled raster, planar=2, palette,
+float/SampleFormat≠1, LogLuv, JPEGTables-abbreviated strips, old-style JPEG,
+reversed FillOrder, and uncompressed-mode extensions; malformed containers
+fail with `TiffException` before any declared allocation. Pixels are
+verified against libtiff by `tiffcmp` parity over the tracked corpus
+(libtiff test images plus generated fixtures; see
+`test/resources/tiff/PROVENANCE.md`).
+
 ### Input and archive boundaries
 
 - Every ZIP-backed format goes through the same bounded decoder. Before
@@ -519,6 +537,12 @@ ddjvu's blended stencil is pinned by raster-hash goldens.
   rejects LRX book content as DRM-protected and does not process its protected
   payload.
   Unsupported tags and stream flags fail with typed exceptions.
+- TIFF/BigTIFF input is limited to 128 MiB, 1,024 pages, 65,536 IFD entries,
+  4 samples per pixel, a 256-megapixel page, a million strips or tiles per
+  page, and 128 MiB of decoded raster per document. Strip and tile offsets
+  and byte counts are validated against the file bounds before any
+  allocation, and IFD chains are cycle-checked. Unsupported codecs and
+  layouts fail with typed exceptions.
 - EPUB navigation is optional. A damaged or missing table of contents can
   produce an empty navigation model while readable spine content remains
   available.
