@@ -4,10 +4,13 @@ import 'dart:typed_data';
 import '../../foundation/entities/entities.dart';
 import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';
+import 'bzz_decoder.dart';
 import 'djvu_book.dart';
 import 'djvu_decode_budget.dart';
 import 'djvu_exception.dart';
 import 'djvu_layer_compositor.dart';
+import 'djvu_outline.dart';
+import 'djvu_text.dart';
 import 'iw44_decoder.dart';
 import 'jb2_decoder.dart';
 
@@ -22,7 +25,9 @@ const _maxPagePixels = 100000000;
 ///
 /// JB2 support covers page-local direct symbols, matched refinements, and local
 /// symbol copies. IW44 supports ordered BG44/FG44 chunks and composition with
-/// a page-local JB2 selection mask. Shared dictionaries still fail with
+/// a page-local JB2 selection mask. Hidden text comes from BZZ-compressed
+/// TXTz chunks (TXTa stays supported) and a top-level NAVM chunk becomes the
+/// document navigation. Shared dictionaries still fail with
 /// [DjvuUnsupportedCodecException].
 DjvuBook parseDjvuBook(final Uint8List bytes) {
   final document = _DjvuDocument(bytes);
@@ -45,6 +50,7 @@ DjvuBook parseDjvuBook(final Uint8List bytes) {
       format: BookFormat.djvu,
       cover: BookCover(bytes: firstImage, type: imageType, width: size.width, height: size.height),
     ),
+    navigation: document.navigation(),
   );
 }
 
@@ -98,7 +104,29 @@ final class _DjvuDocument {
   final Uint8List bytes;
   final ByteData data;
   late final List<_Chunk> pages;
+  _Chunk? _outline;
+  _Chunk? _dirm;
+  var _dirmCount = 0;
+  Map<int, _Chunk>? _components;
+  final Map<String, DjvuJb2SharedDictionary> _dictionaries = {};
+  final Map<int, DjvuJb2SharedDictionary> _inlineDictionaries = {};
+  Map<String, _Chunk>? _resolvedDjbzChunks;
+  List<({String id, _Chunk component})>? _resolvedDirmIds;
+  final DjvuSharedDictionaryLedger _dictionaryLedger = DjvuSharedDictionaryLedger();
   var _chunkCount = 0;
+
+  /// Builds the document navigation from the top-level NAVM chunk, when the
+  /// document carries one. Documents without NAVM keep empty navigation.
+  Navigation navigation() {
+    final outline = _outline;
+    if (outline == null) {
+      return Navigation(title: '', navPoints: const <NavPoint>[]);
+    }
+    return Navigation(
+      title: '',
+      navPoints: decodeDjvuNavm(Uint8List.sublistView(bytes, outline.data, outline.end)),
+    );
+  }
 
   List<_Chunk> _bundledPages(final _Chunk root) {
     final entries = _children(root.data + 4, root.end);
@@ -121,11 +149,19 @@ final class _DjvuDocument {
     }
 
     // DIRM lists component offsets, including shared resources and thumbnails.
-    // Its compressed names are not needed to order the embedded page FORMs.
+    // Its compressed names are not needed to order the embedded page FORMs,
+    // but the id strings resolve INCL shared-dictionary references lazily.
+    _dirm = directory;
+    _dirmCount = count;
     final components = <int, _Chunk>{};
     for (final entry in entries.skip(1)) {
-      if (entry.id == 'FORM') components[entry.start] = entry;
+      if (entry.id == 'FORM') {
+        components[entry.start] = entry;
+      } else if (entry.id == 'NAVM' && _outline == null) {
+        _outline = entry;
+      }
     }
+    _components = components;
     final result = <_Chunk>[];
     final used = <int>{};
     for (var index = 0; index < count; index++) {
@@ -141,6 +177,107 @@ final class _DjvuDocument {
       if (type == 'DJVU') result.add(component);
     }
     return result;
+  }
+
+  /// Resolves the shared dictionary an INCL chunk names, decoding the
+  /// document's Djbz chunks on first use and caching the symbol lists.
+  DjvuJb2SharedDictionary sharedDictionary(final String id) {
+    final cached = _dictionaries[id];
+    if (cached != null) return cached;
+    final djbz = _djbzChunksById()[id];
+    if (djbz == null) {
+      throw DjvuException('DjVu INCL chunk references an unknown shared dictionary "$id".');
+    }
+    final dictionary = decodeDjvuJb2Dictionary(
+      Uint8List.sublistView(bytes, djbz.data, djbz.end),
+      ledger: _dictionaryLedger,
+    );
+    _dictionaries[id] = dictionary;
+    return dictionary;
+  }
+
+  /// Maps DIRM component ids to their Djbz chunks, decoding the compressed
+  /// DIRM names on first use. Dictionaries live in FORM:DJVI components or
+  /// inline inside a page form; both are registered under their component id.
+  Map<String, _Chunk> _djbzChunksById() {
+    if (_resolvedDjbzChunks != null) return _resolvedDjbzChunks!;
+    final resolved = <String, _Chunk>{};
+    final directory = _dirm;
+    if (directory != null) {
+      for (final entry in _dirmIds(directory)) {
+        for (final chunk in _children(entry.component.data + 4, entry.component.end)) {
+          if (chunk.id == 'Djbz') {
+            resolved[entry.id] = chunk;
+            break;
+          }
+        }
+      }
+    }
+    _resolvedDjbzChunks = resolved;
+    return resolved;
+  }
+
+  /// The document's own component id for [component], when the DIRM names it.
+  String? _componentIdOf(final _Chunk component) {
+    for (final entry in _dirmIdsCached()) {
+      if (entry.component.start == component.start) return entry.id;
+    }
+    return null;
+  }
+
+  List<({String id, _Chunk component})> _dirmIdsCached() {
+    final cached = _resolvedDirmIds;
+    if (cached != null) return cached;
+    final directory = _dirm;
+    final resolved = directory == null
+        ? const <({String id, _Chunk component})>[]
+        : _dirmIds(directory);
+    _resolvedDirmIds = resolved;
+    return resolved;
+  }
+
+  /// Decodes the DIRM name table into component ids in directory order.
+  List<({String id, _Chunk component})> _dirmIds(final _Chunk directory) {
+    final bundled = bytes[directory.data] & 0x80 != 0;
+    final namesStart = directory.data + 3 + (bundled ? _dirmCount * 4 : 0);
+    final names = decodeDjvuBzz(
+      Uint8List.sublistView(bytes, namesStart, directory.end),
+      truncatedMessage: 'Truncated DjVu DIRM names.',
+    );
+    var position = _dirmCount * 3; // Skip the declared component sizes.
+    // The name table groups sizes, then all flag bytes, then the strings.
+    final flags = Uint8List(_dirmCount);
+    for (var index = 0; index < _dirmCount; index++) {
+      flags[index] = names[position++];
+    }
+    final result = <({String id, _Chunk component})>[];
+    for (var index = 0; index < _dirmCount; index++) {
+      final id = _zstr(names, (final next) => position = next, position);
+      if (flags[index] & 0x80 != 0) position = _skipZstr(names, position);
+      if (flags[index] & 0x40 != 0) position = _skipZstr(names, position);
+      final offset = data.getUint32(directory.data + 3 + index * 4);
+      final component = _components![offset];
+      if (component != null) result.add((component: component, id: id));
+    }
+    return result;
+  }
+
+  /// Reads one NUL-terminated string at [start], passing its end to [consume].
+  String _zstr(final Uint8List names, final void Function(int) consume, final int start) {
+    final end = _skipZstr(names, start);
+    consume(end);
+    return String.fromCharCodes(names, start, end - 1);
+  }
+
+  int _skipZstr(final Uint8List names, final int start) {
+    var end = start;
+    while (end < names.length && names[end] != 0) {
+      end++;
+    }
+    if (end >= names.length) {
+      throw const DjvuException('Truncated DjVu DIRM names.');
+    }
+    return end + 1;
   }
 
   ({int width, int height, int dpi, int rotation}) _pageInfo(final _Chunk page) {
@@ -174,7 +311,10 @@ final class _DjvuDocument {
     final info = _pageInfo(page);
     _Chunk? jpeg;
     _Chunk? jb2;
-    _Chunk? text;
+    _Chunk? legacyText;
+    _Chunk? compressedText;
+    _Chunk? inlineDjbz;
+    final inclTargets = <String>[];
     final backgroundChunks = <_Chunk>[];
     final foregroundChunks = <_Chunk>[];
     final unsupported = <String>[];
@@ -184,8 +324,11 @@ final class _DjvuDocument {
           if (jpeg != null) throw const DjvuException('Duplicate DjVu BGjp chunk.');
           jpeg = chunk;
         case 'TXTa':
-          if (text != null) throw const DjvuException('Duplicate DjVu TXTa chunk.');
-          text = chunk;
+          if (legacyText != null) throw const DjvuException('Duplicate DjVu TXTa chunk.');
+          legacyText = chunk;
+        case 'TXTz':
+          if (compressedText != null) throw const DjvuException('Duplicate DjVu TXTz chunk.');
+          compressedText = chunk;
         case 'Sjbz':
           if (jb2 != null) throw const DjvuException('Duplicate DjVu Sjbz chunk.');
           jb2 = chunk;
@@ -194,10 +337,15 @@ final class _DjvuDocument {
         case 'FG44':
           foregroundChunks.add(chunk);
         case 'Djbz':
-        case 'FGjp':
-        case 'FGbz':
-        case 'Smmr':
+          if (inlineDjbz != null) throw const DjvuException('Duplicate DjVu Djbz chunk.');
+          inlineDjbz = chunk;
         case 'INCL':
+          inclTargets.add(_ascii(chunk.data, chunk.length));
+        case 'FGjp':
+        case 'Smmr':
+          // These chunks replace a supported layer (JPEG foreground, MMR
+          // mask); pages that need them stay typed rejections. FGbz only
+          // recolors Sjbz blits, so like annotations it is ignored.
           unsupported.add(chunk.id);
       }
     }
@@ -205,11 +353,10 @@ final class _DjvuDocument {
         (jb2 != null || backgroundChunks.isNotEmpty || foregroundChunks.isNotEmpty)) {
       unsupported.add('multiple image layers');
     }
-    if (backgroundChunks.isNotEmpty && (foregroundChunks.isEmpty != (jb2 == null))) {
+    // A mask without a color layer is a valid FGbz page: the ignored color
+    // chunk would recolor blits, and the mask renders as black ink instead.
+    if (foregroundChunks.isNotEmpty && (backgroundChunks.isEmpty || jb2 == null)) {
       unsupported.add('incomplete IW44 compound layers');
-    }
-    if (foregroundChunks.isNotEmpty && backgroundChunks.isEmpty) {
-      unsupported.add('FG44 without BG44');
     }
     if (unsupported.isNotEmpty) {
       final codecs = unsupported.toSet().join(', ');
@@ -219,6 +366,36 @@ final class _DjvuDocument {
     }
     if (jpeg == null && jb2 == null && backgroundChunks.isEmpty) {
       throw DjvuUnsupportedCodecException('DjVu page $number has no supported image layer.');
+    }
+
+    // The page's shared JB2 dictionary: the component the INCL chunk names,
+    // or — when the page carries only its own inline Djbz — the page's own
+    // component id. Dictionary symbols accumulate once per document.
+    DjvuJb2SharedDictionary? dictionary;
+    if (jb2 != null && (inclTargets.isNotEmpty || inlineDjbz != null)) {
+      String? target;
+      if (inclTargets.isNotEmpty) {
+        final distinct = inclTargets.toSet();
+        if (distinct.length > 1) {
+          throw const DjvuException('DjVu page references multiple shared dictionaries.');
+        }
+        target = inclTargets.first;
+      } else {
+        target = _componentIdOf(page);
+      }
+      if (target != null) {
+        dictionary = sharedDictionary(target);
+      } else if (inlineDjbz != null) {
+        // A single-page document has no DIRM id; its inline dictionary
+        // applies directly.
+        final inline = inlineDjbz;
+        dictionary = _inlineDictionaries.putIfAbsent(inline.start, () {
+          return decodeDjvuJb2Dictionary(
+            Uint8List.sublistView(bytes, inline.data, inline.end),
+            ledger: _dictionaryLedger,
+          );
+        });
+      }
     }
 
     late final Uint8List imageBytes;
@@ -272,6 +449,7 @@ final class _DjvuDocument {
           Uint8List.sublistView(bytes, jb2.data, jb2.end),
           expectedWidth: info.width,
           expectedHeight: info.height,
+          inherited: dictionary,
         );
       }
       imageBytes = composeDjvuLayersBmp(
@@ -303,6 +481,7 @@ final class _DjvuDocument {
         Uint8List.sublistView(bytes, jb2!.data, jb2.end),
         expectedWidth: info.width,
         expectedHeight: info.height,
+        inherited: dictionary,
       );
       imageBytes = encodeDjvuJb2Bmp(mask);
       extension = 'bmp';
@@ -313,6 +492,10 @@ final class _DjvuDocument {
       type: extension,
       path: 'images/page-$number.$extension',
     );
+    // A compressed TXTz chunk carries the same contract as TXTa; the
+    // compressed form wins when a page stores both (the corpus has no such
+    // page; TXTa is a discouraged legacy encoding).
+    final text = compressedText ?? legacyText;
     return DjvuPage(
       width: info.width,
       height: info.height,
@@ -324,6 +507,9 @@ final class _DjvuDocument {
   }
 
   String _readText(final _Chunk chunk) {
+    if (chunk.id == 'TXTz') {
+      return decodeDjvuTextChunk(Uint8List.sublistView(bytes, chunk.data, chunk.end)).text;
+    }
     if (chunk.length < 3 || chunk.length > _maxTextBytes) {
       throw const DjvuException('DjVu TXTa chunk exceeds its size limit or is truncated.');
     }

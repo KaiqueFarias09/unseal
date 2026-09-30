@@ -28,14 +28,157 @@ final class DjvuJb2Mask {
   final Uint8List pixels;
 }
 
+/// Cumulative cap on retained shared-dictionary symbol pixels across one
+/// document. Page-level JB2 limits already bound each stream; this ledger
+/// keeps a bundled document's many Djbz chunks from multiplying those caps.
+const djvuMaxSharedDictionaryPixelsPerBook = 64 * 1000 * 1000;
+
+/// Tracks retained shared-dictionary symbol pixels across one document.
+///
+/// Dictionary decoding charges every symbol bitmap before it is allocated.
+final class DjvuSharedDictionaryLedger {
+  var _pixels = 0;
+
+  /// Reserves [pixels] of retained dictionary symbol bitmap.
+  void charge(final int pixels) {
+    if (pixels < 0 || pixels > djvuMaxSharedDictionaryPixelsPerBook - _pixels) {
+      throw const DjvuException('DjVu shared dictionaries exceed the 64-megapixel document limit.');
+    }
+    _pixels += pixels;
+  }
+}
+
+/// A decoded JB2 shared symbol dictionary (a Djbz chunk's symbol list).
+///
+/// Pages decode their Sjbz stream against this list; symbols a page adds stay
+/// page-local and never flow back into the shared dictionary.
+final class DjvuJb2SharedDictionary {
+  /// Creates a shared dictionary around already-decoded symbols.
+  const DjvuJb2SharedDictionary(this.symbols);
+
+  /// The dictionary's accumulated symbols in decode order.
+  final List<DjvuJb2Symbol> symbols;
+}
+
+/// Decodes a Djbz shared-dictionary JB2 stream into its accumulated symbols.
+///
+/// Dictionary streams carry symbol-add records only: direct additions,
+/// matched refinements, comments, and the end record. A dictionary that
+/// itself inherits another dictionary (record 9 with a nonzero count) is not
+/// supported. Every symbol bitmap is charged to [ledger] before allocation.
+DjvuJb2SharedDictionary decodeDjvuJb2Dictionary(
+  final Uint8List encoded, {
+  required final DjvuSharedDictionaryLedger ledger,
+}) {
+  final zp = DjvuZpDecoder(encoded, truncatedMessage: 'Truncated DjVu JB2 dictionary stream.');
+  final nodeBudget = _ContextNodeBudget();
+  final recordType = _NumberContext(nodeBudget);
+  final imageSize = _NumberContext(nodeBudget);
+  final symbolWidth = _NumberContext(nodeBudget);
+  final symbolHeight = _NumberContext(nodeBudget);
+  final inheritedDictionarySize = _NumberContext(nodeBudget);
+  final symbolIndex = _NumberContext(nodeBudget);
+  final symbolWidthDifference = _NumberContext(nodeBudget);
+  final symbolHeightDifference = _NumberContext(nodeBudget);
+  final commentLength = _NumberContext(nodeBudget);
+  final commentByte = _NumberContext(nodeBudget);
+  final directContexts = Uint8List(1024);
+  final refinementContexts = Uint8List(2048);
+
+  var firstRecord = _decodeNumber(zp, recordType, 0, 11);
+  if (firstRecord == 9) {
+    final inheritedCount = _decodeNumber(zp, inheritedDictionarySize, 0, 262142);
+    if (inheritedCount != 0) {
+      throw const DjvuUnsupportedCodecException(
+        'DjVu shared dictionaries that inherit other dictionaries are not supported.',
+      );
+    }
+    firstRecord = _decodeNumber(zp, recordType, 0, 11);
+  }
+  if (firstRecord != 0) {
+    throw const DjvuException('Invalid DjVu JB2 dictionary start record.');
+  }
+  // Dictionary streams still declare the image dimensions and reserved flag;
+  // both are decoded to keep the arithmetic stream aligned and are unused.
+  _decodeNumber(zp, imageSize, 0, 262142);
+  _decodeNumber(zp, imageSize, 0, 262142);
+  if (zp.decodeBit(0).bit) {
+    throw const DjvuException('Invalid reserved flag in DjVu JB2 dictionary header.');
+  }
+
+  final symbols = <DjvuJb2Symbol>[];
+  var storedDictionaryPixels = 0;
+  var decodedSymbolPixels = 0;
+  var records = 0;
+  var ended = false;
+  while (!ended) {
+    if (zp.syntheticBytes > _maxSyntheticBytes) {
+      throw const DjvuException('Truncated DjVu JB2 dictionary stream.');
+    }
+    if (records >= _maxJb2Records) {
+      throw const DjvuException('DjVu JB2 dictionary exceeds the 65536-record limit.');
+    }
+    records++;
+    switch (_decodeNumber(zp, recordType, 0, 11)) {
+      case 2:
+        final width = _decodeNumber(zp, symbolWidth, 0, 262142);
+        final height = _decodeNumber(zp, symbolHeight, 0, 262142);
+        final symbol = _chargedDirectBitmap(
+          zp,
+          directContexts,
+          width,
+          height,
+          decodedSymbolPixels,
+          ledger,
+        );
+        decodedSymbolPixels += symbol.width * symbol.height;
+        storedDictionaryPixels = _addStoredSymbol(symbols, symbol, storedDictionaryPixels);
+      case 5:
+        final reference = _referenceSymbol(symbols, zp, symbolIndex);
+        final symbolWidthValue =
+            reference.width + _decodeNumber(zp, symbolWidthDifference, -262143, 262142);
+        final symbolHeightValue =
+            reference.height + _decodeNumber(zp, symbolHeightDifference, -262143, 262142);
+        final symbol = _chargedRefinedBitmap(
+          zp,
+          refinementContexts,
+          symbolWidthValue,
+          symbolHeightValue,
+          reference,
+          decodedSymbolPixels,
+          ledger,
+        );
+        decodedSymbolPixels += symbol.width * symbol.height;
+        storedDictionaryPixels = _addStoredSymbol(symbols, symbol, storedDictionaryPixels);
+      case 9:
+      // A mid-stream dictionary requirement is a no-op in a dictionary.
+      case 10:
+        final length = _decodeNumber(zp, commentLength, 0, 262142);
+        if (length > _maxJb2CommentBytes) {
+          throw const DjvuException('DjVu JB2 dictionary comment exceeds the 64 KiB limit.');
+        }
+        for (var index = 0; index < length; index++) {
+          _decodeNumber(zp, commentByte, 0, 255);
+        }
+      case 11:
+        ended = true;
+      default:
+        throw const DjvuException('DjVu JB2 dictionary records cannot place symbols on a page.');
+    }
+  }
+  return DjvuJb2SharedDictionary(symbols);
+}
+
 /// Decodes local-symbol JB2 records into a page-sized black-ink mask.
 ///
 /// This accepts direct and matched-refinement records that use the page-local
-/// symbol dictionary. Shared dictionary inclusion is not implemented.
+/// symbol dictionary, plus records that inherit a [DjvuJb2SharedDictionary]
+/// shared by the document's Djbz chunk.
 DjvuJb2Mask decodeDjvuJb2Mask(
   final Uint8List encoded, {
   required final int expectedWidth,
   required final int expectedHeight,
+  final DjvuJb2SharedDictionary? inherited,
 }) {
   final zp = DjvuZpDecoder(encoded, truncatedMessage: 'Truncated DjVu JB2 arithmetic stream.');
   final nodeBudget = _ContextNodeBudget();
@@ -56,11 +199,17 @@ DjvuJb2Mask decodeDjvuJb2Mask(
   final refinementContexts = Uint8List(2048);
 
   var firstRecord = _decodeNumber(zp, recordType, 0, 11);
+  var inheritedCount = 0;
   if (firstRecord == 9) {
-    final inheritedCount = _decodeNumber(zp, inheritedDictionarySize, 0, 262142);
-    if (inheritedCount != 0) {
-      throw const DjvuUnsupportedCodecException(
-        'DjVu JB2 pages with shared symbol dictionaries are not supported.',
+    inheritedCount = _decodeNumber(zp, inheritedDictionarySize, 0, 262142);
+    if (inheritedCount != 0 && inherited == null) {
+      throw const DjvuException(
+        'DjVu JB2 page requires a shared dictionary that was not provided.',
+      );
+    }
+    if (inheritedCount > (inherited?.symbols.length ?? 0)) {
+      throw const DjvuException(
+        'DjVu JB2 inherited symbol count exceeds the shared dictionary size.',
       );
     }
     firstRecord = _decodeNumber(zp, recordType, 0, 11);
@@ -85,7 +234,12 @@ DjvuJb2Mask decodeDjvuJb2Mask(
   }
 
   final page = Uint8List(pagePixels);
-  final symbols = <_Jb2Symbol>[];
+  // The combined dictionary is the inherited shared slice followed by the
+  // symbols this page adds; match records index across the whole list and
+  // page-local additions never flow back into the shared dictionary.
+  final symbols = inheritedCount == 0
+      ? <DjvuJb2Symbol>[]
+      : List<DjvuJb2Symbol>.of(inherited!.symbols.sublist(0, inheritedCount));
   var storedDictionaryPixels = 0;
   var decodedSymbolPixels = 0;
   var blitPixels = 0;
@@ -140,27 +294,12 @@ DjvuJb2Mask decodeDjvuJb2Mask(
         }
 
         if (type == 1 || type == 2) {
-          if (symbols.length >= _maxJb2Records) {
-            throw const DjvuException('DjVu JB2 symbol dictionary exceeds the record limit.');
-          }
-          final cropped = _cropSymbol(symbol);
-          storedDictionaryPixels += cropped.width * cropped.height;
-          if (storedDictionaryPixels > _maxJb2DictionaryPixels) {
-            throw const DjvuException('DjVu JB2 symbol dictionary exceeds the 16-megapixel limit.');
-          }
-          symbols.add(cropped);
+          storedDictionaryPixels = _addStoredSymbol(symbols, symbol, storedDictionaryPixels);
         }
       case 4:
       case 5:
       case 6:
-        if (symbols.isEmpty) {
-          throw const DjvuException('DjVu JB2 refinement record references an empty dictionary.');
-        }
-        final index = _decodeNumber(zp, symbolIndex, 0, symbols.length - 1);
-        if (index < 0 || index >= symbols.length) {
-          throw const DjvuException('DjVu JB2 refinement record references an invalid symbol.');
-        }
-        final reference = symbols[index];
+        final reference = _referenceSymbol(symbols, zp, symbolIndex);
         final symbolWidthValue =
             reference.width + _decodeNumber(zp, symbolWidthDifference, -262143, 262142);
         final symbolHeightValue =
@@ -191,15 +330,7 @@ DjvuJb2Mask decodeDjvuJb2Mask(
         }
 
         if (type == 4 || type == 5) {
-          if (symbols.length >= _maxJb2Records) {
-            throw const DjvuException('DjVu JB2 symbol dictionary exceeds the record limit.');
-          }
-          final cropped = _cropSymbol(symbol);
-          storedDictionaryPixels += cropped.width * cropped.height;
-          if (storedDictionaryPixels > _maxJb2DictionaryPixels) {
-            throw const DjvuException('DjVu JB2 symbol dictionary exceeds the 16-megapixel limit.');
-          }
-          symbols.add(cropped);
+          storedDictionaryPixels = _addStoredSymbol(symbols, symbol, storedDictionaryPixels);
         }
       case 7:
         if (symbols.isEmpty) {
@@ -223,8 +354,9 @@ DjvuJb2Mask decodeDjvuJb2Mask(
         }
         _blit(page, width, height, symbol, x, y);
       case 9:
-        throw const DjvuUnsupportedCodecException(
-          'DjVu JB2 page records that reset or inherit a shared dictionary are not supported.',
+        throw const DjvuException(
+          'DjVu JB2 page records that reset or inherit a shared dictionary are '
+          'only valid at the start of the stream.',
         );
       case 10:
         final length = _decodeNumber(zp, commentLength, 0, 262142);
@@ -279,7 +411,7 @@ Uint8List encodeDjvuJb2Bmp(final DjvuJb2Mask mask) {
   return output;
 }
 
-_Jb2Symbol _decodeDirectSymbol(
+DjvuJb2Symbol _decodeDirectSymbol(
   final DjvuZpDecoder zp,
   final Uint8List contexts,
   final _NumberContext widthContext,
@@ -288,6 +420,21 @@ _Jb2Symbol _decodeDirectSymbol(
 ) {
   final width = _decodeNumber(zp, widthContext, 0, 262142);
   final height = _decodeNumber(zp, heightContext, 0, 262142);
+  return _chargedDirectBitmap(zp, contexts, width, height, priorPixels, null);
+}
+
+/// Decodes a direct symbol bitmap after its dimensions are known.
+///
+/// When [ledger] is supplied (shared-dictionary decode), the bitmap's pixels
+/// are charged to the document dictionary ledger before allocation.
+DjvuJb2Symbol _chargedDirectBitmap(
+  final DjvuZpDecoder zp,
+  final Uint8List contexts,
+  final int width,
+  final int height,
+  final int priorPixels,
+  final DjvuSharedDictionaryLedger? ledger,
+) {
   final pixelCount = width * height;
   if (width < 0 || height < 0 || pixelCount > _maxJb2SymbolPixels) {
     throw const DjvuException('DjVu JB2 symbol dimensions exceed the 4-megapixel limit.');
@@ -295,9 +442,10 @@ _Jb2Symbol _decodeDirectSymbol(
   if (priorPixels + pixelCount > _maxJb2DecodedSymbolPixels) {
     throw const DjvuException('DjVu JB2 page exceeds the 64-megapixel symbol-work limit.');
   }
+  if (ledger != null) ledger.charge(pixelCount);
 
   if (pixelCount == 0) {
-    return _Jb2Symbol(width: width, height: height, pixels: Uint8List(0));
+    return DjvuJb2Symbol(width: width, height: height, pixels: Uint8List(0));
   }
   final pixels = Uint8List(pixelCount);
   for (var row = 0; row < height; row++) {
@@ -324,16 +472,30 @@ _Jb2Symbol _decodeDirectSymbol(
       contexts[context] = decoded.state;
     }
   }
-  return _Jb2Symbol(width: width, height: height, pixels: pixels);
+  return DjvuJb2Symbol(width: width, height: height, pixels: pixels);
 }
 
-_Jb2Symbol _decodeRefinedSymbol(
+DjvuJb2Symbol _decodeRefinedSymbol(
   final DjvuZpDecoder zp,
   final Uint8List contexts,
   final int width,
   final int height,
-  final _Jb2Symbol reference,
+  final DjvuJb2Symbol reference,
   final int priorPixels,
+) => _chargedRefinedBitmap(zp, contexts, width, height, reference, priorPixels, null);
+
+/// Decodes a refined symbol bitmap after its dimensions are known.
+///
+/// When [ledger] is supplied (shared-dictionary decode), the bitmap's pixels
+/// are charged to the document dictionary ledger before allocation.
+DjvuJb2Symbol _chargedRefinedBitmap(
+  final DjvuZpDecoder zp,
+  final Uint8List contexts,
+  final int width,
+  final int height,
+  final DjvuJb2Symbol reference,
+  final int priorPixels,
+  final DjvuSharedDictionaryLedger? ledger,
 ) {
   final pixelCount = width * height;
   if (width < 0 || height < 0 || pixelCount > _maxJb2SymbolPixels) {
@@ -342,9 +504,10 @@ _Jb2Symbol _decodeRefinedSymbol(
   if (priorPixels + pixelCount > _maxJb2DecodedSymbolPixels) {
     throw const DjvuException('DjVu JB2 page exceeds the 64-megapixel symbol-work limit.');
   }
+  if (ledger != null) ledger.charge(pixelCount);
 
   if (pixelCount == 0) {
-    return _Jb2Symbol(width: width, height: height, pixels: Uint8List(0));
+    return DjvuJb2Symbol(width: width, height: height, pixels: Uint8List(0));
   }
   final pixels = Uint8List(pixelCount);
   final rowShift = (reference.height - 1) ~/ 2 - (height - 1) ~/ 2;
@@ -374,7 +537,7 @@ _Jb2Symbol _decodeRefinedSymbol(
       contexts[context] = decoded.state;
     }
   }
-  return _Jb2Symbol(width: width, height: height, pixels: pixels);
+  return DjvuJb2Symbol(width: width, height: height, pixels: pixels);
 }
 
 int _pixel(final Uint8List pixels, final int width, final int row, final int column) {
@@ -387,7 +550,7 @@ void _blit(
   final Uint8List page,
   final int pageWidth,
   final int pageHeight,
-  final _Jb2Symbol symbol,
+  final DjvuJb2Symbol symbol,
   final int x,
   final int bottomOriginY,
 ) {
@@ -410,7 +573,7 @@ void _blit(
   }
 }
 
-_Jb2Symbol _cropSymbol(final _Jb2Symbol symbol) {
+DjvuJb2Symbol _cropSymbol(final DjvuJb2Symbol symbol) {
   var left = symbol.width;
   var top = symbol.height;
   var right = -1;
@@ -427,7 +590,7 @@ _Jb2Symbol _cropSymbol(final _Jb2Symbol symbol) {
     }
   }
   if (right < left || bottom < top) {
-    return _Jb2Symbol(width: 0, height: 0, pixels: Uint8List(0));
+    return DjvuJb2Symbol(width: 0, height: 0, pixels: Uint8List(0));
   }
   final width = right - left + 1;
   final height = bottom - top + 1;
@@ -440,7 +603,43 @@ _Jb2Symbol _cropSymbol(final _Jb2Symbol symbol) {
       (top + row) * symbol.width + left,
     );
   }
-  return _Jb2Symbol(width: width, height: height, pixels: pixels);
+  return DjvuJb2Symbol(width: width, height: height, pixels: pixels);
+}
+
+/// Crops and stores a decoded symbol, enforcing the per-stream stored limits.
+/// Returns the updated stored-pixel count.
+int _addStoredSymbol(
+  final List<DjvuJb2Symbol> symbols,
+  final DjvuJb2Symbol symbol,
+  final int priorStoredPixels,
+) {
+  if (symbols.length >= _maxJb2Records) {
+    throw const DjvuException('DjVu JB2 symbol dictionary exceeds the record limit.');
+  }
+  final cropped = _cropSymbol(symbol);
+  final storedPixels = priorStoredPixels + cropped.width * cropped.height;
+  if (storedPixels > _maxJb2DictionaryPixels) {
+    throw const DjvuException('DjVu JB2 symbol dictionary exceeds the 16-megapixel limit.');
+  }
+  symbols.add(cropped);
+  return storedPixels;
+}
+
+/// Resolves a refinement or copy record's symbol index against the combined
+/// inherited-plus-local symbol list.
+DjvuJb2Symbol _referenceSymbol(
+  final List<DjvuJb2Symbol> symbols,
+  final DjvuZpDecoder zp,
+  final _NumberContext symbolIndex,
+) {
+  if (symbols.isEmpty) {
+    throw const DjvuException('DjVu JB2 refinement record references an empty dictionary.');
+  }
+  final index = _decodeNumber(zp, symbolIndex, 0, symbols.length - 1);
+  if (index < 0 || index >= symbols.length) {
+    throw const DjvuException('DjVu JB2 refinement record references an invalid symbol.');
+  }
+  return symbols[index];
 }
 
 (int, int) _decodeSymbolCoordinates(
@@ -532,11 +731,18 @@ int _decodeNumber(final DjvuZpDecoder zp, final _NumberContext contexts, int low
   return negative ? -cutoff - 1 : cutoff;
 }
 
-final class _Jb2Symbol {
-  const _Jb2Symbol({required this.width, required this.height, required this.pixels});
+/// One decoded JB2 symbol bitmap, cropped to its ink bounds.
+final class DjvuJb2Symbol {
+  /// Creates a symbol bitmap.
+  const DjvuJb2Symbol({required this.width, required this.height, required this.pixels});
 
+  /// Symbol width in pixels.
   final int width;
+
+  /// Symbol height in pixels.
   final int height;
+
+  /// One byte per pixel in top-to-bottom order. One means black ink.
   final Uint8List pixels;
 }
 
