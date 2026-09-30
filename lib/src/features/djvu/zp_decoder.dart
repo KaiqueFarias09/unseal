@@ -80,6 +80,27 @@ final class DjvuZpDecoder {
     return (bit: mps != 0, state: next);
   }
 
+  /// Decodes one bit in the BZZ passthrough mode, with the `z = 0x8000 + a/2`
+  /// threshold the general-purpose byte stream uses (IW44 layers use the
+  /// different `3a/8` threshold of [decodePassthroughIw44]).
+  bool decodePassthroughBzz() {
+    final z = 0x8000 + (_a >> 1);
+    if (z > _code) {
+      final complement = 0x10000 - z;
+      _a = (_a + complement) & 0xFFFF;
+      _code = (_code + complement) & 0xFFFF;
+      _renormalize();
+      return true;
+    }
+
+    _bitCount--;
+    _a = (z << 1) & 0xFFFF;
+    _code = ((_code << 1) | ((_bitBuffer >> (_bitCount & 31)) & 1)) & 0xFFFF;
+    if (_bitCount < 16) _refill();
+    _fence = _code < 0x7FFF ? _code : 0x7FFF;
+    return false;
+  }
+
   /// Decodes one bit in the IW44 passthrough mode, without adapting a context.
   bool decodePassthroughIw44() {
     final z = 0x8000 + (3 * _a ~/ 8);
