@@ -41,6 +41,9 @@ enum FuzzFamily {
   /// Comic archives (CBR/CB7/CBC detection surfaces).
   comic,
 
+  /// TIFF/BigTIFF documents (IFD chains, CCITT/LZW strips).
+  tiff,
+
   /// Cover image bytes.
   images;
 
@@ -88,6 +91,8 @@ FuzzFamily familyOfSeed(final String name) {
     return FuzzFamily.zip;
   }
   if (name.startsWith('cbz') || name.startsWith('cbr')) return FuzzFamily.comic;
+  if (name.startsWith('tiff')) return FuzzFamily.tiff;
+  if (name.startsWith('tiff')) return FuzzFamily.tiff;
   return FuzzFamily.text;
 }
 
@@ -132,6 +137,7 @@ Uint8List _magicRandom(final FuzzFamily family, final Random random) {
     FuzzFamily.text: <int>[],
     FuzzFamily.azw4: <int>[],
     FuzzFamily.comic: <int>[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07],
+    FuzzFamily.tiff: <int>[0x49, 0x49, 0x2A, 0x00],
     FuzzFamily.images: <int>[0x89, 0x50, 0x4E, 0x47],
   };
   final magic = magics[family] ?? const <int>[];
@@ -173,6 +179,12 @@ Uint8List _structuralHostile(final FuzzFamily family, final Random random, final
         0 => buildZipBombEpub(targetBytes: 2 << 20), // CBZ-shaped bomb
         _ => randomBytesWithMagic(const <int>[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C], random),
       };
+    case FuzzFamily.tiff:
+      return switch (index ~/ 4 % 3) {
+        0 => randomBytesWithMagic(const <int>[0x4D, 0x4D, 0x00, 0x2B], random),
+        1 => _hostileTiffIfd(random),
+        _ => randomBytesWithMagic(const <int>[0x49, 0x49, 0x2A, 0x00], random),
+      };
     case FuzzFamily.images:
       return randomBytesWithMagic(switch (random.nextInt(3)) {
         0 => const <int>[0x89, 0x50, 0x4E, 0x47],
@@ -193,6 +205,37 @@ Uint8List _pureRandom(final Random random) {
     out[index] = random.nextInt(256);
   }
 
+  return out;
+}
+
+/// A classic TIFF whose IFD declares a hostile entry count and whose
+/// strip offsets point past the file: the parser must fail typed
+/// before any allocation.
+Uint8List _hostileTiffIfd(final Random random) {
+  final out = Uint8List(8 + 2 + 3 * 12 + 4);
+  final view = ByteData.sublistView(out);
+  out[0] = 0x49;
+  out[1] = 0x49;
+  view.setUint16(2, 42);
+  view.setUint32(4, 8);
+  view.setUint16(8, 3);
+  var entry = 10;
+  void tag(final int id, final int type, final int count, final int value) {
+    view.setUint16(entry, id);
+    view.setUint16(entry + 2, type);
+    view.setUint32(entry + 4, count);
+    if (type == 3) {
+      view.setUint16(entry + 8, value);
+    } else {
+      view.setUint32(entry + 8, value);
+    }
+    entry += 12;
+  }
+
+  tag(256, 4, 1, 1 + random.nextInt(0x10000)); // ImageWidth
+  tag(257, 4, 1, 1 + random.nextInt(0x10000)); // ImageLength
+  tag(273, 4, 1, 8 + random.nextInt(1 << 20)); // StripOffsets past the data
+  view.setUint32(entry, 0);
   return out;
 }
 
