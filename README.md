@@ -34,6 +34,10 @@ document renderer.
 - Optional web-worker parsing for browser applications.
 - Typed exceptions and format-specific recovery paths for damaged input.
 
+Start with [installation](#installation) and the [quick start](#quick-start).
+The [documentation index](docs/README.md) links to usage, architecture,
+development, and the single [roadmap](docs/roadmap.md).
+
 ## Supported formats
 
 | Format | Main capabilities | Important boundary |
@@ -193,11 +197,9 @@ other formats throw `SessionUnsupportedFormatException` and should use
 `Unseal.read` instead. PDF sessions materialize pages on demand
 (`loadDocumentSource('page_<i>.html')`, `loadPdfPageLines(i)` for the
 facsimile text-layer geometry) and serve byte ranges of the original
-document via `loadBytesRange` — see
-[the format-expansion A/B report](docs/specs/progressive-reading/ab-report-2026-09-28.md)
-for measured gains and the honest regressions (compressed CBRs open eagerly
-inside the session; very small books pay a fixed session floor). The classic
-entry points retain their full-book behavior.
+document via `loadBytesRange`. Compressed CBR entries inflate during session
+opening, and session startup overhead can outweigh savings for small books.
+The classic entry points retain their full-book behavior.
 
 `SessionPolicy` defaults to a 64 MiB resource cache, an 8 MiB header cover
 limit, and an 8 MiB cap per byte-range response. Whole-book operations such
@@ -205,6 +207,12 @@ as search and statistics can still traverse all content. CBZ/CBR search
 returns no matches because their pages have no searchable text; sessions do
 not perform OCR. In browsers, use `BookSession.open(bytes)` and configure
 the worker as shown below. Without a healthy worker, sessions execute inline.
+
+PDF sessions derive their reflow plan from up to 20 sampled pages. For longer
+documents, their canonical text and offsets can differ from a full parse.
+Within a session, `loadDocumentText` and `loadPdfPageLines` use the same plan.
+Do not assume that offsets saved from one extraction mode address the same
+passage in the other mode.
 
 ### Format-specific APIs
 
@@ -282,6 +290,10 @@ falling back to `viewBox`). Standalone SVG documents join the reading order as
 content documents. Malformed, fractional, non-positive, or oversized
 declarations yield no viewport instead of failing the parse; only documents the
 spine references are scanned.
+
+`BookProgression` measures the full reading order, including non-linear
+spine items. Applications that omit auxiliary content must account for that
+difference when presenting progress.
 
 ### EPUB metadata updates and Calibre catalogs
 
@@ -637,7 +649,7 @@ Compatibility work draws on:
 
 ## Development
 
-Install dependencies, analyze the package, and run the test suite:
+Use a source checkout and the SDK pinned in `.dart-version`:
 
 ```sh
 dart pub get --no-example
@@ -645,57 +657,15 @@ dart analyze --fatal-infos
 dart test --exclude-tags fuzz
 ```
 
-The regular VM suite excludes the extended fuzz campaign. Run browser
-coverage with a freshly compiled worker:
+The [development guide](docs/development.md) covers browser workers, fuzz,
+fixture provenance, performance measurements, and the release commands.
+Read the [architecture](docs/architecture.md) before changing module or
+safety boundaries. Use the [codebase guide](docs/unseal-codebase-guide.md)
+to find a format's implementation and the [roadmap](docs/roadmap.md) for
+pending work.
 
-```sh
-dart compile js web/unseal_worker.dart -o test/web/unseal_worker.js
-dart test -p chrome test/web/
-```
-
-The compiled worker and its `.deps` and `.map` files are generated test
-artifacts and must stay out of commits. Run the extended fuzz campaign with:
-
-```sh
-dart test --tags fuzz
-dart run tool/fuzz_corpus_inventory.dart --check-manifest
-```
-
-Tracked seeds and generated cases live under `test/resources/fuzz/`; their
-manifest records sizes, hashes, format families, and structural landmarks.
-The same mutation seed always produces the same bytes, while parsing runs in
-killable isolates with deadlines so a hang cannot stall the test process.
-
-The benchmark suite measures detection, full parsing, metadata-only reads,
-isolate entry points, and lazy getters against the repository fixtures:
-
-```sh
-dart run benchmark/unseal_benchmarks.dart --quick
-dart run benchmark/unseal_benchmarks.dart
-dart run benchmark/unseal_benchmarks.dart --json=artifacts/current.json
-dart run benchmark/compare_baselines.dart artifacts/baseline.json artifacts/current.json
-```
-
-Benchmark results depend on the machine. Compare runs from the same machine
-when evaluating a change. The benchmark matrix covers 16
-benchmark formats and emits versioned JSON reports. New parser support does
-not automatically add a benchmark scenario. For a private Calibre library, the
-explicitly opt-in `benchmark/library_sweep.dart` tool performs read-only,
-timeout-bounded inventory, sweep, and stratified-sample runs. It never writes
-to the library and requires a random-ID map outside the repository so paths,
-titles, authors, and file names do not enter reports.
-
-```sh
-dart run benchmark/library_sweep.dart inventory --library=/books --id-map=/private/library-ids.json --out=artifacts/inventory.json
-dart run benchmark/library_sweep.dart sweep --library=/books --id-map=/private/library-ids.json --checkpoint=artifacts/sweep.checkpoint.json --out=artifacts/sweep.json
-```
-
-CI runs the release suite separately on the Dart VM and in Chrome to exercise
-both native and browser implementations.
-
-The [`example/`](example/) directory contains a minimal Flutter app that loads
-the bundled Alice in Wonderland EPUB and displays a parsed summary. It is a
-starting point for integration, not a complete reader application.
+The [Flutter example](example/README.md) demonstrates the public API by
+loading a bundled EPUB and showing its parsed summary.
 
 ## License
 

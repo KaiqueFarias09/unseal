@@ -9,7 +9,7 @@ Use it in two ways:
 1. Read "The whole library in one picture" before reviewing any feature.
 2. Open a feature section and read its files in table order. The first files show the public result and orchestration. The later files contain format details.
 
-This document describes Unseal itself. Grimoire owns interactive rendering. Grimoire Narration owns speech and audio playback. Neither concern belongs in a format parser here.
+This document describes Unseal itself. Consumer applications own interactive rendering, speech, and audio playback. Those concerns do not belong in a format parser here.
 
 Paths that start with `features/`, `foundation/`, or `platform/` are relative to `lib/src/`. Paths that start with `lib/` or `web/` are relative to the repository root.
 
@@ -751,8 +751,8 @@ Fixture and reference provenance is recorded in the repository. The scanned
 archive corpus additionally pins TXTz text against `djvutxt`, mask and photo
 pixels against `ddjvu`, and composed-page hashes under the documented hard-mask
 convention. Derived indirect fixtures verify the file-based path. See the
-[scanned-archives report](specs/scanned-archives/report.md) for measured limits
-and the remaining corpus gaps.
+[parser references](format-parser-references.md) for reference conventions
+and the [roadmap](roadmap.md) for remaining corpus gaps.
 
 ## TIFF and BigTIFF: decode multi-page raster books
 

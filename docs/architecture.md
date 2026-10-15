@@ -12,8 +12,8 @@ not fit the common model.
 
 Unseal owns parsing and reading data. It does not own:
 
-- reader widgets or web views, which belong to Grimoire;
-- media playback or text-to-speech, which belong to Grimoire Narration;
+- reader widgets, web views, or page rendering;
+- media playback or text-to-speech;
 - downloads, authentication, library storage, or synchronization, which
   belong to consuming applications.
 
@@ -23,20 +23,16 @@ The library stays pure Dart. The example may use Flutter, but `lib/` may not.
 
 ```mermaid
 flowchart LR
-  App["Application"] --> Narration["Grimoire Narration"]
-  App --> Viewer["Grimoire"]
   App --> Unseal["Unseal"]
-  Narration --> Viewer
-  Narration --> Unseal
-  Viewer --> Unseal
 
   Features["Format and reading features"] --> Foundation["Foundation"]
   Platform["VM and browser adapters"] --> Features
 ```
 
-Unseal never imports either downstream package. Inside Unseal, features may
-depend on `foundation`. Foundation types and policies must not depend on a
-specific format.
+Applications may combine Unseal with their own renderer, audio, storage,
+and networking layers. Unseal does not import those consumers. Inside Unseal,
+features may depend on `foundation`; foundation types and policies must not
+depend on a specific format.
 
 ## Public API
 

@@ -726,8 +726,8 @@
     {
       "path": "test/resources/djvu/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 13532,
-      "sha256": "aa0564660014e14f0d967fc38ac07a66ed59a0094e4fb3c2065a263246bce532",
+      "bytes": 13582,
+      "sha256": "0e4ac9342fc34c42a2619398c569655556b5362fcc31a6065a84e122981eadd1",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1746,7 +1746,7 @@
   ],
   "counts": {
     "total": 212,
-    "totalBytes": 88603288,
+    "totalBytes": 88603338,
     "byFormat": {
       "manifest": 13,
       "chm": 4,

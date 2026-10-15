@@ -61,12 +61,12 @@ implementation source was copied.
 
 ## Scanned-archive corpus (added 2026-09-30)
 
-The six real scanned-book documents below back the
-[scanned-archives expansion](../../../docs/specs/scanned-archives/design.md).
+The six real scanned-book documents below exercise the
+[supported DjVu contract](../../../README.md#supported-formats).
 Every file was verified on 2026-09-30 by re-downloading from the listed URL
-and comparing SHA-256 byte-for-byte. Chunk incidence across these files plus
-the two out-of-git stress files is recorded in
-`docs/specs/scanned-archives/incidence.md`.
+and comparing SHA-256 byte-for-byte. The table records each tracked file's
+feature set. Historical stress-corpus counts remain in Git history; pending
+compatibility work is collected in the [roadmap](../../../docs/roadmap.md).
 
 | File | Source and rights | SHA-256 | Feature set (djvudump 3.5.29) |
 | --- | --- | --- | --- |
