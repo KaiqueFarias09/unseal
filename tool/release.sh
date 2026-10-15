@@ -12,10 +12,14 @@ release_tag="v$release_version"
 release_dart_bin=
 release_dart_version_file=.dart-version
 release_notes_file=
+release_worker_generated=0
 
 cleanup() {
   if [ -n "$release_notes_file" ] && [ -f "$release_notes_file" ]; then
     rm -f -- "$release_notes_file"
+  fi
+  if [ "$release_worker_generated" = 1 ]; then
+    rm -f -- test/web/unseal_worker.js test/web/unseal_worker.js.deps test/web/unseal_worker.js.map
   fi
 }
 
@@ -75,7 +79,7 @@ require_dart_version() {
 
 require_version_metadata() {
   [ -n "$release_version" ] ||
-    fail 'VERSION is required. Example: make release-check VERSION=1.1.0'
+    fail 'VERSION is required. Example: make release-check VERSION=1.2.0'
 
   printf '%s\n' "$release_version" |
     grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$' ||
@@ -137,6 +141,8 @@ run_release_gate() {
   "$release_dart_bin" format --output=none --set-exit-if-changed .
   "$release_dart_bin" analyze --fatal-infos
   "$release_dart_bin" test --exclude-tags fuzz
+  release_worker_generated=1
+  "$release_dart_bin" compile js web/unseal_worker.dart -o test/web/unseal_worker.js
   "$release_dart_bin" test -p chrome test/web/
   "$release_dart_bin" test --tags fuzz
   "$release_dart_bin" run tool/fuzz_corpus_inventory.dart --check-manifest
@@ -148,6 +154,7 @@ run_release_gate() {
     "$release_dart_bin" pub publish --dry-run
   fi
 
+  require_clean_main
   printf 'release-check: unseal %s passed all release gates.\n' "$release_version"
   printf 'commit: %s\n' "$(git rev-parse HEAD)"
 }

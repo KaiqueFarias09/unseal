@@ -7,13 +7,13 @@ DART_BIN ?=
 help:
 	@printf '%s\n' \
 	  'Unseal release commands:' \
-	  '  make release-check VERSION=1.1.0' \
+	  '  make release-check VERSION=1.2.0' \
 	  '      Validate metadata, repository state, formatting, analysis, tests,' \
 	  '      deterministic fuzzing, corpus manifest, and pub.dev dry-run.' \
-	  '  make release-github VERSION=1.1.0' \
+	  '  make release-github VERSION=1.2.0' \
 	  '      Re-run the release gate, require main == origin/main, then create' \
 	  '      and push vVERSION and create the matching GitHub Release.' \
-	  '  make publish VERSION=1.1.0' \
+	  '  make publish VERSION=1.2.0' \
 	  '      Re-run the release gate, require the matching remote tag and' \
 	  '      GitHub Release, then start the interactive pub.dev publication.' \
 	  '' \

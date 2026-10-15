@@ -37,3 +37,9 @@ tool/reference/node_modules/
 
 # FVM Version Cache
 .fvm/
+
+# Local editor configuration and generated browser-test worker
+/.zcodeignore
+/test/web/unseal_worker.js
+/test/web/unseal_worker.js.deps
+/test/web/unseal_worker.js.map
