@@ -35,8 +35,8 @@ document renderer.
 - Typed exceptions and format-specific recovery paths for damaged input.
 
 Start with [installation](#installation) and the [quick start](#quick-start).
-The [documentation index](docs/README.md) links to usage, architecture,
-development, and the single [roadmap](docs/roadmap.md).
+The [documentation index](doc/README.md) links to usage, architecture,
+development, and the single [roadmap](doc/roadmap.md).
 
 ## Supported formats
 
@@ -657,11 +657,11 @@ dart analyze --fatal-infos
 dart test --exclude-tags fuzz
 ```
 
-The [development guide](docs/development.md) covers browser workers, fuzz,
+The [development guide](doc/development.md) covers browser workers, fuzz,
 fixture provenance, performance measurements, and the release commands.
-Read the [architecture](docs/architecture.md) before changing module or
-safety boundaries. Use the [codebase guide](docs/unseal-codebase-guide.md)
-to find a format's implementation and the [roadmap](docs/roadmap.md) for
+Read the [architecture](doc/architecture.md) before changing module or
+safety boundaries. Use the [codebase guide](doc/unseal-codebase-guide.md)
+to find a format's implementation and the [roadmap](doc/roadmap.md) for
 pending work.
 
 The [Flutter example](example/README.md) demonstrates the public API by

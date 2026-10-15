@@ -67,7 +67,7 @@
   browser coverage, and format-specific size and decompression limits.
 - The supported subset and remaining gaps for every new format are documented
   in the README. Pending extensions and validation gaps are collected in
-  `docs/roadmap.md`.
+  `doc/roadmap.md`.
 - Added session parity, concurrency and cancellation tests, worker coverage,
   and deterministic fuzz cases for progressive PDF/comic sessions and scanned
   archives. DjVu text and selected raster pages are pinned against DjVuLibre;
@@ -75,7 +75,7 @@
   documented hard-mask rendering differences.
 - Corrected DjVu budget failure messages to report the current limits.
 - Included maintained guides in the published package, removed completed
-  campaign documents, and consolidated pending work in `docs/roadmap.md`.
+  campaign documents, and consolidated pending work in `doc/roadmap.md`.
 
 ## 1.1.0 - September 19, 2026
 

@@ -14,8 +14,8 @@
     {
       "path": "test/resources/books/chm/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 1865,
-      "sha256": "11ddc23e6d2259fc86e4355ff96e5a2d6a6f3beca53663eb61a350a6426c85eb",
+      "bytes": 1847,
+      "sha256": "60685625f62b2b0cf3fdadd7b0d8f4b429a882039bf868c07a7420bf1f4729db",
       "container": "unknown",
       "landmarks": 0
     },
@@ -726,8 +726,8 @@
     {
       "path": "test/resources/djvu/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 13582,
-      "sha256": "0e4ac9342fc34c42a2619398c569655556b5362fcc31a6065a84e122981eadd1",
+      "bytes": 13581,
+      "sha256": "b4b5081ff74c637232dc84c2b3a0c68a048e1de696808a87b0759998a0e2b23f",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1746,7 +1746,7 @@
   ],
   "counts": {
     "total": 212,
-    "totalBytes": 88603338,
+    "totalBytes": 88603319,
     "byFormat": {
       "manifest": 13,
       "chm": 4,

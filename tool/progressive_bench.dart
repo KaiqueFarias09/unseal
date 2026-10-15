@@ -1,5 +1,5 @@
 // Opening/memory probe for the progressive-reading A/B benchmark
-// Measurement boundaries and usage: docs/development.md.
+// Measurement boundaries and usage: doc/development.md.
 //
 // INTENDED PROCESS MODEL: one book per FRESH process, so the RSS delta
 // reflects that book's open alone. The sweep driver

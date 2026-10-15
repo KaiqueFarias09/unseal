@@ -66,7 +66,7 @@ The six real scanned-book documents below exercise the
 Every file was verified on 2026-09-30 by re-downloading from the listed URL
 and comparing SHA-256 byte-for-byte. The table records each tracked file's
 feature set. Historical stress-corpus counts remain in Git history; pending
-compatibility work is collected in the [roadmap](../../../docs/roadmap.md).
+compatibility work is collected in the [roadmap](../../../doc/roadmap.md).
 
 | File | Source and rights | SHA-256 | Feature set (djvudump 3.5.29) |
 | --- | --- | --- | --- |

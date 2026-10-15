@@ -17,7 +17,7 @@ logo.webp
 # Generated output
 build/
 coverage/
-doc/
+doc/api/
 .dart-test-tmp/
 pubspec.lock
 *.log

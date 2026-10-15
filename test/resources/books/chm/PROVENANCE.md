@@ -24,6 +24,6 @@ translation path. The unchanged file is 271,652 bytes with SHA-256
 the book manifest. No additional CHM was added: the Free Pascal `paslzxcomp`
 compressor explicitly writes zero for the Intel preprocessing flag, and no
 redistributable real CHM with the flag set was verified. See the open research
-item in `docs/format-parser-references.md`, the [Free Pascal compressor
+item in `doc/roadmap.md`, the [Free Pascal compressor
 source](https://gitlab.com/freepascal.org/fpc/source/-/blob/dcb91d0b52/packages/chm/src/paslzxcomp.pas),
 and the [Microsoft E8 rules](https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-patch/e6c8366d-a8c3-4f34-aa5d-56f44f938a09).
