@@ -120,7 +120,7 @@ You only need a small set of format terms to understand most of the repository.
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
-| DjVu JPEG, JB2, and bounded IW44 subset | An IFF document whose pages have INFO plus direct BGjp JPEG, page-local Sjbz JB2 masks, or progressive BG44/FG44 IW44 layers in single-page or bundled files. | `DjvuBook` with JPEG, bilevel BMP, or composed color BMP page images, dimensions, rotation, optional TXTa text, and original bytes. Shared dictionaries, alternate visual codecs, and indirect files fail full opening. |
+| DjVu JPEG, JB2, and bounded IW44 subset | An IFF document with INFO, direct BGjp JPEG, local or shared Sjbz JB2 masks, progressive BG44/FG44 IW44 layers, TXTz/TXTa text, and NAVM bookmarks. | `DjvuBook` with JPEG/BMP page images, geometry, searchable text, navigation, and source bytes. File-based reads resolve indirect sibling components. Chained dictionaries and replacement visual codecs fail typed; FGbz palette recoloring is ignored. |
 | TIFF and BigTIFF | A classic TIFF or BigTIFF header whose IFD chains describe pages of strip- or tile-organized raster. | `TiffBook` with BMP page images (or a passed-through self-contained JPEG strip), dimensions, resolution, and original bytes. Tiled raster, planar=2, palette, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, and reversed FillOrder fail typed. |
 | CHM | An ITSF compiled HTML Help archive with compressed topic streams. | `DocumentBook` with ordered HTML topics, resources, title, and hierarchical contents. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
@@ -478,7 +478,8 @@ The flow is:
 | `features/comic/entities/entities.dart` | Re-exports the public comic entity types. |
 | `features/comic/metadata/comic_info.dart` | Reads descriptive fields, `Manga=YesAndRightToLeft`, and indexed `<Page>` attributes. Invalid or out-of-range page declarations do not shift image indices. |
 | `features/comic/archive/rar_reader.dart` | Reads RAR headers and stored entries, then delegates compressed RAR 4 data to the owned decoder. |
-| `features/comic/archive/rar4_decoder.dart` | Implements the bit, Huffman, distance, and copy state machines needed for supported RAR 2.9 and 3.x compression. |
+| `features/comic/archive/rar4_method29_decoder.dart` | Implements the shared bit, Huffman, distance, and copy state machines for supported RAR method-29 compression. |
+| `features/comic/archive/rar_random_access.dart` | Exposes the RAR entry source used by progressive CBR sessions. |
 | `features/comic/exceptions/comic_exception.dart` | Reports invalid archives, unsupported RAR methods, and missing image pages. |
 | `features/comic/exceptions/exceptions.dart` | Re-exports the public comic exception types. |
 
@@ -649,7 +650,7 @@ The implementation covers Group 3 one-dimensional (`K = 0`), Group 3 two-dimensi
 | File | What it does and why it exists |
 | --- | --- |
 | `features/pdf/codec/ccitt/ccitt_decoder.dart` | Decodes CCITTFaxDecode streams into packed black-and-white rows and enforces limits for malformed dimensions or non-progressing input. |
-| `features/pdf/codec/ccitt/ccitt_tables.dart` | Stores the standard run-length and two-dimensional Huffman tables shared by CCITT and JBIG2 MMR decoding. |
+| `foundation/images/ccitt/ccitt_tables.dart` | Stores the standard run-length and two-dimensional Huffman tables shared by CCITT and JBIG2 MMR decoding. |
 
 ### JBIG2 images
 
@@ -708,26 +709,31 @@ references cannot force unbounded decompression work.
 DjVu wraps page chunks in an IFF container. A single page is `FORM:DJVU`; a
 bundled book is `FORM:DJVM` with a `DIRM` directory and embedded page FORMs.
 Each page starts with `INFO`, which supplies dimensions, resolution, and
-rotation. The adapter exposes a directly stored `BGjp` JPEG, decodes a
-page-local `Sjbz` JB2 mask, and supports progressive IW44 v1.0 through v1.2
-`BG44`/`FG44` layers. IW44 photo pages with a full-size background become 24-bit
-BMPs; compound pages combine background and foreground color through an
-`Sjbz` selection mask. JB2 supports direct symbols, matched refinements, and
-local symbol copies. Optional uncompressed `TXTa` provides searchable text.
-External/shared dictionaries (`Djbz`/`INCL`), other image codecs, compressed
-text/navigation, and indirect files fail full opening with
-`DjvuUnsupportedCodecException`; a successful `DjvuBook` always has a
-displayable image for every page. Across a document, decoded layers are capped
-at 256 million pixels and 128 MiB of materialized raster bytes. IW44 also
-checks chunk, slice, and coefficient-work limits before allocating its planes.
+rotation. The adapter exposes direct `BGjp` JPEG, decodes `Sjbz` JB2 masks
+with local or shared `Djbz` symbols through `INCL`, and supports progressive
+IW44 v1.0 through v1.2 `BG44`/`FG44` layers. Reduced IW44 backgrounds expand
+bilinearly; compound pages combine color layers through a hard `Sjbz` mask.
+`FGbz` recoloring is ignored, so its foreground renders as black ink.
+
+Compressed `TXTz` supplies searchable text and takes precedence over `TXTa`.
+`NAVM` becomes navigation with verbatim bookmark targets. Indirect directories
+open only through filesystem reads, which validate sibling names and component
+sizes. Byte-based reads reject them. Chained shared dictionaries and replacement
+visual codecs fail typed; a successful book has a displayable image for every
+page. Decoded layers are capped at 2048 million pixels and 1 GiB of raster
+bytes per book. IW44, BZZ, and shared JB2 symbols have separate allocation
+and work limits.
 
 | File | What it does and why it exists |
 | --- | --- |
 | `lib/djvu.dart` | Exposes the narrow format API. |
-| `features/djvu/parse_djvu_book.dart` | Walks bounded IFF chunks, validates directory offsets and page INFO, extracts JPEG, decodes a JB2 BMP, or composes IW44 layers plus uncompressed OCR. |
+| `features/djvu/parse_djvu_book.dart` | Walks bounded IFF chunks, validates directory offsets and page INFO, decodes visual layers, and assembles text and navigation. |
+| `features/djvu/bzz_decoder.dart` | Decodes bounded BZZ streams used by compressed text, bookmarks, and directory names. |
+| `features/djvu/djvu_text.dart` | Decodes TXTz/TXTa text and its positional separators. |
+| `features/djvu/djvu_indirect.dart` | Validates directory records and assembles indirect components supplied by the I/O adapter. |
 | `features/djvu/iw44_decoder.dart` and `features/djvu/iw44_inverse_wavelet.dart` | Decode progressive ZP-coded IW44 layers to bounded RGB rasters. |
 | `features/djvu/djvu_layer_compositor.dart` | Scales validated IW44 layers and composes them through a JB2 mask into a BMP. |
-| `features/djvu/jb2_decoder.dart`, `features/djvu/zp_decoder.dart`, and `features/djvu/zp_tables.dart` | Decode the bounded local-symbol JB2 subset and share the DjVu ZP arithmetic coder. |
+| `features/djvu/jb2_decoder.dart`, `features/djvu/zp_decoder.dart`, and `features/djvu/zp_tables.dart` | Decode local and shared JB2 symbols under explicit budgets and share the DjVu ZP arithmetic coder. |
 | `features/djvu/djvu_decode_budget.dart` | Reserves cumulative decoded pixel and raster-byte budgets before page allocations. |
 | `features/djvu/djvu_book.dart` | Keeps page geometry, JPEG/BMP resources, OCR, and original source bytes together. |
 | `features/djvu/djvu_exception.dart` | Distinguishes malformed documents from valid pages needing another image codec. |
@@ -741,7 +747,12 @@ regression hash. Those binary PNG references remain outside the test corpus.
 The format reference is the [DjVu 3 specification](https://www.sndjvu.org/spec.html).
 The shared ZP tables and codec behavior are cross-checked with the
 independent MIT-licensed [djvu-rs implementation](https://github.com/matyushkin/djvu-rs).
-Fixture and reference provenance is recorded in the repository.
+Fixture and reference provenance is recorded in the repository. The scanned
+archive corpus additionally pins TXTz text against `djvutxt`, mask and photo
+pixels against `ddjvu`, and composed-page hashes under the documented hard-mask
+convention. Derived indirect fixtures verify the file-based path. See the
+[scanned-archives report](specs/scanned-archives/report.md) for measured limits
+and the remaining corpus gaps.
 
 ## TIFF and BigTIFF: decode multi-page raster books
 
@@ -765,7 +776,8 @@ JPEG, reversed FillOrder, and uncompressed-mode extensions fail with
 counts, IFD cycles, and truncated strips fail with `TiffException` before
 any declared allocation. Documents are capped at 128 MiB of input, 1,024
 pages, 65,536 IFD entries, 4 samples per pixel, a 256-megapixel page, a
-million segments per page, and 128 MiB of decoded raster.
+million segments per page, 256 million decoded pixels per book, and 128 MiB
+of decoded raster per book.
 
 | File | What it does and why it exists |
 | --- | --- |
@@ -935,6 +947,30 @@ CB7 and CBC are exceptions. `BookDispatch.openFromBytes` detects them and calls 
 | `web/unseal_worker.dart` | Compiles as the JavaScript worker entry point, accepts browser messages, keeps the last parsed book resident, calls `runWorkerOp`, and posts structured replies. |
 
 The wire protocol is internal transport, not a saved-file format. Structure travels in small maps. HTML strings, image bytes, fonts, and other large values travel in a blob list that the browser can copy with structured clone.
+
+## Progressive reading: keep content in a session
+
+`BookSession`, exported by `package:unseal/unseal.dart`, opens EPUB, CBZ,
+CBR, and PDF. Its `book` is a concrete format-specific header with no content
+in `files`; callers request resources, document source, or canonical text.
+PDF adds requested page geometry and original byte ranges. Other formats
+throw `SessionUnsupportedFormatException`.
+
+| File | What it does and why it exists |
+| --- | --- |
+| `features/progressive/book_session.dart` | Defines opening, resource/text requests, search, statistics, progression, CFI, cancellation, and disposal. |
+| `features/progressive/session_policy.dart` | Defines cache, cover, and byte-range limits plus session lifecycle errors. |
+| `features/progressive/session_engine.dart` | Owns the resident source, format-specific opening, header, cache, and requested operations. |
+| `features/progressive/transport/session_transport.dart` | Defines the transport contract and inline execution. |
+| `features/progressive/transport/session_transport_io.dart` | Keeps a session in a long-lived VM isolate and reads file sources there. |
+| `features/progressive/transport/session_transport_web.dart` | Routes requests to the configured browser worker, with inline execution when unavailable. |
+
+Browser session identifiers keep separate engines for concurrent books.
+`cancelPending` fails in-flight requests but leaves the session usable;
+`dispose` ends it and rejects later requests. Whole-book operations may
+traverse all content. Compressed CBR entries inflate at opening, and comic
+search has no matches because image pages have no text. Sessions do not own
+OCR or a reader UI.
 
 ## How the features depend on each other
 

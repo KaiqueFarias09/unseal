@@ -1,4 +1,4 @@
-## Unreleased
+## 1.2.0 (unreleased)
 
 ### Added
 
@@ -13,11 +13,12 @@
   text content documents instead of bucketing as images.
 - The browser worker wire carries the fixed-layout viewports, spine
   linearity, and spine idrefs of EPUB books.
-
-## 1.2.0 - September 23, 2026
-
-### Added
-
+- Progressive `BookSession` reads for EPUB, CBZ, CBR, and PDF, with a
+  structure-only book header, on-demand resources and document text, search,
+  statistics, progression, CFI operations, cancellation, and disposal.
+  Sessions run in a resident VM isolate or browser worker, with per-session
+  isolation and a byte-budgeted cache. File sessions read the source in the
+  isolate; PDF sessions also expose original byte ranges and page text geometry.
 - EPUB 3 rendition settings, page-list and landmarks navigation, and
   accessibility metadata in the package model.
 - Typed book-opening results and typed failures for EPUB metadata updates.
@@ -29,14 +30,36 @@
   decoding selected by locale; Sony LRF reading with reflowed text, metadata,
   navigation, embedded images, and legacy headers through version 800.
 - LRX2 plaintext metadata inspection, with protected book content rejected.
-- Direct-JPEG DjVu visual pages, page-local JB2 masks, progressive IW44 color
-  and grayscale layers, BG/FG/mask composition, dimensions, and optional
-  uncompressed OCR.
+- DjVu visual pages with direct JPEG, JB2 masks, shared `Djbz` dictionaries
+  referenced by `INCL`, progressive IW44 color and grayscale layers, and
+  BG/FG/mask composition. Compressed `TXTz` hidden text becomes searchable
+  content; `NAVM` bookmarks become navigation. File-based opens also resolve
+  indirect documents from validated sibling components.
+- TIFF and BigTIFF multi-page parsing with page dimensions, DPI, metadata,
+  BMP output and self-contained JPEG-strip passthrough. Supported raster
+  codecs include uncompressed, PackBits, LZW, Deflate/AdobeDeflate, and
+  CCITT Group 3/4. Unsupported layouts and codecs fail with typed exceptions.
 - KEPUB fixture validation through the existing EPUB parser, including an
   independently produced Standard Ebooks Kobo edition.
 - eReader PML emphasis, headings, local links, PNG images, footnotes, and
   sidebars; Plucker inline formatting, links, headings, and 1/2/4-bit grayscale,
   8-bit system-palette, 4/8-bit custom-palette, and 16-bit RGB565 bitmaps.
+
+### Behavior and limits
+
+- `Unseal.read` and the existing eager APIs retain their full-book behavior.
+  `BookSession` supports EPUB, CBZ, CBR, and PDF only; other formats throw
+  `SessionUnsupportedFormatException`. Compressed CBR entries inflate during
+  session opening; CBZ/CBR search returns no matches because pages contain no
+  searchable text. Sessions do not perform OCR.
+- Byte-based DjVu opens reject indirect documents. Use `Unseal.readFile`
+  to resolve their sibling files on filesystem platforms. Shared dictionaries
+  that inherit another dictionary and replacement visual codecs remain
+  unsupported; `FGbz` palette recoloring is ignored.
+- DjVu visual decoding is bounded at 2048 million cumulative pixels and
+  1 GiB of raster bytes per book, with separate page and codec limits.
+  TIFF/BigTIFF keeps a 128 MiB input limit, 1,024 pages, 256 million decoded
+  pixels per book, and 128 MiB of decoded raster.
 
 ### Reliability and scope
 
@@ -44,6 +67,12 @@
   browser coverage, and format-specific size and decompression limits.
 - The supported subset and remaining gaps for every new format are documented
   in `docs/format-expansion.md` and the README.
+- Added session parity, concurrency and cancellation tests, worker coverage,
+  and deterministic fuzz cases for progressive PDF/comic sessions and scanned
+  archives. DjVu text and selected raster pages are pinned against DjVuLibre;
+  TIFF pixels are pinned against libtiff. Composed DjVu pages retain the
+  documented hard-mask rendering differences.
+- Corrected DjVu budget failure messages to report the current limits.
 
 ## 1.1.0 - September 19, 2026
 

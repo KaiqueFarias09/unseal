@@ -46,7 +46,7 @@ format-specific contracts.
 
 Files such as `lib/epub.dart`, `lib/pdf.dart`, `lib/markdown.dart`,
 `lib/rtf.dart`, `lib/palmdoc.dart`, `lib/chm.dart`, `lib/djvu.dart`,
-`lib/lrf.dart`, and `lib/comic.dart` are narrow
+`lib/tiff.dart`, `lib/lrf.dart`, and `lib/comic.dart` are narrow
 entry points for consumers that need one format. Public signatures must use
 types exported by the same public entry point. Consumers must not import
 `lib/src/`.
@@ -62,7 +62,9 @@ The main operations are:
   typed failure together with a format-family hint;
 - `Unseal.parse` and `Unseal.readMetadataSync` for synchronous formats;
 - `Unseal.readFile` and `Unseal.readMetadataFile` on filesystem platforms;
-- `UnsealWorker` for optional browser-worker execution.
+- `UnsealWorker` for optional browser-worker execution;
+- `BookSession.open` and `BookSession.openFile` for progressive EPUB, CBZ,
+  CBR, and PDF reads with a structure-only header and requested content.
 
 CB7 and CBC remain asynchronous because their 7-Zip reader is asynchronous.
 
@@ -75,6 +77,7 @@ CB7 and CBC remain asynchronous because their 7-Zip reader is asynchronous.
 | Detection and dispatch | `lib/src/features/detection/`, `reading/`, `lib/src/platform/unseal_reader.dart` | Detect the format, refine ambiguous MOBI input, select the parser, and normalize public errors. |
 | Format features | `lib/src/features/<format>/` | Parse one container or document family and build the common model. |
 | Reading services | `lib/src/features/search/`, `locators/`, `cfi/`, `annotations/`, `opds/` | Search, portable locations, EPUB CFI, annotation serialization, and OPDS parsing. |
+| Progressive reading | `lib/src/features/progressive/` | Session headers, requested resources, bounded caches, session operations, and VM/browser transports. |
 | Platform execution | `lib/src/platform/io/`, `web/`, `web/unseal_worker.dart` | Filesystem reads, isolate work, browser workers, and structured-clone wire codecs. |
 | Heuristics | `lib/src/heuristics/` | Small format-neutral text and chapter heuristics. |
 
@@ -94,6 +97,31 @@ Keep a helper with the feature that owns its decision. Move code to
 
 Metadata-only reads follow the same detection and safety boundaries but avoid
 materializing content that the metadata path does not need.
+
+File-based DjVu reads can resolve indirect documents. The I/O adapter loads
+DIRM-named sibling components, checks names and declared sizes, and assembles
+the bounded document before parsing. Byte-based opens reject indirect input;
+Unseal does not fetch components from the network.
+
+## Progressive session flow
+
+`BookSession` returns an `EpubBook`, `ComicBook`, or `PdfBook` header whose
+`files` contains no content. A resident `SessionEngine` owns the source and
+loads resources or PDF pages on request under `SessionPolicy` cache limits.
+The VM transport uses a long-lived isolate; the browser transport uses a
+configured worker, with inline execution when the worker is unavailable.
+Browser sessions have separate identifiers and engines so opening or disposing
+one session does not replace another.
+
+EPUB and CBZ use random-access ZIP entries; CBR uses the RAR entry source,
+whose compressed entries currently inflate during opening. PDF uses a
+random-access byte source and a reflow plan to extract requested pages.
+Whole-book search, statistics, and progression can still traverse all content.
+Comic pages have no searchable text, and sessions do not perform OCR.
+
+Cancellation fails pending requests while keeping the session usable.
+Disposal releases the transport and fails pending and subsequent requests.
+Unsupported session formats fail explicitly; callers can use the eager APIs.
 
 ## Browser-worker flow
 
@@ -116,7 +144,12 @@ Input is untrusted. The following rules are architectural, not parser details:
 - Bound DjVu IFF chunks, page count, direct JPEG payloads, OCR text, JB2
   masks, symbols, records, arithmetic contexts, blit work, and IW44 chunks,
   slices, coefficient work, and cumulative decoded raster output before
-  materializing page resources.
+  materializing page resources. BZZ output and shared JB2 dictionaries have
+  separate allocation budgets; indirect components allow only validated
+  sibling names and matching declared sizes.
+- Bound TIFF/BigTIFF IFD traversal, entry counts, offsets, strip sizes, decoded
+  pixels, and raster bytes before allocation. Reject unsupported codecs and
+  raster layouts with format-owned typed failures.
 - Bound XML depth and convert malformed or excessive structures to typed
   failures.
 - Preserve HTML as data. A consuming renderer must sanitize or isolate it.
@@ -153,11 +186,15 @@ bytes and provenance unless the change intentionally updates the fixture.
 - One common reading model takes priority over reproducing every source
   application's layout model.
 - PDF support targets reading and extraction. It is not a full PDF renderer.
-- DjVu full opening accepts directly stored JPEG pages, page-local JB2 masks,
-  and progressive IW44 `BG44`/`FG44` layers in single-page or bundled files.
-  It composes supported mixed visual layers through the JB2 mask. Shared JB2
-  dictionaries, alternate visual codecs, and indirect documents remain
-  unsupported and fail explicitly.
+- DjVu full opening accepts directly stored JPEG pages, local or shared JB2
+  masks, and progressive IW44 `BG44`/`FG44` layers. It composes supported
+  mixed layers through a hard JB2 mask, reads compressed hidden text and
+  bookmark navigation, and resolves indirect files only through filesystem
+  reads. Chained shared dictionaries and replacement visual codecs remain
+  unsupported. `FGbz` palette recoloring is ignored.
+- TIFF/BigTIFF produces page images rather than reflowed text. Supported
+  strip codecs are documented in the README; tiled and other unsupported
+  raster layouts fail explicitly.
 - DOCX and ODT conversion preserves semantic reading structure, not exact page
   layout.
 - HTML remains unsanitized so parsing does not silently rewrite content.

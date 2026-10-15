@@ -17,7 +17,7 @@ cover data, files, reading order, navigation, and statistics.
 
 It supports EPUB, MOBI, AZW3, PalmDOC, eReader and Plucker PDB, RTF, Markdown,
 Sony LRF and LRX metadata, FB2, TXT, HTML, CHM, DOCX, ODT, AZW4, comic
-archives, PDF, and selected DjVu pages without a native executable, FFI bridge,
+archives, PDF, DjVu, and TIFF/BigTIFF without a native executable, FFI bridge,
 or Flutter dependency in the library itself.
 
 Unseal is a parser and data layer, not a reader UI or a general-purpose
@@ -163,12 +163,10 @@ parsing. They also look for a sibling `<book-name>.opf`, followed by
 
 ### Progressive sessions for large books
 
-`Unseal.read` materializes the whole book — every chapter, image, stylesheet
-and font — before returning. A `BookSession` inverts that: the compressed
-source and the inflated content stay resident behind a delivery layer (a
-long-lived isolate on the VM, a Web Worker on the browser), the caller
-receives the book's structure immediately, and content loads one request at a
-time under a byte-budgeted LRU cache:
+`Unseal.read` materializes the whole book before returning. A `BookSession`
+returns its structure first and loads requested content through a resident
+isolate on the VM or a configured Web Worker in the browser. Inflated
+resources use a byte-budgeted LRU cache:
 
 ```dart
 final session = await BookSession.openFile(path);
@@ -199,8 +197,14 @@ document via `loadBytesRange` — see
 [the format-expansion A/B report](docs/specs/progressive-reading/ab-report-2026-09-28.md)
 for measured gains and the honest regressions (compressed CBRs open eagerly
 inside the session; very small books pay a fixed session floor). The classic
-entry points are unchanged and remain the right choice whenever the whole
-book is needed at once.
+entry points retain their full-book behavior.
+
+`SessionPolicy` defaults to a 64 MiB resource cache, an 8 MiB header cover
+limit, and an 8 MiB cap per byte-range response. Whole-book operations such
+as search and statistics can still traverse all content. CBZ/CBR search
+returns no matches because their pages have no searchable text; sessions do
+not perform OCR. In browsers, use `BookSession.open(bytes)` and configure
+the worker as shown below. Without a healthy worker, sessions execute inline.
 
 ### Format-specific APIs
 
@@ -636,13 +640,21 @@ Compatibility work draws on:
 Install dependencies, analyze the package, and run the test suite:
 
 ```sh
-dart pub get
-dart analyze
-dart test
+dart pub get --no-example
+dart analyze --fatal-infos
+dart test --exclude-tags fuzz
 ```
 
-The default suite is the fast release gate. The deterministic extended fuzz
-campaign is opt-in:
+The regular VM suite excludes the extended fuzz campaign. Run browser
+coverage with a freshly compiled worker:
+
+```sh
+dart compile js web/unseal_worker.dart -o test/web/unseal_worker.js
+dart test -p chrome test/web/
+```
+
+The compiled worker and its `.deps` and `.map` files are generated test
+artifacts and must stay out of commits. Run the extended fuzz campaign with:
 
 ```sh
 dart test --tags fuzz
@@ -665,8 +677,9 @@ dart run benchmark/compare_baselines.dart artifacts/baseline.json artifacts/curr
 ```
 
 Benchmark results depend on the machine. Compare runs from the same machine
-when evaluating a change. The benchmark matrix covers all 16 supported
-formats and emits versioned JSON reports. For a private Calibre library, the
+when evaluating a change. The benchmark matrix covers 16
+benchmark formats and emits versioned JSON reports. New parser support does
+not automatically add a benchmark scenario. For a private Calibre library, the
 explicitly opt-in `benchmark/library_sweep.dart` tool performs read-only,
 timeout-bounded inventory, sweep, and stratified-sample runs. It never writes
 to the library and requires a random-ID map outside the repository so paths,
