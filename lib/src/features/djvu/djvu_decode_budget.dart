@@ -29,10 +29,10 @@ final class DjvuDecodeBudget {
       throw const DjvuException('Invalid DjVu decoded-image budget request.');
     }
     if (pixels > djvuMaxDecodedPixelsPerBook - _decodedPixels) {
-      throw const DjvuException('DjVu document exceeds the 256-megapixel decoded-image limit.');
+      throw const DjvuException('DjVu document exceeds the 2048-megapixel decoded-image limit.');
     }
     if (rasterBytes > djvuMaxDecodedRasterBytesPerBook - _rasterBytes) {
-      throw const DjvuException('DjVu document exceeds the 128 MiB decoded-image byte limit.');
+      throw const DjvuException('DjVu document exceeds the 1 GiB decoded-image byte limit.');
     }
     _decodedPixels += pixels;
     _rasterBytes += rasterBytes;
