@@ -209,6 +209,13 @@ Read `lib/unseal.dart` first when reviewing public compatibility. An item export
 | `foundation/metadata/sort_keys.dart` | Builds stable author sorting values and removes bracketed qualifiers when the policy requires it. |
 | `foundation/metadata/title_sort.dart` | Moves leading articles according to language so titles sort consistently. |
 | `foundation/text/canonical_document_text.dart` | Scans and memoizes HTML into the whitespace-preserving character stream used by search, progression, navigation, locators, and annotations. This file defines where text offsets mean the same thing across capabilities. |
+| `foundation/text/publication_revision.dart` | Defines the evidence-qualified publication identity (`PublicationRevision`, `SourceEvidence`) the common text contract binds snapshots to: namespaced opaque ids, `sha256` versus host versus unverified revisions, mutually exclusive by construction. |
+| `foundation/text/section_occurrence.dart` | Defines one reading-order position: zero-based section index, exact parser path (repeats stay distinct), and the reading-order digest. |
+| `foundation/text/text_profile.dart` | Defines the extraction profile (algorithm, options, plan revision) whose digest is the profile id, so two reading modes with different plans never share a text revision by convention. |
+| `foundation/text/canonical_text_snapshot.dart` | Captures materialized section text bound to identity, occurrence, profile, and the derived UTF-16 text revision; the identity tuple compares every field including explicit nulls. |
+| `foundation/text/canonical_text_range.dart` | Binds inclusive-start/exclusive-end UTF-16 bounds to one snapshot and validates them against it. |
+| `foundation/text/revision_digest.dart` | Computes every contract digest: SHA-256 over little-endian UTF-16 code units (no BOM, no normalization, isolated surrogates preserved), with the platform-identical compact JSON serializer. Pinned vectors run on the VM and in Chrome. |
+| `foundation/text/snapshot_codec.dart` | Encodes and decodes snapshots and ranges, recomputing every digest on import, refusing non-exportable identities, and normalizing hostile payloads to `CanonicalTextCodecException`; confirmed identity mismatches surface as `IncompatibleRevisionException`. |
 | `foundation/text/html_escape.dart` | Escapes text before parsers insert it into generated HTML. |
 | `foundation/text/plain_text.dart` | Removes tags, scripts, styles, and comments from HTML, decodes entities, and collapses whitespace into readable plain text. |
 | `foundation/text/plain_text_writer.dart` | Implements the stateful whitespace and block-boundary rules used by plain-text extraction. |
@@ -599,14 +606,20 @@ The flow is:
 
 | File | What it does and why it exists |
 | --- | --- |
-| `features/pdf/parse_pdf_book.dart` | Coordinates document parsing, pages, metadata, outline, text and image extraction, reflow, and final `PdfBook` construction. |
+| `features/pdf/parse_pdf_book.dart` | Coordinates document parsing, pages, metadata, outline, layout and image extraction, reflow, and final `PdfBook` construction; builds one page's `PdfPageStructure` on demand through `buildPdfPageStructure`. |
+| `features/pdf/layout/pdf_page_structure.dart` | Aggregates one page's stable structure: source lines, words, blocks, columns, tables, the canonical text under its profile (scope plus plan revision), and the source-anchor mapping (`mapped`/`ambiguous`/`missing`/`unsupported`); also derives the page geometry's affine back to PDF user space and the plan revision digest. |
+| `features/pdf/layout/pdf_layout_segmentation.dart` | Groups words into lines and blocks with the Docstrum bottom-up construction adapted to word components: nearest-neighbor orientation histogram over a half turn, transitive closure, vertical block merging. Bounded per page. |
+| `features/pdf/layout/pdf_reading_order.dart` | Orders blocks with a recursive XY-cut: empty horizontal bands split regions, empty vertical gutters split columns (content blocks veto a split, editorial roles may cross them). |
+| `features/pdf/layout/pdf_table_detector.dart` | Detects at most one table per page: ruling lattices (`spreadsheet`), vertical rulings plus text rows (`basic`), or the whitespace-aligned fallback (`aligned-columns`); every refusal is a typed diagnosis on `PdfTableUnsupported`. |
+| `features/pdf/entities/pdf_layout.dart` | Defines the public layout model: `PdfPageGeometry` with the invertible page-to-user affine, `PdfWord`, `PdfRuleLine`, `PdfTextBlock` with editorial roles and source-line provenance, `PdfColumnRegion`, and the table cell/region/refusal types. |
+| `features/pdf/entities/pdf_position.dart` | Defines the stable source-space anchors (`PdfSourceRange`) and the mapping outcome union with its reasons. |
 | `features/pdf/header/pdf_object.dart` | Defines the PDF value model: null, booleans, numbers, names, strings, arrays, dictionaries, streams, and indirect references. |
 | `features/pdf/header/pdf_object_parser.dart` | Tokenizes and parses PDF object syntax from bounded byte ranges. It knows syntax, not document navigation. |
 | `features/pdf/header/pdf_document.dart` | Locates cross-reference tables or streams, reads trailers and object streams, resolves indirect references, caches objects, and connects the security handler. |
-| `features/pdf/entities/pdf_book.dart` | Defines the parsed PDF result with original bytes, pages, extracted text and images, reflowed page files, metadata, and navigation. |
+| `features/pdf/entities/pdf_book.dart` | Defines the parsed PDF result with original bytes, pages, extracted text, per-page layout extractions, images, reflowed page files, metadata, and navigation. |
 | `features/pdf/entities/pdf_page.dart` | Stores one page's object number, geometry, rotation, crop box, and effective resources. |
 | `features/pdf/entities/pdf_page_text.dart` | Stores canonical text lines, image placements, stream-decoding counts, and a per-page extraction diagnosis. It gives search, reflow, and facsimile selection one shared character-space contract. |
-| `features/pdf/entities/entities.dart` | Re-exports the public PDF entity types. |
+| `features/pdf/entities/entities.dart` | Re-exports the public PDF entity types, including the layout and position models. |
 | `features/pdf/exceptions/pdf_exception.dart` | Defines general PDF failures and the more specific encrypted-document error. |
 | `features/pdf/exceptions/exceptions.dart` | Re-exports the public PDF exception types. |
 
@@ -616,7 +629,7 @@ The flow is:
 | --- | --- |
 | `features/pdf/codec/pdf_stream_decoder.dart` | Applies PDF stream filter chains, including Flate, LZW, ASCII encodings, run-length, predictors, CCITT, and JBIG2. Unsupported filters throw `PdfException`; a caller may fail, recover, or retain only geometry depending on the stream's role. |
 | `features/pdf/reader/pdf_page_tree.dart` | Walks the hierarchical page tree in reading order and applies inherited boxes, resources, and rotation safely. |
-| `features/pdf/reader/pdf_content_stream.dart` | Interprets the graphics matrices, text state, text-showing commands, and image `Do` operations needed for extraction. It is not a general PDF renderer and does not process vector painting, clipping, colors, shading, or Form XObject contents. |
+| `features/pdf/reader/pdf_content_stream.dart` | Interprets the graphics matrices, text state, text-showing commands, and image `Do` operations needed for extraction. Layout extraction (`extractLayout`) additionally records per-character glyph cells (absolute pen positions from real advances) and axis-aligned ruling segments from `re`/stroke paths, both bounded; it is not a general PDF renderer and does not process clipping, colors, shading, or Form XObject contents. |
 | `features/pdf/reader/pdf_font.dart` | Resolves simple and composite fonts, maps encoded character codes to Unicode, and calculates glyph widths used for spacing and geometry. |
 | `features/pdf/reader/pdf_cmap.dart` | Parses ToUnicode CMaps and code-space mappings used by composite fonts. Without this translation, many PDFs expose numeric glyph codes instead of text. |
 | `features/pdf/reader/pdf_outline.dart` | Reads bookmarks and named destinations and maps them to page anchors in common `Navigation`. |

@@ -64,7 +64,7 @@ development, and the single [roadmap](doc/roadmap.md).
 | CBR | RAR 4 stored and ordinary non-solid method-29 entries, plus RAR 5 stored entries | Split, solid, encrypted, PPMd, VM, and other unsupported variants are rejected. |
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
-| PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
+| PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, JPEG/CCITT/JBIG2 images, and structured layout: words, blocks, columns, tables, and stable source anchors mapped to canonical text | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
 | DjVu (JPEG, JB2, and IW44 subset) | Direct `BGjp` JPEG pages, `Sjbz` masks with shared `Djbz` dictionaries and `INCL` references, progressive `BG44`/`FG44` layers, and INFO dimensions and rotation in single-page or bundled documents; compressed `TXTz` hidden text, legacy `TXTa` OCR, and `NAVM` bookmark outlines | JB2 masks and composed IW44 pages become BMP images. Compressed text is byte-exact against `djvutxt`. Indirect document directories resolve through file-based opens only; `FGbz` recoloring, `FGjp`/`Smmr` layer replacements, `ANTz` annotations, and thumbnails are ignored or rejected as described below. |
 | TIFF / BigTIFF | Baseline uncompressed, PackBits, LZW, and Deflate/AdobeDeflate raster pages (8-bit gray and RGB, 16-bit gray, bilevel, with horizontal-differencing predictors), CCITT Group 4 and Group 3 (including modified Huffman and EOL-less producers), multi-page IFD chains in both byte orders, BigTIFF 64-bit offsets, ImageDescription/DateTime/Software/Artist metadata, and X/Y-resolution DPI | Pages become BMP images (JPEG passthrough when a page holds one self-contained strip). Tiled layouts, planar=2, palette, float/SampleFormat≠1, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and uncompressed-mode extensions are rejected typed. A page is capped at 256 megapixels; strips and tiles are bounds-checked before allocation; a document is capped at 128 MiB input, 1024 pages, 256 megapixels of decoded pixels, and 128 MiB of decoded raster. Pixel parity with libtiff (`tiffcmp`) is pinned by tests. |
 
@@ -209,10 +209,14 @@ not perform OCR. In browsers, use `BookSession.open(bytes)` and configure
 the worker as shown below. Without a healthy worker, sessions execute inline.
 
 PDF sessions derive their reflow plan from up to 20 sampled pages. For longer
-documents, their canonical text and offsets can differ from a full parse.
-Within a session, `loadDocumentText` and `loadPdfPageLines` use the same plan.
-Do not assume that offsets saved from one extraction mode address the same
-passage in the other mode.
+documents, that plan differs from a full parse, so the two modes carry
+different canonical text profiles (`document` versus `session-sample`) and a
+snapshot captured in one mode refuses to reuse in the other. Positions stay
+stable across the switch through source anchors: capture a `PdfSourceRange`
+on `loadPdfPageStructure`'s structure (page, line index, UTF-16 bounds) and
+`mapSourceRange` resolves it into any canonical text as
+`mapped`/`ambiguous`/`missing`/`unsupported` — the anchor never depends on
+the reflow plan.
 
 ### Format-specific APIs
 
@@ -336,6 +340,47 @@ for (final page in comic.pageInfo) {
   print('${comic.pages[page.imageIndex].path}: ${page.type}, spread=${page.doublePage}');
 }
 ```
+
+### Structured layout and stable positions for PDFs
+
+Every page exposes a structure with words (real glyph advances, never a
+divided line width), text lines and blocks (Docstrum-adapted segmentation),
+the reading order with column regions and header/footer roles, and simple
+tables (ruled lattices, vertical rulings, or whitespace-aligned columns —
+refusals come back as typed diagnoses, never as a silently empty page).
+Geometry lives in the cropped, rotated page space, top-left origin, with an
+invertible affine back to PDF user space.
+
+```dart
+final book = parsePdfBook(bytes) as PdfBook;
+final page = buildPdfPageStructure(book: book, pageIndex: 24);
+print('${page.words.length} words, ${page.blocks.length} blocks, '
+    '${page.columns.length} columns');
+for (final region in page.tableRegion?.rows ?? const <List<PdfTableCell>>[]) {
+  print([for (final cell in region) cell.text]);
+}
+// A source anchor survives reopenings and eager/session switches.
+final anchor = PdfSourceRange(
+  pageIndex: 24,
+  lineIndex: 3,
+  start: 0,
+  end: page.sourceLines[3].text.length,
+  expectedLineText: page.sourceLines[3].text,
+);
+final mapping = page.mapSourceRange(anchor);
+if (mapping is PdfPositionMapped) {
+  print(page.canonicalText.substring(
+      mapping.position.offset, mapping.position.end));
+}
+
+// Sessions answer the same model through the worker or isolate.
+final structure = await session.loadPdfPageStructure(24);
+```
+
+Tables are one region per page in this delivery; multi-table pages keep the
+strongest candidate. `snapshots` of a page's canonical text bind the reflow
+plan revision, the section occurrence, and the text digest, and
+`CanonicalTextCodec` refuses reuse a destination cannot confirm.
 
 Each `PdfPageText` reports `quality`, the number of content streams, and how
 many streams could not be decoded. `imageWithoutText` is a useful signal for
