@@ -68,6 +68,190 @@
       "landmarks": 41
     },
     {
+      "path": "test/resources/books/comic/rar5/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 3675,
+      "sha256": "0c903ec140422904872cbbb02a73ab376cc8a8c5c2f15055b5461441605259fb",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/libarchive-arm-filter.rar",
+      "format": "comic",
+      "bytes": 41082,
+      "sha256": "c5b149097c4f3e17239d80d6c9897c1a5aa98608d4f2e74e711bea5ef8ca85dd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/libarchive-arm-window-boundary.rar",
+      "format": "comic",
+      "bytes": 241,
+      "sha256": "2053e80b74636afcf979c684fe288bd0fd29ce212694776d84c6dfd3f8e5122e",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/libarchive-compressed.rar",
+      "format": "comic",
+      "bytes": 436,
+      "sha256": "68f9d7e2662cd5bc5607ba9c6bf1edbf121cf3b08011a7d8643091791750a7c8",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/libarchive-encrypted.rar",
+      "format": "comic",
+      "bytes": 391,
+      "sha256": "72b69a1d5f5757511e683a9207166c60e91ce0846ae446b8b332b085f9e0ba48",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/libarchive-multiple-files.rar",
+      "format": "comic",
+      "bytes": 1656,
+      "sha256": "65305723965a55a89b7e120d54807c6ae30b69532712aa20d3934296799e923b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/libarchive-solid.rar",
+      "format": "comic",
+      "bytes": 677,
+      "sha256": "0aa2c652c06304dedd93019663c1d52d5e85055d5fdb8045bfcc4345b90b4a0f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/libarchive-split-part1.rar",
+      "format": "comic",
+      "bytes": 15360,
+      "sha256": "2f3894dc4b8a1bba90830ef1f89f457b0295b6f9030c70febd57283721bc2ce3",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/libarchive-unicode-names.rar",
+      "format": "comic",
+      "bytes": 269,
+      "sha256": "062c77fb1d47efbd5a468609a9c283ecb0b4cae43b0f6778935c41a975cedee9",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/manifest.json",
+      "format": "manifest",
+      "bytes": 6271,
+      "sha256": "27e63e20afcf0230a0985c6b39db81d40e332b82fc22a9eab3323a04e1f34b9d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-comic-utf8.cbr",
+      "format": "cbr",
+      "bytes": 14842,
+      "sha256": "47a213a4212f84fbee3b41fbfed98d25ef5566bd0657e452abd77185c2b7f476",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-dict-128k.cbr",
+      "format": "cbr",
+      "bytes": 2072,
+      "sha256": "0c1db2cc306c82e520dd64f21921cf8837bd3ab4f3c269adb184ddb5119f895d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-dict-1m.cbr",
+      "format": "cbr",
+      "bytes": 2070,
+      "sha256": "58990810b7793526a8727a86460442fef4b6ecfe7b77399206a8076b08c6b7b6",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-dict-64m.cbr",
+      "format": "cbr",
+      "bytes": 2071,
+      "sha256": "b973dc5284da518756ded21d32ed402a93f364f276d8d121d42e797e8bb1b9a9",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-filter-arm.cbr",
+      "format": "cbr",
+      "bytes": 11070,
+      "sha256": "b7217e6d7ed904181e6c4a0bf80864fc483a259062515a4d1d43623d5d7dd276",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-filter-delta.cbr",
+      "format": "cbr",
+      "bytes": 595,
+      "sha256": "914c976c4073fc2886384d659c9eec638fdfb68b16c1436faf101240334d96f1",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-filter-e8.cbr",
+      "format": "cbr",
+      "bytes": 7233,
+      "sha256": "9c06e498a8647e3dfdac7fcb8778013a26597e85928ca71b7430ed08d7bf0e1f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-filter-e8e9.cbr",
+      "format": "cbr",
+      "bytes": 7235,
+      "sha256": "4f371f3a15fce5e771025c6ed5ad49852e93381d2470b751c919a7a559022b39",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-m1.cbr",
+      "format": "cbr",
+      "bytes": 7102,
+      "sha256": "7c8a1e52d06ab616f08d842dfa74472840663ecbc215bb5b99f4ec4153a2e218",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-m2.cbr",
+      "format": "cbr",
+      "bytes": 7102,
+      "sha256": "2fae613cca551827f5d1333d1e3342abf635071dc929114321ed25b4b6f88356",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-m3.cbr",
+      "format": "cbr",
+      "bytes": 7102,
+      "sha256": "5e71161a3e2f52edb9269a0cf1337e5fe6c75a4da4d26d110ceca4a0c3f38f76",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-m4.cbr",
+      "format": "cbr",
+      "bytes": 7102,
+      "sha256": "b567e177ba1f0818860f0554e7a13ab369313679d3b87cf4aa5b9c27b805d127",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-m5.cbr",
+      "format": "cbr",
+      "bytes": 7102,
+      "sha256": "16ab2cea9a0c44b897797abda227444f5d90accfac3b09867ca1d961cf55b64f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/books/comic/synthetic-collection.cbc",
       "format": "cbc",
       "bytes": 911,
@@ -1745,13 +1929,14 @@
     }
   ],
   "counts": {
-    "total": 212,
-    "totalBytes": 88603319,
+    "total": 235,
+    "totalBytes": 88756075,
     "byFormat": {
-      "manifest": 13,
+      "manifest": 15,
       "chm": 4,
-      "cbr": 2,
+      "cbr": 15,
       "cbz": 3,
+      "comic": 8,
       "cbc": 1,
       "cb7": 1,
       "djvu": 15,

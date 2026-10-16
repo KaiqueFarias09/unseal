@@ -110,8 +110,9 @@ Browser sessions have separate identifiers and engines so opening or disposing
 one session does not replace another.
 
 EPUB and CBZ use random-access ZIP entries; CBR uses the RAR entry source,
-whose compressed entries currently inflate during opening. PDF uses a
-random-access byte source and a reflow plan to extract requested pages.
+whose compressed entries decode while the session header sniffs page types
+at opening. PDF uses a random-access byte source and a reflow plan to
+extract requested pages.
 Whole-book search, statistics, and progression can still traverse all content.
 Comic pages have no searchable text, and sessions do not perform OCR.
 
@@ -135,7 +136,9 @@ Input is untrusted. The following rules are architectural, not parser details:
 
 - Normalize archive paths before lookup or extraction.
 - Reject encrypted entries, symbolic links, unsupported compression methods,
-  excessive expansion, and oversized output before materialization.
+  excessive expansion, and oversized output before materialization. RAR 5
+  decoding verifies header CRCs, allocates the declared output before
+  decompressing, and caps declared dictionaries at 64 MiB.
 - Bound PDF objects, page trees, content streams, and image decoding.
 - Bound DjVu IFF chunks, page count, direct JPEG payloads, OCR text, JB2
   masks, symbols, records, arithmetic contexts, blit work, and IW44 chunks,

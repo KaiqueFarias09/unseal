@@ -66,13 +66,21 @@ Uint8List buildRar5Archive({
 
   for (final entry in entries) {
     final nameBytes = convert.utf8.encode(entry.name);
-    final encoder = Rar5StreamEncoder(
-      entry.content,
-      windowSize: windowSize,
-      filterType: filterType,
-    );
-    final packed = encoder.encode();
-    final target = encoder.target;
+    final Uint8List packed;
+    final Uint8List target;
+    if (method == 0) {
+      // Stored entries keep their payload verbatim.
+      packed = entry.content;
+      target = entry.content;
+    } else {
+      final encoder = Rar5StreamEncoder(
+        entry.content,
+        windowSize: windowSize,
+        filterType: filterType,
+      );
+      packed = encoder.encode();
+      target = encoder.target;
+    }
 
     final crc = getCrc32(target);
     final fileFlags = dataCrc ? 0x0004 : 0;

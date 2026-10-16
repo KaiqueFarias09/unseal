@@ -1,3 +1,29 @@
+## Unreleased
+
+### Added
+
+- CBR reads compressed RAR 5 entries: algorithm version 0, compression
+  methods 1-5, the delta / E8 / E8-E9 / ARM filters, UTF-8 entry names,
+  and declared dictionaries from 128 KiB through 64 MiB, in both the
+  eager parse and progressive sessions. Output is byte-identical to two
+  independent reference decoders (rardecode at `ad22ba91a2ab` and
+  libarchive at `87dec938`, verified through `tool/rar5_compare.dart`).
+
+### Changed
+
+- RAR 5 container parsing is now strict and shared by both readers:
+  every header's CRC-32 verifies, names decode as UTF-8, vints and
+  header sizes are bounded, and structural corruption fails typed
+  instead of silently truncating the entry list. A declared data
+  CRC-32 verifies after decoding — a declared zero is a real checksum;
+  the absent flag never rejects. RAR 4 behavior is unchanged.
+- Out-of-subset RAR 5 records fail typed naming the reason: split
+  (multi-volume) archives and entries, solid streams, encrypted
+  entries and archives, links/redirects, compression algorithm versions
+  above 0, reserved methods 6-7, dictionaries above 64 MiB, and entries
+  with unknown unpacked size. RAR 5 decoding allocates exactly the
+  declared output before decompressing.
+
 ## 1.2.0 - October 16, 2026
 
 ### Added
