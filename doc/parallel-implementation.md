@@ -15,8 +15,12 @@ nenhuma faz parte do contrato publicado apenas por aparecer neste documento.
 
 ## 1. Como usar este plano
 
-O coordenador prepara cinco worktrees a partir do commit da `main` que contém
-este plano. Cada agente lê as seções 1 a 3, sua missão na seção 4 e as seções
+O plano foi preservado em `codex/unseal-next` para publicar a versão 1.2.0
+antes destas campanhas. A `main` da publicação não recebe P0 nem funcionalidades
+novas enquanto essa versão estiver sendo finalizada.
+
+O coordenador prepara cinco worktrees a partir do commit de `codex/unseal-next`
+que contém este plano. Cada agente lê as seções 1 a 3, sua missão na seção 4 e as seções
 5 a 8. Ele implementa somente a missão atribuída e entrega commits nessa
 branch. O coordenador revisa os pontos compartilhados e a combinação final.
 
@@ -46,9 +50,8 @@ branches; se alguma já existir, inspecione e reutilize o trabalho existente.
 ```sh
 (
 set -eu
-git switch main
 test -z "$(git status --porcelain)"
-BASE=$(git rev-parse HEAD)
+BASE=$(git rev-parse codex/unseal-next)
 printf '%s\n' "$BASE"
 git worktree add -b codex/unseal-pdf-structure ../unseal-work-pdf "$BASE"
 git worktree add -b codex/unseal-indexed-search ../unseal-work-search "$BASE"
@@ -217,7 +220,7 @@ A01 implementa os valores C02/C03 em `lib/src/foundation/text/` num commit inici
 P0 revisável, sem dependências de feature e com testes de conformidade. Exporta
 somente tipos completos usados por consumidores reais da campanha. A02/A05
 desenvolvem seus núcleos com strings/entradas privadas explícitas enquanto P0 é
-revisado. Depois atualizam suas branches pela `main` com P0 e usam a implementação
+revisado. Depois incorporam P0 pela branch de integração `codex/unseal-next` e usam a implementação
 única; eliminam adaptadores temporários duplicados antes da entrega.
 
 Reserve os prefixos lógicos `pdfLayout.*` para A01 e `searchIndex.*` para A02.
@@ -278,7 +281,7 @@ final mapping = page.mapSourceRange(savedSourceRange);
 P0 contém contrato comum implementado e vetores, mas nenhum stub de busca/layout.
 O coordenador pode integrar esse commit isolado antes do restante de A01. Enquanto
 isso, outros agentes avançam com seus próprios núcleos e fixtures. Para incorporar
-P0, preferir atualizar pela `main`; registrar qualquer cherry-pick para evitar
+P0, preferir atualizar por `codex/unseal-next`; registrar qualquer cherry-pick para evitar
 aplicar o mesmo patch duas vezes na integração.
 
 P1 é a estabilidade/mapeamento PDF. A02/A05 podem entregar comportamento seguro
@@ -563,7 +566,7 @@ Prompt de despacho, com uma única substituição de agente e worktree:
 ## 7. Integração e aceite da combinação
 
 O coordenador confere o commit-base comum, revisa P0 e integra somente esse
-marco quando aprovado tecnicamente. Os demais agentes incorporam a `main`
+marco em `codex/unseal-next` quando aprovado tecnicamente. Os demais agentes incorporam a branch de integração
 atualizada preservando seus commits; merge é a opção padrão para branches já
 compartilhadas. Rebase exige coordenação e autorização para reescrever histórico.
 
@@ -587,7 +590,10 @@ switches de wire, README, `Unreleased`, notices e manifests. Um merge textual
 sem conflitos não comprova compatibilidade. Leia o diff agregado e compare
 as claims públicas com os testes e a matriz suportado/rejeitado.
 
-Com a combinação revisada e commitada na `main` limpa, execute o gate completo
+Depois da publicação da 1.2.0, e com autorização para integrar a próxima versão,
+o coordenador atualiza a branch de integração com eventuais correções de release
+da `main`, revisa a união e integra a combinação. Com ela commitada na `main`
+limpa, execute o gate completo
 usando a versão efetiva de `pubspec.yaml`:
 
 ```sh
@@ -617,3 +623,114 @@ e remover sua seção operacional já obsoleta. Ao concluir todas, remover este
 plano e seus pointers; o histórico Git preserva a decisão. Para futuras telas do
 Grimoire, a skill `user-flow` pode consumir os contratos implementados. O próximo
 passo desta campanha é despachar as cinco missões, sem trabalho de UI no Unseal.
+
+## 9. Objetivos prontos para os cinco agentes
+
+Use cada bloco como objetivo no mecanismo Goal do agente. Cada agente precisa
+de acesso ao mesmo repositório Git local, com `codex/unseal-next` disponível.
+Em outra máquina, transporte essa branch antes de iniciar; ela não é publicada
+automaticamente. O coordenador registra um SHA-base comum antes do despacho.
+O termo Goal abaixo descreve o prompt, sem pressupor uma CLI específica.
+
+### Goal A01: PDF estruturado
+
+```text
+Goal: Entregar integralmente a missão A01 de doc/parallel-implementation.md.
+Use uma worktree própria na branch codex/unseal-pdf-structure, baseada em
+codex/unseal-next no SHA comum registrado pelo coordenador. Preserve a main
+destinada à publicação da versão 1.2.0.
+Leia AGENTS.md, os contratos C01-C09, a missão A01 e as seções 5-8 do plano.
+Implemente primeiro P0 em commit isolado: snapshots/revisões/ranges completos,
+validação única e vetores VM/Chrome. Informe seu hash para revisão do coordenador.
+Depois entregue palavras, blocos, colunas, tabelas, geometria e mapeamento estável
+de posições PDF, usando PdfPig e Tabula nas revisões fixadas pelo plano.
+Comprove todos os aceites PDF01-PDF06, inclusive PDF variado com mais de 20 páginas,
+troca eager/sessão, reabertura, texto canônico, transformações e worker real.
+Atualize documentação, Unreleased, roadmap e proveniência na mesma branch.
+Entregue código público funcional, testes, comparadores e commits revisáveis,
+árvore limpa e handoff da seção 6. Prototipagem ou testes com SKIP não concluem o Goal.
+Trabalhe até cumprir o escopo delimitado; informe dependências reais sem inventar
+resultados. Não faça push, tag, publicação ou merge em outras branches.
+```
+
+### Goal A02: busca indexada
+
+```text
+Goal: Entregar integralmente a missão A02 de doc/parallel-implementation.md.
+Use uma worktree própria na branch codex/unseal-indexed-search, baseada em
+codex/unseal-next no SHA comum registrado pelo coordenador. Preserve a main da versão 1.2.0.
+Leia AGENTS.md, C01-C09, a missão A02 e as seções 5 a 8. Use MiniSearch e Tantivy
+nas revisões fixadas como base para um índice invertido Dart por publicação.
+Entregue ranking, prefixo, fuzzy limitado, projeção para UTF-16 original,
+serialização, invalidação, cobertura incremental, cancelamento e adapters
+Book/sessão/worker conforme IDX01-IDX06. Preserve Book.search e seus testes.
+Avance nos algoritmos com texto explícito enquanto P0 é preparado por A01;
+incorpore o commit revisado pelo coordenador, sem duplicar snapshots/validadores.
+A persistência PDF só está concluída após P1 e o teste combinado com anotações.
+Atualize documentação, Unreleased, roadmap e proveniência. Entregue API funcional,
+testes VM/Chrome, comparações e medições frias/quentes reproduzíveis, commits
+revisáveis, árvore limpa e handoff da seção 6. Não conclua só com planejamento,
+fixtures reescritas ou oráculos pulados. Não faça push, tag, publicação ou merge
+em outras branches.
+```
+
+### Goal A03: RAR5 comprimido
+
+```text
+Goal: Entregar integralmente a missão A03 de doc/parallel-implementation.md.
+Use uma worktree própria na branch codex/unseal-rar5, baseada em codex/unseal-next
+no SHA comum registrado pelo coordenador. Preserve a main da publicação da versão 1.2.0.
+Leia AGENTS.md, C01-C09, A03 e as seções 5 a 8. Porte o subconjunto RAR5 delimitado
+a partir de rardecode fixado e compare também com libarchive independente.
+Entregue um único decoder usado por eager e sessão: algoritmo versão 0, métodos 1 a 5,
+filtros delta/E8/E8-E9/ARM, UTF-8, checksums e limites prévios de saída/dicionário.
+Cumpra RAR01-RAR05, incluindo CRC zero, corrupção, filtros, dicionários hostis,
+bytes idênticos aos oráculos, CBR fora de ordem e isolamento de sessões VM/Chrome.
+Solid/split/criptografia e outras variantes fora do recorte devem ser rejeitadas
+explicitamente e permanecer documentadas no roadmap; preserve RAR4 existente.
+Atualize documentação, Unreleased, notices, licenças e manifests. Entregue API
+funcional, comparador obrigatório, testes, medições, commits revisáveis, árvore
+limpa e handoff da seção 6. Não conte SKIP como aceite nem declare RAR5 completo.
+Não faça push, tag, publicação ou merge em outras branches.
+```
+
+### Goal A04: JPEG2000
+
+```text
+Goal: Entregar integralmente a missão A04 de doc/parallel-implementation.md.
+Use uma worktree própria na branch codex/unseal-jpeg2000, baseada em
+codex/unseal-next no SHA comum registrado pelo coordenador. Preserve a main da versão 1.2.0.
+Leia AGENTS.md, C01-C09, A04 e as seções 5 a 8. Use OpenJPEG na revisão fixada para
+portar o decoder Dart e construir comparação independente de samples e cores.
+Entregue J2K/JP2 Part 1 no recorte JPX01-JPX05: cinza/RGB unsigned de 8 bits, 5/3 e 9/7,
+LRCP/RLCP, tiles únicos/múltiplos e RCT/ICT; integre JPXDecode direto e cadeia
+ASCII85 no PDF eager/sessão. Orce todos os buffers antes de alocar.
+Compare lossless exatamente e fixe tolerâncias lossy com o coordenador antes
+da comparação Dart. Teste corrupção, dimensões/cor conflitantes e limites VM/JS.
+Mantenha o codec isolado e coordene o pequeno hunk de dispatch com A01; preserve
+texto/reflow. Declare variantes não suportadas sem inventar pixels ou evidência.
+Atualize documentação, Unreleased, licenças, proveniência e roadmap. Entregue
+API funcional, testes VM/Chrome, oráculo obrigatório, medições, commits revisáveis,
+árvore limpa e handoff da seção 6. Não faça push, tag, publicação ou merge externo.
+```
+
+### Goal A05: anotações duráveis
+
+```text
+Goal: Entregar integralmente a missão A05 de doc/parallel-implementation.md.
+Use uma worktree própria na branch codex/unseal-durable-annotations, baseada em
+codex/unseal-next no SHA comum registrado pelo coordenador. Preserve a main da versão 1.2.0.
+Leia AGENTS.md, C01-C09, A05 e as seções 5 a 8. Use Hypothesis, Readium e a norma W3C
+referenciados no plano para implementar ANN01-ANN06 no recorte declarado.
+Entregue envelope aditivo, identidade/revisões, citação/contexto, migração explícita
+e resultados resolved/ambiguous/missing/incompatibleRevision/unsupported.
+Preserve codecs v1 e desempates do helper existente. Teste frases repetidas,
+edições corrigidas, capítulos reordenados, alvo removido e identidade desconhecida.
+Implemente seletores W3C com conversão codepoints/UTF-16 e limites de trabalho.
+Avance sobre strings explícitas enquanto aguarda P0; depois incorpore o contrato
+único revisado. Com P1, comprove o aceite PDF combinado com busca, inclusive
+reabertura e troca de modo em documento com mais de 20 páginas.
+Atualize documentação, Unreleased, roadmap, licenças e proveniência. Entregue API
+funcional, testes VM/Chrome, comparações, commits revisáveis, árvore limpa e
+handoff da seção 6. Não faça push, tag, publicação ou merge em outras branches.
+```
