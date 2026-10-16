@@ -167,22 +167,45 @@ List<_RarEntry> _readRar5(final Uint8List bytes) {
       throw ComicException('RAR entry "${header.name}" is not supported: $reason.');
     }
 
-    // Stored payloads stay verbatim; compressed payloads decode once
-    // the RAR 5 decoder covers them (a compressed entry here still
-    // carries empty data and the compressed flag).
-    final intact =
-        header.isStored &&
-        !header.isDirectory &&
-        header.unpackedSize == header.packedSize &&
-        header.dataStart + header.packedSize <= bytes.length;
+    // Stored payloads stay verbatim; supported compressed payloads
+    // decode through the shared RAR 5 decoder. Every path verifies the
+    // declared data CRC-32 (zero included).
+    Uint8List data;
+    if (header.isStored) {
+      final intact =
+          !header.isDirectory &&
+          header.unpackedSize == header.packedSize &&
+          header.dataStart + header.packedSize <= bytes.length;
+      data = intact
+          ? Uint8List.sublistView(bytes, header.dataStart, header.dataStart + header.packedSize)
+          : Uint8List(0);
+    } else if (header.isDirectory) {
+      data = Uint8List(0);
+    } else {
+      final packed = Uint8List.sublistView(
+        bytes,
+        header.dataStart,
+        header.dataStart + header.packedSize,
+      );
+      try {
+        data = decodeRar5Stream(
+          packed: packed,
+          uncompressedSize: header.unpackedSize,
+          windowSize: header.dictSize,
+        );
+      } on FormatException catch (error) {
+        throw ComicException('RAR entry "${header.name}" could not be decoded ($error).');
+      }
+    }
+    if (header.hasDataCrc && data.isNotEmpty && getCrc32(data) != header.dataCrc32) {
+      throw ComicException('RAR entry "${header.name}" has an invalid checksum.');
+    }
     entries.add(
       _RarEntry(
         name: header.name,
         isDirectory: header.isDirectory,
         isCompressed: !header.isDirectory && !header.isStored,
-        data: intact
-            ? Uint8List.sublistView(bytes, header.dataStart, header.dataStart + header.packedSize)
-            : Uint8List(0),
+        data: data,
       ),
     );
   }

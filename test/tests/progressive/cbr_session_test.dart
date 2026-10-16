@@ -13,6 +13,7 @@ Uint8List _bytes(final String name) =>
 
 const storedCbr = 'books/comic/synthetic-stored-pages.cbr';
 const method29Cbr = 'books/comic/american-beauty-trading-cards-1909.cbr';
+const rar5CompressedCbr = 'books/comic/rar5/rar5-comic-utf8.cbr';
 
 /// Opens the session for [bytes] only when the eager parse opens too,
 /// asserting the same outcome class both ways — the open-time parity
@@ -37,7 +38,7 @@ void _expectSessionMatchesEager(final Uint8List bytes) {
 
 void main() {
   group('CBR session × eager parity', () {
-    final fixtures = [storedCbr, method29Cbr];
+    final fixtures = [storedCbr, method29Cbr, rar5CompressedCbr];
 
     for (final fixture in fixtures) {
       test('inventory, cover and per-page bytes match the eager parse: $fixture', () {
@@ -100,6 +101,39 @@ void main() {
       expect(header.readingDirection, full.readingDirection);
       expect(header.readingDirection, ComicReadingDirection.rightToLeft);
       expect(engine.resource('a.jpg'), tinyJpegPage);
+    });
+
+    test('RAR 5 compressed pages decode identically out of order and on reread', () {
+      final bytes = _bytes(rar5CompressedCbr);
+      final engine = SessionEngine.openBytes(bytes);
+      addTearDown(engine.close);
+      final full = Unseal.parse(bytes) as ComicBook;
+      final header = engine.book as ComicBook;
+      expect(header.pageCount, full.pageCount, reason: 'UTF-8 fixture carries 2 image pages');
+
+      // Out-of-order, then re-read: the same bytes every time.
+      final order = [1, 0, 1, 0];
+      for (final index in order) {
+        expect(
+          engine.resource(header.pages[index].path),
+          full.pages[index].content,
+          reason: 'page ${header.pages[index].path}',
+        );
+      }
+    });
+
+    test('two RAR 5 sessions keep their pages isolated', () {
+      final bytes = _bytes(rar5CompressedCbr);
+      final one = SessionEngine.openBytes(bytes);
+      addTearDown(one.close);
+      final two = SessionEngine.openBytes(bytes);
+      addTearDown(two.close);
+
+      final path = (one.book as ComicBook).pages.last.path;
+      final first = one.resource(path);
+      final second = two.resource(path);
+      expect(first, second, reason: 'same bytes from both sessions');
+      expect(first, (Unseal.parse(bytes) as ComicBook).pages.last.content);
     });
 
     test('method-29 pages load through the shared decoder', () {

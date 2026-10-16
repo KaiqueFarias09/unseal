@@ -11,6 +11,7 @@ import '../../../foundation/exceptions/unseal_exception.dart';
 import '../exceptions/comic_exception.dart';
 import 'rar4_method29_decoder.dart';
 import 'rar5_archive.dart';
+import 'rar5_decoder.dart';
 
 /// One indexed RAR record: everything needed to decode a single entry
 /// later without touching any other entry.
@@ -142,9 +143,11 @@ final class RarEntryRecord implements ArchiveEntry {
 ///
 /// Support matrix mirrors the eager reader: RAR 4 stored (0x30) and
 /// ordinary non-solid method-29 streams (via the shared method-29
-/// decoder), RAR 5 stored entries. Unsupported compressed entries stay
-/// indexed; touching them is a typed [ComicException] naming the entry
-/// and the reason.
+/// decoder), RAR 5 stored entries and non-solid version-0 compressed
+/// streams (methods 1-5, filters 0-3, dictionaries through 64 MiB) via
+/// the shared RAR 5 decoder. Out-of-subset records stay indexed;
+/// touching them is a typed [ComicException] naming the entry and the
+/// reason.
 ///
 /// Security posture matches the zip random access: container-level
 /// guards reject hostile declared sizes at open (total > 1 GiB,
@@ -216,7 +219,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
   /// Decodes one entry, bounded by [maxBytes] (default: the declared
   /// size capped at the shared entry cap), verifying the declared CRC
-  /// when it is non-zero.
+  /// when it is present (zero included).
   @override
   Uint8List inflate(covariant final RarEntryRecord entry, {final int? maxBytes}) {
     final limit = math.min(maxBytes ?? maxZipEntryUncompressedBytes, maxZipEntryUncompressedBytes);
@@ -244,6 +247,44 @@ final class RarRandomAccess implements ArchiveRandomAccess {
             'RAR entry "${entry.name}" could not be decoded (${error.runtimeType}).',
           );
         }
+      case _PayloadMode.rar5:
+        final reason = entry.unsupportedReason(
+          archiveSolid: _archiveSolid,
+          sourceLength: _source.length,
+        );
+        if (reason != null) {
+          throw ComicException('RAR entry "${entry.name}" is not supported: $reason.');
+        }
+        // The RAR 5 decoder allocates exactly the declared output, so
+        // the bound applies before any decode work happens.
+        if (entry.uncompressedSize > limit) {
+          throw InvalidBookException(
+            'RAR entry "${entry.name}" declares ${entry.uncompressedSize} uncompressed '
+            'bytes, above the $limit-byte expansion limit.',
+          );
+        }
+        if (entry.uncompressedSize == 0) {
+          _verifyCrc(entry, Uint8List(0));
+
+          return Uint8List(0);
+        }
+        final packed = _source.read(entry.dataStart, entry.packedSize);
+        try {
+          final decoded = decodeRar5Stream(
+            packed: packed,
+            uncompressedSize: entry.uncompressedSize,
+            windowSize: entry.rar5DictSize,
+          );
+          _verifyCrc(entry, decoded);
+
+          return decoded;
+        } on UnsealException {
+          rethrow;
+        } on Object catch (error) {
+          throw ComicException(
+            'RAR entry "${entry.name}" could not be decoded (${error.runtimeType}).',
+          );
+        }
       case _PayloadMode.dropped:
         throw ComicException(
           'RAR entry "${entry.name}" has a truncated or mismatched stored payload.',
@@ -255,9 +296,9 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
   /// Returns the first [byteCount] payload bytes of [entry] — the
   /// prefix the eager reader would pair with the record: stored slices
-  /// verbatim, method-29 streams decoded (so page sniffing at open
+  /// verbatim, compressed streams decoded (so page sniffing at open
   /// matches the eager parse), dropped entries empty, unsupported
-  /// compressed entries a typed rejection.
+  /// records a typed rejection.
   @override
   Uint8List head(covariant final RarEntryRecord entry, final int byteCount) {
     switch (_modeOf(entry)) {
@@ -267,6 +308,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
         return _source.read(entry.dataStart, math.min(byteCount, available));
       case _PayloadMode.method29:
+      case _PayloadMode.rar5:
         final decoded = inflate(entry);
 
         return Uint8List.sublistView(decoded, 0, math.min(byteCount, decoded.length));
@@ -301,9 +343,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
         return intact ? _PayloadMode.stored : _PayloadMode.dropped;
       }
 
-      // Compressed RAR 5 decoding arrives with the shared decoder;
-      // until then every compressed record stays a typed rejection.
-      return _PayloadMode.unsupported;
+      return _PayloadMode.rar5;
     }
 
     if (entry.isStored) {
@@ -357,6 +397,10 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
 /// How the eager reader's payload grammar classifies a record.
 enum _PayloadMode {
+  /// RAR 5 compressed stream the shared decoder handles (out-of-subset
+  /// records reject before reaching this mode).
+  rar5,
+
   /// Stored payload kept verbatim (size-matched and inside the
   /// container).
   stored,

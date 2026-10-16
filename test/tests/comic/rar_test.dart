@@ -67,10 +67,29 @@ void main() {
     });
 
     test('parses headers carrying mtime and data crc', () {
-      final book = parseComicBook(buildRar5(['001.jpg'], fileFlags: 0x0006));
+      final book = parseComicBook(
+        buildRar5Files(
+          {'001.jpg': tinyJpegPage},
+          fileFlags: 0x0002,
+          dataCrc: getCrc32(tinyJpegPage),
+        ),
+      );
 
       expect(book.pages.single.name, '001.jpg');
       expect(book.pages.single.content, tinyJpegPage);
+    });
+
+    test('rejects a wrong declared data crc through the eager path', () {
+      expect(
+        () => parseComicBook(buildRar5Files({'001.jpg': tinyJpegPage}, dataCrc: 0xDEADBEEF)),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('invalid checksum'),
+          ),
+        ),
+      );
     });
 
     test('marks directory entries', () {
@@ -280,7 +299,13 @@ void main() {
       final bodyBytes = Uint8List.fromList([0x09, 0x00, 0xAA]); // type 9
       final corrupt = Uint8List.fromList([
         ...archive,
-        ...((ByteData(4)..setUint32(0, getCrc32(Uint8List.fromList([bodyBytes.length, ...bodyBytes])), Endian.little)).buffer.asUint8List()),
+        ...((ByteData(4)..setUint32(
+              0,
+              getCrc32(Uint8List.fromList([bodyBytes.length, ...bodyBytes])),
+              Endian.little,
+            ))
+            .buffer
+            .asUint8List()),
         bodyBytes.length,
         ...bodyBytes,
       ]);
