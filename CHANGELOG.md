@@ -1,4 +1,4 @@
-## 1.2.0 (unreleased)
+## 1.2.0 - October 16, 2026
 
 ### Added
 
