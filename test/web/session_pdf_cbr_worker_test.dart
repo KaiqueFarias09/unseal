@@ -73,6 +73,49 @@ void main() {
     expect(await session.loadBytesRange(0, 4), Uint8List.fromList('%PDF'.codeUnits));
   });
 
+  test('a PDF session in the worker serves page structures with geometry', () async {
+    final bytes = Uint8List.fromList(
+      changingStatisticsFixture(pageCount: 26, plainPages: 20).build(),
+    );
+    await _expectRealWorker(bytes);
+
+    final session = await BookSession.open(bytes);
+    addTearDown(session.dispose);
+
+    // Page 24 (0-based) sits after the 20-page sample: the session's
+    // sampled plan and the eager document plan are different profiles
+    // by construction.
+    final structure = await session.loadPdfPageStructure(24);
+    expect(structure, isNotNull, reason: 'the worker answered the pdfStructure op');
+    final page = structure!;
+    expect(page.pageIndex, 24);
+    expect(page.canonicalProfile.options['scope'], 'session-sample');
+    expect(page.geometry.width, 612);
+    expect(page.geometry.transformInvertible, isTrue);
+
+    // Geometry and text survive the wire unchanged.
+    final lines = await session.loadPdfPageLines(24);
+    expect(lines!.text, page.canonicalText);
+    expect(page.words, isNotEmpty);
+    expect(page.blocks, isNotEmpty);
+    final word = page.words.first;
+    expect(word.text, isNotEmpty);
+    expect(word.width, greaterThan(0));
+
+    // The mapping vocabulary works on the decoded structure.
+    final anchor = PdfSourceRange(
+      pageIndex: 24,
+      lineIndex: 1,
+      start: 0,
+      end: page.sourceLines[1].text.length,
+      expectedLineText: page.sourceLines[1].text,
+    );
+    final mapping = page.mapSourceRange(anchor);
+    expect(mapping, isA<PdfPositionMapped>());
+    final position = (mapping as PdfPositionMapped).position;
+    expect(page.canonicalText.substring(position.offset, position.end), page.sourceLines[1].text);
+  });
+
   test('a CBR session in the worker lists pages and serves their bytes', () async {
     final bytes = _cbrBytes();
     await _expectRealWorker(bytes);
