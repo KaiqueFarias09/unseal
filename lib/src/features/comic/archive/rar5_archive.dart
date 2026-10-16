@@ -66,6 +66,7 @@ const int _fileFlagUnpackedSizeUnknown = 0x0008;
 /// File header extra-area record types.
 const int _extraCrypt = 1;
 const int _extraHash = 2;
+const int _extraRedirect = 5;
 
 /// Compression-info fields of a file header.
 const int _compressVersionMask = 0x3F;
@@ -105,10 +106,14 @@ Rar5Container readRar5Structure(final ZipByteSource source) {
       throw ComicException('RAR 5 header at offset $blockStart runs past the end of the file.');
     }
 
-    final body = source.read(bodyStart, headerSize);
-    if (getCrc32(body) != headerCrc) {
+    // The header CRC covers the size field and everything after it,
+    // through the end of the optional area — the coverage real
+    // archivers write (verified against rardecode and libarchive).
+    final crcWindow = source.read(offset + 4, consumedSize + headerSize);
+    if (getCrc32(crcWindow) != headerCrc) {
       throw ComicException('RAR 5 header at offset $blockStart fails its CRC-32 check.');
     }
+    final body = source.read(bodyStart, headerSize);
 
     final reader = _Rar5Cursor(body);
     final headerType = reader.vint();
@@ -200,6 +205,7 @@ final class Rar5EntryHeader {
     required this.isSplit,
     required this.unpackedSizeUnknown,
     required this.hasBlake2Hash,
+    required this.isRedirect,
   });
 
   /// Entry path as stored, decoded as UTF-8 (malformed bytes become
@@ -246,6 +252,11 @@ final class Rar5EntryHeader {
   /// Whether the header declares the unpacked size as unknown.
   final bool unpackedSizeUnknown;
 
+  /// Whether a redirect extra record marks the entry as a link.
+  ///
+  /// Links never carry page payload; they are typed rejections.
+  final bool isRedirect;
+
   /// Whether a hash extra record declares a BLAKE2sp digest.
   ///
   /// The digest is parsed but not verified; payload verification uses
@@ -272,6 +283,7 @@ final class Rar5EntryHeader {
     if (dictExp > maxSupportedRar5DictExp) {
       return 'it declares a dictionary of ${dictSize >> 20} MiB, above the 64 MiB subset limit';
     }
+    if (isRedirect) return 'it is a link or redirect';
     if (solid || (archiveSolid && !isStored)) return 'it is a solid stream';
     if (unpackedSizeUnknown) return 'it does not declare its unpacked size';
     if (packedSize > 0 && dataStart + packedSize > sourceLength) {
@@ -308,6 +320,7 @@ Rar5EntryHeader _parseRar5FileHeader({
   // Extra-area records: each is (size, type, payload) and the record
   // size bounds its own payload.
   var hasBlake2Hash = false;
+  var isRedirect = false;
   final extraEnd = reader.position + extraAreaSize;
   if (extraEnd > reader.length) {
     throw const ComicException('RAR 5 file header extra area runs past the header.');
@@ -328,6 +341,9 @@ Rar5EntryHeader _parseRar5FileHeader({
       // present), bit 1: BLAKE2sp.
       hasBlake2Hash = hashFlags & 0x0002 != 0;
     }
+    if (recordType == _extraRedirect) {
+      isRedirect = true;
+    }
     reader.seek(recordEnd);
   }
 
@@ -346,6 +362,7 @@ Rar5EntryHeader _parseRar5FileHeader({
     isSplit: blockFlags & _blockFlagDataNotFirst != 0 || blockFlags & _blockFlagDataNotLast != 0,
     unpackedSizeUnknown: fileFlags & _fileFlagUnpackedSizeUnknown != 0,
     hasBlake2Hash: hasBlake2Hash,
+    isRedirect: isRedirect,
   );
 }
 

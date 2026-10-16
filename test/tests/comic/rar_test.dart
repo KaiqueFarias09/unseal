@@ -280,7 +280,7 @@ void main() {
       final bodyBytes = Uint8List.fromList([0x09, 0x00, 0xAA]); // type 9
       final corrupt = Uint8List.fromList([
         ...archive,
-        ...((ByteData(4)..setUint32(0, getCrc32(bodyBytes), Endian.little)).buffer.asUint8List()),
+        ...((ByteData(4)..setUint32(0, getCrc32(Uint8List.fromList([bodyBytes.length, ...bodyBytes])), Endian.little)).buffer.asUint8List()),
         bodyBytes.length,
         ...bodyBytes,
       ]);

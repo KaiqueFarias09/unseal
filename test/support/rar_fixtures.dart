@@ -286,11 +286,12 @@ void _addRar5Block(
     body.add(extraArea);
   }
   final bodyBytes = body.takeBytes();
+  final sizeBytes = _vintBytes(bodyBytes.length);
 
-  final crc = headerCrcOverride ?? getCrc32(bodyBytes);
+  final crc = headerCrcOverride ?? getCrc32(Uint8List.fromList([...sizeBytes, ...bodyBytes]));
   final block = BytesBuilder(copy: false)
     ..add((ByteData(4)..setUint32(0, crc, Endian.little)).buffer.asUint8List())
-    ..add(_vintBytes(bodyBytes.length))
+    ..add(sizeBytes)
     ..add(bodyBytes);
   if (data != null) {
     block.add(data);
