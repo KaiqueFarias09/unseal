@@ -2,11 +2,13 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import '../../foundation/archive/archive_access.dart';
+import '../../foundation/archive/zip_byte_source.dart';
 
 import '../../foundation/entities/entities.dart';
 import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';
 import 'archive/rar4_method29_decoder.dart';
+import 'archive/rar5_archive.dart';
 import 'entities/entities.dart';
 import 'exceptions/exceptions.dart';
 import 'metadata/comic_info.dart';

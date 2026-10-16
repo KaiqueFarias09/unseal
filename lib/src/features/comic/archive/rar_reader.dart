@@ -156,105 +156,36 @@ Uint8List _decodeRar4Entry(
 }
 
 List<_RarEntry> _readRar5(final Uint8List bytes) {
+  final container = readRar5Structure(MemoryZipByteSource(bytes));
   final entries = <_RarEntry>[];
-  var offset = 8; // signature
-
-  while (offset + 8 <= bytes.length) {
-    final blockStart = offset;
-    offset += 4; // header CRC32 (unverified)
-    final (headerSize, consumedH) = _vint(bytes, offset);
-    offset += consumedH;
-    // Header size counts from the type field to the end of the header, excluding the CRC and the
-    // size vint itself.
-    final headerEnd = offset + headerSize;
-    if (headerEnd > bytes.length) break;
-
-    final (headerType, consumedT) = _vint(bytes, offset);
-    offset += consumedT;
-    final (headerFlags, consumedF) = _vint(bytes, offset);
-    offset += consumedF;
-    var extraAreaSize = 0;
-    if (headerFlags & 0x0001 != 0) {
-      // RAR 5 stores EXTRA_AREA_SIZE before DATA_SIZE in the common header.
-      final (size, consumedE) = _vint(bytes, offset);
-      extraAreaSize = size;
-      offset += consumedE;
-    }
-    var dataSize = 0;
-    if (headerFlags & 0x0002 != 0) {
-      final (size, consumedD) = _vint(bytes, offset);
-      dataSize = size;
-      offset += consumedD;
+  for (final header in container.entries) {
+    final reason = header.unsupportedReason(
+      archiveSolid: container.archiveSolid,
+      sourceLength: bytes.length,
+    );
+    if (reason != null && !header.isDirectory) {
+      throw ComicException('RAR entry "${header.name}" is not supported: $reason.');
     }
 
-    if (headerType == 2) {
-      // File header.
-      final (fileFlags, consumedFF) = _vint(bytes, offset);
-      offset += consumedFF;
-      final (unpackedSize, consumedU) = _vint(bytes, offset);
-      offset += consumedU;
-      final (_, consumedA) = _vint(bytes, offset);
-      offset += consumedA; // attributes
-      if (fileFlags & 0x0002 != 0) {
-        offset += 4; // mtime
-      }
-      if (fileFlags & 0x0004 != 0) {
-        offset += 4; // data CRC
-      }
-      final (compressionInfo, consumedC) = _vint(bytes, offset);
-      offset += consumedC;
-      offset += 1; // host OS
-      final (nameLength, consumedN) = _vint(bytes, offset);
-      offset += consumedN;
-      final nameEnd = offset + nameLength;
-      if (nameEnd > headerEnd) break;
-
-      final name = String.fromCharCodes(bytes.sublist(offset, nameEnd));
-      final extraAreaEnd = nameEnd + extraAreaSize;
-      if (extraAreaEnd > headerEnd) break;
-
-      final isDirectory = fileFlags & 0x0001 != 0;
-      final method = (compressionInfo >> 7) & 0x07;
-      final stored = method == 0;
-      final dataStart = headerEnd;
-      final dataEnd = dataStart + dataSize;
-      final hasData = stored && !isDirectory && dataEnd <= bytes.length && unpackedSize == dataSize;
-      entries.add(
-        _RarEntry(
-          name: name,
-          isDirectory: isDirectory,
-          isCompressed: !stored,
-          data: hasData ? Uint8List.sublistView(bytes, dataStart, dataEnd) : Uint8List(0),
-        ),
-      );
-    }
-    offset = headerEnd + dataSize;
-
-    if (headerType == 5) {
-      break; // end of archive (1 = main header, skipped above)
-    }
-    if (offset <= blockStart) {
-      break; // guard against malformed headers
-    }
+    // Stored payloads stay verbatim; compressed payloads decode once
+    // the RAR 5 decoder covers them (a compressed entry here still
+    // carries empty data and the compressed flag).
+    final intact =
+        header.isStored &&
+        !header.isDirectory &&
+        header.unpackedSize == header.packedSize &&
+        header.dataStart + header.packedSize <= bytes.length;
+    entries.add(
+      _RarEntry(
+        name: header.name,
+        isDirectory: header.isDirectory,
+        isCompressed: !header.isDirectory && !header.isStored,
+        data: intact
+            ? Uint8List.sublistView(bytes, header.dataStart, header.dataStart + header.packedSize)
+            : Uint8List(0),
+      ),
+    );
   }
 
   return entries;
-}
-
-/// Reads a RAR 5 vint (LEB128, 7 bits per byte).
-(int, int) _vint(final Uint8List bytes, final int offset) {
-  var value = 0;
-  var shift = 0;
-  var consumed = 0;
-  while (offset + consumed < bytes.length) {
-    final byte = bytes[offset + consumed];
-    consumed++;
-    value |= (byte & 0x7F) << shift;
-    if (byte & 0x80 == 0) break;
-
-    shift += 7;
-    if (shift > 63) break;
-  }
-
-  return (value, consumed);
 }

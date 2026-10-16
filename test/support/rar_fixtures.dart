@@ -1,4 +1,7 @@
+import 'dart:convert' as convert;
 import 'dart:typed_data';
+
+import 'package:archive/archive.dart';
 
 // Byte-packing builders read best as sequential field writes.
 // ignore_for_file: cascade_invocations
@@ -118,6 +121,15 @@ Uint8List buildRar5(
   final int fileFlags = 0,
   final bool trailingGarbage = false,
   final bool withExtraArea = false,
+  final int archiveFlags = 0,
+  final int dictExp = 0,
+  final int version = 0,
+  final bool solid = false,
+  final int splitBlockFlags = 0,
+  final List<int>? extraRecord,
+  final int? headerCrcOverride,
+  final bool withEndBlock = true,
+  final List<int>? serviceData,
 }) {
   return buildRar5Files(
     {for (final name in names) name: tinyJpegPage},
@@ -125,13 +137,28 @@ Uint8List buildRar5(
     fileFlags: fileFlags,
     trailingGarbage: trailingGarbage,
     withExtraArea: withExtraArea,
+    archiveFlags: archiveFlags,
+    dictExp: dictExp,
+    version: version,
+    solid: solid,
+    splitBlockFlags: splitBlockFlags,
+    extraRecord: extraRecord,
+    headerCrcOverride: headerCrcOverride,
+    withEndBlock: withEndBlock,
+    serviceData: serviceData,
   );
 }
 
 /// Builds a RAR 5 archive with explicit per-entry content.
 ///
-/// [dataCrc] declares a payload CRC (setting the file flag that carries
-/// it) the session verifies; the eager reader never does.
+/// The knobs exist to exercise the header contract and hostile input:
+/// [method]/[dictExp]/[version]/[solid] steer the compression-info
+/// vint, [dataCrc] declares a payload CRC (setting the file flag that
+/// carries it) the session verifies, [archiveFlags] feeds the main
+/// header (volume/solid bits), [splitBlockFlags] sets the not-first/
+/// not-last block flags, [extraRecord] appends a raw extra-area record
+/// (size, type, payload) such as encryption or hash, and
+/// [headerCrcOverride] forges the header CRC the walk must reject.
 Uint8List buildRar5Files(
   final Map<String, List<int>> files, {
   final int method = 0,
@@ -139,25 +166,46 @@ Uint8List buildRar5Files(
   final bool trailingGarbage = false,
   final bool withExtraArea = false,
   final int? dataCrc,
+  final int archiveFlags = 0,
+  final int dictExp = 0,
+  final int version = 0,
+  final bool solid = false,
+  final int splitBlockFlags = 0,
+  final List<int>? extraRecord,
+  final int? headerCrcOverride,
+  final bool withEndBlock = true,
+  final List<int>? serviceData,
 }) {
   final builder = BytesBuilder(copy: false);
   builder.add([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
 
-  _addRar5Block(builder, type: 1, headerFlags: 0);
+  _addRar5Block(
+    builder,
+    type: 1,
+    headerFlags: 0,
+    write: (final body) {
+      body.vint(archiveFlags);
+      if (archiveFlags & 0x0002 != 0) {
+        body.vint(0); // volume number
+      }
+    },
+    headerCrcOverride: headerCrcOverride,
+  );
   var index = 0;
   for (final entry in files.entries) {
     final name = entry.key;
     final content = Uint8List.fromList(entry.value);
-    final nameBytes = name.codeUnits;
-    final includeExtraArea = withExtraArea && index == 0;
-    final extraArea = includeExtraArea ? [6, 3, 1, 0, 0, 0, 0] : null;
+    final nameBytes = convert.utf8.encode(name);
+    final includeExtraArea = (withExtraArea && index == 0) || extraRecord != null;
+    final extraArea = extraRecord ?? (includeExtraArea ? [6, 3, 1, 0, 0, 0, 0] : null);
     final crcFlag = dataCrc == null ? 0 : 0x0004;
     _addRar5Block(
       builder,
       type: 2,
-      headerFlags: 0x0002 | (includeExtraArea ? 0x0001 : 0) | crcFlag,
+      headerFlags: 0x0002 | (includeExtraArea ? 0x0001 : 0) | crcFlag | splitBlockFlags,
       data: content,
       extraArea: extraArea,
+      headerCrcOverride: headerCrcOverride,
       write: (final body) {
         body.vint(fileFlags | crcFlag);
         body.vint(content.length); // unpacked size
@@ -170,7 +218,9 @@ Uint8List buildRar5Files(
         } else if (fileFlags & 0x0004 != 0) {
           body.uint32(0); // data crc (default fixtures leave it at 0)
         }
-        body.vint(method << 7); // compression info: version 0, method
+        body.vint(
+          (method << 7) | (dictExp << 10) | (solid ? 0x40 : 0) | version,
+        ); // compression info
         body.addByte(0); // host OS
         body.vint(nameBytes.length);
         body.add(nameBytes);
@@ -178,7 +228,36 @@ Uint8List buildRar5Files(
     );
     index++;
   }
-  _addRar5Block(builder, type: 5, headerFlags: 0);
+  if (serviceData != null) {
+    final nameBytes = convert.utf8.encode('CMT');
+    _addRar5Block(
+      builder,
+      type: 3,
+      headerFlags: 0x0002,
+      data: Uint8List.fromList(serviceData),
+      headerCrcOverride: headerCrcOverride,
+      write: (final body) {
+        body.vint(0); // file flags
+        body.vint(serviceData.length); // unpacked size
+        body.vint(0); // attributes
+        body.vint(0); // compression info: stored
+        body.addByte(0); // host OS
+        body.vint(nameBytes.length);
+        body.add(nameBytes);
+      },
+    );
+  }
+  if (withEndBlock) {
+    _addRar5Block(
+      builder,
+      type: 5,
+      headerFlags: 0,
+      headerCrcOverride: headerCrcOverride,
+      write: (final body) {
+        body.vint(0); // end-of-archive flags
+      },
+    );
+  }
 
   final archive = builder.takeBytes();
   return trailingGarbage ? Uint8List.fromList([...archive, 0xDE, 0xAD, 0xBE, 0xEF]) : archive;
@@ -191,6 +270,7 @@ void _addRar5Block(
   final Uint8List? data,
   final List<int>? extraArea,
   final void Function(_Rar5Header body)? write,
+  final int? headerCrcOverride,
 }) {
   final body = _Rar5Header();
   body.vint(type);
@@ -207,8 +287,9 @@ void _addRar5Block(
   }
   final bodyBytes = body.takeBytes();
 
+  final crc = headerCrcOverride ?? getCrc32(bodyBytes);
   final block = BytesBuilder(copy: false)
-    ..add((ByteData(4)..setUint32(0, 0)).buffer.asUint8List()) // header crc
+    ..add((ByteData(4)..setUint32(0, crc, Endian.little)).buffer.asUint8List())
     ..add(_vintBytes(bodyBytes.length))
     ..add(bodyBytes);
   if (data != null) {
@@ -263,4 +344,68 @@ Uint8List fatJpegPage(final int length) {
   page[length - 1] = 0xD9;
 
   return page;
+}
+
+/// Appends four bytes to [data] so the CRC-32 of the result is exactly
+/// zero — proving a declared zero checksum is a real checksum, not a
+/// "no checksum" sentinel.
+///
+/// CRC-32 is affine over GF(2): each appended bit flips the result by a
+/// fixed column vector, so the four solution bytes come from Gaussian
+/// elimination over the 32 column vectors.
+Uint8List withZeroCrc32(final List<int> data) {
+  final base = Uint8List.fromList([...data, 0, 0, 0, 0]);
+  final columns = List<int>.generate(32, (final i) {
+    final probe = Uint8List.fromList(base);
+    probe[data.length + i ~/ 8] = 1 << (i % 8);
+
+    return getCrc32(probe) ^ getCrc32(base);
+  });
+
+  // Reduce the columns to row echelon form, carrying the combination of
+  // original columns each reduced row represents.
+  final rows = <(int, int)>[]; // (vector, combination)
+  for (var i = 0; i < 32; i++) {
+    var vector = columns[i];
+    var combination = 1 << i;
+    for (final row in rows) {
+      if (vector & _highestBit(row.$1) != 0) {
+        vector ^= row.$1;
+        combination ^= row.$2;
+      }
+    }
+    if (vector != 0) rows.add((vector, combination));
+  }
+
+  // Express the base value as a combination of the rows; the resulting
+  // bit combination cancels it to zero.
+  var remainder = getCrc32(base);
+  var combination = 0;
+  while (remainder != 0) {
+    final pivot = _highestBit(remainder);
+    final row = rows.firstWhere(
+      (final row) => _highestBit(row.$1) == pivot,
+      orElse: () => throw StateError('CRC-32 zero patch has no solution.'),
+    );
+    remainder ^= row.$1;
+    combination ^= row.$2;
+  }
+
+  final result = Uint8List.fromList(base);
+  for (var i = 0; i < 32; i++) {
+    if (combination & (1 << i) != 0) {
+      result[data.length + i ~/ 8] |= 1 << (i % 8);
+    }
+  }
+  assert(getCrc32(result) == 0);
+
+  return result;
+}
+
+int _highestBit(final int value) {
+  for (var bit = 31; bit >= 0; bit--) {
+    if (value & (1 << bit) != 0) return 1 << bit;
+  }
+
+  return 0;
 }
