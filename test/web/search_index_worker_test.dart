@@ -86,7 +86,7 @@ void main() {
     // surrogate pairs of the emoji.
     final astral = await session.searchIndexed('navio🚢');
     expect(astral.hits, hasLength(1));
-    expect(text!.substring(astral.hits.single.start, astral.hits.single.end), 'navio🚢');
+    expect(text.substring(astral.hits.single.start, astral.hits.single.end), 'navio🚢');
     expect(astral.hits.single.end - astral.hits.single.start, 'navio🚢'.length);
 
     // Soft-hyphen join: the query folds to the term the scanner cut
