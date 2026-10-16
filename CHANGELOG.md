@@ -1,3 +1,22 @@
+## Unreleased
+
+### Added
+
+- The common text contract for cross-mode positions (foundation): immutable
+  `CanonicalTextSnapshot` bound to a `PublicationRevision` (namespaced,
+  evidence-qualified source revision), a `SectionOccurrence` (zero-based
+  section index, exact parser path, reading-order digest), and a `TextProfile`
+  (algorithm, options, extraction-plan revision). `RevisionDigest` computes
+  `sha256:` revisions over little-endian UTF-16 code units — text, ordered
+  reading-order arrays, and text profiles — with identical bytes and hashes
+  on the VM and in Chrome (pinned vectors run in both). `CanonicalTextRange`
+  binds inclusive-start/exclusive-end UTF-16 bounds to a snapshot;
+  `CanonicalTextCodec` is the single encoder/decoder for snapshots and
+  ranges, revalidating every digest on import, refusing non-exportable
+  identities explicitly, and normalizing hostile payloads to
+  `CanonicalTextCodecException` while confirmed identity mismatches surface
+  as `IncompatibleRevisionException`.
+
 ## 1.2.0 - October 16, 2026
 
 ### Added
