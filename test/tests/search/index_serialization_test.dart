@@ -42,11 +42,14 @@ void main() {
 
   group('serialization and import', () {
     Future<BookSearchIndex> builtIndex() => BookSearchIndex.build(
-          buildIndexedBook(<int, String>{0: 'A navegação do leitor.', 1: 'Outro feitiço.'}),
-        );
+      buildIndexedBook(<int, String>{0: 'A navegação do leitor.', 1: 'Outro feitiço.'}),
+    );
 
     test('round trip preserves results, ranking and ranges', () async {
-      final book = buildIndexedBook(<int, String>{0: 'A navegação do leitor.', 1: 'Outro feitiço.'});
+      final book = buildIndexedBook(<int, String>{
+        0: 'A navegação do leitor.',
+        1: 'Outro feitiço.',
+      });
       final index = await BookSearchIndex.build(book);
       final before = index.query('navegacao');
       // Structural reload: identical hits and bit-identical scores; the
@@ -155,7 +158,9 @@ void main() {
             'textProfile': SearchIndexTokenizer.textProfileId,
           },
           'readingOrderRevision': null,
-          'sections': <Object?>[<Object?>[0, 'p0.html', 'many', 5, 'x' * 64]],
+          'sections': <Object?>[
+            <Object?>[0, 'p0.html', 'many', 5, 'x' * 64],
+          ],
           'terms': <Object?>[],
         }),
         throwsA(isA<FormatException>()),
@@ -171,9 +176,19 @@ void main() {
           },
           'identity': null,
           'readingOrderRevision': null,
-          'sections': <Object?>[<Object?>[0, 'a.html', 1, 5, 'x' * 64]],
+          'sections': <Object?>[
+            <Object?>[0, 'a.html', 1, 5, 'x' * 64],
+          ],
           'terms': <Object?>[
-            <Object?>['palavra', <Object?>[<Object?>[0, <Object?>[0, 999]]]],
+            <Object?>[
+              'palavra',
+              <Object?>[
+                <Object?>[
+                  0,
+                  <Object?>[0, 999],
+                ],
+              ],
+            ],
           ],
         }),
         throwsA(isA<FormatException>()),
@@ -189,9 +204,19 @@ void main() {
           },
           'identity': null,
           'readingOrderRevision': null,
-          'sections': <Object?>[<Object?>[0, 'a.html', 1, 5, 'x' * 64]],
+          'sections': <Object?>[
+            <Object?>[0, 'a.html', 1, 5, 'x' * 64],
+          ],
           'terms': <Object?>[
-            <Object?>['palavra', <Object?>[<Object?>[0, <Object?>[-1, 3]]]],
+            <Object?>[
+              'palavra',
+              <Object?>[
+                <Object?>[
+                  0,
+                  <Object?>[-1, 3],
+                ],
+              ],
+            ],
           ],
         }),
         throwsA(isA<FormatException>()),
@@ -203,7 +228,8 @@ void main() {
       final wide = await BookSearchIndex.build(
         buildIndexedBook(<int, String>{
           for (var i = 0; i < 8; i++)
-            i: 'seção $i com bastante conteúdo textual para inflar o payload '
+            i:
+                'seção $i com bastante conteúdo textual para inflar o payload '
                 'serializado além do teto configurado no teste $i',
         }),
       );
@@ -223,7 +249,7 @@ void main() {
         const ReadingOrderItem(name: 'b.html', isHtml: true),
       ]);
       index.addSection(sectionIndex: pending[0].$1, path: pending[0].$2, text: 'palavra');
-      expect(() => index.serialize(), throwsA(isA<SearchIndexException>()));
+      expect(index.serialize, throwsA(isA<SearchIndexException>()));
     });
 
     test('pdf-sourced indexes build and query but refuse persistence', () async {
@@ -234,17 +260,14 @@ void main() {
       ]);
       index.addSection(sectionIndex: pending[0].$1, path: pending[0].$2, text: 'texto do pdf');
       expect(index.query('texto').hits, hasLength(1));
-      expect(
-        () => index.serialize(),
-        throwsA(isA<SearchIndexUnsupportedException>()),
-      );
+      expect(index.serialize, throwsA(isA<SearchIndexUnsupportedException>()));
     });
 
     test('disposed indexes refuse serialization and import', () async {
       final index = await builtIndex();
       final payload = index.serialize();
       index.dispose();
-      expect(() => index.serialize(), throwsA(isA<SearchIndexDisposedException>()));
+      expect(index.serialize, throwsA(isA<SearchIndexDisposedException>()));
       final restored = BookSearchIndex.deserialize(payload);
       restored.dispose();
       expect(() => restored.query('navegacao'), throwsA(isA<SearchIndexDisposedException>()));

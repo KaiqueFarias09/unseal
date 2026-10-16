@@ -29,6 +29,11 @@ import '../search/book_search.dart';
 import '../search/entities/search_match.dart';
 import '../search/entities/search_mode.dart';
 import '../search/entities/search_results.dart';
+import '../search/index/book_search_index.dart';
+import '../search/index/indexed_query_mode.dart';
+import '../search/index/search_index_exceptions.dart';
+import '../search/index/search_index_identity.dart';
+import '../search/index/search_index_wire.dart';
 import '../search/query_compiler.dart';
 import 'comic_session_header.dart';
 import 'epub_session_header.dart';
@@ -181,6 +186,15 @@ final class SessionEngine {
   final SessionPolicy _policy;
   final bool _htmlPathSpace;
   bool _closed = false;
+
+  /// The resident search index, built incrementally across
+  /// `searchIndexEnsure` calls; null until the first ensure. PDF
+  /// sessions build unpersistable indexes (serialization refuses until
+  /// the P1 mapping acceptance).
+  BookSearchIndex? _searchIndex;
+
+  /// The eligible sections the resident index still has to process.
+  List<(int, String)>? _searchIndexPending;
 
   /// The PDF content state; null for the zip/RAR branches.
   PdfSessionContent? _pdf;
@@ -434,12 +448,136 @@ final class SessionEngine {
     return _projection().buildEpubCfi(contentIndex: contentIndex, offsetInText: offsetInText);
   }
 
+  /// Advances the resident search index by at most [maxSections]
+  /// sections, materializing each section's canonical text on demand —
+  /// the session's own content path, so header placeholders are never
+  /// indexed. The first call declares eligibility from the reading
+  /// order and fixes the index [identity]; later calls with a
+  /// different identity fail typed. Returns the coverage wire.
+  Map<String, Object?> searchIndexEnsure(
+    final int maxSections,
+    final SearchIndexIdentity? identity,
+  ) {
+    _ensureOpen();
+    var index = _searchIndex;
+    if (index == null) {
+      index = BookSearchIndex.empty(
+        identity: identity ?? const SearchIndexIdentity(),
+        persistable: _pdf == null,
+      );
+      _searchIndexPending = index.beginEligible(book.readingOrder);
+      _searchIndex = index;
+    } else if (identity != null && !identity.isCompatibleWith(index.identity)) {
+      throw const SearchIndexInvalidArgumentException(
+        'The resident search index was built with a different identity.',
+      );
+    }
+    var budget = maxSections < 0 ? 0 : maxSections;
+    final pending = _searchIndexPending ?? const <(int, String)>[];
+    while (budget > 0 && pending.isNotEmpty) {
+      final (sectionIndex, path) = pending.first;
+      pending.removeAt(0);
+      budget--;
+      // Materialization is the content path itself: one bounded batch
+      // per op, cancellation observable by stopping the calls.
+      final text = documentText(path);
+      if (text == null) {
+        index.failSection(sectionIndex: sectionIndex, path: path);
+      } else {
+        index.addSection(sectionIndex: sectionIndex, path: path, text: text);
+      }
+    }
+
+    return index.coverage.toWire();
+  }
+
+  /// Runs an indexed query over the resident index (partial coverage
+  /// allowed; the result carries it), as the indexed-results wire.
+  Map<String, Object?> searchIndexQuery(
+    final String query, {
+    required final IndexedQueryMode mode,
+    required final int? maxMatches,
+    required final int? maxExpansions,
+    required final int contextChars,
+  }) {
+    _ensureOpen();
+    final index = _searchIndex;
+    if (index == null) {
+      throw const SearchIndexException('No resident search index; run searchIndexEnsure first.');
+    }
+
+    return encodeIndexedSearchResultsWire(
+      index.query(
+        query,
+        mode: mode,
+        maxMatches: maxMatches,
+        maxExpansions: maxExpansions,
+        contextChars: contextChars,
+      ),
+    );
+  }
+
+  /// Serializes the resident index; PDF sessions refuse through the
+  /// index's persistability gate.
+  Map<String, Object?> searchIndexExport() {
+    _ensureOpen();
+    final index = _searchIndex;
+    if (index == null) {
+      throw const SearchIndexException('No resident search index; run searchIndexEnsure first.');
+    }
+
+    return index.serialize();
+  }
+
+  /// Validates and adopts an imported index. The reading order must
+  /// match this session's book, and every section's text is
+  /// re-digested through the session's materialization before the
+  /// postings are trusted.
+  Map<String, Object?> searchIndexImport(
+    final Map<String, Object?> payload,
+    final SearchIndexIdentity? identity,
+  ) {
+    _ensureOpen();
+    final orderRevision = payload['readingOrderRevision'];
+    if (orderRevision != readingOrderRevisionOf(book.readingOrder)) {
+      throw const SearchIndexIncompatibleException(
+        'The imported index was built over a different reading order.',
+      );
+    }
+    final index = BookSearchIndex.deserialize(
+      payload,
+      identity: identity,
+      sectionText: (final sectionIndex, final path) {
+        final order = book.readingOrder;
+        if (sectionIndex >= order.length || order[sectionIndex].name != path) return null;
+
+        return documentText(path);
+      },
+    );
+    _searchIndex?.dispose();
+    _searchIndex = index;
+    _searchIndexPending = const <(int, String)>[];
+
+    return index.coverage.toWire();
+  }
+
+  /// Drops the resident index and releases its memory.
+  void searchIndexDrop() {
+    _ensureOpen();
+    _searchIndex?.dispose();
+    _searchIndex = null;
+    _searchIndexPending = null;
+  }
+
   /// Releases the container source and the cache. Further ops throw
   /// [SessionClosedException].
   void close() {
     if (_closed) return;
 
     _closed = true;
+    _searchIndex?.dispose();
+    _searchIndex = null;
+    _searchIndexPending = null;
     _cache.clear();
     // The PDF branch owns no archive wrapper: the raw source itself
     // carries the file handle (the PdfByteSource is a view over it).

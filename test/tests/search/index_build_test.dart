@@ -6,9 +6,7 @@ import 'book_index_fixture.dart';
 void main() {
   group('incremental build and coverage', () {
     test('reports progress per batch and completes', () async {
-      final sections = <int, String>{
-        for (var i = 0; i < 7; i++) i: 'capítulo $i com palavra$i',
-      };
+      final sections = <int, String>{for (var i = 0; i < 7; i++) i: 'capítulo $i com palavra$i'};
       final progress = <SearchIndexCoverage>[];
       final index = await BookSearchIndex.build(
         buildIndexedBook(sections),
@@ -66,9 +64,7 @@ void main() {
 
     test('cancellation stops at a batch boundary and coverage freezes', () async {
       final token = SearchIndexCancellationToken();
-      final sections = <int, String>{
-        for (var i = 0; i < 12; i++) i: 'seção $i conteúdo $i',
-      };
+      final sections = <int, String>{for (var i = 0; i < 12; i++) i: 'seção $i conteúdo $i'};
       final progress = <SearchIndexCoverage>[];
       final build = BookSearchIndex.build(
         buildIndexedBook(sections),
@@ -103,10 +99,7 @@ void main() {
 
     test('section cap refuses oversized reading orders', () async {
       final book = buildIndexedBook(<int, String>{0: 'a', 1: 'b', 2: 'c'});
-      final index = BookSearchIndex.build(
-        book,
-        limits: const SearchIndexLimits(maxSections: 2),
-      );
+      final index = BookSearchIndex.build(book, limits: const SearchIndexLimits(maxSections: 2));
       await expectLater(index, throwsA(isA<SearchIndexLimitExceededException>()));
     });
 
@@ -114,7 +107,7 @@ void main() {
       final index = await BookSearchIndex.build(buildIndexedBook(<int, String>{0: 'palavra'}));
       index.dispose();
       expect(() => index.query('palavra'), throwsA(isA<SearchIndexDisposedException>()));
-      expect(() => index.serialize(), throwsA(isA<SearchIndexDisposedException>()));
+      expect(index.serialize, throwsA(isA<SearchIndexDisposedException>()));
       index.dispose(); // Idempotent.
     });
   });

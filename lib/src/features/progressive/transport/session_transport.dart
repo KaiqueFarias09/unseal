@@ -6,6 +6,10 @@ import '../../pdf/entities/pdf_page_text.dart';
 import '../../reading/book_progression.dart';
 import '../../search/entities/search_mode.dart';
 import '../../search/entities/search_results.dart';
+import '../../search/index/indexed_query_mode.dart';
+import '../../search/index/indexed_search_results.dart';
+import '../../search/index/search_index_identity.dart';
+import '../../search/index/search_index_wire.dart';
 import '../session_engine.dart';
 
 /// The delivery layer behind the public `BookSession`: one session's ops
@@ -48,6 +52,36 @@ abstract interface class SessionTransport {
     required final int contextChars,
     required final int maxMatches,
   });
+
+  /// Advances the resident search index by at most [maxSections]
+  /// sections and returns the coverage wire. The [identity] binds a
+  /// freshly created index; later calls pass null.
+  Future<Map<String, Object?>> searchIndexEnsure(
+    final int maxSections,
+    final SearchIndexIdentity? identity,
+  );
+
+  /// Runs an indexed query against the resident index; the transport
+  /// decodes the indexed-results wire.
+  Future<IndexedSearchResults> searchIndexQuery(
+    final String query, {
+    required final IndexedQueryMode mode,
+    required final int? maxMatches,
+    required final int? maxExpansions,
+    required final int contextChars,
+  });
+
+  /// Serializes the resident index (typed refusal over PDF text).
+  Future<Map<String, Object?>> searchIndexExport();
+
+  /// Validates and adopts an imported index; returns the coverage wire.
+  Future<Map<String, Object?>> searchIndexImport(
+    final Map<String, Object?> payload,
+    final SearchIndexIdentity? identity,
+  );
+
+  /// Drops the resident index.
+  Future<void> searchIndexDrop();
 
   /// Whole-book progression, measured section by section.
   Future<BookProgression> computeProgression();
@@ -133,6 +167,41 @@ final class InlineSessionTransport implements SessionTransport {
 
   @override
   Future<BookProgression> computeProgression() async => _engine.computeProgression();
+
+  @override
+  Future<Map<String, Object?>> searchIndexEnsure(
+    final int maxSections,
+    final SearchIndexIdentity? identity,
+  ) async => _engine.searchIndexEnsure(maxSections, identity);
+
+  @override
+  Future<IndexedSearchResults> searchIndexQuery(
+    final String query, {
+    required final IndexedQueryMode mode,
+    required final int? maxMatches,
+    required final int? maxExpansions,
+    required final int contextChars,
+  }) async => decodeIndexedSearchResultsWire(
+    _engine.searchIndexQuery(
+      query,
+      mode: mode,
+      maxMatches: maxMatches,
+      maxExpansions: maxExpansions,
+      contextChars: contextChars,
+    ),
+  );
+
+  @override
+  Future<Map<String, Object?>> searchIndexExport() async => _engine.searchIndexExport();
+
+  @override
+  Future<Map<String, Object?>> searchIndexImport(
+    final Map<String, Object?> payload,
+    final SearchIndexIdentity? identity,
+  ) async => _engine.searchIndexImport(payload, identity);
+
+  @override
+  Future<void> searchIndexDrop() async => _engine.searchIndexDrop();
 
   @override
   Future<BookStatistics> computeStatistics() async => _engine.computeStatistics();

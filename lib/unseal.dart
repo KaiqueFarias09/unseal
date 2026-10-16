@@ -52,6 +52,7 @@ export 'src/features/search/index/indexed_query_mode.dart';
 export 'src/features/search/index/indexed_search_results.dart';
 export 'src/features/search/index/search_index_exceptions.dart';
 export 'src/features/search/index/search_index_identity.dart';
+export 'src/features/search/index/search_index_wire.dart';
 export 'src/features/search/index/search_text_tokenizer.dart';
 export 'src/foundation/entities/book/book.dart';
 export 'src/foundation/entities/book/document_book.dart';

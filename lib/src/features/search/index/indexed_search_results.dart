@@ -93,7 +93,9 @@ final class SearchIndexCoverage {
   }
 
   static int _bounded(final Object? value, final String field) {
-    if (value is! int || value < 0 || value > 1 << 40) {
+    // 2^40 as a literal: dart2js shifts wrap at 32 bits, so `1 << 40`
+    // miscompares on the web (the VM gives the 64-bit result).
+    if (value is! int || value < 0 || value > 1099511627776) {
       throw FormatException('searchIndex coverage field $field is out of bounds.');
     }
 

@@ -415,9 +415,12 @@ final class BookSearchIndex {
     }
 
     // Hits anchor on the first token's expansions, so every hit cuts a
-    // real occurrence of the query text.
+    // real occurrence of the query text. All anchor occurrences
+    // collect (bounded by the index's own occurrence cap), sort under
+    // the deterministic order, and only then cut to the match cap —
+    // truncation yields the top of the ranking, never the first
+    // collected.
     final hits = <IndexedSearchHit>[];
-    var isTruncated = false;
     for (final (term, _) in tokenExpansions.first) {
       final postings = _terms.get(term);
       if (postings == null) continue;
@@ -427,10 +430,6 @@ final class BookSearchIndex {
         final section = _sections[sectionId];
         final text = _sectionTextCache[sectionId];
         for (var i = 0; i + 1 < ranges.length; i += 2) {
-          if (hits.length >= matchCap) {
-            isTruncated = true;
-            break;
-          }
           hits.add(
             IndexedSearchHit(
               sectionIndex: section.sectionIndex,
@@ -444,11 +443,14 @@ final class BookSearchIndex {
             ),
           );
         }
-        if (isTruncated) break;
       }
-      if (isTruncated) break;
     }
     hits.sort(_hitOrder);
+    var isTruncated = false;
+    if (hits.length > matchCap) {
+      hits.removeRange(matchCap, hits.length);
+      isTruncated = true;
+    }
 
     return IndexedSearchResults(
       query: query,
@@ -756,16 +758,18 @@ final class BookSearchIndex {
     final tokenCount = sectionWire[2];
     final textLength = sectionWire[3];
     final textRevision = sectionWire[4];
-    if (sectionIndex is! int || sectionIndex < 0 || sectionIndex > 1 << 31) {
+    // 2^31 literals: dart2js shifts wrap at 32 bits (1 << 31 is
+    // negative on the web).
+    if (sectionIndex is! int || sectionIndex < 0 || sectionIndex > 2147483648) {
       throw const FormatException('searchIndex section index is out of bounds.');
     }
     if (path is! String || path.isEmpty || path.length > 4096) {
       throw const FormatException('searchIndex section path is out of bounds.');
     }
-    if (tokenCount is! int || tokenCount < 0 || tokenCount > 1 << 31) {
+    if (tokenCount is! int || tokenCount < 0 || tokenCount > 2147483648) {
       throw const FormatException('searchIndex token count is out of bounds.');
     }
-    if (textLength is! int || textLength < 0 || textLength > 1 << 31) {
+    if (textLength is! int || textLength < 0 || textLength > 2147483648) {
       throw const FormatException('searchIndex text length is out of bounds.');
     }
     if (textRevision is! String || textRevision.length != 64) {

@@ -63,6 +63,23 @@ const String workerOpSessionText = 'sessionText';
 /// Wire protocol op: whole-book search inside the resident session.
 const String workerOpSessionSearch = 'sessionSearch';
 
+/// Wire protocol op: advance the resident session's search index by a
+/// bounded batch of sections.
+const String workerOpSessionSearchIndexEnsure = 'sessionSearchIndexEnsure';
+
+/// Wire protocol op: run an indexed query inside the resident session.
+const String workerOpSessionSearchIndexQuery = 'sessionSearchIndexQuery';
+
+/// Wire protocol op: serialize the resident session's search index.
+const String workerOpSessionSearchIndexExport = 'sessionSearchIndexExport';
+
+/// Wire protocol op: validate and adopt an imported search index in
+/// the resident session.
+const String workerOpSessionSearchIndexImport = 'sessionSearchIndexImport';
+
+/// Wire protocol op: drop the resident session's search index.
+const String workerOpSessionSearchIndexDrop = 'sessionSearchIndexDrop';
+
 /// Wire protocol op: whole-book reading progression inside the
 /// resident session.
 const String workerOpSessionProgression = 'sessionProgression';
@@ -130,6 +147,19 @@ const String wireReplySessionText = 'sessionText';
 /// Wire protocol reply kind: encoded session search results.
 const String wireReplySessionSearch = 'sessionSearch';
 
+/// Wire protocol reply kind: search-index coverage (ensure/import).
+const String wireReplySessionSearchIndexCoverage = 'sessionSearchIndexCoverage';
+
+/// Wire protocol reply kind: encoded indexed search results (query).
+const String wireReplySessionSearchIndexResults = 'sessionSearchIndexResults';
+
+/// Wire protocol reply kind: a serialized search-index payload
+/// (export); the JSON half is the payload itself.
+const String wireReplySessionSearchIndexPayload = 'sessionSearchIndexPayload';
+
+/// Wire protocol reply kind: the resident search index was dropped.
+const String wireReplySessionSearchIndexDrop = 'sessionSearchIndexDrop';
+
 /// Wire protocol reply kind: encoded session reading progression.
 const String wireReplySessionProgression = 'sessionProgression';
 
@@ -164,6 +194,18 @@ const String wireKeyPayload = 'payload';
 /// Session op payload key: identifies the independent progressive
 /// session addressed by this request.
 const String wireKeySessionId = 'sessionId';
+
+/// Search-index op payload key: the bounded batch size of an ensure.
+const String wireKeyMaxSections = 'maxSections';
+
+/// Search-index op payload key: the identity wire of a fresh index.
+const String wireKeyIndexIdentity = 'indexIdentity';
+
+/// Search-index op payload key: the serialized payload of an import.
+const String wireKeyIndexPayload = 'indexPayload';
+
+/// Search-index op payload key: the prefix/fuzzy expansion cap.
+const String wireKeyMaxExpansions = 'maxExpansions';
 
 /// Wire protocol key: reply discriminator.
 const String wireKeyKind = 'kind';
