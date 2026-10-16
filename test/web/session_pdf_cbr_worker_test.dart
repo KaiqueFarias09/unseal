@@ -121,7 +121,13 @@ void main() {
     expect(book.pages.single.path, 'a.jpg');
     // The decoded page matches the pre-image bytes the encoder started
     // from — the worker ran the RAR 5 LZ decoder, not a passthrough.
-    expect(await session.loadResource('a.jpg'), _rar5Page);
+    // Out-of-order across two sessions: the same bytes everywhere.
+    final other = await BookSession.open(bytes);
+    addTearDown(other.dispose);
+    final otherBook = other.book as ComicBook;
+    expect(await other.loadResource(otherBook.pages.single.path), _rar5Page);
+    expect(await session.loadResource(book.pages.single.path), _rar5Page);
+    expect(await session.loadResource(book.pages.single.path), _rar5Page, reason: 'reread');
   });
 
   test('two PDF sessions in the worker stay isolated', () async {
