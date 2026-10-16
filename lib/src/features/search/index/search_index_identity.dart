@@ -116,9 +116,11 @@ String? _optionalString(final Object? value, final String field) {
   return value;
 }
 
-/// The SHA-256 hex digest of [text] as UTF-16 little-endian code units
-/// (no BOM, no normalization, lone surrogates preserved) — the
-/// `textRevision` of the shared contract.
+/// The `sha256:`-prefixed digest of [text]'s UTF-16 little-endian code
+/// units (no BOM, no normalization, lone surrogates preserved) — the
+/// `textRevision` of the shared contract. The bytes match the common
+/// text contract's fixed vectors; the swap to the shared
+/// implementation is a pure code replacement.
 String textRevisionOf(final String text) {
   final units = text.codeUnits;
   final bytes = Uint8List(units.length * 2);
@@ -127,7 +129,7 @@ String textRevisionOf(final String text) {
     bytes[i * 2 + 1] = (units[i] >> 8) & 0xFF;
   }
 
-  return _sha256Hex(bytes);
+  return 'sha256:${_sha256Hex(bytes)}';
 }
 
 /// The SHA-256 hex digest of a reading order, per the shared contract:

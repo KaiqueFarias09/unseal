@@ -1,3 +1,41 @@
+## Unreleased
+
+### Added
+
+- Optional per-publication inverted index (`BookSearchIndex`): ranked search
+  over a book's canonical document text with BM25+ scoring (MiniSearch port),
+  prefix and bounded fuzzy query modes, and hits that cut the original UTF-16
+  text — the same offset space `Book.search` and CFI address. The tokenizer
+  profile is self-contained (no ICU), identical on VM and browser, joins
+  soft-hyphen and zero-width splits inside word runs, and folds Latin
+  diacritics plus Greek and Cyrillic case; exotic scripts index verbatim.
+- Incremental, cancellable construction: sections enter in finite batches
+  (`BookSearchIndex.build` yields between batches; the coverage counters keep
+  eligible, indexed, pending and failed sections apart), queries answer at any
+  construction stage and carry the coverage that produced them — an empty
+  result over a partial index never proves absence in the book.
+- Versioned serialization: `serialize`/`deserialize` payloads record schema,
+  tokenizer and normalization profile, identity and reading-order revision;
+  import validates size, schema, profile, identity and structural bounds
+  before trusting postings and can re-verify every section's text digest
+  against a book or a text resolver. Changing text, order, tokenizer or
+  profile refuses the index typed.
+- Session integration: `BookSession.buildSearchIndex` drives bounded batches
+  through the session's isolate or Web Worker (`searchIndex.*` ops) and
+  `searchIndexed` answers ranked queries; `exportSearchIndex` /
+  `importSearchIndex` move validated indexes between sessions over the same
+  book; `dropSearchIndex` and `dispose` release the index. Persisting an index
+  over PDF text is withheld until the P1 position-mapping acceptance
+  (`SearchIndexUnsupportedException`); in-memory indexing over PDF works.
+- Typed failures distinguish invalid argument, incompatible revision/profile,
+  exceeded limit, cancelled build, disposed index and withheld persistence
+  (`SearchIndex*Exception` hierarchy), across inline, isolate and worker
+  paths.
+- Indexed hits convert to locators (`IndexedSearchHit.toTextLocator`), keep
+  the deterministic C05 tiebreak (score desc, occurrence asc, start asc, end
+  asc), and preserve scores bit-identically through serialization round
+  trips. `Book.search` and its suite are unchanged.
+
 ## 1.2.0 - October 16, 2026
 
 ### Added

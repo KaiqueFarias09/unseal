@@ -772,8 +772,12 @@ final class BookSearchIndex {
     if (textLength is! int || textLength < 0 || textLength > 2147483648) {
       throw const FormatException('searchIndex text length is out of bounds.');
     }
-    if (textRevision is! String || textRevision.length != 64) {
-      throw const FormatException('searchIndex text revision must be a sha256 hex digest.');
+    final isDigest =
+        textRevision is String &&
+        textRevision.startsWith('sha256:') &&
+        textRevision.length == 'sha256:'.length + 64;
+    if (!isDigest) {
+      throw const FormatException('searchIndex text revision must be a sha256: hex digest.');
     }
 
     return _IndexedSection(

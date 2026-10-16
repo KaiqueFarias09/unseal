@@ -28,8 +28,9 @@ document renderer.
 - One API for metadata-only scans and full book parsing.
 - Common models for metadata, HTML content, stylesheets, images, fonts,
   navigation, covers, and reading order.
-- Format detection, full-text search, reading progression, portable locators,
-  EPUB CFI operations, annotation codecs, and OPDS feed parsing.
+- Format detection, full-text search plus an optional ranked inverted index,
+  reading progression, portable locators, EPUB CFI operations, annotation
+  codecs, and OPDS feed parsing.
 - Pure Dart on the Dart VM, Flutter native targets, and browser JavaScript.
 - Optional web-worker parsing for browser applications.
 - Typed exceptions and format-specific recovery paths for damaged input.
@@ -213,6 +214,49 @@ documents, their canonical text and offsets can differ from a full parse.
 Within a session, `loadDocumentText` and `loadPdfPageLines` use the same plan.
 Do not assume that offsets saved from one extraction mode address the same
 passage in the other mode.
+
+### Indexed search
+
+For repeated queries, prefix completion and typo tolerance, build an
+inverted index over a book: ranked BM25+ results, bounded fuzzy matching,
+and hits that cut the same canonical text `Book.search` addresses. `Book.search`
+is unchanged; the index is additive:
+
+```dart
+final index = await BookSearchIndex.build(book); // batches, yields between them
+final results = index.query('navegacao', mode: IndexedQueryMode.prefix);
+final locator = results.hits.first.toTextLocator(); // same offset space as Book.search
+```
+
+Normalization folds case and Latin diacritics (an unaccented query finds
+`navegação`), joins soft-hyphen and zero-width splits inside word runs, and
+folds Greek and Cyrillic case; scripts without tables (CJK, Hangul, Arabic,
+astral planes) index verbatim. Hits carry a snippet, the section's score, and
+the deterministic order score-desc, then section, start, end. Multi-token
+queries require every token and anchor hits on the first token's occurrences.
+Prefix and fuzzy expansion is capped (`SearchIndexLimits.maxExpansions`), so an
+adversarial token fails with `SearchIndexLimitExceededException` instead of
+hanging.
+
+Construction is incremental and observable. `coverage` reports eligible,
+indexed, pending and failed sections; `isComplete` means every eligible
+section is indexed. Queries over a partial index answer from what is indexed
+and carry the coverage, so an empty result never proves absence in the book:
+
+```dart
+final coverage = await session.buildSearchIndex(sectionsPerBatch: 4);
+final found = await session.searchIndexed('nave', mode: IndexedQueryMode.prefix);
+await session.exportSearchIndex(); // versioned payload; import re-verifies digests
+```
+
+Serialized payloads are versioned JSON-safe maps an application may persist.
+Import validates schema, tokenizer profile, identity, reading-order revision
+and structural bounds before trusting postings, and can re-verify every
+section's text digest against a book — changed text, order or profile refuses
+the index with `SearchIndexIncompatibleException`. Persisting an index over
+PDF text is withheld until the position-mapping acceptance; indexes over PDF
+sessions work in memory but refuse to serialize. The index retains its
+sections' text (for snippets) until `dispose`.
 
 ### Format-specific APIs
 

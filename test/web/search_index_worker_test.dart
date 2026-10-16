@@ -102,14 +102,14 @@ void main() {
     // The C02 revision vectors must be byte-identical on the web.
     expect(
       textRevisionOf('abc'),
-      '13e228567e8249fce53337f25d7970de3bd68ab2653424c7b8f9fd05e33caedf',
+      'sha256:13e228567e8249fce53337f25d7970de3bd68ab2653424c7b8f9fd05e33caedf',
     );
     expect(
       readingOrderRevisionOf([
         const ReadingOrderItem(name: 'cap1.html', isHtml: true),
         const ReadingOrderItem(name: 'page1.html', isHtml: false),
       ]),
-      'c51a9bd78f25cfdc73dd96e1b94abdb62d62179030409e39047a294fcd7f6529',
+      'sha256:c51a9bd78f25cfdc73dd96e1b94abdb62d62179030409e39047a294fcd7f6529',
     );
   });
 

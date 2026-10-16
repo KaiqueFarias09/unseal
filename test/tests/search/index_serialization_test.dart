@@ -4,11 +4,11 @@ import 'package:unseal/unseal.dart';
 import 'book_index_fixture.dart';
 
 void main() {
-  group('digest vectors (C02 spec: sha256 over UTF-16LE, no BOM, no normalization)', () {
+  group('digest vectors (C02 spec: sha256: over UTF-16LE, no BOM, no normalization)', () {
     test('empty text matches the well-known sha256 of zero bytes', () {
       expect(
         textRevisionOf(''),
-        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
       );
     });
 
@@ -16,7 +16,7 @@ void main() {
       // sha256('61 00 62 00 63 00').
       expect(
         textRevisionOf('abc'),
-        '13e228567e8249fce53337f25d7970de3bd68ab2653424c7b8f9fd05e33caedf',
+        'sha256:13e228567e8249fce53337f25d7970de3bd68ab2653424c7b8f9fd05e33caedf',
       );
     });
 
@@ -24,7 +24,7 @@ void main() {
       // 'a\uD83D\uDE00b' as UTF-16LE: 61 00 3D D8 00 DE 62 00.
       expect(
         textRevisionOf('a\u{1F600}b'),
-        '5edeaa328793b227772ee0191c405fa048d89982b6593783a4b20e45822dc0d5',
+        'sha256:5edeaa328793b227772ee0191c405fa048d89982b6593783a4b20e45822dc0d5',
       );
     });
 
@@ -35,7 +35,45 @@ void main() {
           const ReadingOrderItem(name: 'cap1.html', isHtml: true),
           const ReadingOrderItem(name: 'page1.html', isHtml: false),
         ]),
-        'c51a9bd78f25cfdc73dd96e1b94abdb62d62179030409e39047a294fcd7f6529',
+        'sha256:c51a9bd78f25cfdc73dd96e1b94abdb62d62179030409e39047a294fcd7f6529',
+      );
+    });
+
+    test('matches the common text contract fixed vectors (P0 conformance)', () {
+      // The vectors A01's P0 pins in test/support/text_identity_vectors.dart;
+      // reproducing them here proves the temporary adapter is
+      // byte-compatible with the shared implementation.
+      expect(
+        textRevisionOf('Página 12 — navegação: "aspas", \\barra\\, fim.'),
+        'sha256:c445486d27e839f4578287fc4f2dfef5d82ba036074c41b6594e0fa87d66ca96',
+      );
+      expect(
+        textRevisionOf('livro 📖 e nota 𝄞'),
+        'sha256:c55e6edcddb9a644fcb3d0d6ee480194b46cfd11614838ae160a57799aa5ae4a',
+      );
+      expect(
+        textRevisionOf('texto \uD800 isolado'),
+        'sha256:e7b719bcc9e5bf7c00c31591338c44ac0244fd0ba96e3c9e8692cde6b8d65034',
+      );
+      expect(
+        readingOrderRevisionOf([
+          const ReadingOrderItem(name: 'page_1.html', isHtml: true),
+          const ReadingOrderItem(name: 'capitulo/um.xhtml', isHtml: true),
+          const ReadingOrderItem(name: 'page_1.html', isHtml: true),
+          const ReadingOrderItem(name: 'imagens/plate.png', isHtml: false),
+        ]),
+        'sha256:cc3d1ae341a73f2213de03ec918935457f2b0a27a6649060b0017b0d41067f80',
+      );
+      // Array position is occurrence identity: reordering changes the
+      // revision.
+      expect(
+        readingOrderRevisionOf([
+          const ReadingOrderItem(name: 'capitulo/um.xhtml', isHtml: true),
+          const ReadingOrderItem(name: 'page_1.html', isHtml: true),
+          const ReadingOrderItem(name: 'page_1.html', isHtml: true),
+          const ReadingOrderItem(name: 'imagens/plate.png', isHtml: false),
+        ]),
+        'sha256:9cd512283c0729adbe3c335bc452cc90b3a630d6328264133a2b50c9b6ae82e8',
       );
     });
   });
@@ -159,7 +197,7 @@ void main() {
           },
           'readingOrderRevision': null,
           'sections': <Object?>[
-            <Object?>[0, 'p0.html', 'many', 5, 'x' * 64],
+            <Object?>[0, 'p0.html', 'many', 5, 'sha256:${'x' * 64}'],
           ],
           'terms': <Object?>[],
         }),
@@ -177,7 +215,7 @@ void main() {
           'identity': null,
           'readingOrderRevision': null,
           'sections': <Object?>[
-            <Object?>[0, 'a.html', 1, 5, 'x' * 64],
+            <Object?>[0, 'a.html', 1, 5, 'sha256:${'x' * 64}'],
           ],
           'terms': <Object?>[
             <Object?>[
@@ -205,7 +243,7 @@ void main() {
           'identity': null,
           'readingOrderRevision': null,
           'sections': <Object?>[
-            <Object?>[0, 'a.html', 1, 5, 'x' * 64],
+            <Object?>[0, 'a.html', 1, 5, 'sha256:${'x' * 64}'],
           ],
           'terms': <Object?>[
             <Object?>[
