@@ -56,6 +56,9 @@ const String workerOpSessionSource = 'sessionSource';
 /// resident session.
 const String workerOpSessionPdfLines = 'sessionPdfLines';
 
+/// Op name: request one PDF page's stable structure from a session.
+const String workerOpSessionPdfStructure = 'sessionPdfStructure';
+
 /// Wire protocol op: canonical document text of one content document
 /// of the resident session.
 const String workerOpSessionText = 'sessionText';
@@ -122,6 +125,9 @@ const String wireReplySessionSource = 'sessionSource';
 /// Wire protocol reply kind: one PDF page's encoded text lines (JSON
 /// null page when the session carries none).
 const String wireReplySessionPdfLines = 'sessionPdfLines';
+
+/// Reply kind: the encoded PDF page structure of one session page.
+const String wireReplySessionPdfStructure = 'sessionPdfStructure';
 
 /// Wire protocol reply kind: one canonical document text (JSON null in
 /// its blob reference when the document does not exist).
@@ -231,6 +237,9 @@ const String wireKeyCount = 'count';
 /// Op payload key: the 0-based page index a `sessionPdfLines` request
 /// addresses.
 const String wireKeyPageIndex = 'pageIndex';
+
+/// Reply key: the encoded PDF page structure.
+const String wireKeyStructure = 'structure';
 
 /// Reply key: the encoded PDF page text (lines, image placements,
 /// page geometry) of a `sessionPdfLines` reply, JSON null when the

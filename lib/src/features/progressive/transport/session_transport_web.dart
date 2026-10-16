@@ -6,6 +6,7 @@ import '../../../foundation/exceptions/unseal_exception.dart';
 import '../../../platform/web/worker_client.dart';
 import '../../cfi/epub_cfi_resolver.dart';
 import '../../pdf/entities/pdf_page_text.dart';
+import '../../pdf/layout/pdf_page_structure.dart';
 import '../../reading/book_progression.dart';
 import '../../search/entities/search_mode.dart';
 import '../../search/entities/search_results.dart';
@@ -120,6 +121,11 @@ final class _WorkerSessionTransport implements SessionTransport {
   @override
   Future<PdfPageText?> pdfLines(final int pageIndex) {
     return _dispatch(() => _client.sessionPdfLinesInWorker(_sessionId, pageIndex));
+  }
+
+  @override
+  Future<PdfPageStructure?> pdfStructure(final int pageIndex) {
+    return _dispatch(() => _client.sessionPdfStructureInWorker(_sessionId, pageIndex));
   }
 
   @override

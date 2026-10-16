@@ -16,6 +16,7 @@ import '../../foundation/exceptions/unseal_exception.dart';
 
 import 'book_wire.dart';
 import 'wire/book_components_wire.dart';
+import 'wire/pdf_structure_wire.dart';
 
 /// Runs one worker op against the request [bytes], the
 /// [residentBook] left behind by the last successful parse and the
@@ -80,6 +81,8 @@ import 'wire/book_components_wire.dart';
       return _sessionSource(payload!, residentSession);
     case workerOpSessionPdfLines:
       return _sessionPdfLines(payload!, residentSession);
+    case workerOpSessionPdfStructure:
+      return _sessionPdfStructure(payload!, residentSession);
     case workerOpSessionText:
       return _sessionText(payload!, residentSession);
     case workerOpSessionSearch:
@@ -264,6 +267,16 @@ _sessionPdfLines(final Map<String, Object?> payload, final SessionEngine? reside
   };
 
   return (kind: wireReplySessionPdfLines, json: json, blobs: const <Object>[], session: null);
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionPdfStructure(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+  final session = _sessionFor(residentSession);
+  final pageIndex = payload[wireKeyPageIndex] as int;
+  final structure = session.loadPdfPageStructure(pageIndex);
+  final json = <String, Object?>{wireKeyStructure: encodePdfPageStructureWire(structure)};
+
+  return (kind: wireReplySessionPdfStructure, json: json, blobs: const <Object>[], session: null);
 }
 
 ({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session}) _sessionText(

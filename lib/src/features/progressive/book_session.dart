@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../foundation/entities/entities.dart';
 import '../cfi/epub_cfi_resolver.dart';
 import '../pdf/entities/pdf_page_text.dart';
+import '../pdf/layout/pdf_page_structure.dart';
 import '../reading/book_progression.dart';
 import '../search/entities/search_mode.dart';
 import '../search/entities/search_results.dart';
@@ -116,6 +117,15 @@ final class BookSession {
   /// page count throw [RangeError]; extraction failures surface typed.
   /// PDF sessions only.
   Future<PdfPageText?> loadPdfPageLines(final int pageIndex) => _transport.pdfLines(pageIndex);
+
+  /// Loads the stable structure of one PDF page (0-based): words,
+  /// blocks, columns and tables with verifiable geometry, the page's
+  /// source-line space and the mapping from source positions into the
+  /// page's canonical text. Built against the session's sampled
+  /// reflow plan. Negative indexes and indexes past the page count
+  /// throw [RangeError]; PDF sessions only.
+  Future<PdfPageStructure?> loadPdfPageStructure(final int pageIndex) =>
+      _transport.pdfStructure(pageIndex);
 
   /// Loads a raw slice of the session's container source: [count] bytes
   /// at [offset], clamped to the end of the source and to

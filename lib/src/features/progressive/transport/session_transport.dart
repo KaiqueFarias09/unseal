@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../../foundation/entities/entities.dart';
 import '../../cfi/epub_cfi_resolver.dart';
 import '../../pdf/entities/pdf_page_text.dart';
+import '../../pdf/layout/pdf_page_structure.dart';
 import '../../reading/book_progression.dart';
 import '../../search/entities/search_mode.dart';
 import '../../search/entities/search_results.dart';
@@ -37,6 +38,10 @@ abstract interface class SessionTransport {
   /// indexes outside the page count and typed failures for
   /// materialization problems. PDF sessions only.
   Future<PdfPageText?> pdfLines(final int pageIndex);
+
+  /// Stable structure of one PDF page (0-based); same error contract
+  /// as [pdfLines]. PDF sessions only.
+  Future<PdfPageStructure?> pdfStructure(final int pageIndex);
 
   /// Whole-book search with the `BookSearch.search` contract.
   Future<SearchResults> search(
@@ -109,6 +114,10 @@ final class InlineSessionTransport implements SessionTransport {
 
   @override
   Future<PdfPageText?> pdfLines(final int pageIndex) async => _engine.loadPdfPageLines(pageIndex);
+
+  @override
+  Future<PdfPageStructure?> pdfStructure(final int pageIndex) async =>
+      _engine.loadPdfPageStructure(pageIndex);
 
   @override
   Future<SearchResults> search(
