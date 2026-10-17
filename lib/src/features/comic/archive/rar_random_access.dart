@@ -214,6 +214,11 @@ final class RarRandomAccess implements ArchiveRandomAccess {
   /// Container position of the next entry the chain can decode.
   int _cursor = 0;
 
+  /// Container position of the farthest entry ever decoded. Chain work
+  /// at or below this mark is a re-decode and charges the replay
+  /// budget — whichever direction it decodes in.
+  int _highWater = -1;
+
   /// Whether a decode failure broke the chain: forward continuation is
   /// impossible until a checkpoint restore rebuilds the dictionary.
   bool _poisoned = false;
@@ -440,13 +445,20 @@ final class RarRandomAccess implements ArchiveRandomAccess {
       }
       final Uint8List decoded;
       if (index >= _cursor) {
+        // Forward walk: intermediate entries build the dictionary.
+        // Anything the session has decoded before is a re-decode and
+        // charges the replay budget first, so alternating jumps across
+        // a decoded region stay bounded like backward replays.
+        _chargeReplay(_cursor, index);
         for (var i = _cursor; i < index; i++) {
           _decodeChainEntry(_records[i]);
         }
+        _chargeReplay(index, index + 1);
         decoded = _decodeChainEntry(entry);
       } else {
         decoded = _replayTo(entry);
       }
+      if (index > _highWater) _highWater = index;
       _verifyCrc(entry, decoded);
 
       return decoded;
@@ -491,18 +503,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
     }
     final from = best == -1 ? 0 : best;
 
-    var replayCost = 0;
-    for (var i = from; i <= index; i++) {
-      final record = _records[i];
-      if (_modeOf(record) == _PayloadMode.rar5) replayCost += record.uncompressedSize;
-    }
-    if (replayCost > _replayBudgetBytes) {
-      throw ComicException(
-        "RAR solid replay of $replayCost bytes exceeds the session's remaining "
-        '$_replayBudgetBytes-byte cumulative replay budget; reopen the archive.',
-      );
-    }
-    _replayBudgetBytes -= replayCost;
+    _chargeReplay(from, index + 1);
 
     final checkpoint = best == -1 ? null : _checkpoints[best];
     if (checkpoint != null) {
@@ -520,6 +521,23 @@ final class RarRandomAccess implements ArchiveRandomAccess {
     }
 
     return _decodeChainEntry(entry);
+  }
+
+  // Charges the cumulative budget for re-decoding the compressed
+  // entries in [from, to) — replay work, priced before it happens.
+  void _chargeReplay(final int from, final int to) {
+    var cost = 0;
+    for (var i = from; i < to && i <= _highWater; i++) {
+      final record = _records[i];
+      if (_modeOf(record) == _PayloadMode.rar5) cost += record.uncompressedSize;
+    }
+    if (cost > _replayBudgetBytes) {
+      throw ComicException(
+        "RAR solid replay of $cost bytes exceeds the session's remaining "
+        '$_replayBudgetBytes-byte cumulative replay budget; reopen the archive.',
+      );
+    }
+    _replayBudgetBytes -= cost;
   }
 
   // Snapshots the dictionary at a served boundary, bounded by count and

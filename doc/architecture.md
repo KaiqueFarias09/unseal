@@ -118,7 +118,10 @@ one session does not replace another.
 
 EPUB and CBZ use random-access ZIP entries; CBR uses the RAR entry source,
 whose compressed entries decode while the session header sniffs page types
-at opening. PDF uses a random-access byte source and a reflow plan to
+at opening. Solid RAR chains decode sequentially through a dictionary
+owned by the session alone; backward access replays from bounded
+checkpoints under a cumulative replay budget, so two sessions never
+share mutable dictionary state. PDF uses a random-access byte source and a reflow plan to
 extract requested pages. Whole-book search, statistics, and progression can
 still traverse all content. The optional search index builds through bounded
 batches with coverage accounting.

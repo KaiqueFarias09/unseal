@@ -2,10 +2,12 @@ import 'dart:convert' as convert;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart' show getCrc32;
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:test/test.dart';
 import 'package:unseal/src/features/comic/archive/rar5_archive.dart';
 import 'package:unseal/src/features/comic/archive/rar5_decoder.dart';
+import 'package:unseal/src/features/comic/archive/rar_random_access.dart';
 import 'package:unseal/src/foundation/archive/zip_byte_source.dart';
 import 'package:unseal/unseal.dart';
 
@@ -46,6 +48,56 @@ Map<String, Uint8List> _decodeEntries(final String name) {
   }
 
   return entries;
+}
+
+/// Returns [bytes] with the entry at [dataStart] declaring [wrongCrc]:
+/// the data CRC field is rewritten and the covering header CRC-32 is
+/// recomputed, so the corruption surfaces at data verification, not at
+/// the header walk.
+Uint8List _forgeDataCrc(final Uint8List bytes, final int dataStart, final int wrongCrc) {
+  var offset = 8; // signature
+  while (offset + 4 <= bytes.length) {
+    final (headerSize, consumedSize) = readRar5Vint(bytes, offset + 4);
+    final bodyStart = offset + 4 + consumedSize;
+    final headerEnd = bodyStart + headerSize;
+    var cursor = bodyStart;
+    int vint() {
+      final (value, consumed) = readRar5Vint(bytes, cursor);
+      cursor += consumed;
+
+      return value;
+    }
+
+    final type = vint();
+    final flags = vint();
+    if (flags & 0x0001 != 0) vint();
+    var dataSize = 0;
+    if (flags & 0x0002 != 0) dataSize = vint();
+    if (type == 2 && headerEnd == dataStart) {
+      final fileFlags = vint();
+      vint(); // unpacked size
+      vint(); // attributes
+      if (fileFlags & 0x0002 != 0) cursor += 4; // mtime
+      expect(fileFlags & 0x0004 != 0, isTrue, reason: 'the entry declares a CRC');
+      final patched = Uint8List.fromList(bytes);
+      final crcOffset = cursor;
+      patched[crcOffset] = wrongCrc & 0xFF;
+      patched[crcOffset + 1] = (wrongCrc >> 8) & 0xFF;
+      patched[crcOffset + 2] = (wrongCrc >> 16) & 0xFF;
+      patched[crcOffset + 3] = (wrongCrc >> 24) & 0xFF;
+      // The header CRC covers the size field and the typed body.
+      final headerCrc = getCrc32(Uint8List.sublistView(patched, offset + 4, headerEnd));
+      patched[offset] = headerCrc & 0xFF;
+      patched[offset + 1] = (headerCrc >> 8) & 0xFF;
+      patched[offset + 2] = (headerCrc >> 16) & 0xFF;
+      patched[offset + 3] = (headerCrc >> 24) & 0xFF;
+
+      return patched;
+    }
+    offset = headerEnd + dataSize;
+    if (offset <= bodyStart - 4) break;
+  }
+  throw StateError('entry header not found for data at $dataStart');
 }
 
 void main() {
@@ -226,6 +278,68 @@ void main() {
           ),
         ),
       );
+    });
+  });
+
+  group('RAR 5 solid corruption is typed (RS03)', () {
+    test('a flipped byte in a continuation entry fails typed on both paths', () {
+      final original = _bytes('rar5-solid-chain.cbr');
+      // Byte 3/4 through the file lands inside a later entry's packed
+      // stream; the chain decode diverges and fails typed (decoder or
+      // CRC), never silently.
+      final corrupted = Uint8List.fromList(original);
+      corrupted[corrupted.length * 3 ~/ 4] ^= 0x20;
+
+      expect(() => parseComicBook(corrupted), throwsA(isA<ComicException>()));
+
+      final source = MemoryZipByteSource(corrupted);
+      final rar = RarRandomAccess.open(source);
+      addTearDown(rar.close);
+      for (final record in rar.entries) {
+        if (!record.isFile || record.isStored) continue;
+        if (record.unsupportedReason(sourceLength: corrupted.length) != null) continue;
+        try {
+          rar.inflate(record);
+        } on ComicException {
+          // Typed failure on some entry of the poisoned chain.
+          return;
+        }
+      }
+      fail('the corrupted chain must fail some entry typed');
+    });
+
+    test('a wrong declared CRC on a solid entry fails typed', () {
+      // Forge the middle entry's declared data CRC: the decode succeeds
+      // but verification must reject.
+      final packed = _bytes('rar5-solid-comic.cbr');
+      final container = readRar5Structure(MemoryZipByteSource(packed));
+      final target = container.entries[2]; // a middle page, solid
+      expect(target.solid, isTrue, reason: 'fixture layout: the page continues the chain');
+      final corrupted = _forgeDataCrc(packed, target.dataStart, 0xDEADBEEF);
+
+      expect(
+        () => parseComicBook(corrupted),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('invalid checksum'),
+          ),
+        ),
+      );
+    });
+
+    test('a declared CRC of zero verifies against real zero content', () {
+      final decoded = _decodeEntries('rar5-solid-mixed.cbr');
+      expect(decoded['mixed/zero-crc.bin'], isNotNull, reason: 'the zero-CRC entry decodes');
+      expect(getCrc32(decoded['mixed/zero-crc.bin']!), 0, reason: 'its real checksum is zero');
+    });
+
+    test('a truncated solid archive fails typed', () {
+      final original = _bytes('rar5-solid-chain.cbr');
+      final truncated = Uint8List.sublistView(original, 0, original.length - 30);
+
+      expect(() => parseComicBook(truncated), throwsA(isA<ComicException>()));
     });
   });
 

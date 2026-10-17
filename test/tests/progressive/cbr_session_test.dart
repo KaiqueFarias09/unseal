@@ -14,6 +14,7 @@ Uint8List _bytes(final String name) =>
 const storedCbr = 'books/comic/synthetic-stored-pages.cbr';
 const method29Cbr = 'books/comic/american-beauty-trading-cards-1909.cbr';
 const rar5CompressedCbr = 'books/comic/rar5/rar5-comic-utf8.cbr';
+const rar5SolidComicCbr = 'books/comic/rar5/rar5-solid-comic.cbr';
 
 /// Opens the session for [bytes] only when the eager parse opens too,
 /// asserting the same outcome class both ways — the open-time parity
@@ -38,7 +39,7 @@ void _expectSessionMatchesEager(final Uint8List bytes) {
 
 void main() {
   group('CBR session × eager parity', () {
-    final fixtures = [storedCbr, method29Cbr, rar5CompressedCbr];
+    final fixtures = [storedCbr, method29Cbr, rar5CompressedCbr, rar5SolidComicCbr];
 
     for (final fixture in fixtures) {
       test('inventory, cover and per-page bytes match the eager parse: $fixture', () {
@@ -288,6 +289,115 @@ void main() {
         }
       }
       expect(loaded, 8, reason: 'every page reloaded exactly through the LRU');
+    });
+  });
+
+  group('CBR solid sessions (RS04/RS06)', () {
+    test('solid pages decode identically in forward, reverse and interleaved order', () {
+      final bytes = _bytes(rar5SolidComicCbr);
+      final engine = SessionEngine.openBytes(bytes);
+      addTearDown(engine.close);
+      final full = Unseal.parse(bytes) as ComicBook;
+      final header = engine.book as ComicBook;
+
+      expect(header.pageCount, greaterThanOrEqualTo(3), reason: 'the chain has several entries');
+      // Forward pass (the open sniff already walked this way), then a
+      // full reverse pass, then interleaved: the eager bytes every time.
+      for (final page in full.pages) {
+        expect(engine.resource(page.path), page.content, reason: 'forward ${page.path}');
+      }
+      for (final page in full.pages.reversed) {
+        expect(engine.resource(page.path), page.content, reason: 'reverse ${page.path}');
+      }
+      final order = [0, full.pages.length - 1, 1, full.pages.length - 2, 0];
+      for (final index in order) {
+        expect(
+          engine.resource(header.pages[index].path),
+          full.pages[index].content,
+          reason: 'interleaved index $index',
+        );
+      }
+    });
+
+    test('reopening a solid archive restarts the chain and serves the same bytes', () {
+      final bytes = _bytes(rar5SolidComicCbr);
+      final full = Unseal.parse(bytes) as ComicBook;
+
+      for (var round = 0; round < 2; round++) {
+        final engine = SessionEngine.openBytes(bytes);
+        addTearDown(engine.close);
+        final header = engine.book as ComicBook;
+        expect(header.pageCount, full.pageCount, reason: 'reopen round $round');
+        for (final page in full.pages.reversed) {
+          expect(engine.resource(page.path), page.content, reason: 'reopen round $round');
+        }
+      }
+    });
+
+    test('two solid sessions interleave requests with isolated dictionaries', () {
+      final bytes = _bytes(rar5SolidComicCbr);
+      final full = Unseal.parse(bytes) as ComicBook;
+      final one = SessionEngine.openBytes(bytes);
+      addTearDown(one.close);
+      final two = SessionEngine.openBytes(bytes);
+      addTearDown(two.close);
+      final paths = [for (final page in (one.book as ComicBook).pages) page.path];
+
+      // Interleaved, opposite directions: one walks forward while two
+      // walks backward; each keeps its own dictionary.
+      for (var i = 0; i < paths.length; i++) {
+        expect(
+          one.resource(paths[i]),
+          full.pages[i].content,
+          reason: 'session one forward step $i',
+        );
+        final backward = paths[paths.length - 1 - i];
+        expect(
+          two.resource(backward),
+          full.pages[paths.length - 1 - i].content,
+          reason: 'session two backward step $i',
+        );
+      }
+      // Re-ask everything from both: still the eager bytes.
+      for (var i = 0; i < paths.length; i++) {
+        expect(one.resource(paths[i]), full.pages[i].content);
+        expect(two.resource(paths[i]), full.pages[i].content);
+      }
+    });
+
+    test('cancelPending and disposal keep solid session semantics', () async {
+      final session = await BookSession.openFile('test/resources/$rar5SolidComicCbr');
+      addTearDown(session.dispose);
+      final paths = [for (final page in (session.book as ComicBook).pages) page.path];
+
+      final loads = [for (final path in paths) session.loadResource(path)];
+      session.cancelPending();
+      for (final load in loads) {
+        await expectLater(load, throwsA(isA<SessionCancelledException>()));
+      }
+      // The session stays usable and serves eager bytes afterwards.
+      final full = Unseal.parse(_bytes(rar5SolidComicCbr)) as ComicBook;
+      expect(await session.loadResource(paths.first), full.pages.first.content);
+    });
+
+    test('a corrupted solid chain fails the session typed at open, like eager', () {
+      final original = _bytes(rar5SolidComicCbr);
+      final corrupted = Uint8List.fromList(original);
+      corrupted[corrupted.length ~/ 2] ^= 0x40;
+
+      Object? eagerOutcome;
+      try {
+        eagerOutcome = (Unseal.parse(corrupted) as ComicBook).pageCount;
+      } on UnsealException catch (error) {
+        eagerOutcome = error;
+      }
+      expect(eagerOutcome, isA<UnsealException>(), reason: 'the corruption breaks the parse');
+
+      expect(
+        () => SessionEngine.openBytes(corrupted),
+        throwsA(isA<ComicException>()),
+        reason: 'the session sniffs every entry at open, so the same failure surfaces',
+      );
     });
   });
 

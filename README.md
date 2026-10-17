@@ -62,7 +62,7 @@ development, and the single [roadmap](doc/roadmap.md).
 | ODT | OpenDocument paragraphs, headings, styles, lists, tables, images, links, and metadata | Semantic conversion; not pixel-perfect LibreOffice layout. |
 | AZW4 | PalmDB/MOBI wrapper validation, PDF extraction, metadata, pages, and original PDF bytes | Requires a valid, unencrypted PDF payload. |
 | CBZ | ZIP comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Page-oriented data; no comic UI is included. |
-| CBR | RAR 4 stored and ordinary non-solid method-29 entries; RAR 5 stored entries and non-solid compressed streams (algorithm version 0, methods 1-5, delta/E8/E8-E9/ARM filters, dictionaries up to 64 MiB) | Split (multi-volume), solid, encrypted, linked entries, PPMd, RAR VM, later algorithm versions, and oversized dictionaries are rejected typed. Solid RAR 5 compression and compressed RAR 4 PPMd/VM streams remain on the roadmap. |
+| CBR | RAR 4 stored and ordinary non-solid method-29 entries; RAR 5 stored entries and compressed streams (algorithm version 0, methods 1-5, delta/E8/E8-E9/ARM filters, dictionaries up to 64 MiB), solid chains included | Split (multi-volume), encrypted, linked entries, PPMd, RAR VM, later algorithm versions, and oversized dictionaries are rejected typed. Solid chains decode sequentially in container order; the per-entry solid bit continues the shared dictionary and the archive-level flag alone leaves entries independent. Compressed RAR 4 PPMd/VM streams remain on the roadmap. |
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, JPEG/JPEG 2000/CCITT/JBIG2 images, and structured layout: words, blocks, columns, tables, and stable source anchors mapped to canonical text | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. JPEG 2000 supports the documented Part 1 subset below. |
@@ -663,7 +663,13 @@ verified against libtiff by `tiffcmp` parity over the tracked corpus
   CRC-32; a declared data CRC-32 (zero included) verifies after decode.
   RAR 5 decoding allocates the declared output before decompressing and
   rejects dictionaries above 64 MiB. Unsupported compression modes,
-  solid or split archives, links, and encrypted entries are rejected.
+  split archives, links, and encrypted entries are rejected. Solid RAR 5
+  chains decode in container order with one dictionary per reader or
+  session; opening a solid CBR decodes every compressed page
+  sequentially while the session sniffs page types (measured by
+  `tool/rar5_bench.dart --solid`), and backward page access replays
+  through bounded checkpoints under a cumulative replay budget, so a
+  session cannot accumulate unbounded replay work.
 - CB7 entries are bounded and parsed asynchronously. Unsupported codecs and
   encrypted entries are rejected.
 - AZW4 requires an unencrypted PDF payload. EPUB font obfuscation supports
