@@ -44,11 +44,12 @@ void main(final List<String> arguments) {
   // expected rejections separately in its report.
   final compareReportPath = '$outDir/compare-report.json';
   final fixtures = <String>[
-    for (final name in Directory('test/resources/books/comic/rar5')
-        .listSync()
-        .whereType<File>()
-        .map((final file) => file.uri.pathSegments.last)
-        .where((final name) => name.endsWith('.cbr') || name.endsWith('.rar')))
+    for (final name
+        in Directory('test/resources/books/comic/rar5')
+            .listSync()
+            .whereType<File>()
+            .map((final file) => file.uri.pathSegments.last)
+            .where((final name) => name.endsWith('.cbr') || name.endsWith('.rar')))
       'test/resources/books/comic/rar5/$name',
   ]..sort();
   final compareRun = _run([
@@ -75,14 +76,14 @@ void main(final List<String> arguments) {
     'RS01',
     compareOk && failures == 0 && compared > 0 && _hasAllSolidArchives(comparatorReport),
     'rardecode + libarchive byte-identical over ${totals['compared']} entries; '
-    'solid archives compared: ${_solidArchiveCount(comparatorReport)}',
+        'solid archives compared: ${_solidArchiveCount(comparatorReport)}',
   );
   verdict(
     'RS02',
     compareOk && failures == 0,
     'methods, dictionaries (128 KiB-64 MiB), filters (delta/E8/E8-E9/ARM), '
-    'empty files, directories, stored-in-chain, zero CRC and UTF-8 paths '
-    'exercised by the pinned corpus; no unexpected variant accepted',
+        'empty files, directories, stored-in-chain, zero CRC and UTF-8 paths '
+        'exercised by the pinned corpus; no unexpected variant accepted',
   );
 
   // RS03: corruption and CRC acceptance tests.
@@ -99,7 +100,7 @@ void main(final List<String> arguments) {
     'RS03',
     corruptionRun.exitCode == 0,
     'corruption suite passed: flipped chain bytes, forged data CRC, '
-    'truncation, and real zero-CRC verification',
+        'truncation, and real zero-CRC verification',
   );
 
   // RS04/RS05/RS06: the VM acceptance suites.
@@ -115,13 +116,13 @@ void main(final List<String> arguments) {
     'RS04',
     sessionRun.exitCode == 0,
     'eager/session parity, forward/reverse/interleaved order, reopen and '
-    'replay behavior all green in the session suites',
+        'replay behavior all green in the session suites',
   );
   verdict(
     'RS05',
     sessionRun.exitCode == 0,
     'cumulative replay budget exhausts typed under hostile alternation; '
-    'checkpoints stay under the 16/96 MiB ceilings; first pass is free',
+        'checkpoints stay under the 16/96 MiB ceilings; first pass is free',
   );
 
   final vmIsolationRun = _run([
@@ -153,14 +154,14 @@ void main(final List<String> arguments) {
     chromeOk = chromeRun.exitCode == 0;
     chromeNote = chromeOk
         ? 'a real worker session serves forward, reverse and interleaved '
-            'loads through the compiled unseal_worker.js'
+              'loads through the compiled unseal_worker.js'
         : 'the Chrome worker run failed';
   }
   verdict(
     'RS06',
     vmIsolationRun.exitCode == 0 && chromeOk,
     'VM: two sessions walk opposite directions with isolated dictionaries; '
-    'Chrome: $chromeNote',
+        'Chrome: $chromeNote',
   );
 
   // RS07: benchmarks, recorded beside the report.
@@ -173,7 +174,7 @@ void main(final List<String> arguments) {
     'RS07',
     benchRun.exitCode == 0,
     'open, eager, forward/reverse walks, repeated decode and RSS growth '
-    'measured against the same-shape non-solid baseline ($benchPath)',
+        'measured against the same-shape non-solid baseline ($benchPath)',
   );
 
   final report = <String, Object?>{

@@ -106,9 +106,7 @@ void main(final List<String> arguments) {
   };
   if (versionsOnly) {
     final versions = report['oracleVersions']! as Map<String, Object>;
-    stdout.writeln(
-      'rardecode: ${versions['rardecode']} (pinned module $rardecodePinnedVersion)',
-    );
+    stdout.writeln('rardecode: ${versions['rardecode']} (pinned module $rardecodePinnedVersion)');
     if (useLibarchive) stdout.writeln('libarchive: ${versions['libarchive']}');
     if (reportPath != null) {
       File(

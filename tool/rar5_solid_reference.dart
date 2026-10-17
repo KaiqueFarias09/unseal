@@ -33,8 +33,10 @@ void main(final List<String> arguments) {
     }
   }
   if (oracleBinary.isEmpty) {
-    stderr.writeln('usage: dart run tool/rar5_solid_reference.dart --oracle=<binary> '
-        '[--bsdtar=path] [--out=dir]');
+    stderr.writeln(
+      'usage: dart run tool/rar5_solid_reference.dart --oracle=<binary> '
+      '[--bsdtar=path] [--out=dir]',
+    );
     exit(2);
   }
 
@@ -92,12 +94,10 @@ void main(final List<String> arguments) {
     // the archive stores NFC), so oracle agreement pairs on content:
     // the sorted (bytes, sha256) multisets must be identical and every
     // digest unique.
-    final rardecodeContents = rardecodeDigests.values.map(
-      (final d) => '${d.length}:${d.digest}',
-    ).toList()..sort();
-    final libarchiveContents = libarchiveDigests.values.map(
-      (final d) => '${d.length}:${d.digest}',
-    ).toList()..sort();
+    final rardecodeContents =
+        rardecodeDigests.values.map((final d) => '${d.length}:${d.digest}').toList()..sort();
+    final libarchiveContents =
+        libarchiveDigests.values.map((final d) => '${d.length}:${d.digest}').toList()..sort();
     if (rardecodeContents.length != libarchiveContents.length ||
         rardecodeContents.toString() != libarchiveContents.toString()) {
       stderr.writeln('FAIL: the oracles diverge on $name');
@@ -115,9 +115,7 @@ void main(final List<String> arguments) {
           {'name': entry.key, 'bytes': entry.value.length, 'sha256': entry.value.digest},
       ],
     });
-    stdout.writeln(
-      '$name: ${rardecodeDigests.length} entries, oracles agree on content',
-    );
+    stdout.writeln('$name: ${rardecodeDigests.length} entries, oracles agree on content');
   }
 
   report['totals'] = {'archives': solidFixtures.length, 'entries': entries};
@@ -137,10 +135,7 @@ Map<String, ({int length, String digest})> _digests(final String dirPath) {
     } on FileSystemException {
       continue; // name-normalized duplicates from concurrent walks
     }
-    digests[relative] = (
-      length: bytes.length,
-      digest: crypto.sha256.convert(bytes).toString(),
-    );
+    digests[relative] = (length: bytes.length, digest: crypto.sha256.convert(bytes).toString());
   }
 
   return digests;
