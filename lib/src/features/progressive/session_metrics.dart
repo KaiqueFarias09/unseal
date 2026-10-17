@@ -119,6 +119,16 @@ final class SessionMetrics {
   /// Current resident cache weight in bytes.
   final int cacheBytesResident;
 
+  /// The wire-ready map, symmetric with [SessionMetrics.fromWire].
+  Map<String, int> toWire() => <String, int>{
+    'containerReads': containerReads,
+    'sourceBytesRead': sourceBytesRead,
+    'unitsDecoded': unitsDecoded,
+    'bytesDecoded': bytesDecoded,
+    'contentBytesMaterialized': contentBytesMaterialized,
+    'cacheBytesResident': cacheBytesResident,
+  };
+
   @override
   String toString() =>
       'SessionMetrics(reads: $containerReads, sourceBytes: $sourceBytesRead, '

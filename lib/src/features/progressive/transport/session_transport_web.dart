@@ -63,7 +63,10 @@ final class _WorkerSessionTransport implements SessionTransport {
   final Map<int, void Function(UnsealException error)> _pending =
       <int, void Function(UnsealException error)>{};
 
-  Future<T> _dispatch<T>(final Future<T> Function() issue) {
+  Future<T> _dispatch<T>(final Future<T> Function() issue) async {
+    // Async so a post-dispose call completes with the typed failure
+    // instead of throwing synchronously, matching the isolate
+    // transport's contract.
     if (_disposed) throw const SessionClosedException();
 
     final request = _nextRequest++;
