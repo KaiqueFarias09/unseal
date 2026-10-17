@@ -41,6 +41,7 @@ class PdbHeader implements PdbRecordAccess {
   }
 
   /// The type and creator identifier at offset 60.
+  @override
   late final String ident;
 
   late final Uint8List _bytes;
@@ -88,6 +89,10 @@ class PdbHeader implements PdbRecordAccess {
 
 /// Random access to Palm Database records.
 abstract class PdbRecordAccess {
+  /// The type and creator identifier at offset 60 (upper-cased), like
+  /// `BOOKMOBI`.
+  String get ident;
+
   /// Number of available records.
   int get count;
 
