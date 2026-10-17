@@ -36,10 +36,15 @@ Future<void> main(final List<String> arguments) async {
   final calibreDir = _stringOption(arguments, '--calibre');
   final outPath = _stringOption(arguments, '--out');
   final includeSession = arguments.contains('--session');
+  if (arguments.contains('--acceptance')) {
+    await _runAcceptance(arguments);
+    return;
+  }
   if (inputPath == null || outPath == null) {
     stderr.writeln(
       'usage: dart run tool/mobi_session_compare.dart --input <file> '
-      '[--calibre <oeb-dir>] --out <report.json> [--session]',
+      '[--calibre <oeb-dir>] --out <report.json> [--session] | '
+      '--acceptance --mobi <file> --azw3 <file> --out <report.json>',
     );
     exit(2);
   }
@@ -451,4 +456,160 @@ String? _stringOption(final List<String> arguments, final String name) {
   if (index < 0 || index + 1 >= arguments.length) return null;
 
   return arguments[index + 1];
+}
+
+// ---------------------------------------------------------------------------
+// B04 acceptance sweep: one case row per MS01–MS07
+// ---------------------------------------------------------------------------
+
+Future<void> _runAcceptance(final List<String> arguments) async {
+  final mobiPath = _stringOption(arguments, '--mobi');
+  final azw3Path = _stringOption(arguments, '--azw3');
+  final outPath = _stringOption(arguments, '--out');
+  final calibreMobi = _stringOption(arguments, '--calibre-mobi');
+  final calibreAzw3 = _stringOption(arguments, '--calibre-azw3');
+  if (mobiPath == null || azw3Path == null || outPath == null) {
+    stderr.writeln('acceptance mode needs --mobi, --azw3 and --out');
+    exit(2);
+  }
+
+  final cases = <Map<String, Object?>>[];
+
+  // MS01/MS02/MS04–MS07 map to the acceptance test groups; each runs as
+  // a real `dart test` invocation so the gate executes the same
+  // behavioral contract CI does.
+  final groups = <(String, String, List<String>)>[
+    (
+      'MS01',
+      'MOBI 6 session open with structural header and on-demand content',
+      ['test/tests/progressive/mobi_session_test.dart'],
+    ),
+    (
+      'MS02',
+      'AZW3/KF8 sessions plus the compression matrix over the real and generated corpus',
+      ['test/tests/progressive/mobi_session_matrix_test.dart'],
+    ),
+    (
+      'MS04',
+      'instrumentation proves open materializes nothing and bounded per-section work',
+      ['test/tests/progressive/mobi_session_metrics_test.dart'],
+    ),
+    (
+      'MS05',
+      'search, index, progression, statistics, reopening and incompatible revision',
+      ['test/tests/progressive/mobi_session_reading_test.dart'],
+    ),
+    (
+      'MS06',
+      'VM isolate sessions: concurrency, out-of-order, cancellation, disposal',
+      ['test/tests/progressive/mobi_session_lifecycle_test.dart'],
+    ),
+    (
+      'MS07',
+      'hostile PalmDB structures, limits and DRM refusal',
+      ['test/tests/progressive/mobi_session_hostile_test.dart'],
+    ),
+  ];
+  for (final (id, description, files) in groups) {
+    final result = await _runDartTest(files);
+    cases.add(
+      _case(id, description, result ? 'pass' : 'fail', {'command': 'dart test ${files.join(' ')}'}),
+    );
+  }
+
+  // MS06's Chrome half: the real Web Worker lane for MOBI sessions.
+  final chromeOk = await _runChromeWorkerTest();
+  final ms06 = cases.firstWhere((final row) => row['id'] == 'MS06');
+  ms06['chromeWorker'] = chromeOk ? 'pass' : 'fail';
+  if (!chromeOk) ms06['verdict'] = 'fail';
+
+  // MS03: content parity eager ↔ session and the independent Calibre
+  // comparison, under the frozen rules.
+  final parity = <Map<String, Object?>>[];
+  var parityOk = true;
+  final inputs = <(String, String?)>[(mobiPath, calibreMobi), (azw3Path, calibreAzw3)];
+  for (final (path, calibreDir) in inputs) {
+    final bytes = File(path).readAsBytesSync();
+    final eager = _eagerFingerprint(bytes);
+    final rows = await _sessionCaseRows(await BookSession.open(bytes), eager);
+    for (final row in rows) {
+      if ((row['verdict'] as String) != 'pass') parityOk = false;
+      parity.add(<String, Object?>{'input': path, 'case': row['id'], 'verdict': row['verdict']});
+    }
+    if (calibreDir != null) {
+      final row = _calibreCase(calibreDir, eager);
+      if ((row['verdict'] as String) != 'pass') parityOk = false;
+      parity.add(<String, Object?>{'input': path, 'case': 'calibre', 'verdict': row['verdict']});
+    }
+  }
+  cases.add(
+    _case(
+      'MS03',
+      'eager/session parity and Calibre comparison under the frozen rules',
+      parityOk ? 'pass' : 'fail',
+      {'rows': parity},
+    ),
+  );
+
+  final report = <String, Object?>{
+    'schemaVersion': 1,
+    'mode': 'acceptance',
+    'generatedAt': DateTime.now().toUtc().toIso8601String(),
+    'cases': cases,
+  };
+  final outFile = File(outPath);
+  await outFile.parent.create(recursive: true);
+  await outFile.writeAsString(const JsonEncoder.withIndent('  ').convert(report));
+
+  final failed = cases
+      .where((final row) => (row['verdict'] as String) != 'pass')
+      .map((final row) => row['id'])
+      .toList();
+  if (failed.isNotEmpty) {
+    stderr.writeln('acceptance FAILED for: $failed');
+    exit(1);
+  }
+  stdout.writeln('acceptance OK: ${cases.length} cases -> $outPath');
+}
+
+/// The same VM this tool runs under, so the acceptance sweep needs no
+/// PATH setup.
+String get _dartBin => Platform.resolvedExecutable;
+
+Future<bool> _runDartTest(final List<String> files) async {
+  final result = await Process.run(_dartBin, ['test', ...files]);
+
+  return result.exitCode == 0;
+}
+
+Future<bool> _runChromeWorkerTest() async {
+  // Compile the worker, run the browser lane for MOBI sessions, clean
+  // the artifacts — the same ritual CI's chrome lane uses.
+  final compile = await Process.run(_dartBin, [
+    'compile',
+    'js',
+    'web/unseal_worker.dart',
+    '-o',
+    'test/web/unseal_worker.js',
+  ]);
+  if (compile.exitCode != 0) return false;
+  try {
+    final run = await Process.run(_dartBin, [
+      'test',
+      '-p',
+      'chrome',
+      'test/web/session_mobi_worker_test.dart',
+    ]);
+
+    return run.exitCode == 0;
+  } finally {
+    for (final artifact in [
+      'test/web/unseal_worker.js',
+      'test/web/unseal_worker.js.deps',
+      'test/web/unseal_worker.js.map',
+    ]) {
+      final file = File(artifact);
+      if (file.existsSync()) file.deleteSync();
+    }
+  }
 }
