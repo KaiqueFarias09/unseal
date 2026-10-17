@@ -218,6 +218,8 @@ def main() -> int:
     for target_name, mutation in (("goody-page2-tesseract.xml", MALFORMED_MUTATION),):
         xml = (inputs / target_name).read_text()
         malformed = inputs / mutation[0]
+        if malformed.exists():
+            malformed.chmod(0o644)
         malformed.write_text(xml.replace(mutation[1], mutation[2]))
         malformed.chmod(0o444)
         code, output = xmllint(alto31, malformed)
