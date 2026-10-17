@@ -43,6 +43,7 @@ void main(final List<String> arguments) {
   var bsdtar = '/usr/bin/bsdtar';
   var workDir = 'build/rar5-compare';
   var allowReject = false;
+  var versionsOnly = false;
   String? reportPath;
   for (final argument in arguments) {
     if (argument.startsWith('--oracle=')) {
@@ -55,11 +56,13 @@ void main(final List<String> arguments) {
       reportPath = argument.substring('--report='.length);
     } else if (argument == '--allow-reject') {
       allowReject = true;
+    } else if (argument == '--versions-only') {
+      versionsOnly = true;
     } else {
       archives.add(argument);
     }
   }
-  if (archives.isEmpty) {
+  if (archives.isEmpty && !versionsOnly) {
     stderr.writeln(
       'usage: dart run tool/rar5_compare.dart <archive.rar> '
       '[--oracle=rardecode|libarchive|both] [--bsdtar=path] [--workdir=dir] '
@@ -101,6 +104,20 @@ void main(final List<String> arguments) {
     },
     'archives': <Object>[],
   };
+  if (versionsOnly) {
+    final versions = report['oracleVersions']! as Map<String, Object>;
+    stdout.writeln(
+      'rardecode: ${versions['rardecode']} (pinned module $rardecodePinnedVersion)',
+    );
+    if (useLibarchive) stdout.writeln('libarchive: ${versions['libarchive']}');
+    if (reportPath != null) {
+      File(
+        reportPath,
+      ).writeAsStringSync('${const convert.JsonEncoder.withIndent('  ').convert(report)}\n');
+    }
+
+    return;
+  }
   var totalCompared = 0;
   var totalRejects = 0;
   var failures = 0;

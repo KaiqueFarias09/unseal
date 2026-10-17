@@ -59,7 +59,6 @@ Uint8List buildRar5Archive({
   final List<int?>? entryFilters,
   final Set<String> directoryNames = const {},
 }) {
-  final windowSize = 0x20000 << dictExp;
   final body = BytesBuilder();
   body.add([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
 
