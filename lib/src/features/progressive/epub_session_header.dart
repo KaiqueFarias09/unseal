@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 
 import '../../foundation/archive/archive_access.dart';
+import '../../foundation/archive/async_zip_random_access.dart';
 import '../../foundation/archive/zip_random_access.dart';
 import '../../foundation/entities/entities.dart';
 import '../epub/codec/epub_xml.dart';
@@ -37,15 +38,15 @@ const _encryptionEntryPath = 'META-INF/encryption.xml';
 /// reflowable documents declaring a `<meta name="viewport">` in their
 /// content are absent, and nothing in the reading pipeline consults
 /// viewports for reflowable items.
-EpubBook buildEpubSessionHeader(
-  final ZipRandomAccess source, {
+Future<EpubBook> buildEpubSessionHeader(
+  final AsyncZipRandomAccess source, {
   final String? rootFilePath,
   final SessionPolicy policy = const SessionPolicy(),
-}) {
+}) async {
   final partial = _PartialArchive(source);
-  final selectedRootFilePath = _selectRootFilePath(source, partial, rootFilePath);
-  final (path: _, package: package) = _readPackage(source, partial, selectedRootFilePath);
-  _inflateNavigationEntries(source, partial, package, selectedRootFilePath);
+  final selectedRootFilePath = await _selectRootFilePath(source, partial, rootFilePath);
+  final (path: _, package: package) = await _readPackage(source, partial, selectedRootFilePath);
+  await _inflateNavigationEntries(source, partial, package, selectedRootFilePath);
   final navigationSections = getEpubNavigationSections(
     package,
     partial.archive,
@@ -55,13 +56,13 @@ EpubBook buildEpubSessionHeader(
   EpubEncryption? encryption;
   final encryptionRecord = source.find(_encryptionEntryPath);
   if (encryptionRecord != null) {
-    partial.add(_encryptionEntryPath);
+    await partial.add(_encryptionEntryPath);
     encryption = EpubEncryption.fromArchive(partial.archive, package);
   }
 
   final spine = _resolveSpine(source, package, selectedRootFilePath);
-  final cover = _loadCover(source, package, selectedRootFilePath, policy);
-  final contentViewports = _extractPrePaginatedViewports(source, package, spine, encryption);
+  final cover = await _loadCover(source, package, selectedRootFilePath, policy);
+  final contentViewports = await _extractPrePaginatedViewports(source, package, spine, encryption);
 
   return EpubBook(
     navigation: navigationSections.toc,
@@ -83,24 +84,24 @@ EpubBook buildEpubSessionHeader(
   );
 }
 
-({String path, EpubPackage package}) _readPackage(
-  final ZipRandomAccess source,
+Future<({String path, EpubPackage package})> _readPackage(
+  final AsyncZipRandomAccess source,
   final _PartialArchive partial,
   final String selectedRootFilePath,
-) {
+) async {
   final record = source.find(selectedRootFilePath);
   if (record == null) throw EpubException('No root file found at $selectedRootFilePath');
 
-  final bytes = partial.add(selectedRootFilePath);
+  final bytes = await partial.add(selectedRootFilePath);
 
   return (path: selectedRootFilePath, package: parsePackageBytes(bytes as List<int>));
 }
 
-String _selectRootFilePath(
-  final ZipRandomAccess source,
+Future<String> _selectRootFilePath(
+  final AsyncZipRandomAccess source,
   final _PartialArchive partial,
   final String? rootFilePath,
-) {
+) async {
   if (rootFilePath != null) {
     final normalized = normalizeZipPath(rootFilePath);
     if (source.find(normalized) != null) return normalized;
@@ -109,12 +110,14 @@ String _selectRootFilePath(
   }
 
   final containerRecord = source.find(_containerEntryPath);
-  if (containerRecord != null) partial.add(_containerEntryPath);
+  if (containerRecord != null) await partial.add(_containerEntryPath);
   if (source.find(_containerEntryPath) == null || findEpubRootFilePath(partial.archive) == null) {
     // Container absent or unusable: recover by scanning every .opf
     // entry, like the eager path does.
     for (final record in source.entries) {
-      if (record.isFile && record.name.toLowerCase().endsWith('.opf')) partial.add(record.name);
+      if (record.isFile && record.name.toLowerCase().endsWith('.opf')) {
+        await partial.add(record.name);
+      }
     }
   }
   final discovered = findEpubRootFilePath(partial.archive);
@@ -127,12 +130,12 @@ String _selectRootFilePath(
 /// manifest item flagged `properties="nav"`, every NCX item, and the
 /// spine's declared `toc` — the same candidate order the reader itself
 /// walks.
-void _inflateNavigationEntries(
-  final ZipRandomAccess source,
+Future<void> _inflateNavigationEntries(
+  final AsyncZipRandomAccess source,
   final _PartialArchive partial,
   final EpubPackage package,
   final String? rootFilePath,
-) {
+) async {
   final candidatePaths = <String>{};
   void consider(final ManifestItem? item) {
     if (item == null) return;
@@ -149,7 +152,7 @@ void _inflateNavigationEntries(
   }
 
   for (final candidate in candidatePaths) {
-    if (source.find(candidate) != null) partial.add(candidate);
+    if (source.find(candidate) != null) await partial.add(candidate);
   }
 }
 
@@ -168,7 +171,7 @@ ManifestItem? _itemById(final EpubPackage package, final String? id) {
 /// joins the reading order when its manifest item classifies as an HTML
 /// content document and its entry exists.
 ({List<String> paths, List<String> idrefs})? _resolveSpine(
-  final ZipRandomAccess source,
+  final AsyncZipRandomAccess source,
   final EpubPackage package,
   final String? rootFilePath,
 ) {
@@ -202,12 +205,12 @@ ManifestItem? _itemById(final EpubPackage package, final String? id) {
 
 /// Inflates the cover entry unless it exceeds the policy cap; an
 /// oversized cover yields an empty cover file, mirroring "no cover".
-BinaryFile _loadCover(
-  final ZipRandomAccess source,
+Future<BinaryFile> _loadCover(
+  final AsyncZipRandomAccess source,
   final EpubPackage package,
   final String? rootFilePath,
   final SessionPolicy policy,
-) {
+) async {
   final coverItem = resolveCoverItem(package);
   if (coverItem == null) return BinaryFile.empty();
 
@@ -216,7 +219,7 @@ BinaryFile _loadCover(
   if (record == null) return BinaryFile.empty();
   if (record.uncompressedSize > policy.coverMaxBytes) return BinaryFile.empty();
 
-  final bytes = source.inflate(record);
+  final bytes = await source.inflate(record);
   final name = record.name.split('/').last;
   final dot = name.lastIndexOf('.');
 
@@ -230,12 +233,12 @@ BinaryFile _loadCover(
 
 /// Viewports of pre-paginated spine documents, extracted from their
 /// content; reflowable documents are not inflated here.
-Map<String, EpubViewport> _extractPrePaginatedViewports(
-  final ZipRandomAccess source,
+Future<Map<String, EpubViewport>> _extractPrePaginatedViewports(
+  final AsyncZipRandomAccess source,
   final EpubPackage package,
   final ({List<String> paths, List<String> idrefs})? spine,
   final EpubEncryption? encryption,
-) {
+) async {
   if (spine == null) return const <String, EpubViewport>{};
   if (package is! Epub3Package) return const <String, EpubViewport>{};
 
@@ -247,7 +250,7 @@ Map<String, EpubViewport> _extractPrePaginatedViewports(
     final record = source.find(spine.paths[index]);
     if (record == null) continue;
 
-    final bytes = _inflateDecrypting(source, record, encryption);
+    final bytes = await _inflateDecrypting(source, record, encryption);
     files.add(TextFile(content: decodeEpubText(bytes), name: '', type: '', path: record.name));
   }
 
@@ -258,7 +261,7 @@ Map<String, EpubViewport> _extractPrePaginatedViewports(
 
 /// Container inventory in the same (path, uncompressed-size) shape the
 /// eager parse records.
-List<ArchiveEntry> _archiveEntries(final ZipRandomAccess source) {
+List<ArchiveEntry> _archiveEntries(final AsyncZipRandomAccess source) {
   return <ArchiveEntry>[
     for (final record in source.entries)
       if (record.isFile)
@@ -266,12 +269,12 @@ List<ArchiveEntry> _archiveEntries(final ZipRandomAccess source) {
   ];
 }
 
-Uint8List _inflateDecrypting(
-  final ZipRandomAccess source,
+Future<Uint8List> _inflateDecrypting(
+  final AsyncZipRandomAccess source,
   final ZipEntryRecord record,
   final EpubEncryption? encryption,
-) {
-  final bytes = source.inflate(record);
+) async {
+  final bytes = await source.inflate(record);
   if (encryption == null) return bytes;
 
   return encryption.decodeFont(_asArchiveFile(record, bytes));
@@ -282,15 +285,17 @@ ArchiveFile _asArchiveFile(final ZipEntryRecord record, final Uint8List bytes) {
 }
 
 /// Inflates container documents lazily, once each, into a small
-/// [Archive] handed to the unmodified EPUB readers.
+/// [Archive] handed to the unmodified EPUB readers. Each [add] awaits
+/// one ranged read pair (local header plus payload) over the
+/// session's async source.
 final class _PartialArchive {
   _PartialArchive(this._source);
 
-  final ZipRandomAccess _source;
+  final AsyncZipRandomAccess _source;
   final Archive archive = Archive();
   final Set<String> _added = <String>{};
 
-  Uint8List add(final String path) {
+  Future<Uint8List> add(final String path) async {
     final normalized = normalizeZipPath(path);
     final existing = _added.lookup(normalized);
     if (existing != null) return contentBytes(findArchiveFile(archive, normalized)!);
@@ -298,7 +303,7 @@ final class _PartialArchive {
     final record = _source.find(normalized);
     if (record == null) throw EpubException('Container entry $normalized is missing.');
 
-    final bytes = _source.inflate(record);
+    final bytes = await _source.inflate(record);
     final materialized = ArchiveFile.bytes(record.name, bytes)
       ..isFile = record.isFile
       ..crc32 = record.crc32;

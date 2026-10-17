@@ -2,6 +2,7 @@ import 'dart:convert' as convert;
 import 'dart:typed_data';
 
 import '../../foundation/archive/archive_random_access.dart';
+import '../../foundation/archive/async_archive_random_access.dart';
 import '../../foundation/entities/entities.dart' hide ArchiveEntry;
 import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';
@@ -25,13 +26,13 @@ const _sniffBytes = 64;
 /// stored under unusual names. The cover inflates unless it exceeds
 /// [SessionPolicy.coverMaxBytes]; its pixel dimensions are only known
 /// when the cover is materialized.
-ComicBook buildComicSessionHeader(
-  final ArchiveRandomAccess source, {
+Future<ComicBook> buildComicSessionHeader(
+  final AsyncArchiveRandomAccess source, {
   required final BookFormat format,
   final SessionPolicy policy = const SessionPolicy(),
-}) {
-  final comicInfo = _readComicInfo(source);
-  final pages = _pageRecords(source);
+}) async {
+  final comicInfo = await _readComicInfo(source);
+  final pages = await _pageRecords(source);
   if (pages.isEmpty) throw const ComicException('No image pages found in the comic archive.');
 
   final images = <BinaryFile>[
@@ -48,7 +49,7 @@ ComicBook buildComicSessionHeader(
   final declaredCoverIndex = pageInfo.indexWhere(
     (final page) => page.type == ComicPageType.frontCover,
   );
-  final cover = _materializeCover(
+  final cover = await _materializeCover(
     source,
     images[declaredCoverIndex < 0 ? 0 : declaredCoverIndex],
     policy,
@@ -88,13 +89,13 @@ class _PageRecord {
 /// Container entries that sniff as images, in the natural page order of
 /// the full parse: uniform directory depths sort by full path, mixed
 /// depths sort by basename with the full path as tie-breaker.
-List<_PageRecord> _pageRecords(final ArchiveRandomAccess source) {
+Future<List<_PageRecord>> _pageRecords(final AsyncArchiveRandomAccess source) async {
   final candidates = <_PageRecord>[];
   for (final record in source.entries) {
     if (!record.isFile) continue;
     if (record.name.toLowerCase() == 'comicinfo.xml') continue;
 
-    final sniffed = sniffImageType(source.head(record, _sniffBytes));
+    final sniffed = sniffImageType(await source.head(record, _sniffBytes));
     if (sniffed != null) candidates.add(_PageRecord(record, sniffed));
   }
 
@@ -117,28 +118,28 @@ List<_PageRecord> _pageRecords(final ArchiveRandomAccess source) {
 
 /// The comic's first page in reading order, materialized when it fits
 /// the policy cap; the empty file mirrors "cover not available".
-BinaryFile _materializeCover(
-  final ArchiveRandomAccess source,
+Future<BinaryFile> _materializeCover(
+  final AsyncArchiveRandomAccess source,
   final BinaryFile placeholder,
   final SessionPolicy policy,
-) {
+) async {
   final record = source.find(placeholder.path);
   if (record == null || record.uncompressedSize > policy.coverMaxBytes) return BinaryFile.empty();
 
   return BinaryFile(
-    content: source.inflate(record),
+    content: await source.inflate(record),
     name: placeholder.name,
     type: placeholder.type,
     path: placeholder.path,
   );
 }
 
-ComicInfo? _readComicInfo(final ArchiveRandomAccess source) {
+Future<ComicInfo?> _readComicInfo(final AsyncArchiveRandomAccess source) async {
   final record = source.find('ComicInfo.xml');
   if (record == null) return null;
 
   // An unparsable ComicInfo degrades to default metadata, like the full parse.
-  return ComicInfo.parse(convert.utf8.decode(source.inflate(record), allowMalformed: true));
+  return ComicInfo.parse(convert.utf8.decode(await source.inflate(record), allowMalformed: true));
 }
 
 String _basename(final String path) {

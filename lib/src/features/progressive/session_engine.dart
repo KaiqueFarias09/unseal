@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:convert' as convert;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../../foundation/archive/archive_random_access.dart';
+import '../../foundation/archive/async_archive_random_access.dart';
+import '../../foundation/archive/async_byte_reader.dart';
+import '../../foundation/archive/async_zip_random_access.dart';
 import '../../foundation/archive/zip_byte_source.dart';
-import '../../foundation/archive/zip_random_access.dart';
 import '../../foundation/entities/entities.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
 import '../../foundation/images/image_type_sniffer.dart';
@@ -53,15 +55,28 @@ final RegExp _pdfImagePathPattern = RegExp(r'^images/pdf-image-(\d+)\.(\w+)$');
 
 /// Parses a book's structure up front and serves its content on demand.
 ///
-/// The engine is pure and synchronous: it owns an [ArchiveRandomAccess]
-/// source (zip or RAR) plus a byte-budgeted LRU of inflated entries and
-/// runs inside whatever host the platform layer chooses — a long-lived
-/// isolate, a Web Worker, or the calling thread as a fallback.
-/// Transports turn its results into small messages; the parsed book
-/// never crosses a boundary whole.
+/// Every content operation is asynchronous: the engine owns an
+/// [AsyncArchiveRandomAccess] source (zip or RAR) plus a byte-budgeted
+/// LRU of inflated entries, and reads bytes through an [AsyncByteReader]
+/// — in memory, a file, or a host's remote byte source reached through
+/// the transport's bridge. The engine runs inside whatever host the
+/// platform layer chooses — a long-lived isolate, a Web Worker, or the
+/// calling thread as a fallback. Transports turn its results into
+/// small messages; the parsed book never crosses a boundary whole.
+///
+/// Remote byte sources cover EPUB and CBZ ([openRemote]); RAR and PDF
+/// sessions keep opening from bytes or files, whose reads complete
+/// immediately through the synchronous adapters.
 final class SessionEngine {
-  SessionEngine._(this.book, this._source, this._bytes, this._byteLength, this._policy)
-    : _htmlPathSpace = book is EpubBook;
+  SessionEngine._(
+    this.book,
+    this._source,
+    this._bytes,
+    this._byteLength,
+    this._policy, {
+    required final bool ownsReader,
+  }) : _ownsReader = ownsReader,
+       _htmlPathSpace = book is EpubBook;
 
   /// Opens [bytes], inflating only the container's structural
   /// documents.
@@ -69,11 +84,11 @@ final class SessionEngine {
   /// Throws [SessionUnsupportedFormatException] for formats the
   /// progressive slice does not cover (everything but EPUB, CBZ, CBR
   /// and PDF today); callers fall back to `Unseal.read`.
-  factory SessionEngine.openBytes(
+  static Future<SessionEngine> openBytes(
     final Uint8List bytes, {
     final String password = '',
     final SessionPolicy policy = const SessionPolicy(),
-  }) {
+  }) async {
     if (bytes.isEmpty) throw EmptyBytesException();
 
     final detected = detectFormat(bytes);
@@ -81,19 +96,39 @@ final class SessionEngine {
       case DetectedFormat.epub:
         // Zip containers are refined by inventory: EPUB or CBZ.
         final container = MemoryZipByteSource(bytes);
+        final reader = SyncAsyncByteReader(container);
 
-        return _openZipSource(ZipRandomAccess.open(container), container, detected, policy);
+        return _openZipSource(
+          await AsyncZipRandomAccess.open(reader),
+          reader,
+          detected,
+          policy,
+          ownsReader: true,
+        );
       case DetectedFormat.comic:
         // The comic detection signature is the RAR marker.
         final container = MemoryZipByteSource(bytes);
+        final reader = SyncAsyncByteReader(container);
 
-        return _openComicSource(RarRandomAccess.open(container), container, policy);
+        return _openComicSource(
+          SyncAsyncArchive(RarRandomAccess.open(container)),
+          reader,
+          policy,
+          ownsReader: true,
+        );
       case DetectedFormat.pdf:
         // The document parser keeps the bytes as views; the raw
         // source stays addressable for the range op.
         final container = MemoryZipByteSource(bytes);
+        final reader = SyncAsyncByteReader(container);
 
-        return _openPdfSource(MemoryPdfByteSource(bytes), container, policy, password);
+        return _openPdfSource(
+          MemoryPdfByteSource(bytes),
+          reader,
+          policy,
+          password,
+          ownsReader: true,
+        );
       default:
         throw SessionUnsupportedFormatException(
           'The ${detected.name} format has no progressive session support; '
@@ -102,50 +137,63 @@ final class SessionEngine {
     }
   }
 
-  /// Opens a random-access byte source (file-backed on the VM). A
-  /// bounded prefix rejects formats that are not ZIP or RAR containers;
-  /// the inventory then distinguishes EPUB from CBZ. Container-level
-  /// guard failures (including [Zip64NotSupportedException]) surface
-  /// from here.
-  factory SessionEngine.openSource(
+  /// Opens a random-access byte source (file-backed on the VM). The
+  /// engine takes ownership: closing the session closes [source]. A
+  /// bounded prefix rejects formats that are not ZIP or RAR
+  /// containers; the inventory then distinguishes EPUB from CBZ.
+  /// Container-level guard failures — corrupt directories, zip64
+  /// declarations, safety-cap violations — surface typed from here.
+  static Future<SessionEngine> openSource(
     final ZipByteSource source, {
     final String password = '',
     final SessionPolicy policy = const SessionPolicy(),
-  }) {
+  }) async {
     if (source.length == 0) {
       source.close();
       throw EmptyBytesException();
     }
 
+    final reader = SyncAsyncByteReader(source);
     final prefixLength = source.length < _sessionFormatProbeBytes
         ? source.length
         : _sessionFormatProbeBytes;
     final DetectedFormat detected;
     try {
-      detected = detectFormat(source.read(0, prefixLength));
+      detected = detectFormat(await reader.read(0, prefixLength));
     } on FormatNotSupportedException {
-      source.close();
+      reader.close();
       throw const SessionUnsupportedFormatException(
         'This format has no progressive session support; open it with Unseal.readFile instead.',
       );
     } on Object {
-      source.close();
+      reader.close();
       rethrow;
     }
 
     switch (detected) {
       case DetectedFormat.comic:
         try {
-          return _openComicSource(RarRandomAccess.open(source), source, policy);
+          return await _openComicSource(
+            SyncAsyncArchive(RarRandomAccess.open(source)),
+            reader,
+            policy,
+            ownsReader: true,
+          );
         } on Object {
-          source.close();
+          reader.close();
           rethrow;
         }
       case DetectedFormat.epub:
         try {
-          return _openZipSource(ZipRandomAccess.open(source), source, detected, policy);
+          return await _openZipSource(
+            await AsyncZipRandomAccess.open(reader),
+            reader,
+            detected,
+            policy,
+            ownsReader: true,
+          );
         } on Object {
-          source.close();
+          reader.close();
           rethrow;
         }
       case DetectedFormat.pdf:
@@ -153,16 +201,78 @@ final class SessionEngine {
         // range op: the PdfByteSource is a view over the same
         // ZipByteSource, so no second file descriptor opens.
         try {
-          return _openPdfSource(_PdfSourceOverZip(source), source, policy, password);
+          return await _openPdfSource(
+            _PdfSourceOverZip(source),
+            reader,
+            policy,
+            password,
+            ownsReader: true,
+          );
         } on Object {
-          source.close();
+          reader.close();
           rethrow;
         }
       default:
-        source.close();
+        reader.close();
         throw SessionUnsupportedFormatException(
           'The ${detected.name} format has no progressive session support; '
           'open it with Unseal.readFile instead.',
+        );
+    }
+  }
+
+  /// Opens a host-provided byte source — the remote path of
+  /// `BookSession.openSource`. Only EPUB and CBZ are covered: RAR and
+  /// PDF sessions keep their bytes/file opens this round, and other
+  /// ZIP books (office documents, zipped FB2/HTML/TXT, Calibre
+  /// collections) are refused explicitly, like the eager dispatch.
+  ///
+  /// The engine does not own [reader]: the transport's gate closes the
+  /// host source when the session is disposed. See `BookSession.openSource`
+  /// for the public entry.
+  static Future<SessionEngine> openRemote(
+    final AsyncByteReader reader, {
+    final String password = '',
+    final SessionPolicy policy = const SessionPolicy(),
+  }) async {
+    if (reader.length == 0) throw EmptyBytesException();
+
+    final prefixLength = reader.length < _sessionFormatProbeBytes
+        ? reader.length
+        : _sessionFormatProbeBytes;
+    final DetectedFormat detected;
+    try {
+      detected = detectFormat(await reader.read(0, prefixLength));
+    } on FormatNotSupportedException {
+      throw const SessionUnsupportedFormatException(
+        'This format has no progressive session support over a byte source; '
+        'open it with Unseal.read instead.',
+      );
+    }
+
+    switch (detected) {
+      case DetectedFormat.comic:
+        throw const SessionUnsupportedFormatException(
+          'CBR (RAR) sessions do not open over external byte sources; '
+          'use BookSession.open or openFile.',
+        );
+      case DetectedFormat.pdf:
+        throw const SessionUnsupportedFormatException(
+          'PDF sessions do not open over external byte sources; '
+          'use BookSession.open or openFile.',
+        );
+      case DetectedFormat.epub:
+        return _openZipSource(
+          await AsyncZipRandomAccess.open(reader),
+          reader,
+          detected,
+          policy,
+          ownsReader: false,
+        );
+      default:
+        throw SessionUnsupportedFormatException(
+          'The ${detected.name} format has no progressive session support; '
+          'open it with Unseal.read instead.',
         );
     }
   }
@@ -174,12 +284,16 @@ final class SessionEngine {
 
   /// The archive container for the zip/RAR branches; null for PDF,
   /// which owns no archive — its content ops route through [_pdf].
-  final ArchiveRandomAccess? _source;
+  final AsyncArchiveRandomAccess? _source;
 
   /// The raw container source the range op slices; both archive
   /// wrappers are built over it, and the PDF parser reads the same
   /// source through a [PdfByteSource] view.
-  final ZipByteSource _bytes;
+  final AsyncByteReader _bytes;
+
+  /// Whether closing the session closes [_bytes]: true for bytes and
+  /// file opens, false for remote sources the host still owns.
+  final bool _ownsReader;
 
   /// Total byte length of the raw container source.
   final int _byteLength;
@@ -215,7 +329,7 @@ final class SessionEngine {
 
   /// Raw bytes of a container entry, or null when the entry does not
   /// exist.
-  Uint8List? resource(final String path) {
+  Future<Uint8List?> resource(final String path) async {
     _ensureOpen();
     if (_pdf != null) return _pdfResource(path);
 
@@ -230,7 +344,7 @@ final class SessionEngine {
       return cached.bytes;
     }
 
-    final bytes = source.inflate(record);
+    final bytes = await source.inflate(record);
     _store(record.name, _CacheEntry(bytes: bytes));
 
     return bytes;
@@ -259,7 +373,7 @@ final class SessionEngine {
   /// clamped to the end of the source and to
   /// [SessionPolicy.effectiveRangeMaxBytes]. Negative offsets/counts
   /// and offsets past the end throw [RangeError].
-  Uint8List bytesRange(final int offset, final int count) {
+  Future<Uint8List> bytesRange(final int offset, final int count) async {
     _ensureOpen();
     if (offset < 0) throw RangeError.range(offset, 0, _byteLength, 'offset');
     if (count < 0) throw RangeError.range(count, 0, null, 'count');
@@ -272,7 +386,7 @@ final class SessionEngine {
 
   /// The canonical [TextFile] of a content document, or null when the
   /// entry does not exist.
-  TextFile? textFile(final String path) {
+  Future<TextFile?> textFile(final String path) async {
     _ensureOpen();
     if (_pdf != null) return _pdfTextFile(path);
 
@@ -287,7 +401,7 @@ final class SessionEngine {
       return cached.text;
     }
 
-    final bytes = source.inflate(record);
+    final bytes = await source.inflate(record);
     final text = _htmlPathSpace
         ? decodeEpubText(bytes)
         : convert.utf8.decode(bytes, allowMalformed: true);
@@ -306,7 +420,7 @@ final class SessionEngine {
   /// post-reflow line set whose joined text is exactly the page's
   /// `documentText`. Negative indexes and indexes past the page count
   /// throw [RangeError]; extraction failures surface typed.
-  PdfPageText loadPdfPageLines(final int pageIndex) {
+  Future<PdfPageText> loadPdfPageLines(final int pageIndex) async {
     _ensureOpen();
     final pdf = _pdf;
     final pageCount = pdf?.book.pageCount ?? 0;
@@ -314,7 +428,7 @@ final class SessionEngine {
       throw RangeError.range(pageIndex, 0, pageCount - 1, 'pageIndex');
     }
 
-    return _pdfMaterialize(pageIndex + 1).pdfPage!;
+    return (await _pdfMaterialize(pageIndex + 1)).pdfPage!;
   }
 
   /// The stable structure of one PDF page (0-based): words, blocks,
@@ -324,7 +438,7 @@ final class SessionEngine {
   /// profile distinct from the eager document's. Negative indexes and
   /// indexes past the page count throw [RangeError]. PDF sessions
   /// only.
-  PdfPageStructure loadPdfPageStructure(final int pageIndex) {
+  Future<PdfPageStructure> loadPdfPageStructure(final int pageIndex) async {
     _ensureOpen();
     final pdf = _pdf;
     final pageCount = pdf?.book.pageCount ?? 0;
@@ -332,7 +446,7 @@ final class SessionEngine {
       throw RangeError.range(pageIndex, 0, pageCount - 1, 'pageIndex');
     }
 
-    final canonical = _pdfMaterialize(pageIndex + 1).pdfPage!;
+    final canonical = (await _pdfMaterialize(pageIndex + 1)).pdfPage!;
     final layout = pdf!.extractor.extractLayout(
       pdf.book.pages[pageIndex],
       onImage: _discardPdfImage,
@@ -353,8 +467,8 @@ final class SessionEngine {
 
   /// Document text of a content document — the canonical offset space
   /// search and CFI address.
-  String? documentText(final String path) {
-    final file = textFile(path);
+  Future<String?> documentText(final String path) async {
+    final file = await textFile(path);
 
     return file == null ? null : documentTextOf(file);
   }
@@ -362,11 +476,11 @@ final class SessionEngine {
   /// Raw decoded source of a content document — the HTML/CSS text as
   /// stored (markup included), the shape servers and CFI document
   /// parsers need.
-  String? documentSource(final String path) => textFile(path)?.content;
+  Future<String?> documentSource(final String path) async => (await textFile(path))?.content;
 
   /// Full-text search with the [BookSearch.search] contract, executed
   /// section by section so only one chapter is materialized at a time.
-  SearchResults search(
+  Future<SearchResults> search(
     final String query, {
     final SearchMode mode = SearchMode.contains,
     final bool isCaseSensitive = false,
@@ -374,7 +488,7 @@ final class SessionEngine {
     final int nearChars = 60,
     final int contextChars = 48,
     final int maxMatches = 200,
-  }) {
+  }) async {
     _ensureOpen();
 
     final results = <SearchMatch>[];
@@ -394,7 +508,7 @@ final class SessionEngine {
       final section = sections[sectionIndex];
       if (!section.isHtml) continue;
 
-      final text = documentText(section.name);
+      final text = await documentText(section.name);
       if (text == null) continue;
 
       for (final match in compiled.findMatches(text)) {
@@ -422,24 +536,27 @@ final class SessionEngine {
 
   /// Whole-book progression, measured in the host of the engine: walks
   /// every HTML section once, materializing one at a time.
-  BookProgression computeProgression() {
+  Future<BookProgression> computeProgression() async {
     _ensureOpen();
-    final lengths = <int>[
-      for (final section in book.readingOrder)
-        section.isHtml ? (documentText(section.name)?.length ?? 0) : 0,
-    ];
+    final lengths = <int>[];
+    for (final section in book.readingOrder) {
+      final length = section.isHtml ? (await documentText(section.name))?.length ?? 0 : 0;
+      lengths.add(length);
+    }
 
     return BookProgression.fromSectionLengths(lengths);
   }
 
   /// Whole-book statistics over the canonical plain text.
-  BookStatistics computeStatistics() {
+  Future<BookStatistics> computeStatistics() async {
     _ensureOpen();
+    final texts = <String>[];
+    for (final section in book.readingOrder) {
+      final file = section.isHtml ? await textFile(section.name) : null;
+      texts.add(file?.plainText ?? '');
+    }
 
-    return BookStatistics.fromTexts(<String>[
-      for (final section in book.readingOrder)
-        if (section.isHtml) textFile(section.name)?.plainText ?? '' else '',
-    ]);
+    return BookStatistics.fromTexts(texts);
   }
 
   /// Resolves [cfi] against the book, loading only the addressed
@@ -447,7 +564,7 @@ final class SessionEngine {
   /// the document loads, then the shared resolver runs on a projection
   /// holding just that content. Returns null for malformed or
   /// unresolvable CFIs, like the inline resolver.
-  EpubCfiLocation? resolveCfi(final String cfi) {
+  Future<EpubCfiLocation?> resolveCfi(final String cfi) async {
     _ensureOpen();
     if (book is! EpubBook) return null;
 
@@ -459,7 +576,7 @@ final class SessionEngine {
 
     final sectionPath = _sectionPathFor(contentIndex);
     if (sectionPath == null) return null;
-    if (documentText(sectionPath) == null) return null;
+    if (await documentText(sectionPath) == null) return null;
 
     return _projection().resolveCfi(parsed);
   }
@@ -467,7 +584,10 @@ final class SessionEngine {
   /// Builds a book-level CFI for a reading position, loading the
   /// addressed document when needed. Range errors keep the inline
   /// contract.
-  String buildCfi({required final int contentIndex, required final int offsetInText}) {
+  Future<String> buildCfi({
+    required final int contentIndex,
+    required final int offsetInText,
+  }) async {
     _ensureOpen();
     if (book is! EpubBook) throw const UnsealException('CFI building needs an EPUB session.');
 
@@ -475,7 +595,7 @@ final class SessionEngine {
     if (sectionPath == null) {
       throw RangeError.range(contentIndex, 0, book.readingOrder.length - 1, 'contentIndex');
     }
-    if (documentText(sectionPath) == null) {
+    if (await documentText(sectionPath) == null) {
       throw RangeError.range(contentIndex, 0, book.readingOrder.length - 1, 'contentIndex');
     }
 
@@ -488,10 +608,10 @@ final class SessionEngine {
   /// indexed. The first call declares eligibility from the reading
   /// order and fixes the index [identity]; later calls with a
   /// different identity fail typed. Returns the coverage wire.
-  Map<String, Object?> searchIndexEnsure(
+  Future<Map<String, Object?>> searchIndexEnsure(
     final int maxSections,
     final SearchIndexIdentity? identity,
-  ) {
+  ) async {
     _ensureOpen();
     var index = _searchIndex;
     if (index == null) {
@@ -514,7 +634,7 @@ final class SessionEngine {
       budget--;
       // Materialization is the content path itself: one bounded batch
       // per op, cancellation observable by stopping the calls.
-      final text = documentText(path);
+      final text = await documentText(path);
       if (text == null) {
         index.failSection(sectionIndex: sectionIndex, path: path);
       } else {
@@ -566,16 +686,36 @@ final class SessionEngine {
   /// match this session's book, and every section's text is
   /// re-digested through the session's materialization before the
   /// postings are trusted.
-  Map<String, Object?> searchIndexImport(
+  Future<Map<String, Object?>> searchIndexImport(
     final Map<String, Object?> payload,
     final SearchIndexIdentity? identity,
-  ) {
+  ) async {
     _ensureOpen();
     final orderRevision = payload['readingOrderRevision'];
     if (orderRevision != readingOrderRevisionOf(book.readingOrder)) {
       throw const SearchIndexIncompatibleException(
         'The imported index was built over a different reading order.',
       );
+    }
+    // Materialize every indexed section through the session's own
+    // content path first, so the synchronous import verification reads
+    // live text like the 1.3.0 cold-session import did. The texts are
+    // held for the import call only — the LRU may evict under them.
+    final importedTexts = <String, String>{};
+    final sectionsWire = payload['sections'];
+    if (sectionsWire is List<Object?>) {
+      final order = book.readingOrder;
+      for (final sectionWire in sectionsWire) {
+        if (sectionWire is! List<Object?> || sectionWire.length < 2) continue;
+        final sectionIndex = sectionWire[0];
+        final path = sectionWire[1];
+        if (sectionIndex is! int || path is! String) continue;
+        if (sectionIndex < 0 || sectionIndex >= order.length) continue;
+        if (order[sectionIndex].name != path) continue;
+
+        final text = await documentText(path);
+        if (text != null) importedTexts[path] = text;
+      }
     }
     final index = BookSearchIndex.deserialize(
       payload,
@@ -586,7 +726,7 @@ final class SessionEngine {
         final order = book.readingOrder;
         if (sectionIndex >= order.length || order[sectionIndex].name != path) return null;
 
-        return documentText(path);
+        return importedTexts[path];
       },
     );
     _searchIndex?.dispose();
@@ -605,7 +745,8 @@ final class SessionEngine {
   }
 
   /// Releases the container source and the cache. Further ops throw
-  /// [SessionClosedException].
+  /// [SessionClosedException]. Remote readers are not closed here —
+  /// the host's gate owns their source.
   void close() {
     if (_closed) return;
 
@@ -616,10 +757,12 @@ final class SessionEngine {
     _cache.clear();
     // The PDF branch owns no archive wrapper: the raw source itself
     // carries the file handle (the PdfByteSource is a view over it).
-    if (_source != null) {
-      _source.close();
-    } else {
-      _bytes.close();
+    if (_ownsReader) {
+      if (_source != null) {
+        unawaited(_source.close());
+      } else {
+        _bytes.close();
+      }
     }
   }
 
@@ -708,21 +851,23 @@ final class SessionEngine {
   /// parses the structure and samples the reflow plan, so a broken or
   /// encrypted document fails right here with the eager parse's typed
   /// error. The engine seeds its cache with the sampled extractions.
-  static SessionEngine _openPdfSource(
+  static Future<SessionEngine> _openPdfSource(
     final PdfByteSource pdfSource,
-    final ZipByteSource bytes,
+    final AsyncByteReader bytes,
     final SessionPolicy policy,
-    final String password,
-  ) {
+    final String password, {
+    required final bool ownsReader,
+  }) async {
     final header = buildPdfSessionHeader(pdfSource, password: password, policy: policy);
-    final engine = SessionEngine._(header.book, null, bytes, bytes.length, policy)
-      .._pdf = PdfSessionContent(
-        book: header.book,
-        source: pdfSource,
-        document: header.document,
-        extractor: header.extractor,
-        plan: header.plan,
-      );
+    final engine =
+        SessionEngine._(header.book, null, bytes, bytes.length, policy, ownsReader: ownsReader)
+          .._pdf = PdfSessionContent(
+            book: header.book,
+            source: pdfSource,
+            document: header.document,
+            extractor: header.extractor,
+            plan: header.plan,
+          );
 
     for (var i = 0; i < header.sampledPageTexts.length; i++) {
       engine._store('page_${i + 1}.html', _CacheEntry(pdfPage: header.sampledPageTexts[i]));
@@ -733,7 +878,7 @@ final class SessionEngine {
 
   /// The PDF page document at [path] (`page_<i>.html`, 1-based), or
   /// null for any other path.
-  TextFile? _pdfTextFile(final String path) {
+  Future<TextFile?> _pdfTextFile(final String path) async {
     final match = _pdfPagePathPattern.firstMatch(path);
     if (match == null) return null;
 
@@ -747,7 +892,7 @@ final class SessionEngine {
       return cached.text;
     }
 
-    return _pdfMaterialize(page).text;
+    return (await _pdfMaterialize(page)).text;
   }
 
   /// Materializes page [page] (1-based): the page's text plus — the
@@ -756,7 +901,7 @@ final class SessionEngine {
   /// is computed exactly, then the pair's canonical line set. Both
   /// extractions cache; the target's entry carries its [TextFile] and
   /// canonical [PdfPageText] together.
-  _CacheEntry _pdfMaterialize(final int page) {
+  Future<_CacheEntry> _pdfMaterialize(final int page) async {
     final pdf = _pdf!;
     final path = 'page_$page.html';
     final cached = _cache[path];
@@ -771,10 +916,10 @@ final class SessionEngine {
     final List<PdfPageText> texts;
     final List<PdfPage> pages;
     if (previousPage >= 1) {
-      texts = <PdfPageText>[_pdfExtract(previousPage), _pdfExtract(page)];
+      texts = <PdfPageText>[await _pdfExtract(previousPage), await _pdfExtract(page)];
       pages = <PdfPage>[pdfBook.pages[previousPage - 1], pdfBook.pages[page - 1]];
     } else {
-      texts = <PdfPageText>[_pdfExtract(page)];
+      texts = <PdfPageText>[await _pdfExtract(page)];
       pages = <PdfPage>[pdfBook.pages[0]];
     }
 
@@ -793,7 +938,7 @@ final class SessionEngine {
 
   /// The extracted text of page [page] (1-based), reusing the
   /// extraction cached at open or by an earlier materialization.
-  PdfPageText _pdfExtract(final int page) {
+  Future<PdfPageText> _pdfExtract(final int page) async {
     final pdf = _pdf!;
     final path = 'page_$page.html';
     final cached = _cache[path];
@@ -816,7 +961,7 @@ final class SessionEngine {
   /// absent objects and undecodable codecs. No eager-style cap: the
   /// header never lists images, so serving is the only dedup that
   /// matters (documented delta against `_extractPageContent`).
-  Uint8List? _pdfResource(final String path) {
+  Future<Uint8List?> _pdfResource(final String path) async {
     final match = _pdfImagePathPattern.firstMatch(path);
     if (match == null) return null;
 
@@ -840,12 +985,13 @@ final class SessionEngine {
   /// says so, CBZ for comic inventories, explicit refusal for other zip
   /// books (office documents, zipped FB2/HTML/TXT, Calibre comic
   /// collections).
-  static SessionEngine _openZipSource(
-    final ZipRandomAccess source,
-    final ZipByteSource bytes,
+  static Future<SessionEngine> _openZipSource(
+    final AsyncZipRandomAccess source,
+    final AsyncByteReader bytes,
     final DetectedFormat? detected,
-    final SessionPolicy policy,
-  ) {
+    final SessionPolicy policy, {
+    required final bool ownsReader,
+  }) async {
     SessionUnsupportedFormatException unsupported(final String family) {
       return SessionUnsupportedFormatException(
         'The ${family.isEmpty ? 'zip' : family} container has no progressive session support; '
@@ -880,29 +1026,29 @@ final class SessionEngine {
       // checks.
       final epubCandidate = detected == null || detected == DetectedFormat.epub;
       if (epubCandidate && looksLikeEpub) {
-        final book = buildEpubSessionHeader(source, policy: policy);
+        final book = await buildEpubSessionHeader(source, policy: policy);
 
-        return SessionEngine._(book, source, bytes, bytes.length, policy);
+        return SessionEngine._(book, source, bytes, bytes.length, policy, ownsReader: ownsReader);
       }
 
       var hasImages = false;
       for (final record in source.entries) {
         if (!record.isFile || record.name.toLowerCase() == 'comicinfo.xml') continue;
-        if (sniffImageType(source.head(record, 64)) != null) {
+        if (sniffImageType(await source.head(record, 64)) != null) {
           hasImages = true;
 
           break;
         }
       }
       if (!hasImages) throw unsupported(detected?.name ?? '');
-      final book = buildComicSessionHeader(source, format: BookFormat.cbz, policy: policy);
+      final book = await buildComicSessionHeader(source, format: BookFormat.cbz, policy: policy);
 
-      return SessionEngine._(book, source, bytes, bytes.length, policy);
+      return SessionEngine._(book, source, bytes, bytes.length, policy, ownsReader: ownsReader);
     } on SessionUnsupportedFormatException {
-      source.close();
+      _closeOwned(source, bytes, ownsReader);
       rethrow;
     } on UnsealException {
-      source.close();
+      _closeOwned(source, bytes, ownsReader);
       rethrow;
     }
   }
@@ -911,20 +1057,49 @@ final class SessionEngine {
   /// entry, so a CBR the eager parse would reject (undecodable
   /// compressed entries, bombs past the guards) fails right here with
   /// the same typed error.
-  static SessionEngine _openComicSource(
-    final RarRandomAccess source,
-    final ZipByteSource bytes,
-    final SessionPolicy policy,
-  ) {
+  static Future<SessionEngine> _openComicSource(
+    final SyncAsyncArchive source,
+    final AsyncByteReader bytes,
+    final SessionPolicy policy, {
+    required final bool ownsReader,
+  }) async {
     try {
-      final book = buildComicSessionHeader(source, format: BookFormat.cbr, policy: policy);
+      final book = await buildComicSessionHeader(source, format: BookFormat.cbr, policy: policy);
 
-      return SessionEngine._(book, source, bytes, bytes.length, policy);
+      return SessionEngine._(book, source, bytes, bytes.length, policy, ownsReader: ownsReader);
     } on UnsealException {
-      source.close();
+      _closeOwned(source, bytes, ownsReader);
       rethrow;
     }
   }
+
+  static void _closeOwned(
+    final AsyncArchiveRandomAccess source,
+    final AsyncByteReader bytes,
+    final bool ownsReader,
+  ) {
+    if (!ownsReader) return;
+
+    unawaited(source.close());
+  }
+}
+
+/// A [PdfByteSource] view over a [ZipByteSource] — the file-backed
+/// open path keeps a single descriptor serving both the document
+/// parser and the range op.
+final class _PdfSourceOverZip implements PdfByteSource {
+  _PdfSourceOverZip(this._zip);
+
+  final ZipByteSource _zip;
+
+  @override
+  int get length => _zip.length;
+
+  @override
+  Uint8List read(final int offset, final int count) => _zip.read(offset, count);
+
+  @override
+  void close() => _zip.close();
 }
 
 /// One cached container entry: at most one of the payloads is set.
@@ -989,24 +1164,6 @@ final class PdfSessionContent {
 
   /// The sampled reflow plan every page materializes under.
   final PdfReflowPlan plan;
-}
-
-/// A [PdfByteSource] view over a [ZipByteSource] — the file-backed
-/// open path keeps a single descriptor serving both the document
-/// parser and the range op.
-final class _PdfSourceOverZip implements PdfByteSource {
-  _PdfSourceOverZip(this._zip);
-
-  final ZipByteSource _zip;
-
-  @override
-  int get length => _zip.length;
-
-  @override
-  Uint8List read(final int offset, final int count) => _zip.read(offset, count);
-
-  @override
-  void close() => _zip.close();
 }
 
 void _discardPdfImage(final int objectNumber, final Uint8List bytes, final String extension) {
