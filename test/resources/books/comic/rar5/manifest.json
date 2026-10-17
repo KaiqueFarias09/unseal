@@ -6,6 +6,7 @@
     "method": 1,
     "dictExp": 0,
     "filters": [],
+    "solid": false,
     "entries": [
       {
         "name": "data-1.bin",
@@ -26,6 +27,7 @@
     "method": 2,
     "dictExp": 0,
     "filters": [],
+    "solid": false,
     "entries": [
       {
         "name": "data-2.bin",
@@ -46,6 +48,7 @@
     "method": 3,
     "dictExp": 0,
     "filters": [],
+    "solid": false,
     "entries": [
       {
         "name": "data-3.bin",
@@ -66,6 +69,7 @@
     "method": 4,
     "dictExp": 0,
     "filters": [],
+    "solid": false,
     "entries": [
       {
         "name": "data-4.bin",
@@ -86,6 +90,7 @@
     "method": 5,
     "dictExp": 0,
     "filters": [],
+    "solid": false,
     "entries": [
       {
         "name": "data-5.bin",
@@ -106,6 +111,7 @@
     "method": 3,
     "dictExp": 0,
     "filters": [],
+    "solid": false,
     "entries": [
       {
         "name": "dict-128k.bin",
@@ -121,6 +127,7 @@
     "method": 3,
     "dictExp": 3,
     "filters": [],
+    "solid": false,
     "entries": [
       {
         "name": "dict-1m.bin",
@@ -136,6 +143,7 @@
     "method": 3,
     "dictExp": 9,
     "filters": [],
+    "solid": false,
     "entries": [
       {
         "name": "dict-64m.bin",
@@ -153,6 +161,7 @@
     "filters": [
       "delta"
     ],
+    "solid": false,
     "entries": [
       {
         "name": "filtered-delta.bin",
@@ -170,6 +179,7 @@
     "filters": [
       "e8"
     ],
+    "solid": false,
     "entries": [
       {
         "name": "filtered-e8.bin",
@@ -187,6 +197,7 @@
     "filters": [
       "e8e9"
     ],
+    "solid": false,
     "entries": [
       {
         "name": "filtered-e8e9.bin",
@@ -204,6 +215,7 @@
     "filters": [
       "arm"
     ],
+    "solid": false,
     "entries": [
       {
         "name": "filtered-arm.bin",
@@ -219,6 +231,7 @@
     "method": 3,
     "dictExp": 3,
     "filters": [],
+    "solid": false,
     "entries": [
       {
         "name": "ComicInfo.xml",
@@ -239,6 +252,168 @@
         "name": "Páginas/003 – título.txt",
         "bytes": 65536,
         "sha256": "a292bff40dfa24f8b39325d4aa6ac6e3f76a5f16c2638dec1ab784483ebb1524"
+      }
+    ]
+  },
+  {
+    "file": "rar5-solid-chain.cbr",
+    "bytes": 2880,
+    "sha256": "ee0f643252eeb74b0a2b398ed143827134a012721f0ec60f508eeb92975a95ab",
+    "method": 3,
+    "dictExp": 0,
+    "filters": [],
+    "solid": true,
+    "entries": [
+      {
+        "name": "solid-a.bin",
+        "bytes": 22528,
+        "sha256": "84dda0c91a40b410fd06fc899fbdc59cb93a7aef2f60f6dce4e75a12e473fdd4"
+      },
+      {
+        "name": "solid-b.bin",
+        "bytes": 22528,
+        "sha256": "bb455c44f3b73b9b7d477307dbd38e4a623b0ea4e20c507ac3d68df1abdd4b59"
+      },
+      {
+        "name": "solid-c.bin",
+        "bytes": 22528,
+        "sha256": "a182a23a25eedbd46308438af935a3addd931309dcbbaadcf867271f90354cbb"
+      },
+      {
+        "name": "solid-d.bin",
+        "bytes": 22528,
+        "sha256": "72867c8c05d962584c39253bcf0ce64ff6b95aad30c397ef82abf27e12db7b3c"
+      }
+    ]
+  },
+  {
+    "file": "rar5-solid-comic.cbr",
+    "bytes": 6946,
+    "sha256": "af51635f7e4940f92b4a0a832617125e3d5a4febff9564722400d5ba0f959090",
+    "method": 3,
+    "dictExp": 3,
+    "filters": [],
+    "solid": true,
+    "entries": [
+      {
+        "name": "ComicInfo.xml",
+        "bytes": 135,
+        "sha256": "6d7bfb817f15c66b656c9c2493d9beeb5428ea84b33e67d1e74f1679139705d2"
+      },
+      {
+        "name": "Páginas/pág-01.jpg",
+        "bytes": 20480,
+        "sha256": "7a0894e81fdfb1fb845b60d4529effdb31a9e98f7676f064f5275d490fb4ef02"
+      },
+      {
+        "name": "Páginas/pág-02.jpg",
+        "bytes": 20480,
+        "sha256": "324450fb953ccd519d1771c5995bb08fd8d4ba995815b9dd10924e3be9723813"
+      },
+      {
+        "name": "Páginas/pág-03.jpg",
+        "bytes": 20480,
+        "sha256": "e245322d68f4605497fd34674148a44e01e483c3d039dc4967525170aeeae18c"
+      }
+    ]
+  },
+  {
+    "file": "rar5-solid-mixed.cbr",
+    "bytes": 10566,
+    "sha256": "1c0809832718babc8159654fb545abc22033f01a64f90ee64d523e6e1eda342d",
+    "method": 3,
+    "dictExp": 0,
+    "filters": [],
+    "solid": true,
+    "entries": [
+      {
+        "name": "mixed/solid-one.bin",
+        "bytes": 12288,
+        "sha256": "beb05d42bd9c3bdbc3f8643c9c87442c6c31639ea3b6694635cc6abc58aef331"
+      },
+      {
+        "name": "mixed/",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "mixed/stored-middle.bin",
+        "bytes": 8192,
+        "sha256": "cc5d36f5d91c726c0a090026ac0598cadd2297ce5bb44719c9fe147ca99ef541"
+      },
+      {
+        "name": "mixed/solid-two.bin",
+        "bytes": 12288,
+        "sha256": "d387f4f19a97343b289fe67eae03bc06d5f16772dcba9b288b82ee098c4e7b1a"
+      },
+      {
+        "name": "mixed/empty.bin",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "mixed/zero-crc.bin",
+        "bytes": 8192,
+        "sha256": "24cde3cc937d3d2a7f32a4b1ef77be5765a37b9c08b37cd258343b0e1bf732a5"
+      },
+      {
+        "name": "mixed/solid-three.bin",
+        "bytes": 12288,
+        "sha256": "316c75886edd67a40d1620248a9b15daa5fd805390f3c5cc8495107f15af4940"
+      }
+    ]
+  },
+  {
+    "file": "rar5-solid-dict-grow.cbr",
+    "bytes": 3100,
+    "sha256": "67b4a32eb3a7eaf5807d39bcc36c2e16f87a2556637f8e64228f964d608b3989",
+    "method": 3,
+    "dictExp": 0,
+    "filters": [],
+    "solid": true,
+    "entries": [
+      {
+        "name": "grow/small-dict.bin",
+        "bytes": 24576,
+        "sha256": "6f1016e8cc354f5b3e6f8ef1d53a3eb4c8f41dc1e8089cb69880e3162657e20f"
+      },
+      {
+        "name": "grow/big-dict.bin",
+        "bytes": 49152,
+        "sha256": "f45e18518a5d798f59dd3cf4eb6777e094c17798d15b87aee0fb9c5581fa7979"
+      },
+      {
+        "name": "grow/bigger-dict.bin",
+        "bytes": 49152,
+        "sha256": "5d2a4acbabd8a75af4630928a59b96ea04cd55ebe0722a5ac67c7e271c5d0148"
+      }
+    ]
+  },
+  {
+    "file": "rar5-solid-filter-e8.cbr",
+    "bytes": 8499,
+    "sha256": "2e5a22306cb45d47981fc386e19832f9dcda4eb07e41fa8bd8fd3267749f0884",
+    "method": 3,
+    "dictExp": 0,
+    "filters": [
+      "e8"
+    ],
+    "solid": true,
+    "entries": [
+      {
+        "name": "filtered/solid-one.bin",
+        "bytes": 16384,
+        "sha256": "e5a9d0a50a8e829b624c66baf3f5a0c40d030994d396c2aaa2519f3d67ee5208"
+      },
+      {
+        "name": "filtered/e8-middle.bin",
+        "bytes": 16384,
+        "sha256": "cf76d98fb1b4c5c0366b5c55327730f62c16899c795a1a85ac48252fc75070be"
+      },
+      {
+        "name": "filtered/solid-two.bin",
+        "bytes": 16384,
+        "sha256": "7cf92bbba184305c925e83dbae0db5f6ca2469264c4bd72c48ceb491a47091c6"
       }
     ]
   }

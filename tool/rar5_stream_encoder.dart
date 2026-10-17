@@ -33,12 +33,31 @@ final class Fixture {
 
 /// Builds a complete single-volume RAR 5 archive whose file entries are
 /// compressed streams produced by [Rar5StreamEncoder].
+///
+/// With [archiveSolid] the main archive header carries the solid flag
+/// and every compressed entry header carries the per-entry solid bit —
+/// the layout real solid writers produce. Continuation between entries
+/// is the per-entry bit's job; the archive flag only annotates the
+/// volume. [entryMethods], [entryDictExps] and [entryFilters] override
+/// the archive-level knobs per entry (solid streams with a growing
+/// dictionary and per-entry filters use them).
 Uint8List buildRar5Archive({
   required final List<FixtureEntry> entries,
   required final int method,
   required final int dictExp,
   final bool dataCrc = true,
   final int? filterType,
+  final bool archiveSolid = false,
+
+  /// Index of the first entry that carries the per-entry solid bit.
+  /// Real writers leave the first chain entry non-solid so readers
+  /// initialize the window from it (libarchive refuses first-solid
+  /// archives with "no window buffer initialized yet").
+  final int solidFromIndex = 1,
+  final List<int>? entryMethods,
+  final List<int>? entryDictExps,
+  final List<int?>? entryFilters,
+  final Set<String> directoryNames = const {},
 }) {
   final windowSize = 0x20000 << dictExp;
   final body = BytesBuilder();
@@ -61,22 +80,63 @@ Uint8List buildRar5Archive({
     if (data != null) body.add(data);
   }
 
-  // Main archive header: archive flags 0 (single volume, not solid).
-  block(1, 0, _vint(0));
+  // Main archive header: single volume; the solid bit annotates the
+  // archive when requested.
+  block(1, 0, _vint(archiveSolid ? 0x0004 : 0));
 
-  for (final entry in entries) {
+  // Solid chains encode ONE continuous LZ history across the compressed
+  // entries; the packed bytes split at entry boundaries.
+  final compressedIndexes = <int>[
+    for (var i = 0; i < entries.length; i++)
+      if ((entryMethods?[i] ?? method) != 0) i,
+  ];
+  final solidPacked = archiveSolid && compressedIndexes.length > 1
+      ? _encodeSolidChain(
+          entries,
+          compressedIndexes,
+          method: method,
+          dictExp: dictExp,
+          filterType: filterType,
+          entryDictExps: entryDictExps,
+          entryFilters: entryFilters,
+        )
+      : null;
+
+  for (var index = 0; index < entries.length; index++) {
+    final entry = entries[index];
     final nameBytes = convert.utf8.encode(entry.name);
+    if (directoryNames.contains(entry.name)) {
+      // Directory headers carry an empty data area and no compression.
+      block(2, 0x0002, [
+        ..._vint(0x0001), // file flags: directory
+        ..._vint(0), // unpacked size
+        ..._vint(0x10), // attributes: directory
+        ..._vint(0), // version 0, method 0, not solid
+        0, // host OS
+        ..._vint(nameBytes.length),
+        ...nameBytes,
+      ]);
+      continue;
+    }
+    final entryMethod = entryMethods?[index] ?? method;
+    final entryDictExp = entryDictExps?[index] ?? dictExp;
+    final entryFilter = entryFilters?[index] ?? filterType;
     final Uint8List packed;
     final Uint8List target;
-    if (method == 0) {
+    if (solidPacked != null) {
+      // Entries outside the chain (stored, directories aside) keep
+      // their verbatim payload.
+      (packed, target) = solidPacked[index] ?? (entry.content, entry.content);
+    } else if (entryMethod == 0) {
       // Stored entries keep their payload verbatim.
       packed = entry.content;
       target = entry.content;
     } else {
+      final entryWindowSize = 0x20000 << entryDictExp;
       final encoder = Rar5StreamEncoder(
         entry.content,
-        windowSize: windowSize,
-        filterType: filterType,
+        windowSize: entryWindowSize,
+        filterType: entryFilter,
       );
       packed = encoder.encode();
       target = encoder.target;
@@ -84,12 +144,13 @@ Uint8List buildRar5Archive({
 
     final crc = getCrc32(target);
     final fileFlags = dataCrc ? 0x0004 : 0;
+    final solidBit = archiveSolid && entryMethod != 0 && index >= solidFromIndex ? 0x40 : 0;
     final payload = <int>[
       ..._vint(fileFlags),
       ..._vint(target.length), // unpacked size
       ..._vint(0x20), // attributes
       if (dataCrc) ...[crc & 0xFF, (crc >> 8) & 0xFF, (crc >> 16) & 0xFF, (crc >> 24) & 0xFF],
-      ..._vint((method << 7) | (dictExp << 10)), // version 0, not solid
+      ..._vint((entryMethod << 7) | (entryDictExp << 10) | solidBit), // version 0
       0, // host OS
       ..._vint(nameBytes.length),
       ...nameBytes,
@@ -102,6 +163,108 @@ Uint8List buildRar5Archive({
   block(5, 0, _vint(0));
 
   return body.toBytes();
+}
+
+/// Encodes the compressed entries of a solid chain as one LZ history:
+/// matches may reach back into earlier entries' output, while every
+/// entry keeps a self-contained block stream (own tables, own last
+/// block) — the layout the decoders (rardecode, libarchive, Unseal)
+/// resynchronize on per entry.
+///
+/// Entry contents are PRE-FILTER bytes, exactly like the single-entry
+/// path; the returned target per entry is what the decoder's filter
+/// pass produces (filters restart their offsets at every entry).
+/// Returns packed bytes and the declared target per archive entry;
+/// stored entries map to null packed and keep their content verbatim.
+Map<int, (Uint8List, Uint8List)> _encodeSolidChain(
+  final List<FixtureEntry> entries,
+  final List<int> compressedIndexes, {
+  required final int method,
+  required final int dictExp,
+  required final int? filterType,
+  final List<int>? entryDictExps,
+  final List<int?>? entryFilters,
+}) {
+  if (compressedIndexes.isEmpty) return const {};
+
+  // Empty contents never join the chain: their entries carry an empty
+  // packed area and no stream.
+  final chainIndexes = [
+    for (final index in compressedIndexes)
+      if (entries[index].content.isNotEmpty) index,
+  ];
+  final lengths = [for (final index in chainIndexes) entries[index].content.length];
+  final concatenated = Uint8List(lengths.fold(0, (final total, final length) => total + length));
+  var cursor = 0;
+  final offsets = <int, int>{};
+  final filterRanges = <(int, int)>[];
+  for (final index in chainIndexes) {
+    offsets[index] = cursor;
+    final content = entries[index].content;
+    concatenated.setRange(cursor, cursor + content.length, content);
+    if (entryFilters?[index] != null) {
+      filterRanges.add((cursor, content.length));
+    }
+    cursor += content.length;
+  }
+
+  // The marker TYPE comes from the filtered entries themselves: an
+  // archive may declare no filter while one entry carries one.
+  int? chainFilterType;
+  for (final index in chainIndexes) {
+    final declared = entryFilters?[index] ?? filterType;
+    if (declared != null) {
+      chainFilterType = declared;
+      break;
+    }
+  }
+
+  // Distances cap at the smallest declared dictionary across the chain:
+  // a later entry may declare a larger dictionary, but no entry can
+  // reference past its own declared window.
+  var minDictExp = dictExp;
+  for (final index in chainIndexes) {
+    final declared = entryDictExps?[index];
+    if (declared != null && declared < minDictExp) minDictExp = declared;
+  }
+
+  final encoder = Rar5StreamEncoder(
+    concatenated,
+    windowSize: 0x20000 << dictExp,
+    filterType: chainFilterType,
+    entryRanges: [
+      for (final index in chainIndexes) (offsets[index]!, entries[index].content.length),
+    ],
+    maxMatchDistance: 0x20000 << minDictExp,
+    filterRanges: filterRanges,
+    preFiltered: true,
+  );
+  encoder.encode();
+  final segments = encoder.packedSegments;
+
+  final result = <int, (Uint8List, Uint8List)>{};
+  for (var i = 0; i < chainIndexes.length; i++) {
+    final index = chainIndexes[i];
+    final content = entries[index].content;
+    final filter = entryFilters?[index];
+    final target = filter == null ? content : filterRar5Content(content, filter);
+    result[index] = (segments[i], target);
+  }
+  for (final index in compressedIndexes) {
+    if (entries[index].content.isEmpty) {
+      result[index] = (Uint8List(0), Uint8List(0));
+    }
+  }
+
+  return result;
+}
+
+/// Applies the decoder's restoration filter the way a standalone entry
+/// decodes it: offsets restart at zero, regions of 0x4000 bytes.
+Uint8List filterRar5Content(final Uint8List preImage, final int filterType) {
+  final probe = Rar5StreamEncoder(preImage, windowSize: 0x20000, filterType: filterType)..encode();
+
+  return probe.target;
 }
 
 List<int> _vint(int value) {
@@ -120,12 +283,27 @@ List<int> _vint(int value) {
 /// The input is the PRE-FILTER content; with [filterType] set, the
 /// decoder's filter pass transforms the decoded stream into [target],
 /// which is what the archive declares and what oracles must output.
+///
+/// Solid chains pass [entryRanges] (byte ranges of the concatenated
+/// pre-image, one per entry) and receive one self-contained packed
+/// stream per range through [packedSegments]: at every boundary the
+/// encoder closes the current block stream with the last-block flag and
+/// opens a fresh one with code-length tables, while the LZ matcher and
+/// its hash chains keep running across entries — the cross-entry
+/// history real solid archives carry. [maxMatchDistance] caps match
+/// distances below the window (the smallest declared dictionary in a
+/// chain), and [filterRanges] restricts filter markers to the filtered
+/// entries' ranges (the decoder restarts filter offsets per entry).
 final class Rar5StreamEncoder {
   Rar5StreamEncoder(
     this._preImage, {
     required this.windowSize,
     this.filterType,
     this.blockOutputSize = 0x4000,
+    this.entryRanges,
+    this.maxMatchDistance,
+    this.filterRanges,
+    this.preFiltered = false,
   });
 
   /// The stream content before the decoder's filter pass.
@@ -137,6 +315,22 @@ final class Rar5StreamEncoder {
 
   /// Output bytes per block, keeping block transitions frequent.
   final int blockOutputSize;
+
+  /// Byte ranges (offset, length) of the concatenated pre-image, one
+  /// per solid entry; null in single-entry mode.
+  final List<(int, int)>? entryRanges;
+
+  /// Match-distance ceiling; null means [windowSize].
+  final int? maxMatchDistance;
+
+  /// Byte ranges the filter markers apply to; null means the whole
+  /// pre-image when [filterType] is set.
+  final List<(int, int)>? filterRanges;
+
+  /// The pre-image already carries the forward-filter transform (solid
+  /// chains transform per entry); markers still emit but the encoder
+  /// must not transform again.
+  final bool preFiltered;
 
   static const int _mainSize = 306;
   static const int _offsetSize = 64;
@@ -155,34 +349,60 @@ final class Rar5StreamEncoder {
   int _position = 0;
   Uint8List _target = Uint8List(0);
 
+  // Solid-chain bookkeeping.
+  final List<int> _segmentStarts = [];
+  List<Uint8List>? _packedSegments;
+  int _currentEntry = 0;
+  int _filterRangeCursor = 0;
+  int _nextRegionStart = -1;
+
   /// The decoded output this stream reproduces (pre-image with the
   /// filter applied).
   Uint8List get target => _target;
 
+  /// One packed segment per [entryRanges] entry, in order; empty unless
+  /// [entryRanges] was provided.
+  List<Uint8List> get packedSegments => _packedSegments ?? const [];
+
   Uint8List encode() {
-    _target = filterType == null
+    _target = filterType == null || preFiltered
         ? Uint8List.fromList(_preImage)
         : _applyForwardFilter(_preImage, filterType!);
+    if (entryRanges != null) {
+      _packedSegments = [];
+      _segmentStarts.add(0);
+    }
+    _nextRegionStart = 0;
+    _bumpRegionSchedule();
 
     _startBlock();
-    var nextRegionStart = filterType == null ? -1 : 0;
     while (_position < _preImage.length) {
-      if (nextRegionStart >= 0 && nextRegionStart == _position) {
-        final remaining = _preImage.length - _position;
+      if (_nextRegionStart >= 0 && _nextRegionStart == _position) {
+        final remaining = _currentFilterRangeEnd - _position;
         final regionLength = remaining < _filterRegionSize ? remaining : _filterRegionSize;
         if (regionLength >= 4) {
           _emitFilterMarker(regionLength);
-          nextRegionStart = _position + _filterRegionSize;
+          _nextRegionStart = _position + regionLength;
         } else {
-          nextRegionStart = -1;
+          _nextRegionStart = -1;
         }
+        _bumpRegionSchedule();
       }
       var match = _findMatch();
-      if (match != null && nextRegionStart >= 0 && _position + match.$1 > nextRegionStart) {
-        // Never encode across a filter-region boundary: the marker must
-        // be emitted at the region start.
-        final trimmed = nextRegionStart - _position;
-        match = trimmed >= 4 ? (trimmed, match.$2) : null;
+      // Never encode across a filter-region or entry boundary: markers
+      // must fire at the scheduled positions and every entry's output
+      // stays inside its own stream.
+      if (match != null && _nextRegionStart >= 0 && _position + match.$1 > _nextRegionStart) {
+        final trimmed = _nextRegionStart - _position;
+        match = trimmed >= _minMatch ? (trimmed, match.$2) : null;
+      }
+      if (match != null && entryRanges != null && _currentEntry < entryRanges!.length) {
+        final (start, length) = entryRanges![_currentEntry];
+        final entryEnd = start + length;
+        if (_position + match.$1 > entryEnd) {
+          final trimmed = entryEnd - _position;
+          match = trimmed >= _minMatch ? (trimmed, match.$2) : null;
+        }
       }
       if (match == null) {
         _emitLiteral(_preImage[_position]);
@@ -193,14 +413,81 @@ final class Rar5StreamEncoder {
         _position += match.$1;
         _outputSinceBlockStart += match.$1;
       }
+      _closeFinishedEntry();
       if (_outputSinceBlockStart >= blockOutputSize && _position < _preImage.length) {
         _endBlock(last: false);
         _startBlock();
       }
     }
-    _endBlock(last: true);
+    if (_bits.blockHasPayload) _endBlock(last: true);
+    final all = _bits.takeBytes();
+    if (entryRanges != null) {
+      final starts = [..._segmentStarts, all.length];
+      _packedSegments = [
+        for (var i = 0; i < starts.length - 1; i++)
+          Uint8List.sublistView(all, starts[i], starts[i + 1]),
+      ];
+    }
 
-    return _bits.takeBytes();
+    return all;
+  }
+
+  // Closes the entry whose range just ended: a last-flagged block ends
+  // the entry's stream and a fresh tables block opens the next one,
+  // while the LZ history keeps running. Runs before the block-size
+  // flush so a boundary never strands an empty block.
+  void _closeFinishedEntry() {
+    final ranges = entryRanges;
+    if (ranges == null || _currentEntry >= ranges.length) return;
+    final (start, length) = ranges[_currentEntry];
+    if (_position != start + length) return;
+
+    _endBlock(last: true);
+    _currentEntry++;
+    _nextRegionStart = -1;
+    _bumpRegionSchedule();
+    if (_position < _preImage.length) {
+      _segmentStarts.add(_bits.length);
+      _blocksStarted = 0; // forces code-length tables on the next block
+      _startBlock();
+    }
+  }
+
+  // Points _nextRegionStart at the next filter-marker position inside
+  // the filtered ranges, or -1 when none remains ahead.
+  void _bumpRegionSchedule() {
+    if (filterType == null) {
+      _nextRegionStart = -1;
+
+      return;
+    }
+    final ranges = filterRanges ?? [(0, _preImage.length)];
+    while (_filterRangeCursor < ranges.length) {
+      final (start, length) = ranges[_filterRangeCursor];
+      final end = start + length;
+      if (end <= _position) {
+        _filterRangeCursor++;
+        _nextRegionStart = -1;
+        continue;
+      }
+      if (_nextRegionStart < start) _nextRegionStart = start;
+      if (_nextRegionStart >= end) {
+        _filterRangeCursor++;
+        _nextRegionStart = -1;
+        continue;
+      }
+
+      return;
+    }
+    _nextRegionStart = -1;
+  }
+
+  int get _currentFilterRangeEnd {
+    final ranges = filterRanges ?? [(0, _preImage.length)];
+    if (_filterRangeCursor >= ranges.length) return _position;
+    final (start, length) = ranges[_filterRangeCursor];
+
+    return start + length;
   }
 
   void _startBlock() {
@@ -290,6 +577,7 @@ final class Rar5StreamEncoder {
     final chain = _chains[_hash(_position)];
     if (chain == null) return null;
 
+    final distanceCeiling = maxMatchDistance ?? windowSize;
     final limit = _maxMatch < _preImage.length - _position
         ? _maxMatch
         : _preImage.length - _position;
@@ -298,7 +586,7 @@ final class Rar5StreamEncoder {
     var examined = 0;
     for (var i = chain.length - 1; i >= 0 && examined < 24; i--, examined++) {
       final distance = _position - chain[i];
-      if (distance < 1 || distance > windowSize) continue;
+      if (distance < 1 || distance > distanceCeiling) continue;
       var length = 0;
       while (length < limit) {
         // Overlapping matches repeat like the decoder's copy does.
@@ -421,6 +709,13 @@ final class _Rar5BitWriter {
   int _blockStartByte = 0;
   int _totalBits = 0;
   int _blockStartBits = 0;
+
+  /// Bytes appended so far — the offset the next block frame lands at.
+  int get length => _bytes.length;
+
+  /// Whether the open block frame holds any bits; an empty frame must
+  /// never be closed (a zero-byte has-tables block is undecodable).
+  bool get blockHasPayload => _bytes.length > _blockStartByte || _pendingBits > 0;
 
   void writeBits(final int value, final int count) {
     _totalBits += count;

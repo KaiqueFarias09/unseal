@@ -17,6 +17,7 @@ import 'dart:convert' as convert;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart' show getCrc32;
 import 'package:crypto/crypto.dart' as crypto;
 
 import 'rar5_stream_encoder.dart';
@@ -44,6 +45,7 @@ void main(final List<String> arguments) {
       'method': fixture.method,
       'dictExp': fixture.dictExp,
       'filters': fixture.filters,
+      'solid': fixture.solid,
       'entries': [
         for (final entry in fixture.entries)
           {'name': entry.name, 'bytes': entry.content.length, 'sha256': _sha256Hex(entry.content)},
@@ -51,7 +53,8 @@ void main(final List<String> arguments) {
     });
     stdout.writeln(
       '${fixture.name}: ${fixture.archive.length} bytes, '
-      '${fixture.entries.length} entries, filters ${fixture.filters}',
+      '${fixture.entries.length} entries, filters ${fixture.filters}'
+      '${fixture.solid ? ', solid' : ''}',
     );
   }
 
@@ -62,7 +65,15 @@ void main(final List<String> arguments) {
 }
 
 final class Fixture {
-  Fixture(this.name, this.entries, this.archive, this.method, this.dictExp, this.filters);
+  Fixture(
+    this.name,
+    this.entries,
+    this.archive,
+    this.method,
+    this.dictExp,
+    this.filters, {
+    this.solid = false,
+  });
 
   final String name;
   final List<FixtureEntry> entries;
@@ -70,6 +81,10 @@ final class Fixture {
   final int method;
   final int dictExp;
   final List<String> filters;
+
+  /// Whether the archive is a solid chain (archive flag + per-entry
+  /// solid bits).
+  final bool solid;
 }
 
 List<Fixture> buildFixtures() {
@@ -132,7 +147,202 @@ List<Fixture> buildFixtures() {
   final comicArchive = buildRar5Archive(entries: comicEntries, method: 3, dictExp: 3);
   fixtures.add(Fixture('rar5-comic-utf8.cbr', comicEntries, comicArchive, 3, 3, const []));
 
+  // Solid chains: one LZ history across entries, every later entry
+  // carrying real back-references into earlier entries' output.
+  final chainEntries = <FixtureEntry>[];
+  Uint8List previous = _compressibleData(16 * 1024, seed: 0x51);
+  const chainNames = ['solid-a.bin', 'solid-b.bin', 'solid-c.bin', 'solid-d.bin'];
+  for (var i = 0; i < chainNames.length; i++) {
+    // Each entry embeds 6 KiB of its predecessor's head, so matches
+    // MUST reach into the carried dictionary — independent streams
+    // cannot decode these bytes.
+    final embed = Uint8List.sublistView(previous, 0, 6 * 1024);
+    final fresh = _compressibleData(16 * 1024, seed: 0x60 + i);
+    final content = Uint8List(22 * 1024);
+    content.setRange(0, embed.length, embed);
+    content.setRange(embed.length, content.length, fresh);
+    chainEntries.add(FixtureEntry(chainNames[i], content));
+    previous = content;
+  }
+  final chainArchive = buildRar5Archive(
+    entries: chainEntries,
+    method: 3,
+    dictExp: 0,
+    archiveSolid: true,
+  );
+  fixtures.add(
+    Fixture('rar5-solid-chain.cbr', chainEntries, chainArchive, 3, 0, const [], solid: true),
+  );
+
+  // A solid comic with UTF-8 pages: the CBR open path end to end.
+  final solidComicEntries = <FixtureEntry>[
+    FixtureEntry('ComicInfo.xml', convert.utf8.encode(_comicInfoXml)),
+    FixtureEntry('Páginas/pág-01.jpg', _jpegishData(20 * 1024, seed: 31)),
+    FixtureEntry('Páginas/pág-02.jpg', _jpegishData(20 * 1024, seed: 32)),
+    FixtureEntry('Páginas/pág-03.jpg', _jpegishData(20 * 1024, seed: 33)),
+  ];
+  final solidComicArchive = buildRar5Archive(
+    entries: solidComicEntries,
+    method: 3,
+    dictExp: 3,
+    archiveSolid: true,
+  );
+  fixtures.add(
+    Fixture(
+      'rar5-solid-comic.cbr',
+      solidComicEntries,
+      solidComicArchive,
+      3,
+      3,
+      const [],
+      solid: true,
+    ),
+  );
+
+  // A solid chain exercising the edge shapes: a directory between
+  // entries, a stored entry inside the chain, an empty file, and a
+  // declared CRC of zero on a real checksum (the content is patched so
+  // its CRC-32 is exactly zero).
+  var zeroCrcContent = Uint8List.sublistView(
+    _compressibleData(8 * 1024, seed: 0x77),
+    0,
+    8 * 1024 - 4,
+  );
+  zeroCrcContent = _patchToZeroCrc(zeroCrcContent);
+  final mixedEntries = <FixtureEntry>[
+    FixtureEntry('mixed/solid-one.bin', _compressibleData(12 * 1024, seed: 0x81)),
+    FixtureEntry('mixed/', Uint8List(0)),
+    FixtureEntry('mixed/stored-middle.bin', _jpegishData(8 * 1024, seed: 0x82)),
+    FixtureEntry('mixed/solid-two.bin', _compressibleData(12 * 1024, seed: 0x83)),
+    FixtureEntry('mixed/empty.bin', Uint8List(0)),
+    FixtureEntry('mixed/zero-crc.bin', zeroCrcContent),
+    FixtureEntry('mixed/solid-three.bin', _compressibleData(12 * 1024, seed: 0x84)),
+  ];
+  final mixedArchive = buildRar5Archive(
+    entries: mixedEntries,
+    method: 3,
+    dictExp: 0,
+    archiveSolid: true,
+    entryMethods: const [3, 3, 0, 3, 3, 3, 3],
+    directoryNames: const {'mixed/'},
+  );
+  // The zero-CRC entry declares its real (zero) checksum.
+  fixtures.add(
+    Fixture('rar5-solid-mixed.cbr', mixedEntries, mixedArchive, 3, 0, const [], solid: true),
+  );
+
+  // A solid chain whose later entries declare a larger dictionary: the
+  // decoder grows (rotates) the carried window without losing history.
+  final growEntries = <FixtureEntry>[
+    FixtureEntry('grow/small-dict.bin', _compressibleData(24 * 1024, seed: 0x91)),
+    FixtureEntry('grow/big-dict.bin', _compressibleData(48 * 1024, seed: 0x92)),
+    FixtureEntry('grow/bigger-dict.bin', _compressibleData(48 * 1024, seed: 0x93)),
+  ];
+  final growArchive = buildRar5Archive(
+    entries: growEntries,
+    method: 3,
+    dictExp: 0,
+    archiveSolid: true,
+    entryDictExps: const [0, 3, 3],
+  );
+  fixtures.add(
+    Fixture('rar5-solid-dict-grow.cbr', growEntries, growArchive, 3, 0, const [], solid: true),
+  );
+
+  // A solid chain with an E8-filtered middle entry: filter offsets
+  // restart at every entry while the dictionary carries on.
+  final filteredEntries = <FixtureEntry>[
+    FixtureEntry('filtered/solid-one.bin', _compressibleData(16 * 1024, seed: 0xA1)),
+    FixtureEntry('filtered/e8-middle.bin', _e8PreImage(16 * 1024, seed: 0xA2)),
+    FixtureEntry('filtered/solid-two.bin', _compressibleData(16 * 1024, seed: 0xA3)),
+  ];
+  final filteredArchive = buildRar5Archive(
+    entries: filteredEntries,
+    method: 3,
+    dictExp: 0,
+    archiveSolid: true,
+    entryFilters: const [null, 1, null],
+  );
+  // The middle entry declares the FILTERED target, like the standalone
+  // filter fixtures; the manifest entry below records it.
+  final filteredTargets = [
+    filteredEntries[0].content,
+    filterRar5Content(filteredEntries[1].content, 1),
+    filteredEntries[2].content,
+  ];
+  final filteredManifestEntries = [
+    for (var i = 0; i < filteredEntries.length; i++)
+      FixtureEntry(filteredEntries[i].name, filteredTargets[i]),
+  ];
+  fixtures.add(
+    Fixture('rar5-solid-filter-e8.cbr', filteredManifestEntries, filteredArchive, 3, 0, const [
+      'e8',
+    ], solid: true),
+  );
+
   return fixtures;
+}
+
+/// Appends four bytes so the CRC-32 of the result is exactly zero —
+/// a declared zero checksum the decoders must verify as a real one.
+///
+/// CRC-32 is affine over GF(2): each appended bit flips the result by
+/// a fixed column vector, so the four solution bytes come from Gaussian
+/// elimination over the 32 column vectors (the same construction the
+/// test support's `withZeroCrc32` uses).
+Uint8List _patchToZeroCrc(final Uint8List head) {
+  final base = Uint8List(head.length + 4);
+  base.setRange(0, head.length, head);
+  final baseCrc = getCrc32(base);
+  final columns = List<int>.generate(32, (final i) {
+    final probe = Uint8List.fromList(base);
+    probe[head.length + i ~/ 8] = 1 << (i % 8);
+
+    return getCrc32(probe) ^ baseCrc;
+  });
+
+  final rows = <(int, int)>[]; // (vector, combination)
+  for (var i = 0; i < 32; i++) {
+    var vector = columns[i];
+    var combination = 1 << i;
+    for (final row in rows) {
+      if (vector & _highestBit(row.$1) != 0) {
+        vector ^= row.$1;
+        combination ^= row.$2;
+      }
+    }
+    if (vector != 0) rows.add((vector, combination));
+  }
+
+  var remainder = baseCrc;
+  var combination = 0;
+  while (remainder != 0) {
+    final pivot = _highestBit(remainder);
+    final row = rows.firstWhere(
+      (final row) => _highestBit(row.$1) == pivot,
+      orElse: () => throw StateError('CRC-32 zero patch has no solution.'),
+    );
+    remainder ^= row.$1;
+    combination ^= row.$2;
+  }
+
+  final result = Uint8List.fromList(base);
+  for (var i = 0; i < 32; i++) {
+    if (combination & (1 << i) != 0) {
+      result[head.length + i ~/ 8] |= 1 << (i % 8);
+    }
+  }
+  assert(getCrc32(result) == 0);
+
+  return result;
+}
+
+int _highestBit(final int value) {
+  for (var bit = 31; bit >= 0; bit--) {
+    if (value & (1 << bit) != 0) return 1 << bit;
+  }
+
+  return 0;
 }
 
 const String _comicInfoXml =
