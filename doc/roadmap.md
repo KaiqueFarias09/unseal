@@ -169,21 +169,23 @@ Do not carry historical timings forward as current guarantees. Consumer
 rendering, background audio, mobile transition variance, and visible-page
 timing require tests in their own applications and representative devices.
 
-### R10. Add optional indexed search
+### R10. Add optional indexed search — delivered within its declared subset
 
-Current behavior: `Book.search` scans section text for each query and returns
-canonical ranges. Existing exact, tolerant, regex, and proximity behavior must
-remain available.
+Shipped: an optional per-publication inverted index (`BookSearchIndex`) with
+BM25+ ranking, prefix and bounded fuzzy modes, incremental cancellable
+construction with coverage accounting, versioned serialization with
+pre-allocation import validation and digest-based invalidation, and session
+integration across inline, isolate, and Web Worker paths. Hits cut the same
+canonical UTF-16 ranges `Book.search` addresses; exact-query ranges match an
+independent scan (tested), and accents, soft-hyphen splits, astral text,
+repeated spine items, cancellation, and VM/browser determinism are covered by
+the search suites. `Book.search` is unchanged.
 
-Pending work: an optional inverted index with ranked results, prefix and fuzzy
-queries, incremental construction, cancellation, and a versioned serialized
-form. Preserve canonical offsets through token normalization. Applications own
-persistent storage and any library-wide catalog.
-
-Acceptance: compare exact-query ranges with the existing scan, test accents,
-hyphenation, Unicode, repeated spine items, and index invalidation. Expose
-partial coverage in progressive sessions. Measure build cost, warm-query
-latency, serialized size, and peak memory on the same books in VM and browser.
+Remaining in R10: persisting an index over PDF text awaits the campaign's P1
+position-mapping acceptance — indexes over PDF sessions build and query in
+memory but refuse to serialize. A library-wide persistent catalog stays out of
+scope: applications own persistent storage. See the changelog's Unreleased
+section for the delivered contract and limits.
 
 ## Reference implementations for larger campaigns
 

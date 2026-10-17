@@ -10,6 +10,8 @@ import '../../features/progressive/session_policy.dart';
 import '../../features/reading/book_dispatch.dart';
 import '../../features/search/book_search.dart';
 import '../../features/search/entities/search_mode.dart';
+import '../../features/search/index/indexed_query_mode.dart';
+import '../../features/search/index/search_index_identity.dart';
 import '../../foundation/entities/book/book.dart';
 import '../../foundation/entities/book_format.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
@@ -87,6 +89,16 @@ import 'wire/pdf_structure_wire.dart';
       return _sessionText(payload!, residentSession);
     case workerOpSessionSearch:
       return _sessionSearch(payload!, residentSession);
+    case workerOpSessionSearchIndexEnsure:
+      return _sessionSearchIndexEnsure(payload!, residentSession);
+    case workerOpSessionSearchIndexQuery:
+      return _sessionSearchIndexQuery(payload!, residentSession);
+    case workerOpSessionSearchIndexExport:
+      return _sessionSearchIndexExport(residentSession);
+    case workerOpSessionSearchIndexImport:
+      return _sessionSearchIndexImport(payload!, residentSession);
+    case workerOpSessionSearchIndexDrop:
+      return _sessionSearchIndexDrop(residentSession);
     case workerOpSessionProgression:
       return _sessionProgression(residentSession);
     case workerOpSessionStatistics:
@@ -309,6 +321,84 @@ _sessionSearch(final Map<String, Object?> payload, final SessionEngine? resident
   return (
     kind: wireReplySessionSearch,
     json: encodeSearchResultsWire(results),
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexEnsure(
+  final Map<String, Object?> payload,
+  final SessionEngine? residentSession,
+) {
+  final coverage = _sessionFor(residentSession).searchIndexEnsure(
+    payload[wireKeyMaxSections] as int,
+    SearchIndexIdentity.fromWire(payload[wireKeyIndexIdentity]),
+  );
+
+  return (
+    kind: wireReplySessionSearchIndexCoverage,
+    json: coverage,
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexQuery(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+  final results = _sessionFor(residentSession).searchIndexQuery(
+    payload[wireKeyQuery] as String,
+    mode: IndexedQueryMode.values.byName(payload[wireKeyMode] as String),
+    maxMatches: payload[wireKeyMaxMatches] as int?,
+    maxExpansions: payload[wireKeyMaxExpansions] as int?,
+    contextChars: payload[wireKeyContextChars] as int,
+  );
+
+  return (
+    kind: wireReplySessionSearchIndexResults,
+    json: results,
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexExport(final SessionEngine? residentSession) {
+  final payload = _sessionFor(residentSession).searchIndexExport();
+
+  return (
+    kind: wireReplySessionSearchIndexPayload,
+    json: payload,
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexImport(
+  final Map<String, Object?> payload,
+  final SessionEngine? residentSession,
+) {
+  final coverage = _sessionFor(residentSession).searchIndexImport(
+    (payload[wireKeyIndexPayload]! as Map).cast<String, Object?>(),
+    SearchIndexIdentity.fromWire(payload[wireKeyIndexIdentity]),
+  );
+
+  return (
+    kind: wireReplySessionSearchIndexCoverage,
+    json: coverage,
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexDrop(final SessionEngine? residentSession) {
+  _sessionFor(residentSession).searchIndexDrop();
+
+  return (
+    kind: wireReplySessionSearchIndexDrop,
+    json: const <String, Object?>{},
     blobs: const <Object>[],
     session: null,
   );

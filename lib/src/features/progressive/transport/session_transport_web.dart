@@ -10,6 +10,9 @@ import '../../pdf/layout/pdf_page_structure.dart';
 import '../../reading/book_progression.dart';
 import '../../search/entities/search_mode.dart';
 import '../../search/entities/search_results.dart';
+import '../../search/index/indexed_query_mode.dart';
+import '../../search/index/indexed_search_results.dart';
+import '../../search/index/search_index_identity.dart';
 import '../session_engine.dart';
 import '../session_policy.dart';
 import 'session_transport.dart';
@@ -155,6 +158,44 @@ final class _WorkerSessionTransport implements SessionTransport {
   @override
   Future<BookProgression> computeProgression() =>
       _dispatch(() => _client.sessionProgressionInWorker(_sessionId));
+
+  @override
+  Future<Map<String, Object?>> searchIndexEnsure(
+    final int maxSections,
+    final SearchIndexIdentity? identity,
+  ) => _dispatch(() => _client.sessionSearchIndexEnsureInWorker(_sessionId, maxSections, identity));
+
+  @override
+  Future<IndexedSearchResults> searchIndexQuery(
+    final String query, {
+    required final IndexedQueryMode mode,
+    required final int? maxMatches,
+    required final int? maxExpansions,
+    required final int contextChars,
+  }) => _dispatch(
+    () => _client.sessionSearchIndexQueryInWorker(
+      _sessionId,
+      query,
+      mode: mode,
+      maxMatches: maxMatches,
+      maxExpansions: maxExpansions,
+      contextChars: contextChars,
+    ),
+  );
+
+  @override
+  Future<Map<String, Object?>> searchIndexExport() =>
+      _dispatch(() => _client.sessionSearchIndexExportInWorker(_sessionId));
+
+  @override
+  Future<Map<String, Object?>> searchIndexImport(
+    final Map<String, Object?> payload,
+    final SearchIndexIdentity? identity,
+  ) => _dispatch(() => _client.sessionSearchIndexImportInWorker(_sessionId, payload, identity));
+
+  @override
+  Future<void> searchIndexDrop() =>
+      _dispatch(() => _client.sessionSearchIndexDropInWorker(_sessionId));
 
   @override
   Future<BookStatistics> computeStatistics() =>

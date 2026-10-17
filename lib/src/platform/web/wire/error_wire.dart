@@ -11,6 +11,7 @@ import '../../../features/mobi/exceptions/mobi_exception.dart';
 import '../../../features/odt/exceptions/odt_exception.dart';
 import '../../../features/pdf/exceptions/pdf_exception.dart';
 import '../../../features/progressive/session_policy.dart';
+import '../../../features/search/index/search_index_exceptions.dart';
 import '../../../features/tiff/tiff_exception.dart';
 import '../../../foundation/exceptions/unseal_exception.dart';
 
@@ -34,6 +35,20 @@ Object decodeErrorWire(final String type, final String message) {
       return const SessionCancelledException();
     case 'SessionUnsupportedFormatException':
       return SessionUnsupportedFormatException(message);
+    case 'SearchIndexException':
+      return SearchIndexException(message);
+    case 'SearchIndexInvalidArgumentException':
+      return SearchIndexInvalidArgumentException(message);
+    case 'SearchIndexIncompatibleException':
+      return SearchIndexIncompatibleException(message);
+    case 'SearchIndexLimitExceededException':
+      return SearchIndexLimitExceededException(message);
+    case 'SearchIndexCancelledException':
+      return SearchIndexCancelledException(message);
+    case 'SearchIndexDisposedException':
+      return SearchIndexDisposedException(message);
+    case 'SearchIndexUnsupportedException':
+      return SearchIndexUnsupportedException(message);
     case 'FormatNotSupportedException':
       return FormatNotSupportedException(message);
     case 'DrmProtectedException':

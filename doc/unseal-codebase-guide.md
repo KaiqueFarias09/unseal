@@ -833,8 +833,16 @@ The flow is:
 | `features/search/entities/search_mode.dart` | Lists the supported search modes. |
 | `features/search/entities/search_match.dart` | Describes one result through its section path, section index, character range, and surrounding snippet. |
 | `features/search/entities/search_results.dart` | Groups the original query, ordered matches, and a flag that says whether `maxMatches` truncated the result. |
+| `features/search/index/search_text_tokenizer.dart` | Tokenizes canonical text into normalized terms with original UTF-16 ranges. Self-contained fold tables (Latin diacritics to ASCII base, Greek/Cyrillic case, fullwidth forms); soft hyphens, zero-width characters and the listed combining marks are ignorable inside a run, so `colo­rial` indexes as `colorial` with the hyphen inside the range. |
+| `features/search/index/searchable_map.dart` | Radix tree ported from MiniSearch's `SearchableMap`: exact lookup, prefix iteration over the matching subtree, and bounded fuzzy iteration sharing one incremental Levenshtein matrix. Prunes explicitly where the original relied on typed-array out-of-bounds writes. |
+| `features/search/index/index_ranking.dart` | BM25+ scoring (k=1.2, b=0.7, d=0.5) and the prefix/fuzzy expansion weights, ported from MiniSearch at revision `3d239d1c`. |
+| `features/search/index/book_search_index.dart` | The index itself: term postings per section with occurrence ranges, eligibility/pending/failed coverage, batched construction with cooperative cancellation, exact/prefix/fuzzy queries with the deterministic C05 tiebreak, and versioned serialization with pre-allocation import validation. |
+| `features/search/index/search_index_identity.dart` | Explicit identity inputs and the C02 digest helpers (SHA-256 over UTF-16LE for text revisions and the compact reading-order JSON). Temporary adapters pending the campaign's shared snapshot contract; fixed vectors live in the search test suites. |
+| `features/search/index/search_index_wire.dart` | JSON-safe codecs for indexed results and coverage, shared by the isolate and worker transports. |
+| `features/search/index/search_index_exceptions.dart` | The typed failure kinds: invalid argument, incompatible revision/profile, exceeded limit, cancellation, disposal, withheld PDF persistence. |
 
-Search relies on `canonical_document_text.dart`. If a parser and the Viewer count text differently, highlights and search results drift. The canonical text policy prevents that class of bug.
+The index is additive to `Book.search` and addresses the same canonical space.
+Search relies on `canonical_document_text.dart`. If a parser and the Viewer count text differently, highlights and search results drift. The canonical text policy prevents that class of bug, and the index projects every token back to that space, so indexed hits cut the same characters the scan search finds.
 
 ## Locators: store a position without storing UI state
 

@@ -15,6 +15,11 @@ import '../../pdf/layout/pdf_page_structure.dart';
 import '../../reading/book_progression.dart';
 import '../../search/entities/search_mode.dart';
 import '../../search/entities/search_results.dart';
+import '../../search/index/indexed_query_mode.dart';
+import '../../search/index/indexed_search_results.dart';
+import '../../search/index/search_index_exceptions.dart';
+import '../../search/index/search_index_identity.dart';
+import '../../search/index/search_index_wire.dart';
 import '../session_engine.dart';
 import '../session_policy.dart';
 import 'session_transport.dart';
@@ -144,6 +149,23 @@ void _dispatch(final SessionEngine engine, final SendPort replyPort, final List<
         contextChars: message[7]! as int,
         maxMatches: message[8]! as int,
       ),
+      _opSearchIndexEnsure => engine.searchIndexEnsure(
+        message[2]! as int,
+        SearchIndexIdentity.fromWire(message[3]),
+      ),
+      _opSearchIndexQuery => engine.searchIndexQuery(
+        message[2]! as String,
+        mode: IndexedQueryMode.values.byName(message[3]! as String),
+        maxMatches: message[4] as int?,
+        maxExpansions: message[5] as int?,
+        contextChars: message[6]! as int,
+      ),
+      _opSearchIndexExport => engine.searchIndexExport(),
+      _opSearchIndexImport => engine.searchIndexImport(
+        (message[2]! as Map).cast<String, Object?>(),
+        SearchIndexIdentity.fromWire(message[3]),
+      ),
+      _opSearchIndexDrop => _dropSearchIndex(engine),
       _opProgression => engine.computeProgression(),
       _opStatistics => engine.computeStatistics(),
       _opCfiResolve => engine.resolveCfi(message[2]! as String),
@@ -167,6 +189,20 @@ const _opSource = 'source';
 const _opPdfLines = 'pdfLines';
 const _opPdfStructure = 'pdfStructure';
 const _opSearch = 'search';
+const _opSearchIndexEnsure = 'searchIndexEnsure';
+const _opSearchIndexQuery = 'searchIndexQuery';
+const _opSearchIndexExport = 'searchIndexExport';
+const _opSearchIndexImport = 'searchIndexImport';
+const _opSearchIndexDrop = 'searchIndexDrop';
+
+/// The dispatch switch is an expression, so the void drop needs a
+/// value; null replies like the other side-effect ops.
+Object? _dropSearchIndex(final SessionEngine engine) {
+  engine.searchIndexDrop();
+
+  return null;
+}
+
 const _opProgression = 'progression';
 const _opStatistics = 'statistics';
 const _opCfiResolve = 'cfiResolve';
@@ -190,6 +226,13 @@ Object rebuildSessionError(final String type, final String message) {
     'FormatException' => FormatException(message),
     'ArgumentError' => ArgumentError(message),
     'FileSystemException' => FileSystemException(message),
+    'SearchIndexException' => SearchIndexException(message),
+    'SearchIndexInvalidArgumentException' => SearchIndexInvalidArgumentException(message),
+    'SearchIndexIncompatibleException' => SearchIndexIncompatibleException(message),
+    'SearchIndexLimitExceededException' => SearchIndexLimitExceededException(message),
+    'SearchIndexCancelledException' => SearchIndexCancelledException(message),
+    'SearchIndexDisposedException' => SearchIndexDisposedException(message),
+    'SearchIndexUnsupportedException' => SearchIndexUnsupportedException(message),
     _ => UnsealException(type.isEmpty ? message : '$type: $message'),
   };
 }
@@ -278,7 +321,7 @@ final class _IsolateSessionTransport implements SessionTransport {
     _byteLength = byteLength;
   }
 
-  Future<Object?> _request(final List<Object> message) {
+  Future<Object?> _request(final List<Object?> message) {
     if (_disposed) throw const SessionClosedException();
 
     final port = _port;
@@ -287,7 +330,7 @@ final class _IsolateSessionTransport implements SessionTransport {
     final id = _nextId++;
     final completer = Completer<Object?>();
     _pending[id] = completer;
-    port.send(<Object>[message[0], id, ...message.sublist(1)]);
+    port.send(<Object?>[message[0], id, ...message.sublist(1)]);
 
     return completer.future;
   }
@@ -372,6 +415,55 @@ final class _IsolateSessionTransport implements SessionTransport {
   @override
   Future<BookProgression> computeProgression() async {
     return await _request([_opProgression]) as BookProgression;
+  }
+
+  @override
+  Future<Map<String, Object?>> searchIndexEnsure(
+    final int maxSections,
+    final SearchIndexIdentity? identity,
+  ) async {
+    return await _request([_opSearchIndexEnsure, maxSections, identity?.toWire()])
+        as Map<String, Object?>;
+  }
+
+  @override
+  Future<IndexedSearchResults> searchIndexQuery(
+    final String query, {
+    required final IndexedQueryMode mode,
+    required final int? maxMatches,
+    required final int? maxExpansions,
+    required final int contextChars,
+  }) async {
+    return decodeIndexedSearchResultsWire(
+      await _request([
+            _opSearchIndexQuery,
+            query,
+            mode.name,
+            maxMatches,
+            maxExpansions,
+            contextChars,
+          ])
+          as Map<String, Object?>,
+    );
+  }
+
+  @override
+  Future<Map<String, Object?>> searchIndexExport() async {
+    return await _request([_opSearchIndexExport]) as Map<String, Object?>;
+  }
+
+  @override
+  Future<Map<String, Object?>> searchIndexImport(
+    final Map<String, Object?> payload,
+    final SearchIndexIdentity? identity,
+  ) async {
+    return await _request([_opSearchIndexImport, payload, identity?.toWire()])
+        as Map<String, Object?>;
+  }
+
+  @override
+  Future<void> searchIndexDrop() async {
+    await _request([_opSearchIndexDrop]);
   }
 
   @override

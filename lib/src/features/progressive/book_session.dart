@@ -7,6 +7,10 @@ import '../pdf/layout/pdf_page_structure.dart';
 import '../reading/book_progression.dart';
 import '../search/entities/search_mode.dart';
 import '../search/entities/search_results.dart';
+import '../search/index/book_search_index.dart';
+import '../search/index/indexed_query_mode.dart';
+import '../search/index/indexed_search_results.dart';
+import '../search/index/search_index_identity.dart';
 import 'session_policy.dart';
 import 'transport/session_transport.dart';
 import 'transport/session_transport_io.dart'
@@ -155,6 +159,87 @@ final class BookSession {
       maxMatches: maxMatches,
     );
   }
+
+  /// Builds (or advances) the session's resident search index in
+  /// bounded batches of [sectionsPerBatch], materializing one section
+  /// at a time inside the session's worker. Each batch is one round
+  /// trip; [onProgress] fires after every completed batch with the
+  /// current coverage.
+  ///
+  /// Cancelling [cancellation] stops the loop at the next batch
+  /// boundary and returns the frozen coverage — the resident index
+  /// keeps its partial state, visible to later queries. The first call
+  /// binds the index to [identity] when supplied; later calls ignore
+  /// it (a different identity fails typed inside the engine).
+  Future<SearchIndexCoverage> buildSearchIndex({
+    final int sectionsPerBatch = 4,
+    final SearchIndexIdentity? identity,
+    final SearchIndexCancellationToken? cancellation,
+    final void Function(SearchIndexCoverage coverage)? onProgress,
+  }) async {
+    var coverage = SearchIndexCoverage.fromWire(await _transport.searchIndexEnsure(0, identity));
+    while (!coverage.isComplete) {
+      if (cancellation?.isCancelled ?? false) return coverage;
+      coverage = SearchIndexCoverage.fromWire(
+        await _transport.searchIndexEnsure(sectionsPerBatch, null),
+      );
+      onProgress?.call(coverage);
+    }
+
+    return coverage;
+  }
+
+  /// The current coverage of the resident search index, reporting
+  /// without advancing the build (a zero-section ensure).
+  Future<SearchIndexCoverage> searchIndexCoverage() async {
+    return SearchIndexCoverage.fromWire(await _transport.searchIndexEnsure(0, null));
+  }
+
+  /// Indexed search over the resident index — ranking, prefix and
+  /// fuzzy modes per [IndexedQueryMode], hits carrying original UTF-16
+  /// ranges and the coverage that produced them. Over a partial index,
+  /// an empty result never proves absence in the book: check
+  /// [IndexedSearchResults.coverage].
+  ///
+  /// Throws the typed `SearchIndex*Exception` hierarchy (invalid
+  /// argument, exceeded limit) and needs [buildSearchIndex] first.
+  Future<IndexedSearchResults> searchIndexed(
+    final String query, {
+    final IndexedQueryMode mode = IndexedQueryMode.exact,
+    final int? maxMatches,
+    final int? maxExpansions,
+    final int contextChars = 48,
+  }) {
+    return _transport.searchIndexQuery(
+      query,
+      mode: mode,
+      maxMatches: maxMatches,
+      maxExpansions: maxExpansions,
+      contextChars: contextChars,
+    );
+  }
+
+  /// Serializes the resident index into a versioned payload the host
+  /// may persist. Refuses while the build is incomplete and, over PDF
+  /// text, until the P1 position-mapping acceptance.
+  Future<Map<String, Object?>> exportSearchIndex() => _transport.searchIndexExport();
+
+  /// Validates [payload] against this session's book — reading order,
+  /// section names and per-section text digests — and adopts it,
+  /// replacing any resident index. Mismatched content fails with
+  /// `SearchIndexIncompatibleException` and the resident index stays.
+  ///
+  /// Validation materializes every indexed section's text once; on a
+  /// cold session that is the cost of the full pass.
+  Future<SearchIndexCoverage> importSearchIndex(
+    final Map<String, Object?> payload, {
+    final SearchIndexIdentity? identity,
+  }) async {
+    return SearchIndexCoverage.fromWire(await _transport.searchIndexImport(payload, identity));
+  }
+
+  /// Drops the resident search index and releases its memory.
+  Future<void> dropSearchIndex() => _transport.searchIndexDrop();
 
   /// Whole-book reading progression, measured section by section in the
   /// session's worker.
