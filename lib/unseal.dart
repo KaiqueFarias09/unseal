@@ -44,6 +44,7 @@ export 'src/features/locators/locator_codec.dart';
 export 'src/features/locators/search_locator.dart';
 export 'src/features/opds/opds_feed.dart';
 export 'src/features/progressive/book_session.dart';
+export 'src/features/progressive/byte_source.dart';
 export 'src/features/progressive/session_policy.dart';
 export 'src/features/reading/book_inspection.dart';
 export 'src/features/reading/book_progression.dart';

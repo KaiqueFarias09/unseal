@@ -102,6 +102,20 @@ const String workerOpSessionCfiBuild = 'sessionCfiBuild';
 /// payload. Later ops with that ID fail typed; other sessions stay live.
 const String workerOpSessionDispose = 'sessionDispose';
 
+/// Wire protocol message kind (byteSource.v1): the worker asks the
+/// main thread's byte-source gate for one exact range. The version
+/// suffix is part of the contract — an engine and a host that disagree
+/// on it fail loudly instead of misreading frames.
+const String wireKindByteSourceRequest = 'byteSource.v1.request';
+
+/// Wire protocol message kind (byteSource.v1): the main thread's
+/// answer with the exact bytes requested.
+const String wireKindByteSourceReply = 'byteSource.v1.reply';
+
+/// Wire protocol message kind (byteSource.v1): the main thread's
+/// typed failure for one range request.
+const String wireKindByteSourceError = 'byteSource.v1.error';
+
 /// Wire protocol reply kind: a decoded book.
 const String wireReplyBook = 'book';
 
@@ -302,9 +316,35 @@ const String wireKeyPassword = 'password';
 /// Op payload key: the raw-slice cap of the session, in bytes.
 const String wireKeyRangeMaxBytes = 'rangeMaxBytes';
 
+/// Wire key: the session opens over the main thread's byte source —
+/// no bytes travel; the worker pulls ranges through the byteSource.v1
+/// bridge.
+const String wireKeyByteSource = 'byteSource';
+
+/// Wire key: one byteSource.v1 request/reply correlation id, unique
+/// inside its session.
+const String wireKeyRequestId = 'requestId';
+
+/// Wire key: the revision token the session's reads are stamped with.
+const String wireKeyRevision = 'revision';
+
+/// Wire key: the byte source's total length, delivered in the
+/// sessionOpen payload so the worker can start reading without a
+/// handshake round trip.
+const String wireKeySourceLength = 'sourceLength';
+
 /// Reply key: the total byte length of the session's container
 /// source.
 const String wireKeyByteLength = 'byteLength';
+
+/// Wire key: range reads served concurrently over an external source.
+const String wireKeyRangeRequestsInFlight = 'rangeRequestsInFlight';
+
+/// Wire key: combined bytes of the range reads served concurrently.
+const String wireKeyRangeBytesInFlight = 'rangeBytesInFlight';
+
+/// Wire key: the per-request byte cap over an external source.
+const String wireKeyRangeRequestBytes = 'rangeRequestBytes';
 
 /// Op payload key / reply key: whether the opened session serves its
 /// content entry by entry.

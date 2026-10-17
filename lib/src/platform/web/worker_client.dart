@@ -8,6 +8,8 @@ import 'package:web/web.dart' as web;
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/pdf/entities/pdf_page_text.dart';
 import '../../features/pdf/layout/pdf_page_structure.dart';
+import '../../features/progressive/byte_source.dart';
+import '../../features/progressive/byte_source_gate.dart';
 import '../../features/progressive/session_policy.dart';
 import '../../features/reading/book_progression.dart';
 import '../../features/search/entities/search_mode.dart';
@@ -50,6 +52,12 @@ final class WorkerClient {
   int _nextId = 0;
   int _nextSessionId = 0;
   final Set<int> _residentSessions = <int>{};
+
+  /// Byte sources served for source-opened sessions, keyed by session
+  /// id. The gate answers the worker's byteSource.v1 requests on this
+  /// thread; dispose or a worker breakage closes and drops the entry.
+  final Map<int, ByteSourceGate> _sessionSources = <int, ByteSourceGate>{};
+  final Map<int, String?> _sessionSourceRevisions = <int, String?>{};
   final Map<int, Completer<Object?>> _pending = <int, Completer<Object?>>{};
 
   /// Whether a worker script has been configured and not broken.
@@ -73,7 +81,16 @@ final class WorkerClient {
     _broken = false;
     _residentBook = false;
     _residentSessions.clear();
+    _closeSessionSources();
     _drainPending();
+  }
+
+  void _closeSessionSources() {
+    for (final gate in _sessionSources.values) {
+      unawaited(gate.close());
+    }
+    _sessionSources.clear();
+    _sessionSourceRevisions.clear();
   }
 
   /// Parses [bytes] inside the worker; `null` means the worker was
@@ -175,9 +192,7 @@ final class WorkerClient {
               payload: <String, Object?>{
                 wireKeySessionId: sessionId,
                 wireKeyPassword: password,
-                wireKeyCacheBytes: policy.cacheBytes,
-                wireKeyCoverMaxBytes: policy.coverMaxBytes,
-                wireKeyRangeMaxBytes: policy.rangeMaxBytes,
+                ..._policyWire(policy),
               },
             )
             as (Book, int?)?;
@@ -186,6 +201,65 @@ final class WorkerClient {
 
     return (book: opened.$1, sessionId: sessionId, byteLength: opened.$2 ?? 0);
   }
+
+  /// Opens an independently identified progressive session over the
+  /// host's [source] inside the worker: no bytes travel; the worker
+  /// pulls exact ranges through the byteSource.v1 bridge and this
+  /// thread's gate serves them (budgets, contract checks, and the
+  /// source lifecycle stay on the main thread). `null` means the
+  /// worker was unavailable and the caller should run the engine
+  /// inline over the same source. A failed open surfaces typed and
+  /// closes nothing else.
+  Future<({Book book, int sessionId, int byteLength, String? revision})?> sessionOpenSourceInWorker(
+    final UnsealByteSource source, {
+    final SessionPolicy policy = const SessionPolicy(),
+  }) async {
+    final sessionId = _nextSessionId++;
+    // Registered before the request: the open itself pulls ranges.
+    final gate = ByteSourceGate(source, policy: policy);
+    _sessionSources[sessionId] = gate;
+    _sessionSourceRevisions[sessionId] = gate.revisionAtOpen;
+    try {
+      final opened =
+          await _request(
+                workerOpSessionOpen,
+                payload: <String, Object?>{
+                  wireKeySessionId: sessionId,
+                  wireKeyByteSource: true,
+                  wireKeySourceLength: source.length,
+                  if (gate.revisionAtOpen != null) wireKeyRevision: gate.revisionAtOpen,
+                  ..._policyWire(policy),
+                },
+              )
+              as (Book, int?)?;
+      _residentSessions.add(sessionId);
+
+      return (
+        book: opened!.$1,
+        sessionId: sessionId,
+        byteLength: opened.$2 ?? 0,
+        revision: gate.revisionAtOpen,
+      );
+    } on Object {
+      _sessionSources.remove(sessionId);
+      _sessionSourceRevisions.remove(sessionId);
+      unawaited(gate.close());
+      rethrow;
+    }
+  }
+
+  /// The revision token the session's byte source carried at open,
+  /// null for bytes-opened sessions.
+  String? sourceRevisionForSession(final int sessionId) => _sessionSourceRevisions[sessionId];
+
+  Map<String, Object?> _policyWire(final SessionPolicy policy) => <String, Object?>{
+    wireKeyCacheBytes: policy.cacheBytes,
+    wireKeyCoverMaxBytes: policy.coverMaxBytes,
+    wireKeyRangeMaxBytes: policy.rangeMaxBytes,
+    wireKeyRangeRequestsInFlight: policy.rangeRequestsInFlight,
+    wireKeyRangeBytesInFlight: policy.rangeBytesInFlight,
+    wireKeyRangeRequestBytes: policy.rangeRequestBytes,
+  };
 
   /// A raw slice of the resident session's container source, clamped to
   /// the end and to the session's range cap. Throws
@@ -516,6 +590,9 @@ final class WorkerClient {
   /// other resident sessions stay usable.
   void sessionDisposeInWorker(final int sessionId) {
     if (!_residentSessions.remove(sessionId)) return;
+    final gate = _sessionSources.remove(sessionId);
+    _sessionSourceRevisions.remove(sessionId);
+    if (gate != null) unawaited(gate.close());
     unawaited(_request(workerOpSessionDispose, payload: _sessionPayload(sessionId)));
   }
 
@@ -603,6 +680,15 @@ final class WorkerClient {
   void _onReply(final web.MessageEvent event) {
     final data = event.data as JSObject?;
     if (data == null) return;
+
+    if (data.hasProperty(wireKeyKind.toJS).toDart) {
+      final kind = (data.getProperty(wireKeyKind.toJS) as JSString).toDart;
+      if (kind == wireKindByteSourceRequest) {
+        _serveByteRequest(data);
+
+        return;
+      }
+    }
 
     final id = (data.getProperty(wireKeyId.toJS) as JSNumber).toDartInt;
     final completer = _pending.remove(id);
@@ -744,6 +830,7 @@ final class WorkerClient {
     _worker = null;
     _residentBook = false;
     _residentSessions.clear();
+    _closeSessionSources();
     _drainPending();
   }
 
@@ -752,6 +839,69 @@ final class WorkerClient {
       completer.complete();
     }
     _pending.clear();
+  }
+
+  /// Serves one worker byteSource.v1 request through the session's
+  /// gate and posts the exact answer (or its typed failure) back. A
+  /// session this client no longer serves answers
+  /// ByteSourceClosedException, so a late request cannot resurrect a
+  /// dead session's reads.
+  void _serveByteRequest(final JSObject data) {
+    final worker = _worker;
+    if (worker == null) return;
+
+    final sessionId = (data.getProperty(wireKeySessionId.toJS) as JSNumber).toDartInt;
+    final requestId = (data.getProperty(wireKeyRequestId.toJS) as JSNumber).toDartInt;
+    final offset = (data.getProperty('offset'.toJS) as JSNumber).toDartInt;
+    final count = (data.getProperty('count'.toJS) as JSNumber).toDartInt;
+    final revision = data.hasProperty(wireKeyRevision.toJS).toDart
+        ? (data.getProperty(wireKeyRevision.toJS) as JSString).toDart
+        : null;
+    final gate = _sessionSources[sessionId];
+    if (gate == null) {
+      _postByteFailure(worker, sessionId, requestId, const ByteSourceClosedException());
+
+      return;
+    }
+
+    unawaited(
+      gate
+          .read(offset, count, expectedRevision: revision)
+          .then(
+            (final bytes) {
+              final message = JSObject();
+              message.setProperty(wireKeyId.toJS, requestId.toJS);
+              message.setProperty(wireKeyKind.toJS, wireKindByteSourceReply.toJS);
+              message.setProperty(wireKeySessionId.toJS, sessionId.toJS);
+              message.setProperty(wireKeyBytes.toJS, bytes.toJS);
+              worker.postMessage(message);
+            },
+            onError: (final Object error) {
+              _postByteFailure(worker, sessionId, requestId, error);
+            },
+          ),
+    );
+  }
+
+  void _postByteFailure(
+    final web.Worker worker,
+    final int sessionId,
+    final int requestId,
+    final Object error,
+  ) {
+    final message = JSObject();
+    message.setProperty(wireKeyId.toJS, requestId.toJS);
+    message.setProperty(wireKeyKind.toJS, wireKindByteSourceError.toJS);
+    message.setProperty(wireKeySessionId.toJS, sessionId.toJS);
+    message.setProperty(wireKeyType.toJS, error.runtimeType.toString().toJS);
+    message.setProperty(wireKeyMessage.toJS, _byteErrorMessage(error).toJS);
+    worker.postMessage(message);
+  }
+
+  String _byteErrorMessage(final Object error) {
+    if (error is UnsealException) return error.message;
+
+    return error.toString();
   }
 
   /// The reply's blob list. Blobs hold Uint8List entries and String
