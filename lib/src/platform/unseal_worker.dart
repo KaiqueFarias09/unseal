@@ -1,7 +1,12 @@
+import 'dart:typed_data';
+
+import '../features/alto/bind_alto_snapshot.dart';
 import '../features/cfi/epub_cfi_resolver.dart';
+import '../features/djvu/djvu_page_structure.dart';
 import '../features/search/book_search.dart';
 import '../features/search/entities/search_mode.dart';
 import '../features/search/entities/search_results.dart';
+import '../foundation/text/publication_revision.dart';
 import 'web/worker_client.dart' if (dart.library.io) 'io/worker_client.dart';
 
 /// Routes web parsing through a dedicated web worker so heavy books
@@ -63,6 +68,31 @@ abstract final class UnsealWorker {
       nearChars: nearChars,
       contextChars: contextChars,
       maxMatches: maxMatches,
+    );
+  }
+
+  /// Worker-backed fast path for `DjvuBook.pageStructureAt`: reads the
+  /// resident DjVu book page's spatial structure inside the worker.
+  /// Returns `null` when the worker or its resident book is
+  /// unavailable, the resident book is not DjVu, or the page has no
+  /// hidden-text chunk.
+  static Future<DjvuPageStructure?> spatialDjvuPageInWorker(final int pageIndex) {
+    return WorkerClient.instance.spatialDjvuPageInWorker(pageIndex);
+  }
+
+  /// Worker-backed fast path for `bindAltoToSnapshot`: parses [altoBytes]
+  /// inside the worker and binds them onto the resident DjVu page's
+  /// hidden-text snapshot. Returns `null` when the worker or its
+  /// resident book is unavailable — bind inline as the fallback.
+  static Future<AltoBoundSpatialText?> bindAltoInWorker({
+    required final Uint8List altoBytes,
+    required final int pageIndex,
+    required final PublicationRevision identity,
+  }) {
+    return WorkerClient.instance.bindAltoInWorker(
+      altoBytes: altoBytes,
+      pageIndex: pageIndex,
+      identity: identity,
     );
   }
 

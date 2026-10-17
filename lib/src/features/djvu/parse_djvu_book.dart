@@ -495,6 +495,7 @@ final class _DjvuDocument {
     // A compressed TXTz chunk carries the same contract as TXTa; the
     // compressed form wins when a page stores both (the corpus has no such
     // page; TXTa is a discouraged legacy encoding).
+    final encoded = compressedText ?? legacyText;
     final textChunk = compressedText != null
         ? decodeDjvuTextChunk(Uint8List.sublistView(bytes, compressedText.data, compressedText.end))
         : legacyText == null
@@ -508,6 +509,10 @@ final class _DjvuDocument {
       image: image,
       text: textChunk?.text ?? '',
       textChunk: textChunk,
+      encodedTextChunk: encoded == null
+          ? null
+          : Uint8List.sublistView(bytes, encoded.data, encoded.end),
+      encodedTextChunkCompressed: compressedText != null,
     );
   }
 

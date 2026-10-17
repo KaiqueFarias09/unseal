@@ -15,6 +15,8 @@ class DjvuPage {
     required this.image,
     required this.text,
     this.textChunk,
+    this.encodedTextChunk,
+    this.encodedTextChunkCompressed = true,
   });
 
   /// Original page width, in pixels.
@@ -39,6 +41,14 @@ class DjvuPage {
   /// when the page stores one. Zones keep the DjVu coordinate system and
   /// both the stored UTF-8 and the canonical UTF-16 ranges of their text.
   final DjvuTextChunk? textChunk;
+
+  /// The page's encoded hidden-text chunk bytes (TXTz BZZ-compressed or
+  /// TXTa raw grammar), retained so a wire decode can rebuild
+  /// [textChunk]. A view into the source bytes, not a copy.
+  final Uint8List? encodedTextChunk;
+
+  /// Whether [encodedTextChunk] is BZZ-compressed (TXTz) or raw (TXTa).
+  final bool encodedTextChunkCompressed;
 }
 
 /// A DjVu book with directly stored JPEG or decoded page images in reading order.

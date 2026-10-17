@@ -127,7 +127,7 @@ final class DjvuPageStructure {
   /// Whether the page carries zone records at all.
   bool get hasZones => chunk.root != null;
 
-  late List<DjvuTextZone>? _nativeZones;
+  List<DjvuTextZone>? _nativeZones;
 
   /// The shared spatial projection of the page, or null when the page has
   /// no zones. Rectangles convert to the canonical top-left origin; the
@@ -139,7 +139,7 @@ final class DjvuPageStructure {
     return _spatialPage ??= _buildSpatialPage();
   }
 
-  late SpatialTextPage? _spatialPage;
+  SpatialTextPage? _spatialPage;
 
   /// Range queries over [spatialPage]'s zones, or null when the page has
   /// no zones.
@@ -150,7 +150,7 @@ final class DjvuPageStructure {
     return _lookup ??= SpatialZoneLookup(page);
   }
 
-  late SpatialZoneLookup? _lookup;
+  SpatialZoneLookup? _lookup;
 
   /// The canonical snapshot of the page's hidden text under
   /// [djvuHiddenTextProfile].

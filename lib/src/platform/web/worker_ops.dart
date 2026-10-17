@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 
+import '../../features/alto/bind_alto_snapshot.dart';
+import '../../features/alto/parse_alto_document.dart';
 import '../../features/cfi/epub_cfi.dart';
 import '../../features/cfi/epub_cfi_resolver.dart';
+import '../../features/djvu/djvu_book.dart';
 import '../../features/epub/entities/book/book.dart';
 import '../../features/mobi/header/pdb_header.dart';
 import '../../features/pdf/entities/pdf_book.dart';
@@ -19,6 +22,7 @@ import '../../foundation/exceptions/unseal_exception.dart';
 import 'book_wire.dart';
 import 'wire/book_components_wire.dart';
 import 'wire/pdf_structure_wire.dart';
+import 'wire/spatial_wire.dart';
 
 /// Runs one worker op against the request [bytes], the
 /// [residentBook] left behind by the last successful parse and the
@@ -69,6 +73,10 @@ import 'wire/pdf_structure_wire.dart';
       return _search(payload!, residentBook);
     case workerOpCfiResolve:
       return _cfiResolve(payload!, residentBook);
+    case workerOpSpatialDjvuPage:
+      return _spatialDjvuPage(payload!, residentBook);
+    case workerOpSpatialAltoBind:
+      return _spatialAltoBind(bytes!, payload!, residentBook);
     case workerOpCfiBuild:
       return _cfiBuild(payload!, residentBook);
     case workerOpSessionOpen:
@@ -171,6 +179,49 @@ import 'wire/pdf_structure_wire.dart';
   return (
     kind: wireReplyCfi,
     json: <String, Object?>{wireKeyCfi: cfi},
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_spatialDjvuPage(final Map<String, Object?> payload, final Book? residentBook) {
+  final book = _residentFor(residentBook);
+  if (book is! DjvuBook) {
+    throw UnsealException('spatial ops need a resident DjVu book, got ${book.format.name}.');
+  }
+  final blobs = <Object>[];
+  final structure = book.pageStructureAt(payload[wireKeyPageIndex] as int);
+
+  return (
+    kind: wireReplySpatialDjvuPage,
+    json: <String, Object?>{
+      wireKeyStructure:
+          structure == null ? null : encodeDjvuPageStructureWire(structure, blobs),
+    },
+    blobs: blobs,
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_spatialAltoBind(final Uint8List altoBytes, final Map<String, Object?> payload, final Book? residentBook) {
+  final book = _residentFor(residentBook);
+  if (book is! DjvuBook) {
+    throw UnsealException('spatial ops need a resident DjVu book, got ${book.format.name}.');
+  }
+  final identity = decodePublicationRevisionWire(payload[wireKeyIdentity]);
+  final pageIndex = payload[wireKeyPageIndex] as int;
+  final structure = book.pageStructureAt(pageIndex);
+  if (structure == null) {
+    throw UnsealException('DjVu page ${pageIndex + 1} has no hidden-text chunk to bind.');
+  }
+  final document = parseAltoDocument(altoBytes);
+  final binding = bindAltoToSnapshot(document: document, target: structure.snapshot(identity: identity));
+
+  return (
+    kind: wireReplySpatialAltoBind,
+    json: <String, Object?>{wireKeyBound: encodeAltoBoundTextWire(binding.boundText)},
     blobs: const <Object>[],
     session: null,
   );

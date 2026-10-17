@@ -68,6 +68,24 @@ final class DjvuTextChunk {
   /// The page text's UTF-16 length — the offset unit the zones' canonical
   /// ranges use.
   int get utf16Length => text.length;
+
+/// Rebuilds a chunk from already-decoded parts — the wire decoder's
+/// path. Validates the same invariants the grammar decoder enforces;
+/// [ArgumentError] reports a payload that disagrees with itself.
+factory DjvuTextChunk.restore({
+  required final String text,
+  required final int zoneCount,
+  required final DjvuTextZone? root,
+}) {
+  if (zoneCount < 0 || zoneCount > _maxTextZones) {
+    throw ArgumentError.value(zoneCount, 'zoneCount', 'Outside the zone-count bounds');
+  }
+  if (root != null && root.recordCount() != zoneCount) {
+    throw ArgumentError.value(zoneCount, 'zoneCount', 'Disagrees with the tree');
+  }
+
+  return DjvuTextChunk._(text: text, zoneCount: zoneCount, root: root);
+}
 }
 
 /// One node of the TXTz zone tree, decoded to absolute values.
@@ -126,6 +144,55 @@ final class DjvuTextZone {
 
   /// The zone text's UTF-16 length.
   int get utf16Length => utf16End - utf16Start;
+
+  /// The subtree's record count, including this zone.
+  int recordCount() {
+    var total = 1;
+    for (final child in children) {
+      total += child.recordCount();
+    }
+
+    return total;
+  }
+
+  /// Rebuilds a zone from already-decoded parts — the wire decoder's
+  /// path. Validates the stored invariants; [ArgumentError] reports a
+  /// payload that disagrees with itself.
+  factory DjvuTextZone.restore({
+    required final int type,
+    required final int xmin,
+    required final int ymin,
+    required final int xmax,
+    required final int ymax,
+    required final int utf8Start,
+    required final int utf8Length,
+    required final int utf16Start,
+    required final int utf16End,
+    required final List<DjvuTextZone> children,
+  }) {
+    if (type < djvuZoneTypePage || type > djvuZoneTypeCharacter) {
+      throw ArgumentError.value(type, 'type', 'Outside the stored zone types');
+    }
+    if (xmin >= xmax || ymin >= ymax) {
+      throw ArgumentError('Zone rectangles must have positive area');
+    }
+    if (utf8Start < 0 || utf8Length < 0 || utf16Start < 0 || utf16End < utf16Start) {
+      throw ArgumentError('Zone ranges must be non-negative and ordered');
+    }
+
+    return DjvuTextZone._(
+      type: type,
+      xmin: xmin,
+      ymin: ymin,
+      xmax: xmax,
+      ymax: ymax,
+      utf8Start: utf8Start,
+      utf8Length: utf8Length,
+      utf16Start: utf16Start,
+      utf16End: utf16End,
+      children: children,
+    );
+  }
 }
 
 /// Decodes a BZZ-compressed TXTz chunk (DjVu 3 spec, §8.3.5).

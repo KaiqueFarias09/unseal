@@ -28,6 +28,12 @@ const String workerOpSearch = 'search';
 /// Wire protocol op: resolve a CFI against the resident book.
 const String workerOpCfiResolve = 'cfiResolve';
 
+/// Wire protocol op: the resident DjVu book page's spatial structure.
+const String workerOpSpatialDjvuPage = 'spatial.djvuPage';
+
+/// Wire protocol op: bind ALTO bytes onto a resident DjVu page snapshot.
+const String workerOpSpatialAltoBind = 'spatial.altoBind';
+
 /// Wire protocol op: build a CFI from a reading position in the
 /// resident book.
 const String workerOpCfiBuild = 'cfiBuild';
@@ -117,6 +123,12 @@ const String wireReplyCfiLocation = 'cfiLocation';
 
 /// Wire protocol reply kind: an encoded CFI string.
 const String wireReplyCfi = 'cfi';
+
+/// Reply kind: a resident DjVu page's spatial structure.
+const String wireReplySpatialDjvuPage = 'spatialDjvuPage';
+
+/// Reply kind: one ALTO binding onto a resident DjVu page snapshot.
+const String wireReplySpatialAltoBind = 'spatialAltoBind';
 
 /// Wire protocol reply kind: a parse failure.
 const String wireReplyError = 'error';
@@ -282,6 +294,15 @@ const String wireKeyPageIndex = 'pageIndex';
 
 /// Reply key: the encoded PDF page structure.
 const String wireKeyStructure = 'structure';
+
+/// Payload key: the ALTO bytes ride the op's blob entry as its index.
+const String wireKeyAlto = 'alto';
+
+/// Payload key: the binding request's publication identity.
+const String wireKeyIdentity = 'identity';
+
+/// Reply key: one ALTO binding's bound spatial text.
+const String wireKeyBound = 'bound';
 
 /// Reply key: the encoded PDF page text (lines, image placements,
 /// page geometry) of a `sessionPdfLines` reply, JSON null when the

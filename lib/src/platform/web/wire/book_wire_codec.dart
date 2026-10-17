@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../../features/comic/entities/comic_book.dart';
 import '../../../features/comic/entities/comic_page_info.dart';
 import '../../../features/djvu/djvu_book.dart';
+import '../../../features/djvu/djvu_text.dart';
 import '../../../features/epub/entities/book/book.dart';
 import '../../../features/fb2/entities/fb2_book.dart';
 import '../../../features/mobi/entities/mobi_book.dart';
@@ -145,6 +146,10 @@ import 'text_profile_wire.dart';
             'dpi': page.dpi,
             'rotation': page.rotation,
             'text': page.text,
+            'txtz': page.encodedTextChunk == null
+                ? null
+                : pushWireBlob(blobs, page.encodedTextChunk!),
+            'txtzCompressed': page.encodedTextChunkCompressed,
           },
       ],
     };
@@ -246,14 +251,28 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
       navigation: navigation,
       pages: <DjvuPage>[
         for (var index = 0; index < pageEntries.length; index++)
-          DjvuPage(
-            width: (pageEntries[index] as Map<String, Object?>)['width'] as int,
-            height: (pageEntries[index] as Map<String, Object?>)['height'] as int,
-            dpi: (pageEntries[index] as Map<String, Object?>)['dpi'] as int,
-            rotation: (pageEntries[index] as Map<String, Object?>)['rotation'] as int,
-            text: (pageEntries[index] as Map<String, Object?>)['text'] as String,
-            image: files.images[index],
-          ),
+          () {
+            final entry = pageEntries[index] as Map<String, Object?>;
+            final txtz = entry['txtz'] as int?;
+            final encoded = txtz == null ? null : blobs[txtz] as Uint8List;
+            final compressed = entry['txtzCompressed'] as bool? ?? true;
+
+            return DjvuPage(
+              width: entry['width'] as int,
+              height: entry['height'] as int,
+              dpi: entry['dpi'] as int,
+              rotation: entry['rotation'] as int,
+              text: entry['text'] as String,
+              image: files.images[index],
+              textChunk: encoded == null
+                  ? null
+                  : (compressed
+                        ? decodeDjvuTextChunk(encoded)
+                        : decodeDjvuTextChunkRaw(encoded)),
+              encodedTextChunk: encoded,
+              encodedTextChunkCompressed: compressed,
+            );
+          }(),
       ],
     );
   }
