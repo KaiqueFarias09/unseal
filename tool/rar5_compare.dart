@@ -138,7 +138,6 @@ void main(final List<String> arguments) {
       var libarchive = libarchiveEntries?[entryName];
       libarchive ??= _pairByDigest(libarchiveEntries!.values, unseal, null);
 
-      var ok = true;
       if (unseal == null) {
         if (allowReject) {
           stdout.writeln(
@@ -147,14 +146,22 @@ void main(final List<String> arguments) {
           );
         } else {
           stderr.writeln('FAIL $name/$entryName: Unseal did not produce this entry');
-          ok = false;
+          failures++;
         }
+        continue;
       }
+      var ok = true;
+      final pairedByName =
+          dartEntries.containsKey(entryName) &&
+          (!useRardecode || rardecodeEntries!.containsKey(entryName)) &&
+          (!useLibarchive || libarchiveEntries!.containsKey(entryName));
+      // After the null check above, Unseal's bytes are always present
+      // here; the oracle sides are checked for presence below.
       if (useRardecode) {
         if (rardecode == null) {
           stderr.writeln('FAIL $name/$entryName: rardecode did not extract it');
           ok = false;
-        } else if (unseal != null && !_sameBytes(unseal, rardecode)) {
+        } else if (!_sameBytes(unseal, rardecode)) {
           stderr.writeln(
             'FAIL $name/$entryName: ${unseal.length} bytes from Unseal vs '
             '${rardecode.length} from rardecode differ',
@@ -166,7 +173,7 @@ void main(final List<String> arguments) {
         if (libarchive == null) {
           stderr.writeln('FAIL $name/$entryName: bsdtar did not extract it');
           ok = false;
-        } else if (unseal != null && !_sameBytes(unseal, libarchive)) {
+        } else if (!_sameBytes(unseal, libarchive)) {
           stderr.writeln(
             'FAIL $name/$entryName: ${unseal.length} bytes from Unseal vs '
             '${libarchive.length} from bsdtar differ',
@@ -176,8 +183,9 @@ void main(final List<String> arguments) {
       }
       if (ok) {
         stdout.writeln(
-          "ok   $name/$entryName (${unseal!.length} bytes, "
-          "${useRardecode && useLibarchive ? 'both oracles' : 'oracle'})",
+          "ok   $name/$entryName (${unseal.length} bytes, "
+          "${useRardecode && useLibarchive ? 'both oracles' : 'oracle'}"
+          "${pairedByName ? '' : ', name paired by content'})",
         );
       } else {
         failures++;
