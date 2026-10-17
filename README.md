@@ -371,6 +371,29 @@ for (final entry in catalog.books) {
 The Calibre records describe available formats and library-relative paths;
 opening a listed book remains the application's responsibility.
 
+### EPUB structural diagnostics
+
+`diagnoseEpub` reports structural and reference findings for an EPUB with
+stable rule identifiers, severities, resources, locations, and reasons. It
+covers the OCF container and rootfile, the OPF manifest, the spine, and
+EPUB 2/3 navigation references, including relative paths, percent-encoding,
+and fragments:
+
+```dart
+final report = diagnoseEpub(bytes);
+for (final finding in report.findings) {
+  print('${finding.severity.name} ${finding.ruleId}: ${finding.reason}');
+}
+```
+
+Diagnostics never change what the reading APIs accept or reject, never
+repair a book, and never fetch external resources. A report without
+findings is not an EPUB conformance claim; the subset is deliberately
+narrower than EPUBCheck, and content-document validity, CSS, metadata
+formats, and accessibility checks stay out of scope. The rule catalog,
+the measured EPUBCheck 5.4.0 mapping, and the report bounds are documented
+in `doc/epub-diagnostics.md`.
+
 ### Page data for comics and PDFs
 
 `ComicBook.pages` stays in natural archive order. `pageInfo[i]` describes

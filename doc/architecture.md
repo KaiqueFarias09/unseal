@@ -47,7 +47,7 @@ entry points for consumers that need one format. Public signatures must use
 types exported by the same public entry point. Consumers must not import
 `lib/src/`.
 
-PDF page diagnostics and comic page roles remain format-specific contracts.
+PDF page diagnostics, EPUB structural diagnostics, and comic page roles remain format-specific contracts.
 Applications decide whether to request OCR, hide pages marked `Delete`, or
 render double-page spreads; Unseal only parses and reports the source data.
 PDF additionally carries a format-specific structure layer

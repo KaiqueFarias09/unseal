@@ -1,3 +1,17 @@
+## Unreleased
+
+### Added
+
+- EPUB structural diagnostics through `diagnoseEpub` and
+  `diagnoseEpubArchive`: deterministic findings with stable rule IDs,
+  severities, resources, locations, and reasons for the OCF container and
+  mimetype, the OPF package and manifest, the spine, and EPUB 2/3
+  navigation and guide references, including percent-encoded paths and
+  fragments. Reading behavior, typed failures, and safety boundaries are
+  unchanged; the report is bounded and never claims EPUB conformance. The
+  rule catalog is validated against EPUBCheck 5.4.0 runs on a committed
+  fixture corpus (`doc/epub-diagnostics.md`).
+
 ## 1.3.0 - October 17, 2026
 
 ### Added
