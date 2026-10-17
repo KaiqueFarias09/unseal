@@ -233,7 +233,8 @@ Navigation deriveMobi6NavigationBytes(
   final points = <NavPoint>[];
   for (var i = bestStart; i < bestStart + bestLength; i++) {
     final (tagStart, tagEnd, matchEnd) = candidates[i];
-    final label = _stripTags(decodeBytes(store.slice(tagEnd, matchEnd - 4), codec)).trim();
+    // The label starts after the tag's closing `>`.
+    final label = _stripTags(decodeBytes(store.slice(tagEnd + 1, matchEnd - 4), codec)).trim();
     final target = _targetFromTagBytes(store, tagStart, tagEnd);
     if (target == null) continue;
 
@@ -258,7 +259,11 @@ Navigation deriveMobi6NavigationBytes(
 /// chain skipped.
 final class Mobi6SectionPlan {
   /// Creates a plan from its sections and insertions.
-  const Mobi6SectionPlan({required this.sections, required this.insertions});
+  const Mobi6SectionPlan({
+    required this.sections,
+    required this.insertions,
+    required this.boundaryByTarget,
+  });
 
   /// The ordered sections over the raw stream.
   final List<Mobi6Section> sections;
@@ -266,6 +271,9 @@ final class Mobi6SectionPlan {
   /// The global anchor insertion chain: (raw offset, anchor text) in
   /// insertion order.
   final List<(int, String)> insertions;
+
+  /// Navigation target value → its anchor's section boundary.
+  final Map<int, int> boundaryByTarget;
 }
 
 /// Computes the MOBI 6 section table from the navigation targets,
@@ -294,16 +302,19 @@ Mobi6SectionPlan computeMobi6Sections(
     final gt = _indexOfByteBounded(store, 0x3E, end);
     var anchorEnd = end;
     var insertion = end;
+    var mode = _AnchorMode.element;
     var anchorText = '<a id="filepos$target"></a>';
     if (gt > -1 && (gt < lt || lt == end || lt == -1)) {
       final p = _lastIndexOfByteBounded(store, 0x3C, 0, end + 1);
       final isEndTag = p > -1 && store.slice(p + 1, p + 2)[0] == 0x2F;
       final selfClosed = p > -1 && gt > p && store.slice(gt - 1, gt)[0] == 0x2F;
       if (chainPos < end && p > -1 && !isEndTag && !selfClosed) {
-        // Attribute mode: the anchor text inserts before the tag's
-        // `>`; the section boundary sits at the insertion start.
+        mode = _AnchorMode.attribute;
+        // Attribute mode: the anchor text splices in before the tag's
+        // `>`, and the section boundary sits AFTER that close so the
+        // inserted attribute never leaks as section text.
         anchorEnd = gt;
-        insertion = gt;
+        insertion = gt + 1;
         anchorText = ' filepos-id="filepos$target"';
       } else {
         anchorEnd = gt + 1;
@@ -314,7 +325,9 @@ Mobi6SectionPlan computeMobi6Sections(
     if (anchorEnd <= chainPos) continue;
 
     insertionStarts[target] = insertion;
-    insertions.add((insertion, anchorText));
+    // The splice point differs from the boundary in attribute mode:
+    // the text belongs before the `>`, the boundary after it.
+    insertions.add((mode == _AnchorMode.attribute ? gt : insertion, anchorText));
     chainPos = anchorEnd;
   }
 
@@ -363,8 +376,16 @@ Mobi6SectionPlan computeMobi6Sections(
     sections.add(Mobi6Section(_sectionName(0), 0, store.streamLength));
   }
 
-  return Mobi6SectionPlan(sections: sections, insertions: insertions);
+  return Mobi6SectionPlan(
+    sections: sections,
+    insertions: insertions,
+    boundaryByTarget: Map.unmodifiable(insertionStarts),
+  );
 }
+
+/// How an anchor inserts: a whole element, or an attribute on the tag
+/// surrounding the target.
+enum _AnchorMode { element, attribute }
 
 String _sectionName(final int index) => 'chapter${(index + 1).toString().padLeft(5, '0')}.html';
 

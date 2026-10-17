@@ -262,8 +262,9 @@ Future<List<Map<String, Object?>>> _sessionCaseRows(
     }
     sessionTexts.add(text);
   }
-  final joinedSession = _collapseWhitespace(sessionTexts.join('\n'));
-  final joinedEager = _collapseWhitespace(eager.sectionTexts.join('\n'));
+  // Declared R1: plain concatenation in reading order, no separator.
+  final joinedSession = _collapseWhitespace(sessionTexts.join());
+  final joinedEager = _collapseWhitespace(eager.sectionTexts.join());
   cases.add(
     joinedSession == joinedEager
         ? _case('MS03-session-text', 'Session text equals eager text under R1', 'pass', {

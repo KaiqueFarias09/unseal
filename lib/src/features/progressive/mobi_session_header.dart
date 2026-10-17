@@ -70,18 +70,21 @@ MobiSessionHeader buildMobiSessionHeader({
       header.codec,
     );
     final sectionPlan = computeMobi6Sections(scan, store, navigation);
+    // Declared R3: session targets name their section, so a
+    // navigation point resolves across the per-section file model.
+    final qualified = _qualifyMobi6Targets(navigation, sectionPlan);
     final paths = <String>[for (final section in sectionPlan.sections) section.name];
     final cover = _coverFile(pdb, coverIndex, policy);
 
     final book = MobiBook(
-      navigation: navigation,
+      navigation: qualified,
       files: Files.empty(),
       cover: cover,
       header: header,
       format: BookFormat.mobi,
       readingOrderPaths: paths,
     );
-    final plan = Mobi6ServingPlan(sectionPlan: sectionPlan, navigation: navigation);
+    final plan = Mobi6ServingPlan(sectionPlan: sectionPlan, navigation: qualified);
 
     return MobiSessionHeader(
       book: book,
@@ -150,6 +153,43 @@ MobiSessionHeader buildMobiSessionHeader({
       mobi6: null,
       kf8: plan,
     ),
+  );
+}
+
+/// Rewrites MOBI 6 navigation targets from same-document anchors
+/// (`#fileposN`) into section-qualified ones
+/// (`chapterNNNNN.html#fileposN`), pointing each at the section whose
+/// span begins at that anchor's insertion boundary.
+Navigation _qualifyMobi6Targets(final Navigation navigation, final Mobi6SectionPlan plan) {
+  String? sectionContaining(final int boundary) {
+    for (final section in plan.sections) {
+      if (boundary >= section.start && boundary < section.end) return section.name;
+    }
+
+    return null;
+  }
+
+  NavPoint qualify(final NavPoint point) {
+    final match = RegExp(r'#filepos(\d+)$').firstMatch(point.content);
+    if (match == null) return point;
+
+    final boundary = plan.boundaryByTarget[int.parse(match.group(1)!)];
+    final section = boundary == null ? null : sectionContaining(boundary);
+    if (section == null) return point;
+
+    return NavPoint(
+      classAttribute: point.classAttribute,
+      id: point.id,
+      playOrder: point.playOrder,
+      label: point.label,
+      content: '$section${point.content}',
+      subNavPoints: <NavPoint>[for (final child in point.subNavPoints) qualify(child)],
+    );
+  }
+
+  return Navigation(
+    title: navigation.title,
+    navPoints: <NavPoint>[for (final point in navigation.navPoints) qualify(point)],
   );
 }
 
@@ -377,6 +417,24 @@ final class Mobi6ServingPlan {
 
   TextFile _materialize(final MobiSessionContent content, final Mobi6Section section) {
     var bytes = content.store.slice(section.start, section.end);
+    // A section that starts at a navigation anchor carries that
+    // anchor as a leading element: the eager parse embeds the anchor
+    // inside the tag preceding the boundary, which belongs to the
+    // previous section's tail. The element adds no canonical text, so
+    // R1 parity is untouched, and every navigation target resolves in
+    // its own section source.
+    final leadingTargets = <int>[
+      for (final entry in sectionPlan.boundaryByTarget.entries)
+        if (entry.value == section.start && section.start != 0) entry.key,
+    ];
+    if (leadingTargets.isNotEmpty) {
+      final builder = BytesBuilder(copy: false);
+      for (final target in leadingTargets) {
+        builder.add(Uint8List.fromList('<a id="filepos$target"></a>'.codeUnits));
+      }
+      builder.add(bytes);
+      bytes = builder.takeBytes();
+    }
     // Splice this section's share of the global anchor chain: the
     // chain state is global, so a per-section re-scan would diverge
     // wherever the eager chain skipped an anchor.
