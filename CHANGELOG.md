@@ -1,3 +1,27 @@
+## Unreleased
+
+### Added
+
+- Progressive EPUB and CBZ sessions over host-owned byte sources:
+  `BookSession.openSource` plus the public `UnsealByteSource` contract
+  (length, revision identity, exact `readRange`, close). Unseal orders
+  the ranges — an end-of-central-directory tail scan, bounded central
+  directory windows, then one local header and one compressed payload
+  per entry — while the host keeps HTTP, authentication, storage, and
+  retries. Reads carry the revision captured at open and fail typed
+  (`ByteSourceShortReadException`, `ByteSourceLongReadException`,
+  `ByteSourceReadException`, `ByteSourceRevisionChangedException`,
+  `ByteSourceLimitExceededException`, `ByteSourceClosedException`)
+  when the host answer or the source state breaks the contract.
+  `SessionPolicy` gains `rangeRequestsInFlight`,
+  `rangeBytesInFlight`, and `rangeRequestBytes` budgets: extra
+  requests queue (backpressure) and over-cap requests fail typed
+  instead of downloading the container. VM sessions run through a
+  versioned `byteSource.v1` isolate bridge; browser sessions through
+  the same protocol over the configured Web Worker, with per-session
+  isolation so concurrent books never exchange bytes. Bytes, file,
+  CBR, and PDF opens are unchanged.
+
 ## 1.3.0 - October 17, 2026
 
 ### Added

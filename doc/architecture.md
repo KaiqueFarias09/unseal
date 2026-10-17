@@ -68,6 +68,8 @@ The main operations are:
 - `UnsealWorker` for optional browser-worker execution;
 - `BookSession.open` and `BookSession.openFile` for progressive EPUB, CBZ,
   CBR, and PDF reads with a structure-only header and requested content.
+- `BookSession.openSource` over a host-owned `UnsealByteSource` for
+  progressive EPUB and CBZ reads by exact byte ranges.
 
 CB7 and CBC remain asynchronous because their 7-Zip reader is asynchronous.
 
@@ -119,7 +121,19 @@ one session does not replace another.
 EPUB and CBZ use random-access ZIP entries; CBR uses the RAR entry source,
 whose compressed entries decode while the session header sniffs page types
 at opening. PDF uses a random-access byte source and a reflow plan to
-extract requested pages. Whole-book search, statistics, and progression can
+extract requested pages.
+
+EPUB and CBZ sessions can also open over a host-owned byte source
+(`UnsealByteSource`: length, revision identity, exact `readRange`,
+close). The engine reads through an asynchronous container layer — one
+end-of-central-directory tail scan, bounded central-directory windows,
+then one local header and one compressed payload per entry, a Deflate
+entry's whole compressed payload being its real decompression unit —
+and pulls those ranges from the host through a versioned
+(`byteSource.v1`) bridge over the VM isolate or the Web Worker. The
+host-side gate enforces the source contract, the session's in-flight
+budgets, and the revision identity on the thread that owns the source;
+other formats refuse the external-source path explicitly. Whole-book search, statistics, and progression can
 still traverse all content. The optional search index builds through bounded
 batches with coverage accounting.
 Comic pages have no searchable text, and sessions do not perform OCR.

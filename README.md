@@ -210,6 +210,38 @@ returns no matches because their pages have no searchable text; sessions do
 not perform OCR. In browsers, use `BookSession.open(bytes)` and configure
 the worker as shown below. Without a healthy worker, sessions execute inline.
 
+### Sessions over your own byte ranges
+
+When the book lives behind your own transport — an HTTP server that
+answers Range requests, object storage, a sync cache — open the session
+over a source you own instead of handing over bytes:
+
+```dart
+final session = await BookSession.openSource(myHttpByteSource);
+```
+
+Implement `UnsealByteSource`: report `length` and, when you can verify
+identity, a `revision` token (an ETag works); answer `readRange(offset,
+count)` with exactly `count` bytes; release the transport in `close`.
+Unseal orders the reads — one end-of-central-directory tail scan, the
+central directory, then one local header plus one compressed payload
+per entry — and never asks for the whole file at once: opening an 11 MB
+EPUB transfers a few percent of it, and a Deflate entry's real
+decompression unit is its whole compressed payload, which is exactly
+what gets requested. HTTP, authentication, storage, and retries stay
+with you. Sessions opened this way cover EPUB and CBZ; other formats
+are refused with `SessionUnsupportedFormatException` and keep their
+bytes/file opens.
+
+Budgets live in `SessionPolicy`: `rangeRequestsInFlight` and
+`rangeBytesInFlight` cap concurrent reads (extra requests queue —
+backpressure, not failure), and `rangeRequestBytes` refuses any single
+request above the cap instead of silently downloading the container.
+The revision token you reported at open stamps every read; a source
+whose revision changes under an open session fails its reads with
+`ByteSourceRevisionChangedException` instead of mixing file states.
+The source is closed when the session is disposed.
+
 PDF sessions derive their reflow plan from up to 20 sampled pages. For longer
 documents, that plan differs from a full parse, so the two modes carry
 different canonical text profiles (`document` versus `session-sample`) and a

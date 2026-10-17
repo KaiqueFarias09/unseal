@@ -993,8 +993,12 @@ final class SessionEngine {
     required final bool ownsReader,
   }) async {
     SessionUnsupportedFormatException unsupported(final String family) {
+      // DetectedFormat.epub is the whole zip family (refined by
+      // inventory), so the label stays 'zip' for it.
+      final label = family.isEmpty || family == 'epub' ? 'zip' : family;
+
       return SessionUnsupportedFormatException(
-        'The ${family.isEmpty ? 'zip' : family} container has no progressive session support; '
+        'The $label container has no progressive session support; '
         'open it with Unseal.read instead.',
       );
     }
