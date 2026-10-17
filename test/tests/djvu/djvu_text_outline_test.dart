@@ -4,7 +4,6 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:unseal/src/features/djvu/djvu_outline.dart';
-import 'package:unseal/src/features/djvu/djvu_text.dart';
 import 'package:unseal/unseal.dart';
 
 import '../../support/djvu_fixture.dart';

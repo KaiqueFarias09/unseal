@@ -208,6 +208,11 @@ Read `lib/unseal.dart` first when reviewing public compatibility. An item export
 | `foundation/metadata/series_index.dart` | Parses plain numeric series positions such as `2`, `2.5`, or `0,5` after trimming and decimal-separator normalization. Decorated values such as `Volume 2` are not accepted. |
 | `foundation/metadata/sort_keys.dart` | Builds stable author sorting values and removes bracketed qualifiers when the policy requires it. |
 | `foundation/metadata/title_sort.dart` | Moves leading articles according to language so titles sort consistently. |
+| `foundation/spatial/spatial_rect.dart` | The shared rectangle in the canonical top-left page space; doubles because ALTO stores floats, exact for integer sources. |
+| `foundation/spatial/spatial_unit.dart` | The unit vocabulary both positioned-text formats use (the ALTO enumeration): pixel self-verifies, physical units need a positive dpi and return null otherwise. |
+| `foundation/spatial/spatial_text_zone.dart` | Region/line/word zones — the hierarchy levels DjVu hidden text and ALTO share — each with a rectangle, a UTF-16 range, and optional OCR confidence. |
+| `foundation/spatial/spatial_text_page.dart` | One page of positioned text: depth-first region>line>word zones validated by an open-level stack, with provenance (native vs imported OCR, software, confidence presence). |
+| `foundation/spatial/spatial_zone_lookup.dart` | Range queries over one page's zones: which word/line/region holds an offset, which zones overlap a range, which regions a selection paints. |
 | `foundation/text/canonical_document_text.dart` | Scans and memoizes HTML into the whitespace-preserving character stream used by search, progression, navigation, locators, and annotations. Its shared `documentTextProfile` identifies that extraction contract. |
 | `foundation/text/publication_revision.dart` | Defines the evidence-qualified publication identity (`PublicationRevision`, `SourceEvidence`) the common text contract binds snapshots to: namespaced opaque ids, `sha256` versus host versus unverified revisions, mutually exclusive by construction. |
 | `foundation/text/section_occurrence.dart` | Defines one reading-order position: zero-based section index, exact parser path (repeats stay distinct), and the reading-order digest. |
@@ -773,7 +778,8 @@ and work limits.
 | `lib/djvu.dart` | Exposes the narrow format API. |
 | `features/djvu/parse_djvu_book.dart` | Walks bounded IFF chunks, validates directory offsets and page INFO, decodes visual layers, and assembles text and navigation. |
 | `features/djvu/bzz_decoder.dart` | Decodes bounded BZZ streams used by compressed text, bookmarks, and directory names. |
-| `features/djvu/djvu_text.dart` | Decodes TXTz/TXTa text and its positional separators. |
+| `features/djvu/djvu_text.dart` | Decodes TXTz/TXTa text and its zone tree with the reference grammar's 17-byte records: 0x8000-biased coordinate and text-start deltas, 24-bit text lengths and child counts, and a plain-depth bound instead of a type ordering (real encoders nest out of order). Zones keep the stored bottom-left coordinates, their stored UTF-8 byte ranges, and their canonical UTF-16 ranges through a sparse UTF-8 offset index that refuses ranges splitting a multi-byte character. |
+| `features/djvu/djvu_page_structure.dart` | The page's stable spatial structure: the native tree, the shared top-left region/line/word projection (levels a file skips stay native only), and the hidden-text canonical snapshot under the stable `djvu.hidden-text` profile. |
 | `features/djvu/djvu_indirect.dart` | Validates directory records and assembles indirect components supplied by the I/O adapter. |
 | `features/djvu/iw44_decoder.dart` and `features/djvu/iw44_inverse_wavelet.dart` | Decode progressive ZP-coded IW44 layers to bounded RGB rasters. |
 | `features/djvu/djvu_layer_compositor.dart` | Scales validated IW44 layers and composes them through a JB2 mask into a BMP. |
@@ -797,6 +803,24 @@ pixels against `ddjvu`, and composed-page hashes under the documented hard-mask
 convention. Derived indirect fixtures verify the file-based path. See the
 [parser references](format-parser-references.md) for reference conventions
 and the [roadmap](roadmap.md) for remaining corpus gaps.
+
+## ALTO: import OCR sidecars into the spatial contract
+
+ALTO stores OCR results over scanned pages: a Description (measurement unit,
+OCR software, source image), pages with declared dimensions and confidence
+figures, positioned blocks, lines, and strings. The host owns the OCR
+document and its link to a real page — schema validity proves nothing about
+which book the OCR belongs to, so binding always takes an explicit target
+snapshot.
+
+| File | What it does and why it exists |
+| --- | --- |
+| `lib/alto.dart` | The public import entry point, with the shared spatial types its signatures use. |
+| `features/alto/alto_document.dart` | The document model: version, unit, provenance, pages, blocks (text, composed, illustration, graphical element), lines, and strings with confidence figures. |
+| `features/alto/parse_alto_document.dart` | Parses namespaces v2/v3/v4 under input and structure bounds; unknown units, namespaces without a supported version, and strings without content fail typed. Extension elements carry no positioned words and are ignored. |
+| `features/alto/alto_scale.dart` | The verified conversion from document units to pixels: from a declared dpi or page-dimension agreement (1% aspect tolerance); a physical unit without evidence has no scale and refuses. |
+| `features/alto/bind_alto_snapshot.dart` | The snapshot binding: a reading cursor maps each string to the first target occurrence at or after it, repeated quotes stay ambiguous with bounded candidate lists, absent words report missing, line and block spans aggregate with min/max because real blocks do not map monotonically, and a projection budget stops quadratic work. The binding preserves the target identity tuple, OCR origin, software, and confidence. |
+| `features/alto/alto_exception.dart` | Malformed/out-of-subset refusals and the unverifiable-conversion error. |
 
 ## TIFF and BigTIFF: decode multi-page raster books
 
@@ -873,6 +897,9 @@ The flow is:
 | `features/search/index/search_index_exceptions.dart` | The typed failure kinds: invalid argument, incompatible revision/profile, exceeded limit, cancellation, disposal, unsupported persistence. |
 
 The index is additive to `Book.search` and addresses the same canonical space.
+`BookSearchIndex.build` special-cases DjVu books: every page's hidden text
+enters under the `djvu.hidden-text` profile, so indexed hits, zone lookups
+and durable anchors address one text space.
 Search relies on `canonical_document_text.dart`. If a parser and the Viewer count text differently, highlights and search results drift. The canonical text policy prevents that class of bug, and the index projects every token back to that space, so indexed hits cut the same characters the scan search finds.
 
 ## Locators: store a position without storing UI state
@@ -1014,6 +1041,7 @@ CB7 and CBC are exceptions. `BookDispatch.openFromBytes` detects them and calls 
 | `platform/web/wire/mobi_wire.dart` | Selects the MOBI or KF8 record zero data needed to rebuild MOBI-specific state on the receiving side. |
 | `platform/web/wire/search_wire.dart` | Encodes and decodes `SearchResults` and individual matches. |
 | `platform/web/wire/cfi_wire.dart` | Encodes and decodes resolved EPUB CFI locations. |
+| `platform/web/wire/spatial_wire.dart` | Encodes one DjVu page structure (flat depth-first zone records plus the page text blob) and one bound ALTO spatial text as structured-clone-safe maps; rebuilds both on the receiving side. |
 | `platform/web/wire/error_wire.dart` | Translates known package exceptions across the worker boundary so the caller receives useful error types and messages. |
 | `platform/web/wire/json_wire.dart` | Converts the protocol's small map structures to and from JSON. Large payloads stay outside JSON. |
 | `web/unseal_worker.dart` | Compiles as the JavaScript worker entry point, accepts browser messages, keeps the last parsed book resident, calls `runWorkerOp`, and posts structured replies. |

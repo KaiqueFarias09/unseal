@@ -5,7 +5,9 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
+import '../../features/alto/bind_alto_snapshot.dart';
 import '../../features/cfi/epub_cfi_resolver.dart';
+import '../../features/djvu/djvu_page_structure.dart';
 import '../../features/pdf/entities/pdf_page_text.dart';
 import '../../features/pdf/layout/pdf_page_structure.dart';
 import '../../features/progressive/session_policy.dart';
@@ -20,8 +22,10 @@ import '../../foundation/entities/book/book.dart';
 import '../../foundation/entities/book_metadata.dart';
 import '../../foundation/entities/book_statistics.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
+import '../../foundation/text/publication_revision.dart';
 import 'book_wire.dart';
 import 'wire/pdf_structure_wire.dart';
+import 'wire/spatial_wire.dart';
 
 /// Owns the configured web worker and the request/reply protocol.
 ///
@@ -126,6 +130,40 @@ final class WorkerClient {
           },
         )
         as SearchResults?;
+  }
+
+  /// Reads the resident DjVu book page's spatial structure inside the
+  /// worker; `null` when no worker or no resident book, the resident
+  /// book is not DjVu, or the page has no hidden-text chunk.
+  Future<DjvuPageStructure?> spatialDjvuPageInWorker(final int pageIndex) async {
+    if (!_residentBook) return null;
+
+    return await _request(
+          workerOpSpatialDjvuPage,
+          payload: <String, Object?>{wireKeyPageIndex: pageIndex},
+        )
+        as DjvuPageStructure?;
+  }
+
+  /// Parses [altoBytes] and binds it onto the resident DjVu page's
+  /// hidden-text snapshot inside the worker; `null` when no worker or
+  /// no resident book is available (bind inline as the fallback).
+  Future<AltoBoundSpatialText?> bindAltoInWorker({
+    required final Uint8List altoBytes,
+    required final int pageIndex,
+    required final PublicationRevision identity,
+  }) async {
+    if (!_residentBook) return null;
+
+    return await _request(
+          workerOpSpatialAltoBind,
+          bytes: altoBytes,
+          payload: <String, Object?>{
+            wireKeyPageIndex: pageIndex,
+            wireKeyIdentity: encodePublicationRevisionWire(identity),
+          },
+        )
+        as AltoBoundSpatialText?;
   }
 
   /// Resolves [cfi] against the resident book inside the worker;
@@ -632,6 +670,17 @@ final class WorkerClient {
         case wireReplyCfi:
           final cfiJson = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           completer.complete(cfiJson[wireKeyCfi] as String?);
+        case wireReplySpatialDjvuPage:
+          final json = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
+          completer.complete(
+            decodeDjvuPageStructureWire(
+              json[wireKeyStructure] as Map<String, Object?>?,
+              _blobsOf(data),
+            ),
+          );
+        case wireReplySpatialAltoBind:
+          final json = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
+          completer.complete(decodeAltoBoundTextWire(json[wireKeyBound] as Map<String, Object?>));
         case wireReplySessionOpen:
           final headerJson = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           final header = decodeSessionHeaderWire(headerJson, _blobsOf(data));

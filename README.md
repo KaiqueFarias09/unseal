@@ -471,6 +471,37 @@ JB2 pages inherit the shared `Djbz` dictionary their `INCL` chunk names —
 including documents that switch dictionaries mid-document — and alternate
 image codecs that replace a supported layer still fail with typed errors.
 
+The hidden text also decodes as a spatial structure. `DjvuBook.pageStructureAt`
+exposes the page's zone tree with the stored coordinates `djvutxt` reports,
+plus a top-left projection (region/line/word) whose zones carry canonical
+UTF-16 ranges into the page text under the `djvu.hidden-text` extraction
+profile. Search indexes built over a DjVu book, zone lookups, and durable
+anchors therefore address one text space: an index hit lands inside a word
+zone, and an anchor captured from either resolves as verified reuse against
+the same revision.
+
+## ALTO OCR import
+
+`lib/alto.dart` imports ALTO OCR sidecars into the same spatial contract.
+The supported subset covers namespaces v2, v3, and v4; the schema's units
+(`pixel`, `mm10`, `inch1200`); pages with dimensions, sequence numbers and
+confidence; text, composed, illustration and graphical-element blocks;
+lines; and strings with word confidence, character-confidence codes and
+substitution content. Coordinates stay in the declared unit — converting a
+physical unit requires a verifiable scale (a declared dpi, or page
+dimensions agreeing with the target page within 1%), and without one the
+conversion refuses with `AltoUnitConversionException` instead of guessing.
+
+`bindAltoToSnapshot` maps the imported words onto a host-provided canonical
+text snapshot — the host owns the OCR document's link to a real page;
+schema validity alone proves nothing about which book the OCR belongs to.
+Each string resolves at the first occurrence at or after a reading cursor;
+a repeated quote stays ambiguous with its full candidate list, an absent
+word reports missing, and a work budget stops hostile quadratic scans. The
+binding preserves the target's identity tuple and the OCR's origin,
+software, and confidence. Browser workers serve the same operations through
+`UnsealWorker.spatialDjvuPageInWorker` and `UnsealWorker.bindAltoInWorker`.
+
 ```dart
 final pdf = parsePdfBook(pdfBytes);
 for (var i = 0; i < pdf.pageTexts.length; i++) {
@@ -797,6 +828,10 @@ input from corrupted or protected content. Common types include:
   failures.
 - `DjvuException` for malformed or excessive DjVu input and
   `DjvuUnsupportedCodecException` when a page cannot be displayed.
+- `AltoException` for malformed or excessive ALTO input,
+  `AltoUnsupportedFeatureException` for namespaces, versions or units
+  outside the supported subset, and `AltoUnitConversionException` when a
+  physical-unit conversion lacks verifiable scale.
 - `EpubException`, `MobiException`, and `Fb2Exception` for parser-specific
   errors.
 

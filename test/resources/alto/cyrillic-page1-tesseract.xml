@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alto xmlns="http://www.loc.gov/standards/alto/ns-v3#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.loc.gov/standards/alto/ns-v3# http://www.loc.gov/alto/v3/alto-3-0.xsd">
+	<Description>
+		<MeasurementUnit>pixel</MeasurementUnit>
+		<sourceImageInformation>
+			<fileName>outputs/cyrillic-p1.tiff</fileName>
+		</sourceImageInformation>
+		<OCRProcessing ID="OCR_0">
+			<ocrProcessingStep>
+				<processingSoftware>
+					<softwareName>Tesseract</softwareName>
+					<softwareVersion>5.5.3</softwareVersion>
+				</processingSoftware>
+			</ocrProcessingStep>
+		</OCRProcessing>
+	</Description>
+	<Layout>
+		<Page WIDTH="764" HEIGHT="1112" PHYSICAL_IMG_NR="0" ID="page_0">
+			<PrintSpace HPOS="0" VPOS="0" WIDTH="764" HEIGHT="1112">
+				<ComposedBlock ID="cblock_0" HPOS="144" VPOS="224" WIDTH="490" HEIGHT="50">
+					<TextBlock ID="block_0" HPOS="144" VPOS="224" WIDTH="490" HEIGHT="50">
+						<TextLine ID="line_0" HPOS="144" VPOS="224" WIDTH="490" HEIGHT="50">
+							<String ID="string_0" HPOS="144" VPOS="224" WIDTH="202" HEIGHT="50" WC="0.0" CONTENT="SECA"/><SP WIDTH="33" VPOS="224" HPOS="346"/>
+							<String ID="string_1" HPOS="379" VPOS="224" WIDTH="60" HEIGHT="45" WC="0.89" CONTENT="MO"/><SP WIDTH="33" VPOS="224" HPOS="439"/>
+							<String ID="string_2" HPOS="472" VPOS="224" WIDTH="162" HEIGHT="45" WC="0.26" CONTENT="XWMIN"/>
+						</TextLine>
+					</TextBlock>
+				</ComposedBlock>
+				<ComposedBlock ID="cblock_1" HPOS="234" VPOS="325" WIDTH="309" HEIGHT="28">
+					<TextBlock ID="block_1" HPOS="234" VPOS="325" WIDTH="309" HEIGHT="28">
+						<TextLine ID="line_1" HPOS="234" VPOS="325" WIDTH="309" HEIGHT="28">
+							<String ID="string_3" HPOS="234" VPOS="329" WIDTH="139" HEIGHT="24" WC="0.32" CONTENT="PYHOBGACTBO"/><SP WIDTH="17" VPOS="329" HPOS="373"/>
+							<String ID="string_4" HPOS="390" VPOS="329" WIDTH="39" HEIGHT="24" WC="0.88" CONTENT="ANA"/><SP WIDTH="17" VPOS="329" HPOS="429"/>
+							<String ID="string_5" HPOS="446" VPOS="325" WIDTH="97" HEIGHT="25" WC="0.0" CONTENT="YXWTENEH"/>
+						</TextLine>
+					</TextBlock>
+				</ComposedBlock>
+				<ComposedBlock ID="cblock_2" HPOS="52" VPOS="403" WIDTH="667" HEIGHT="63">
+					<TextBlock ID="block_2" HPOS="52" VPOS="403" WIDTH="667" HEIGHT="63">
+						<TextLine ID="line_2" HPOS="52" VPOS="403" WIDTH="667" HEIGHT="63">
+							<String ID="string_6" HPOS="52" VPOS="414" WIDTH="42" HEIGHT="52" WC="0.13" CONTENT="NK"/><SP WIDTH="34" VPOS="414" HPOS="94"/>
+							<String ID="string_7" HPOS="128" VPOS="403" WIDTH="175" HEIGHT="63" WC="0.0" CONTENT="MPOHSBO{CTB"/><SP WIDTH="33" VPOS="403" HPOS="303"/>
+							<String ID="string_8" HPOS="336" VPOS="413" WIDTH="110" HEIGHT="41" WC="0.0" CONTENT="ONbITOBD"/><SP WIDTH="31" VPOS="413" HPOS="446"/>
+							<String ID="string_9" HPOS="477" VPOS="414" WIDTH="30" HEIGHT="40" WC="0.70" CONTENT="Gb"/><SP WIDTH="31" VPOS="414" HPOS="507"/>
+							<String ID="string_10" HPOS="538" VPOS="414" WIDTH="181" HEIGHT="51" WC="0.0" CONTENT="YCAGKHCADTON."/>
+						</TextLine>
+					</TextBlock>
+				</ComposedBlock>
+				<ComposedBlock ID="cblock_3" HPOS="263" VPOS="562" WIDTH="249" HEIGHT="24">
+					<TextBlock ID="block_3" HPOS="263" VPOS="562" WIDTH="249" HEIGHT="24">
+						<TextLine ID="line_3" HPOS="263" VPOS="562" WIDTH="249" HEIGHT="24">
+							<String ID="string_11" HPOS="263" VPOS="562" WIDTH="28" HEIGHT="24" WC="0.80" CONTENT="x."/><SP WIDTH="17" VPOS="562" HPOS="291"/>
+							<String ID="string_12" HPOS="308" VPOS="562" WIDTH="28" HEIGHT="24" WC="0.80" CONTENT="A."/><SP WIDTH="19" VPOS="562" HPOS="336"/>
+							<String ID="string_13" HPOS="355" VPOS="562" WIDTH="157" HEIGHT="19" WC="0.24" CONTENT="Cumoxobuys."/>
+						</TextLine>
+					</TextBlock>
+				</ComposedBlock>
+				<ComposedBlock ID="cblock_4" HPOS="323" VPOS="634" WIDTH="131" HEIGHT="12">
+					<TextBlock ID="block_4" HPOS="323" VPOS="634" WIDTH="131" HEIGHT="12">
+						<TextLine ID="line_4" HPOS="323" VPOS="634" WIDTH="131" HEIGHT="12">
+							<String ID="string_14" HPOS="323" VPOS="634" WIDTH="131" HEIGHT="12" WC="0.47" CONTENT="“at"/>
+						</TextLine>
+					</TextBlock>
+				</ComposedBlock>
+				<ComposedBlock ID="cblock_5" HPOS="100" VPOS="773" WIDTH="575" HEIGHT="22">
+					<TextBlock ID="block_5" HPOS="100" VPOS="773" WIDTH="575" HEIGHT="22">
+						<TextLine ID="line_5" HPOS="100" VPOS="773" WIDTH="575" HEIGHT="22">
+							<String ID="string_15" HPOS="100" VPOS="773" WIDTH="60" HEIGHT="19" WC="0.0" CONTENT="Cunag:"/><SP WIDTH="10" VPOS="773" HPOS="160"/>
+							<String ID="string_16" HPOS="170" VPOS="773" WIDTH="160" HEIGHT="18" WC="0.13" CONTENT="mszasia—xumument"/><SP WIDTH="11" VPOS="773" HPOS="330"/>
+							<String ID="string_17" HPOS="341" VPOS="778" WIDTH="58" HEIGHT="14" WC="0.43" CONTENT="onmax"/><SP WIDTH="11" VPOS="778" HPOS="399"/>
+							<String ID="string_18" HPOS="410" VPOS="774" WIDTH="81" HEIGHT="20" WC="0.56" CONTENT="Tsepexore"/><SP WIDTH="10" VPOS="774" HPOS="491"/>
+							<String ID="string_19" HPOS="501" VPOS="774" WIDTH="99" HEIGHT="21" WC="0.0" CONTENT="ryéeprozare"/><SP WIDTH="9" VPOS="774" HPOS="600"/>
+							<String ID="string_20" HPOS="609" VPOS="779" WIDTH="66" HEIGHT="12" WC="0.0" CONTENT="sowoTEe."/>
+						</TextLine>
+					</TextBlock>
+				</ComposedBlock>
+				<ComposedBlock ID="cblock_6" HPOS="351" VPOS="988" WIDTH="74" HEIGHT="12">
+					<TextBlock ID="block_6" HPOS="351" VPOS="988" WIDTH="74" HEIGHT="12">
+						<TextLine ID="line_6" HPOS="351" VPOS="988" WIDTH="74" HEIGHT="12">
+							<String ID="string_21" HPOS="351" VPOS="988" WIDTH="74" HEIGHT="12" WC="0.78" CONTENT="TBEPB."/>
+						</TextLine>
+					</TextBlock>
+				</ComposedBlock>
+				<ComposedBlock ID="cblock_7" HPOS="260" VPOS="1007" WIDTH="253" HEIGHT="34">
+					<TextBlock ID="block_7" HPOS="260" VPOS="1007" WIDTH="253" HEIGHT="34">
+						<TextLine ID="line_7" HPOS="260" VPOS="1007" WIDTH="253" HEIGHT="17">
+							<String ID="string_22" HPOS="260" VPOS="1007" WIDTH="89" HEIGHT="16" WC="0.0" CONTENT="{Tanorpedia"/><SP WIDTH="8" VPOS="1007" HPOS="349"/>
+							<String ID="string_23" HPOS="357" VPOS="1009" WIDTH="88" HEIGHT="15" WC="0.0" CONTENT="rySepuenaro"/><SP WIDTH="9" VPOS="1009" HPOS="445"/>
+							<String ID="string_24" HPOS="454" VPOS="1012" WIDTH="59" HEIGHT="10" WC="0.1" CONTENT="seuctna,"/>
+						</TextLine>
+						<TextLine ID="line_8" HPOS="366" VPOS="1029" WIDTH="50" HEIGHT="12">
+							<String ID="string_25" HPOS="366" VPOS="1029" WIDTH="31" HEIGHT="12" WC="0.82" CONTENT="1908"/><SP WIDTH="8" VPOS="1029" HPOS="397"/>
+							<String ID="string_26" HPOS="405" VPOS="1032" WIDTH="11" HEIGHT="9" WC="0.29" CONTENT="P."/>
+						</TextLine>
+					</TextBlock>
+				</ComposedBlock>
+			</PrintSpace>
+		</Page>
+	</Layout>
+</alto>

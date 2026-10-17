@@ -4,6 +4,30 @@
   "root": "test/resources",
   "files": [
     {
+      "path": "test/resources/alto/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 1495,
+      "sha256": "047b1f81b04e9960184da344239e151781e7c455f19852a4b63b1b5a2c0a2fb0",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/alto/cyrillic-page1-tesseract.xml",
+      "format": "xml-sidecar",
+      "bytes": 6750,
+      "sha256": "f28d54fdb0449c33271f45f2452bf6f59003ea11b7fec968ee5d30b4ced460fd",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/alto/goody-page2-tesseract.xml",
+      "format": "xml-sidecar",
+      "bytes": 47144,
+      "sha256": "b5f8a690925be85b2164cb5a88975a2d7ee522ca42a957978193c0a70510b34e",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
       "path": "test/resources/books/README.md",
       "format": "manifest",
       "bytes": 7192,
@@ -2745,10 +2769,11 @@
     }
   ],
   "counts": {
-    "total": 337,
-    "totalBytes": 89729853,
+    "total": 340,
+    "totalBytes": 89785242,
     "byFormat": {
-      "manifest": 19,
+      "manifest": 20,
+      "xml-sidecar": 9,
       "chm": 4,
       "cbr": 15,
       "cbz": 3,
@@ -2775,8 +2800,7 @@
       "pdf": 31,
       "tiff": 25,
       "txtz": 1,
-      "resource": 40,
-      "xml-sidecar": 7
+      "resource": 40
     }
   }
 }

@@ -1,3 +1,4 @@
+import '../../../features/alto/alto_exception.dart';
 import '../../../features/azw4/exceptions/azw4_exception.dart';
 import '../../../features/comic/exceptions/comic_exception.dart';
 import '../../../features/comic7/exceptions/comic7_exception.dart';
@@ -93,6 +94,12 @@ Object decodeErrorWire(final String type, final String message) {
       return DjvuException(message);
     case 'DjvuUnsupportedCodecException':
       return DjvuUnsupportedCodecException(message);
+    case 'AltoException':
+      return AltoException(message);
+    case 'AltoUnsupportedFeatureException':
+      return AltoUnsupportedFeatureException(message);
+    case 'AltoUnitConversionException':
+      return AltoUnitConversionException(message);
     case 'TiffException':
       return TiffException(message);
     case 'TiffUnsupportedCodecException':

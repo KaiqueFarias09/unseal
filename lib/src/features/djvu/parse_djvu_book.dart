@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../foundation/entities/entities.dart';
@@ -495,33 +494,34 @@ final class _DjvuDocument {
     // A compressed TXTz chunk carries the same contract as TXTa; the
     // compressed form wins when a page stores both (the corpus has no such
     // page; TXTa is a discouraged legacy encoding).
-    final text = compressedText ?? legacyText;
+    final encoded = compressedText ?? legacyText;
+    final textChunk = compressedText != null
+        ? decodeDjvuTextChunk(Uint8List.sublistView(bytes, compressedText.data, compressedText.end))
+        : legacyText == null
+        ? null
+        : _readLegacyTextChunk(legacyText);
     return DjvuPage(
       width: info.width,
       height: info.height,
       dpi: info.dpi,
       rotation: info.rotation,
       image: image,
-      text: text == null ? '' : _readText(text),
+      text: textChunk?.text ?? '',
+      textChunk: textChunk,
+      encodedTextChunk: encoded == null
+          ? null
+          : Uint8List.sublistView(bytes, encoded.data, encoded.end),
+      encodedTextChunkCompressed: compressedText != null,
     );
   }
 
-  String _readText(final _Chunk chunk) {
-    if (chunk.id == 'TXTz') {
-      return decodeDjvuTextChunk(Uint8List.sublistView(bytes, chunk.data, chunk.end)).text;
-    }
-    if (chunk.length < 3 || chunk.length > _maxTextBytes) {
+  /// Decodes an uncompressed TXTa chunk's shared text/zone grammar.
+  DjvuTextChunk _readLegacyTextChunk(final _Chunk chunk) {
+    if (chunk.length < 4 || chunk.length > _maxTextBytes) {
       throw const DjvuException('DjVu TXTa chunk exceeds its size limit or is truncated.');
     }
-    final length = bytes[chunk.data] << 16 | bytes[chunk.data + 1] << 8 | bytes[chunk.data + 2];
-    if (length + 4 > chunk.length || bytes[chunk.data + 3 + length] != 1) {
-      throw const DjvuException('Truncated or unsupported DjVu TXTa text.');
-    }
-    try {
-      return utf8.decode(Uint8List.sublistView(bytes, chunk.data + 3, chunk.data + 3 + length));
-    } on FormatException {
-      throw const DjvuException('DjVu TXTa text is not valid UTF-8.');
-    }
+
+    return decodeDjvuTextChunkRaw(Uint8List.sublistView(bytes, chunk.data, chunk.end));
   }
 
   List<_Chunk> _children(final int start, final int end) {

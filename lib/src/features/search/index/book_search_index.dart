@@ -4,6 +4,8 @@ import '../../../foundation/entities/entities.dart';
 import '../../../foundation/text/canonical_document_text.dart';
 import '../../../foundation/text/revision_digest.dart';
 import '../../../foundation/text/text_profile.dart';
+import '../../djvu/djvu_book.dart';
+import '../../djvu/djvu_page_structure.dart';
 import '../../pdf/entities/pdf_book.dart';
 import '../book_search.dart' show searchSnippet;
 import 'index_ranking.dart';
@@ -87,6 +89,17 @@ final class BookSearchIndex {
     final int sectionsPerBatch = 4,
     final bool? persistable,
   }) async {
+    if (book is DjvuBook) {
+      return _buildDjvuSpatial(
+        book,
+        identity: identity,
+        limits: limits,
+        cancellation: cancellation,
+        onProgress: onProgress,
+        sectionsPerBatch: sectionsPerBatch,
+        persistable: persistable,
+      );
+    }
     final index = BookSearchIndex._(
       identity: identity ?? const SearchIndexIdentity(),
       limits: limits,
@@ -125,6 +138,57 @@ final class BookSearchIndex {
       onProgress?.call(index.coverage);
       // One event-loop turn per batch: bounded CPU slices, observable
       // cancellation, and a warm cache for the next batch.
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    return index;
+  }
+
+  /// Builds a DjVu book's spatial index: every page's hidden text under
+  /// the stable `djvu.hidden-text` profile, so hits, zones and anchors
+  /// address one text space. Pages without a hidden-text chunk
+  /// contribute empty sections, keeping coverage complete.
+  static Future<BookSearchIndex> _buildDjvuSpatial(
+    final DjvuBook book, {
+    final SearchIndexIdentity? identity,
+    final SearchIndexLimits limits = const SearchIndexLimits(),
+    final SearchIndexCancellationToken? cancellation,
+    final void Function(SearchIndexCoverage coverage)? onProgress,
+    final int sectionsPerBatch = 4,
+    final bool? persistable,
+  }) async {
+    final index = BookSearchIndex._(
+      identity: identity ?? const SearchIndexIdentity(),
+      limits: limits,
+      persistable: persistable ?? true,
+      extractionProfileId: djvuHiddenTextProfile.id,
+    );
+    final eligible = index.beginEligible(book.readingOrder);
+    final structures = <int, DjvuPageStructure>{
+      for (final structure in book.pageStructures) structure.pageIndex: structure,
+    };
+    var position = 0;
+    while (position < eligible.length) {
+      if (cancellation?.isCancelled ?? false) {
+        index._markCancelled();
+
+        throw const SearchIndexCancelledException(
+          'The search-index build was cancelled at a batch boundary.',
+        );
+      }
+      var batch = sectionsPerBatch < 1 ? 1 : sectionsPerBatch;
+      while (batch > 0 && position < eligible.length) {
+        final (sectionIndex, path) = eligible[position];
+        position++;
+        final structure = structures[sectionIndex];
+        index.addSection(
+          sectionIndex: sectionIndex,
+          path: path,
+          text: structure?.canonicalText ?? '',
+        );
+        batch--;
+      }
+      onProgress?.call(index.coverage);
       await Future<void>.delayed(Duration.zero);
     }
 

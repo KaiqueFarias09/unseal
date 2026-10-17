@@ -11,6 +11,35 @@
   unchanged; the report is bounded and never claims EPUB conformance. The
   rule catalog is validated against EPUBCheck 5.4.0 runs on a committed
   fixture corpus (`doc/epub-diagnostics.md`).
+- DjVu hidden-text zones decoded with the reference grammar: the full
+  page/column/region/paragraph/line/word/character tree keeps the stored
+  bottom-left coordinates and byte ranges, and every zone binds to canonical
+  UTF-16 ranges of the rendered page text under the stable `djvu.hidden-text`
+  extraction profile. `DjvuBook.pageStructureAt` exposes the structure; a
+  depth bound replaces the type-ordering rule because real encoders nest out
+  of order. `tool/djvu_spatial_compare.dart` matches all five corpus fixtures
+  against `djvused` 3.5.29 (32,684 zone records, 51,203 leaf texts).
+- A minimal shared spatial contract in foundation: top-left rectangles, the
+  ALTO unit vocabulary (pixel, `mm10`, `inch1200`), region/line/word zones
+  with UTF-16 ranges and optional OCR confidence, depth-first pages with
+  provenance, and range lookups.
+- ALTO OCR import (`lib/alto.dart`): namespaces v2/v3/v4, Description
+  provenance (OCR software, source image), pages, text and non-text blocks
+  (composed blocks descend), lines, and strings with confidence. Coordinates
+  stay in the declared unit; conversion happens only through a verified
+  scale (declared dpi or agreeing page dimensions) and physical units
+  without evidence refuse typed. `bindAltoToSnapshot` maps ALTO words onto a
+  host-provided canonical snapshot with a reading cursor: repeated quotes
+  report ambiguity with bounded candidate lists, absent words report
+  missing, and a projection budget stops quadratic work. The binding keeps
+  the target's identity tuple, the OCR origin, software, and confidence.
+- The spatial public path: DjVu hidden text indexes under its own profile
+  (`BookSearchIndex.build` handles DjvuBook), so index hits, zone lookups,
+  and durable anchors address one text space; profile or identity swaps
+  invalidate reuse. Browser workers serve `spatial.djvuPage` and
+  `spatial.altoBind` against the resident book, and the DjVu wire payload
+  carries each page's encoded hidden-text chunk so wire-resident books
+  rebuild their structures.
 
 ## 1.3.0 - October 17, 2026
 
