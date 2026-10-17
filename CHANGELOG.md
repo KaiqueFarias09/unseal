@@ -130,6 +130,8 @@
 
 ### Fixed
 
+- DjVu spatial regions follow their own native subtree, including sibling
+  paragraphs without explicit regions and a return from nested regions.
 - Mixed literal Unicode and percent-escaped EPUB paths resolve correctly.
   Diagnostic XML is bounded before building its tree.
 - ALTO rejects non-finite or negative geometry with typed errors and cannot

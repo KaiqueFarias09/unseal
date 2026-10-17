@@ -40,6 +40,12 @@ Per the campaign protocol, three species of evidence are kept apart:
    section). Content parity never proves progressivity; the counters
    are a separate report section.
 
+The independent source observer in
+`test/tests/progressive/mobi_source_observer_test.dart` counts actual source
+reads and returned bytes without consulting `SessionMetrics`. It verifies
+the known MOBI record layout at open, first-section reads, zero-I/O cache
+hits and exact rereads after eviction, plus a real AZW3 file source.
+
 ## Frozen comparison rules
 
 Declared before implementation. `tool/mobi_session_compare.dart`

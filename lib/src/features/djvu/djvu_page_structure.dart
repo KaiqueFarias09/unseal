@@ -196,35 +196,53 @@ final class DjvuPageStructure {
     // the shared contract stays strict without dropping text the
     // reference tools accept. Shapes the projection cannot represent
     // remain on the native tree.
-    var regionOpen = false;
-    var lineOpen = false;
-    void project(final DjvuTextZone zone, final DjvuTextZone? parent) {
+    DjvuTextZone? emittedRegion;
+    DjvuTextZone? emittedLine;
+
+    void ensureRegion(final DjvuTextZone region) {
+      if (!identical(emittedRegion, region)) {
+        _addZone(zones, region, SpatialZoneKind.region);
+        emittedRegion = region;
+        emittedLine = null;
+      }
+    }
+
+    void ensureLine(final DjvuTextZone line, final DjvuTextZone region) {
+      ensureRegion(region);
+      if (!identical(emittedLine, line)) {
+        _addZone(zones, line, SpatialZoneKind.line);
+        emittedLine = line;
+      }
+    }
+
+    void project(
+      final DjvuTextZone zone,
+      final DjvuTextZone? parent, {
+      DjvuTextZone? region,
+      DjvuTextZone? line,
+    }) {
+      // Native ancestors are scoped to this subtree. The last emitted
+      // ancestors describe the flattened output and may need restoring
+      // after a nested region, or replacing for a sibling paragraph.
       switch (zone.type) {
         case djvuZoneTypeRegion:
-          _addZone(zones, zone, SpatialZoneKind.region);
-          regionOpen = true;
-          lineOpen = false;
-        case djvuZoneTypeLine when !regionOpen && parent != null:
-          _addZone(zones, parent, SpatialZoneKind.region);
-          regionOpen = true;
-          lineOpen = false;
-          continue lineCase;
-        lineCase:
-        case djvuZoneTypeLine when regionOpen:
-          _addZone(zones, zone, SpatialZoneKind.line);
-          lineOpen = true;
-        case djvuZoneTypeWord when !lineOpen && parent != null:
-          _addZone(zones, parent, SpatialZoneKind.region);
-          regionOpen = true;
-          _addZone(zones, parent, SpatialZoneKind.line);
-          lineOpen = true;
-          continue wordCase;
-        wordCase:
-        case djvuZoneTypeWord when lineOpen:
-          _addZone(zones, zone, SpatialZoneKind.word);
+          region = zone;
+          line = null;
+          ensureRegion(zone);
+        case djvuZoneTypeLine:
+          region ??= parent;
+          line = zone;
+          if (region != null) ensureLine(zone, region);
+        case djvuZoneTypeWord:
+          region ??= parent;
+          line ??= parent;
+          if (region != null && line != null) {
+            ensureLine(line, region);
+            _addZone(zones, zone, SpatialZoneKind.word);
+          }
       }
       for (final child in zone.children) {
-        project(child, zone);
+        project(child, zone, region: region, line: line);
       }
     }
 

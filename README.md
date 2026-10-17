@@ -522,6 +522,10 @@ anchors therefore address one text space: an index hit lands inside a word
 zone, and an anchor captured from either resolves as verified reuse against
 the same revision.
 
+Spatial rectangles use the original page dimensions with a top-left origin;
+rotation is separate metadata. A consumer applies that rotation when mapping
+the source page into its displayed coordinate system.
+
 ## ALTO OCR import
 
 The main `package:unseal/unseal.dart` entry point also imports ALTO OCR

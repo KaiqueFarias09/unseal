@@ -61,6 +61,87 @@ PublicationRevision _identity(final Uint8List bytes) => PublicationRevision(
 );
 
 void main() {
+  DjvuTextZone nativeZone(
+    final int type,
+    final int start,
+    final int end,
+    final int x,
+    final List<DjvuTextZone> children,
+  ) => DjvuTextZone.restore(
+    type: type,
+    xmin: x,
+    ymin: 0,
+    xmax: x + 20,
+    ymax: 20,
+    utf8Start: start,
+    utf8Length: end - start,
+    utf16Start: start,
+    utf16End: end,
+    children: children,
+  );
+
+  DjvuPageStructure nativeStructure(final DjvuTextZone root) => DjvuPageStructure(
+    pageIndex: 0,
+    pageCount: 1,
+    width: 100,
+    height: 100,
+    dpi: 300,
+    rotation: 0,
+    chunk: DjvuTextChunk.restore(text: 'abcdefghi', zoneCount: root.recordCount(), root: root),
+    readingOrderPaths: const [('text/page-1.html', true)],
+  );
+
+  test('missing regions follow sibling paragraph scope without duplicating multiline regions', () {
+    DjvuTextZone line(final int start, final int end, final int x) => nativeZone(
+      djvuZoneTypeLine,
+      start,
+      end,
+      x,
+      [nativeZone(djvuZoneTypeWord, start, end, x, [])],
+    );
+    final first = nativeZone(djvuZoneTypeParagraph, 0, 6, 0, [line(0, 3, 0), line(3, 6, 0)]);
+    final second = nativeZone(djvuZoneTypeParagraph, 6, 9, 40, [line(6, 9, 40)]);
+    final structure = nativeStructure(nativeZone(djvuZoneTypePage, 0, 9, 0, [first, second]));
+    final page = structure.spatialPage!;
+    final lookup = structure.lookup!;
+    final regions = page.zones.where((z) => z.kind == SpatialZoneKind.region).toList();
+    expect(regions, hasLength(2));
+    expect(page.regionOf(lookup.wordAt(1)!), same(regions[0]));
+    expect(page.regionOf(lookup.wordAt(4)!), same(regions[0]));
+    expect(page.regionOf(lookup.wordAt(7)!), same(regions[1]));
+    expect(regions[1].textStart, 6);
+    expect(regions[1].rect.x, 40);
+    expect(lookup.regionAt(7), same(regions[1]));
+  });
+
+  test('projection restores native parent region and line after nested regions', () {
+    final before = nativeZone(djvuZoneTypeWord, 0, 3, 0, []);
+    final nested = nativeZone(djvuZoneTypeRegion, 3, 6, 40, [
+      nativeZone(djvuZoneTypeLine, 3, 6, 40, [nativeZone(djvuZoneTypeWord, 3, 6, 40, [])]),
+    ]);
+    final after = nativeZone(djvuZoneTypeWord, 6, 9, 0, []);
+    final parentLine = nativeZone(djvuZoneTypeLine, 0, 9, 0, [before, nested, after]);
+    final parentRegion = nativeZone(djvuZoneTypeRegion, 0, 9, 0, [parentLine]);
+    final structure = nativeStructure(nativeZone(djvuZoneTypePage, 0, 9, 0, [parentRegion]));
+    final page = structure.spatialPage!;
+    final lookup = structure.lookup!;
+    final nestedRegion = page.regionOf(lookup.wordAt(4)!)!;
+    final restored = page.regionOf(lookup.wordAt(7)!)!;
+    expect(nestedRegion.rect.x, 40);
+    expect(restored.rect.x, 0);
+    expect(restored.textStart, 0);
+    expect(restored.textEnd, 9);
+    final trailing = page.zones.last;
+    final trailingIndex = page.zones.indexOf(trailing);
+    final restoredLine = SpatialTextPage.ancestorOf(
+      page.zones,
+      trailingIndex,
+      SpatialZoneKind.line,
+    )!;
+    expect(restoredLine.textStart, 0);
+    expect(restoredLine.textEnd, 9);
+  });
+
   final goody = File('test/resources/djvu/goody-twoshoes.djvu').readAsBytesSync();
 
   group('TXTz zone tree decoding', () {
