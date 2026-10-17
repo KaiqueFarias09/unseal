@@ -21,6 +21,16 @@ const String _fixturesDir = 'test/resources/pdf/jpeg2000';
 PdfDocument _document(final PdfFixtureBuilder builder) =>
     PdfDocument.parse(MemoryPdfByteSource(builder.build()));
 
+PdfDocument _jpxDocument(final List<int> samples, final String entries) => _document(
+  PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [] /Count 0 >>')
+    ..addStreamObject(8, ' /Subtype /Image /Filter /JPXDecode $entries', samples)
+    ..addStreamObject(11, ' /N 1', [0, 0, 0, 0])
+    ..addStreamObject(12, ' /N 3', [0, 0, 0, 0])
+    ..addObject(13, '1'),
+);
+
 /// JPXDecode: the pure-Dart JPEG 2000 Part 1 port of the pinned
 /// OpenJPEG revision (8314119b), accepted against the committed oracle
 /// payloads.
@@ -126,6 +136,24 @@ void main() {
       final full = File('$_fixturesDir/gray97-lossy-256.j2k').readAsBytesSync();
       expect(() => decodeJpxImage(full.sublist(0, 120)), throwsA(isA<JpxException>()));
     });
+  });
+
+  group('JP2 declared color space', () {
+    for (final (fixtureName, enumcs) in [
+      ('gray53-lossless-jp2', 16),
+      ('gray53-lossless-jp2', 18),
+      ('rgb53-lossless-nomct-jp2', 17),
+      ('rgb53-lossless-nomct-jp2', 18),
+    ]) {
+      test('$fixtureName refuses incompatible or unsupported EnumCS $enumcs', () {
+        final bytes = File('$_fixturesDir/$fixtureName.jp2').readAsBytesSync();
+        final boxTypeOffset = latin1.decode(bytes).indexOf('colr');
+        expect(boxTypeOffset, greaterThanOrEqualTo(0));
+        // METH/PREC/APPROX precede the four-byte EnumCS value.
+        ByteData.sublistView(bytes).setUint32(boxTypeOffset + 7, enumcs);
+        expect(() => decodeJpxImage(bytes), throwsA(isA<JpxUnsupportedException>()));
+      });
+    }
   });
 
   group('corruption normalizes to typed failures', () {
@@ -237,6 +265,38 @@ void main() {
         () => decodePdfJpxSamples(document, document.object(8)! as PdfStream),
         throwsA(isA<JpxException>()),
       );
+    });
+
+    for (final (colorSpace, samples) in [
+      ('[/ICCBased 11 0 R]', grayJ2k),
+      ('[/ICCBased 12 0 R]', rgbJ2k),
+      ('[/CalGray << /WhitePoint [1 1 1] /Gamma 2.2 >>]', grayJ2k),
+      ('[/CalRGB << /WhitePoint [1 1 1] /Gamma [2.2 2.2 2.2] >>]', rgbJ2k),
+    ]) {
+      test('$colorSpace refuses unimplemented color conversion', () {
+        final document = _jpxDocument(samples, '/ColorSpace $colorSpace');
+        expect(
+          () => decodePdfJpxSamples(document, document.object(8)! as PdfStream),
+          throwsA(isA<JpxUnsupportedException>()),
+        );
+        expect(decodePdfImageObject(document, 8), isNull);
+      });
+    }
+
+    for (final value in ['1', '2', '13 0 R']) {
+      test('image dictionary SMaskInData $value rejects typed', () {
+        final document = _jpxDocument(grayJ2k, '/ColorSpace /DeviceGray /SMaskInData $value');
+        expect(
+          () => decodePdfJpxSamples(document, document.object(8)! as PdfStream),
+          throwsA(isA<JpxUnsupportedException>()),
+        );
+        expect(decodePdfImageObject(document, 8), isNull);
+      });
+    }
+
+    test('image dictionary SMaskInData zero allows an opaque image', () {
+      final document = _jpxDocument(grayJ2k, '/ColorSpace /DeviceGray /SMaskInData 0');
+      expect(decodePdfImageObject(document, 8), isNotNull);
     });
 
     test('a corrupted codestream degrades to geometry-only, never throws', () {

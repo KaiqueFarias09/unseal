@@ -23,13 +23,17 @@ final class TextProfile {
     required final Map<String, String> options,
     required final String planRevision,
   }) {
+    final optionKeys = options.keys.toList()..sort();
+    final canonicalOptions = Map<String, String>.unmodifiable({
+      for (final key in optionKeys) key: options[key]!,
+    });
     return TextProfile._(
       algorithm: algorithm,
-      options: Map.of(options),
+      options: canonicalOptions,
       planRevision: planRevision,
       id: RevisionDigest.textProfileRevision(
         algorithm: algorithm,
-        options: options,
+        options: canonicalOptions,
         planRevision: planRevision,
       ),
     );
@@ -45,7 +49,7 @@ final class TextProfile {
   /// The extraction algorithm (`pdf.reflow`, a future indexer's own…).
   final String algorithm;
 
-  /// The algorithm options that shaped the text, string-valued.
+  /// The immutable algorithm options that shaped the text, sorted by key.
   final Map<String, String> options;
 
   /// The `sha256:`-prefixed digest of the extraction plan's decisions.
@@ -66,7 +70,7 @@ final class TextProfile {
       _sameOptions(other);
 
   @override
-  int get hashCode => Object.hash(algorithm, planRevision, Object.hashAll(options.keys));
+  int get hashCode => id.hashCode;
 
   @override
   String toString() => 'TextProfile($id, $algorithm, options: $options)';

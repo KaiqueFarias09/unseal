@@ -16,18 +16,18 @@ const String kPdfFilterJpxDecode = 'JPXDecode';
 /// conflicts and out-of-subset features raise `JpxException` /
 /// `JpxUnsupportedException` (both `PdfException`).
 JpxImage decodePdfJpxSamples(final PdfDocument document, final PdfStream stream) {
-  final data = decodePdfStreamBeforeImageCodec(stream, document.resolve, kPdfFilterJpxDecode);
-  final parameters = document.resolve(
-    stream.dictionary['DecodeParms'] ?? stream.dictionary['DP'] ?? const PdfNull(),
-  );
-  if (parameters is PdfDictionary) {
-    final smaskInData = document.resolve(parameters['SMaskInData'] ?? const PdfNull());
-    if (smaskInData is PdfNumber && smaskInData.intValue != 0) {
+  final smaskInData = document.resolve(stream.dictionary['SMaskInData'] ?? const PdfNull());
+  if (smaskInData is! PdfNull) {
+    if (smaskInData is! PdfNumber || !smaskInData.isInteger) {
+      throw const JpxException('JPXDecode /SMaskInData must be an integer.');
+    }
+    if (smaskInData.intValue != 0) {
       throw const JpxUnsupportedException(
         'JPXDecode /SMaskInData alpha channels are not supported.',
       );
     }
   }
+  final data = decodePdfStreamBeforeImageCodec(stream, document.resolve, kPdfFilterJpxDecode);
   final image = decodeJpxImage(data);
   _validatePdfColorSpace(document, stream, image.componentCount);
   _validatePdfDimensions(document, stream, image.width, image.height);
@@ -106,31 +106,11 @@ void _validatePdfColorSpace(
     if (family is PdfName) {
       switch (family.value) {
         case 'ICCBased':
-          if (object.items.length < 2) {
-            throw const JpxException('PDF /ICCBased array is truncated.');
-          }
-          final profile = document.resolve(object.items[1]);
-          if (profile is! PdfStream) {
-            throw const JpxException('PDF /ICCBased stream is missing.');
-          }
-          final count = document.resolve(profile.dictionary['N']);
-          if (count is! PdfNumber) {
-            throw const JpxException('PDF /ICCBased stream lacks its component count.');
-          }
-          if (count.intValue == 1) {
-            return ('ICCBased', 1);
-          }
-          if (count.intValue == 3) {
-            return ('ICCBased', 3);
-          }
-          throw JpxUnsupportedException(
-            'PDF /ICCBased profiles with ${count.intValue} components are '
-            'not supported with JPXDecode.',
-          );
         case 'CalGray':
-          return ('CalGray', 1);
         case 'CalRGB':
-          return ('CalRGB', 3);
+          throw JpxUnsupportedException(
+            'PDF /${family.value} color conversion is not supported with JPXDecode.',
+          );
         case 'Indexed':
         case 'I':
           throw const JpxUnsupportedException(

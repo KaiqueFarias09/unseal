@@ -26,8 +26,8 @@ final class JpxImage {
   /// Image height in samples.
   final int height;
 
-  /// One 8-bit plane per component: 1 = grayscale, 3 = RGB (after any
-  /// codestream MCT and JP2 sYCC conversion).
+  /// One 8-bit plane per component: 1 = grayscale, 3 = RGB after any
+  /// codestream MCT. JP2 sYCC is outside the supported subset.
   final List<Uint8List> samples;
 
   /// Whether the payload came from a JP2 wrapper.
@@ -143,18 +143,13 @@ JpxImage decodeJpxImage(final Uint8List bytes) {
   }
   if (payload.isJp2 && payload.enumcs != null) {
     final enumcs = payload.enumcs!;
-    if (componentCount == 1 && enumcs != 17 && enumcs != 18) {
+    if (componentCount == 1 && enumcs != 17) {
       throw JpxUnsupportedException('JP2 colorspace $enumcs does not match a grayscale image.');
     }
-    if (componentCount == 3 && enumcs != 16 && enumcs != 17) {
-      throw JpxUnsupportedException('JP2 colorspace $enumcs is outside the sRGB/sYCC subset.');
+    if (componentCount == 3 && enumcs != 16) {
+      throw JpxUnsupportedException('JP2 colorspace $enumcs is outside the sRGB subset.');
     }
   }
-  // enumcs 16 (sYCC) passes through component-preserving, exactly like
-  // the pinned OpenJPEG oracle's raw output path; PDF consumers attach
-  // their own /ColorSpace on top. The ISO reader-side sYCC->RGB
-  // conversion stays out of this subset (documented limitation).
-
   final rasterSamples = checkedProduct(image.width, image.height);
   if (rasterSamples > kJpxMaxRasterSamples) {
     throw JpxException(kJpxBudgetMessage);

@@ -96,6 +96,38 @@ void main() {
       expect(profile.sameProfile(otherPlan), isFalse);
     });
 
+    test('profile options cannot change after their identity is computed', () {
+      final options = <String, String>{'mode': 'reflow'};
+      final profile = TextProfile.of(
+        algorithm: 'pdf',
+        options: options,
+        planRevision: TextIdentityVectors.profilePlanRevision,
+      );
+      final originalId = profile.id;
+      options['mode'] = 'facsimile';
+      expect(profile.options, {'mode': 'reflow'});
+      expect(() => profile.options['mode'] = 'facsimile', throwsUnsupportedError);
+      expect(profile.id, originalId);
+    });
+
+    test('equal profiles have equal hashes regardless of option insertion order', () {
+      final first = TextProfile.of(
+        algorithm: 'pdf',
+        options: {'mode': 'reflow', 'columns': 'two'},
+        planRevision: TextIdentityVectors.profilePlanRevision,
+      );
+      final second = TextProfile.of(
+        algorithm: 'pdf',
+        options: {'columns': 'two', 'mode': 'reflow'},
+        planRevision: TextIdentityVectors.profilePlanRevision,
+      );
+      expect(first, second);
+      expect(first.id, second.id);
+      expect(first.hashCode, second.hashCode);
+      expect({first}.contains(second), isTrue);
+      expect(first.options.keys, ['columns', 'mode']);
+    });
+
     test('compact JSON matches the pinned shape (sorted keys, escapes)', () {
       expect(
         RevisionDigest.encodeCompactJson(TextIdentityVectors.compactJsonPayload),
