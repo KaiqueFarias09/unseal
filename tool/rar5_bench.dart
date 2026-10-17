@@ -17,7 +17,7 @@ import 'rar5_stream_encoder.dart';
 ///
 /// Numbers are wall-clock on the host running the tool; treat them as
 /// relative evidence between the measured modes, not absolute claims.
-void main(final List<String> arguments) {
+Future<void> main(final List<String> arguments) async {
   var pages = 12;
   var reps = 7;
   for (var i = 0; i < arguments.length; i++) {
@@ -54,25 +54,25 @@ void main(final List<String> arguments) {
 
   _report('eager parse (compressed)', () => Unseal.parse(Uint8List.fromList(compressed)), reps);
   _report('eager parse (stored)      ', () => Unseal.parse(Uint8List.fromList(stored)), reps);
-  _report('session open (compressed) ', () {
-    final engine = SessionEngine.openBytes(Uint8List.fromList(compressed));
+  _report('session open (compressed) ', () async {
+    final engine = await SessionEngine.openBytes(Uint8List.fromList(compressed));
     engine.close();
   }, reps);
-  _report('session open (stored)     ', () {
-    final engine = SessionEngine.openBytes(Uint8List.fromList(stored));
+  _report('session open (stored)     ', () async {
+    final engine = await SessionEngine.openBytes(Uint8List.fromList(stored));
     engine.close();
   }, reps);
 
   // Hot page load: one engine, repeated loads of the same page.
-  final engine = SessionEngine.openBytes(Uint8List.fromList(compressed));
+  final engine = await SessionEngine.openBytes(Uint8List.fromList(compressed));
   final path = (engine.book as ComicBook).pages.first.path;
   _report('hot load page 0 (cache)   ', () => engine.resource(path), reps);
   engine.close();
 
   // Cold decode: one engine per load, so the cache never serves it.
-  _report('cold open + load (cached) ', () {
-    final one = SessionEngine.openBytes(Uint8List.fromList(compressed));
-    one.resource(path);
+  _report('cold open + load (cached) ', () async {
+    final one = await SessionEngine.openBytes(Uint8List.fromList(compressed));
+    await one.resource(path);
     one.close();
   }, reps);
 }

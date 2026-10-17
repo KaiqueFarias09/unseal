@@ -64,7 +64,7 @@ void _expectSameResults(final SearchResults wire, final SearchResults inline) {
   }
 }
 
-void main() {
+void main() async {
   const chemistry = 'books/epub/elements-of-chemistry.epub';
   final bytes = _bytes(chemistry);
 
@@ -77,18 +77,18 @@ void main() {
   openReply;
   late final SessionEngine resident;
 
-  setUpAll(() {
-    reference = SessionEngine.openBytes(bytes);
+  setUpAll(() async {
+    reference = await SessionEngine.openBytes(bytes);
     addTearDown(reference.close);
     full = Unseal.parse(bytes) as EpubBook;
 
-    openReply = runWorkerOp(op: workerOpSessionOpen, bytes: bytes);
+    openReply = await runWorkerOp(op: workerOpSessionOpen, bytes: bytes);
     resident = openReply.session!;
     addTearDown(resident.close);
   });
 
   group('sessionOpen op', () {
-    test('replies with the encoded header and the progressive flag', () {
+    test('replies with the encoded header and the progressive flag', () async {
       expect(openReply.kind, wireReplySessionOpen);
       expect(openReply.json[wireKeyProgressive], isTrue);
 
@@ -98,9 +98,9 @@ void main() {
       expect(header.metadata.title, full.metadata.title);
     });
 
-    test('forwards the policy to the engine', () {
+    test('forwards the policy to the engine', () async {
       final comicBytes = _bytes('books/comic/halfpenny-surprise-1895.cbz');
-      final reply = runWorkerOp(
+      final reply = await runWorkerOp(
         op: workerOpSessionOpen,
         bytes: comicBytes,
         payload: <String, Object?>{wireKeyCacheBytes: 1 << 20, wireKeyCoverMaxBytes: 1024},
@@ -111,11 +111,11 @@ void main() {
       expect(header.cover.isEmpty, isTrue, reason: 'an oversized cover stays out of the header');
     });
 
-    test('replaces a prior session', () {
-      final prior = runWorkerOp(op: workerOpSessionOpen, bytes: bytes);
+    test('replaces a prior session', () async {
+      final prior = await runWorkerOp(op: workerOpSessionOpen, bytes: bytes);
       addTearDown(prior.session!.close);
 
-      final replacement = runWorkerOp(
+      final replacement = await runWorkerOp(
         op: workerOpSessionOpen,
         bytes: bytes,
         residentSession: prior.session,
@@ -131,7 +131,7 @@ void main() {
       );
     });
 
-    test('rejects unsupported formats typed', () {
+    test('rejects unsupported formats typed', () async {
       const fixture = 'books/txt/synthetic.txt';
       expect(
         () => runWorkerOp(op: workerOpSessionOpen, bytes: _bytes(fixture)),
@@ -140,7 +140,7 @@ void main() {
       );
     });
 
-    test('rejects broken containers with the parse failure hierarchy', () {
+    test('rejects broken containers with the parse failure hierarchy', () async {
       expect(
         () => runWorkerOp(
           op: workerOpSessionOpen,
@@ -152,17 +152,17 @@ void main() {
   });
 
   group('session content ops', () {
-    test('sessionResource inflates one entry or yields a null reference', () {
+    test('sessionResource inflates one entry or yields a null reference', () async {
       final path = full.files.html.first.path;
-      final reply = runWorkerOp(
+      final reply = await runWorkerOp(
         op: workerOpSessionResource,
         payload: <String, Object?>{wireKeyPath: path},
         residentSession: resident,
       );
       expect(reply.kind, wireReplySessionResource);
-      expect(_referencedBlob(reply), reference.resource(path));
+      expect(_referencedBlob(reply), await reference.resource(path));
 
-      final missing = runWorkerOp(
+      final missing = await runWorkerOp(
         op: workerOpSessionResource,
         payload: const <String, Object?>{wireKeyPath: 'no/such/entry.xhtml'},
         residentSession: resident,
@@ -172,12 +172,12 @@ void main() {
       expect(missing.blobs, isEmpty);
     });
 
-    test('sessionResources batches entries and omits missing paths', () {
+    test('sessionResources batches entries and omits missing paths', () async {
       final paths = <String>{
         for (final file in full.files.html.take(3)) file.path,
         'no/such/entry.xhtml',
       };
-      final reply = runWorkerOp(
+      final reply = await runWorkerOp(
         op: workerOpSessionResources,
         payload: <String, Object?>{wireKeyPaths: paths.toList()},
         residentSession: resident,
@@ -187,14 +187,14 @@ void main() {
       final found = (reply.json[wireKeyPaths] as List<Object?>).cast<String>();
       expect(found.length, paths.length - 1);
       for (var i = 0; i < found.length; i++) {
-        expect(reply.blobs[i], reference.resource(found[i]), reason: found[i]);
+        expect(reply.blobs[i], await reference.resource(found[i]), reason: found[i]);
       }
     });
 
-    test('sessionText and sessionSource carry the canonical text and the raw source', () {
+    test('sessionText and sessionSource carry the canonical text and the raw source', () async {
       final file = full.files.html.first;
 
-      final textReply = runWorkerOp(
+      final textReply = await runWorkerOp(
         op: workerOpSessionText,
         payload: <String, Object?>{wireKeyPath: file.path},
         residentSession: resident,
@@ -202,7 +202,7 @@ void main() {
       expect(textReply.kind, wireReplySessionText);
       expect(_referencedBlob(textReply), documentTextOf(file));
 
-      final sourceReply = runWorkerOp(
+      final sourceReply = await runWorkerOp(
         op: workerOpSessionSource,
         payload: <String, Object?>{wireKeyPath: file.path},
         residentSession: resident,
@@ -211,8 +211,8 @@ void main() {
       expect(_referencedBlob(sourceReply), file.content);
     });
 
-    test('sessionSearch matches the resident engine search', () {
-      final reply = runWorkerOp(
+    test('sessionSearch matches the resident engine search', () async {
+      final reply = await runWorkerOp(
         op: workerOpSessionSearch,
         payload: _searchPayload('chemistry'),
         residentSession: resident,
@@ -220,17 +220,17 @@ void main() {
       expect(reply.kind, wireReplySessionSearch);
       expect(reply.blobs, isEmpty);
 
-      _expectSameResults(decodeSearchResultsWire(reply.json), reference.search('chemistry'));
+      _expectSameResults(decodeSearchResultsWire(reply.json), await reference.search('chemistry'));
     });
 
-    test('sessionProgression and sessionStatistics measure the whole book', () {
-      final progressionReply = runWorkerOp(
+    test('sessionProgression and sessionStatistics measure the whole book', () async {
+      final progressionReply = await runWorkerOp(
         op: workerOpSessionProgression,
         residentSession: resident,
       );
       expect(progressionReply.kind, wireReplySessionProgression);
 
-      final inline = reference.computeProgression();
+      final inline = await reference.computeProgression();
       final lengths = (progressionReply.json[wireKeySectionLengths] as List<Object?>).cast<int>();
       final progression = BookProgression.fromSectionLengths(lengths);
       expect(progression.sectionCount, inline.sectionCount);
@@ -238,21 +238,24 @@ void main() {
       expect(progression.totalCharacters, inline.totalCharacters);
       expect(progressionReply.json[wireKeyTotalCharacters], inline.totalCharacters);
 
-      final statisticsReply = runWorkerOp(op: workerOpSessionStatistics, residentSession: resident);
+      final statisticsReply = await runWorkerOp(
+        op: workerOpSessionStatistics,
+        residentSession: resident,
+      );
       expect(statisticsReply.kind, wireReplySessionStatistics);
-      final inlineStatistics = reference.computeStatistics();
+      final inlineStatistics = await reference.computeStatistics();
       expect(statisticsReply.json[wireKeyWordCount], inlineStatistics.wordCount);
       expect(statisticsReply.json[wireKeyCharacterCount], inlineStatistics.characterCount);
     });
   });
 
   group('session cfi ops', () {
-    test('sessionCfiBuild then sessionCfiResolve round-trips the offset', () {
+    test('sessionCfiBuild then sessionCfiResolve round-trips the offset', () async {
       final file = full.files.html.first;
       final section = full.spinePaths!.indexOf(file.path);
       final offset = documentTextOf(file).length ~/ 2;
 
-      final buildReply = runWorkerOp(
+      final buildReply = await runWorkerOp(
         op: workerOpSessionCfiBuild,
         payload: <String, Object?>{wireKeyContentIndex: section, wireKeyOffsetInText: offset},
         residentSession: resident,
@@ -261,7 +264,7 @@ void main() {
       final cfi = buildReply.json[wireKeyCfi] as String;
       expect(cfi, startsWith('epubcfi('));
 
-      final resolveReply = runWorkerOp(
+      final resolveReply = await runWorkerOp(
         op: workerOpSessionCfiResolve,
         payload: <String, Object?>{wireKeyCfi: cfi},
         residentSession: resident,
@@ -275,8 +278,8 @@ void main() {
       expect(location.charOffset, offset);
     });
 
-    test('sessionCfiResolve yields JSON null for a malformed CFI', () {
-      final reply = runWorkerOp(
+    test('sessionCfiResolve yields JSON null for a malformed CFI', () async {
+      final reply = await runWorkerOp(
         op: workerOpSessionCfiResolve,
         payload: const <String, Object?>{wireKeyCfi: 'not-a-cfi'},
         residentSession: resident,
@@ -285,7 +288,7 @@ void main() {
       expect(reply.json[wireKeyLocation], isNull);
     });
 
-    test('sessionCfiBuild outside the reading order crosses as a RangeError', () {
+    test('sessionCfiBuild outside the reading order crosses as a RangeError', () async {
       expect(
         () => runWorkerOp(
           op: workerOpSessionCfiBuild,
@@ -298,11 +301,11 @@ void main() {
   });
 
   group('session lifecycle', () {
-    test('sessionDispose closes the engine; later ops fail typed', () {
-      final disposable = runWorkerOp(op: workerOpSessionOpen, bytes: bytes);
+    test('sessionDispose closes the engine; later ops fail typed', () async {
+      final disposable = await runWorkerOp(op: workerOpSessionOpen, bytes: bytes);
       final engine = disposable.session!;
 
-      final disposeReply = runWorkerOp(op: workerOpSessionDispose, residentSession: engine);
+      final disposeReply = await runWorkerOp(op: workerOpSessionDispose, residentSession: engine);
       expect(disposeReply.kind, wireReplySessionDispose);
 
       // The engine is closed, so the typed error is what the error
@@ -321,7 +324,7 @@ void main() {
       );
     });
 
-    test('session ops without a resident session fail typed', () {
+    test('session ops without a resident session fail typed', () async {
       expect(
         () => runWorkerOp(
           op: workerOpSessionResource,
@@ -339,15 +342,15 @@ void main() {
       );
     });
 
-    test('disposing without a session stays a no-op', () {
-      final reply = runWorkerOp(op: workerOpSessionDispose);
+    test('disposing without a session stays a no-op', () async {
+      final reply = await runWorkerOp(op: workerOpSessionDispose);
 
       expect(reply.kind, wireReplySessionDispose);
     });
   });
 
   group('session error wire', () {
-    test('keeps the session exception types', () {
+    test('keeps the session exception types', () async {
       expect(decodeErrorWire('SessionClosedException', ''), isA<SessionClosedException>());
       expect(decodeErrorWire('SessionCancelledException', ''), isA<SessionCancelledException>());
 
@@ -363,8 +366,8 @@ void main() {
   group('comic session ops', () {
     final comicBytes = _bytes('books/comic/halfpenny-surprise-1895.cbz');
 
-    test('sessionOpen replies with a comic header whose pages load on demand', () {
-      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: comicBytes);
+    test('sessionOpen replies with a comic header whose pages load on demand', () async {
+      final reply = await runWorkerOp(op: workerOpSessionOpen, bytes: comicBytes);
       addTearDown(reply.session!.close);
       expect(reply.kind, wireReplySessionOpen);
       expect(reply.json[wireKeyProgressive], isTrue);
@@ -375,7 +378,7 @@ void main() {
         expect(page.content, isEmpty, reason: page.path);
       }
 
-      final pageReply = runWorkerOp(
+      final pageReply = await runWorkerOp(
         op: workerOpSessionResource,
         payload: <String, Object?>{wireKeyPath: header.pages.first.path},
         residentSession: reply.session,
@@ -383,8 +386,8 @@ void main() {
       expect(_referencedBlob(pageReply), isNotEmpty);
     });
 
-    test('sessionOpen reports the container byte length', () {
-      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: comicBytes);
+    test('sessionOpen reports the container byte length', () async {
+      final reply = await runWorkerOp(op: workerOpSessionOpen, bytes: comicBytes);
       addTearDown(reply.session!.close);
 
       expect(reply.json[wireKeyByteLength], comicBytes.length);
@@ -395,8 +398,8 @@ void main() {
     final cbrBytes = _bytes('books/comic/synthetic-stored-pages.cbr');
     late final SessionEngine resident;
 
-    setUpAll(() {
-      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: cbrBytes);
+    setUpAll(() async {
+      final reply = await runWorkerOp(op: workerOpSessionOpen, bytes: cbrBytes);
       resident = reply.session!;
       addTearDown(resident.close);
     });
@@ -406,8 +409,8 @@ void main() {
       wireKeyCount: count,
     };
 
-    test('serves a raw slice as a blob, clamped to the end', () {
-      final reply = runWorkerOp(
+    test('serves a raw slice as a blob, clamped to the end', () async {
+      final reply = await runWorkerOp(
         op: workerOpSessionRange,
         payload: rangePayload(0, 16),
         residentSession: resident,
@@ -417,7 +420,7 @@ void main() {
       expect(_referencedBlob(reply), cbrBytes.sublist(0, 16));
       expect(
         _referencedBlob(
-          runWorkerOp(
+          await runWorkerOp(
             op: workerOpSessionRange,
             payload: rangePayload(cbrBytes.length - 5, 100),
             residentSession: resident,
@@ -428,7 +431,7 @@ void main() {
       );
     });
 
-    test('invalid ranges keep the RangeError type across the wire', () {
+    test('invalid ranges keep the RangeError type across the wire', () async {
       expect(
         () => runWorkerOp(
           op: workerOpSessionRange,
@@ -439,7 +442,7 @@ void main() {
       );
     });
 
-    test('range without a resident session is the typed closed failure', () {
+    test('range without a resident session is the typed closed failure', () async {
       expect(
         () => runWorkerOp(op: workerOpSessionRange, payload: rangePayload(0, 4)),
         throwsA(isA<SessionClosedException>()),
@@ -451,8 +454,8 @@ void main() {
     final pdfBytes = _bytes('pdf/dickens-sample.pdf');
     final encryptedBytes = _bytes('pdf/encrypted/r6.pdf');
 
-    test('sessionOpen replies with a pdf header whose pages load on demand', () {
-      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: pdfBytes);
+    test('sessionOpen replies with a pdf header whose pages load on demand', () async {
+      final reply = await runWorkerOp(op: workerOpSessionOpen, bytes: pdfBytes);
       addTearDown(reply.session!.close);
       expect(reply.kind, wireReplySessionOpen);
       expect(reply.json[wireKeyProgressive], isTrue);
@@ -464,7 +467,7 @@ void main() {
       expect(header.hasTextLayer, isFalse, reason: 'page texts stay resident');
       expect(header.bytes, isEmpty, reason: 'the document stays byte-source resident');
 
-      final textReply = runWorkerOp(
+      final textReply = await runWorkerOp(
         op: workerOpSessionText,
         payload: <String, Object?>{wireKeyPath: 'page_1.html'},
         residentSession: reply.session,
@@ -476,12 +479,12 @@ void main() {
       );
     });
 
-    test('sessionPdfLines carries the page geometry through the JSON channel', () {
-      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: pdfBytes);
+    test('sessionPdfLines carries the page geometry through the JSON channel', () async {
+      final reply = await runWorkerOp(op: workerOpSessionOpen, bytes: pdfBytes);
       addTearDown(reply.session!.close);
       final full = Unseal.parse(pdfBytes) as PdfBook;
 
-      final linesReply = runWorkerOp(
+      final linesReply = await runWorkerOp(
         op: workerOpSessionPdfLines,
         payload: <String, Object?>{wireKeyPageIndex: 0},
         residentSession: reply.session,
@@ -491,14 +494,14 @@ void main() {
       final page = linesReply.json[wireKeyPage] as Map<String, Object?>;
       final channel = decodeJson(encodeJson(page));
       final decoded = decodePdfPageLinesWire(channel);
-      final reference = reply.session!.loadPdfPageLines(0);
+      final reference = await reply.session!.loadPdfPageLines(0);
       expect(decoded.lines.map((final line) => line.text).join('\n'), reference.text);
       expect(decoded.lines.length, full.pageTexts.single.lines.length);
       expect(decoded.lines.first.x, full.pageTexts.single.lines.first.x);
       expect(decoded.lines.first.fontSize, full.pageTexts.single.lines.first.fontSize);
 
       // The same §3.4.4 space the page's document text addresses.
-      final textReply = runWorkerOp(
+      final textReply = await runWorkerOp(
         op: workerOpSessionText,
         payload: <String, Object?>{wireKeyPath: 'page_1.html'},
         residentSession: reply.session,
@@ -506,8 +509,8 @@ void main() {
       expect(_referencedBlob(textReply), decoded.lines.map((final l) => l.text).join('\n'));
     });
 
-    test('sessionPdfLines out of range keeps the RangeError type across the wire', () {
-      final reply = runWorkerOp(op: workerOpSessionOpen, bytes: pdfBytes);
+    test('sessionPdfLines out of range keeps the RangeError type across the wire', () async {
+      final reply = await runWorkerOp(op: workerOpSessionOpen, bytes: pdfBytes);
       addTearDown(reply.session!.close);
 
       expect(
@@ -520,7 +523,7 @@ void main() {
       );
     });
 
-    test('sessionOpen forwards the password; the wrong one fails typed', () {
+    test('sessionOpen forwards the password; the wrong one fails typed', () async {
       expect(
         () => runWorkerOp(
           op: workerOpSessionOpen,
@@ -530,7 +533,7 @@ void main() {
         throwsA(isA<PdfEncryptedException>()),
       );
 
-      final reply = runWorkerOp(
+      final reply = await runWorkerOp(
         op: workerOpSessionOpen,
         bytes: encryptedBytes,
         payload: <String, Object?>{wireKeyPassword: 'user123'},
