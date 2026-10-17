@@ -17,6 +17,7 @@ export 'lrx.dart';
 export 'markdown.dart';
 export 'mobi.dart';
 export 'odt.dart';
+export 'page.dart';
 export 'palmdoc.dart';
 export 'pdf.dart';
 export 'plucker.dart';

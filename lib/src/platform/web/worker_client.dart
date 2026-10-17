@@ -8,6 +8,7 @@ import 'package:web/web.dart' as web;
 import '../../features/alto/bind_alto_snapshot.dart';
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/djvu/djvu_page_structure.dart';
+import '../../features/page/bind_page_snapshot.dart';
 import '../../features/pdf/entities/pdf_page_text.dart';
 import '../../features/pdf/layout/pdf_page_structure.dart';
 import '../../features/progressive/byte_source.dart';
@@ -182,6 +183,27 @@ final class WorkerClient {
           },
         )
         as AltoBoundSpatialText?;
+  }
+
+  /// Parses [pageBytes] and binds it onto the resident DjVu page's
+  /// hidden-text snapshot inside the worker; `null` when no worker or
+  /// no resident book is available (bind inline as the fallback).
+  Future<PageXmlBoundSpatialText?> bindPageXmlInWorker({
+    required final Uint8List pageBytes,
+    required final int pageIndex,
+    required final PublicationRevision identity,
+  }) async {
+    if (!_residentBook) return null;
+
+    return await _request(
+          workerOpPageXmlBind,
+          bytes: pageBytes,
+          payload: <String, Object?>{
+            wireKeyPageIndex: pageIndex,
+            wireKeyIdentity: encodePublicationRevisionWire(identity),
+          },
+        )
+        as PageXmlBoundSpatialText?;
   }
 
   /// Resolves [cfi] against the resident book inside the worker;
@@ -780,6 +802,11 @@ final class WorkerClient {
         case wireReplySpatialAltoBind:
           final json = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           completer.complete(decodeAltoBoundTextWire(json[wireKeyBound] as Map<String, Object?>));
+        case wireReplyPageXmlBind:
+          final json = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
+          completer.complete(
+            decodePageXmlBoundTextWire(json[wireKeyBound] as Map<String, Object?>),
+          );
         case wireReplySessionOpen:
           final headerJson = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           final header = decodeSessionHeaderWire(headerJson, _blobsOf(data));
