@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:crypto/crypto.dart' as crypto;
 
 import 'package:unseal/src/features/comic/archive/rar5_archive.dart';
 import 'package:unseal/src/features/comic/archive/rar5_decoder.dart';
@@ -12,21 +13,26 @@ import 'package:unseal/src/foundation/exceptions/unseal_exception.dart';
 /// Byte-for-byte RAR 5 acceptance comparison against the two pinned
 /// oracles:
 ///
-/// 1. rardecode (Go) at `ad22ba91a2ab` — the port's base. Requires the
-///    Go toolchain; the first run downloads the pinned module.
+/// 1. rardecode (Go) at `ad22ba91a2ab` (release v2.4.5) — the port's
+///    base. Requires the Go toolchain; the first run downloads the
+///    pinned module.
 /// 2. libarchive via `bsdtar` (Unseal develops against libarchive
 ///    3.7.4; the format source reference is pinned at `87dec938`).
 ///
 /// Every file entry of every archive is decoded through Unseal's RAR 5
-/// decoder and compared byte-for-byte with both oracles' extraction.
-/// A missing oracle, an oracle error, or one differing byte fails the
-/// run with a non-zero exit code — SKIP is never a pass.
+/// decoder — solid chains through the shared sequential decoder, one
+/// dictionary per archive — and compared byte-for-byte with both
+/// oracles' extraction. A missing oracle, an oracle error, or one
+/// differing byte fails the run with a non-zero exit code — SKIP is
+/// never a pass. Expected rejections (`--allow-reject`) are counted
+/// separately from positive comparisons; `--report` writes the JSON
+/// evidence file the oracle gate consumes.
 ///
 /// Usage:
 /// ```
 /// dart run tool/rar5_compare.dart <archive.rar> [more.rar ...] \
 ///   [--oracle=rardecode|libarchive|both] [--bsdtar=/usr/bin/bsdtar] \
-///   [--workdir=build/rar5-compare]
+///   [--workdir=build/rar5-compare] [--report=build/rar5-compare/report.json]
 /// ```
 ///
 /// The Go oracle is built into `--workdir`; keep that directory out of
@@ -37,6 +43,8 @@ void main(final List<String> arguments) {
   var bsdtar = '/usr/bin/bsdtar';
   var workDir = 'build/rar5-compare';
   var allowReject = false;
+  var versionsOnly = false;
+  String? reportPath;
   for (final argument in arguments) {
     if (argument.startsWith('--oracle=')) {
       oracle = argument.substring('--oracle='.length);
@@ -44,16 +52,21 @@ void main(final List<String> arguments) {
       bsdtar = argument.substring('--bsdtar='.length);
     } else if (argument.startsWith('--workdir=')) {
       workDir = argument.substring('--workdir='.length);
+    } else if (argument.startsWith('--report=')) {
+      reportPath = argument.substring('--report='.length);
     } else if (argument == '--allow-reject') {
       allowReject = true;
+    } else if (argument == '--versions-only') {
+      versionsOnly = true;
     } else {
       archives.add(argument);
     }
   }
-  if (archives.isEmpty) {
+  if (archives.isEmpty && !versionsOnly) {
     stderr.writeln(
       'usage: dart run tool/rar5_compare.dart <archive.rar> '
-      '[--oracle=rardecode|libarchive|both] [--bsdtar=path] [--workdir=dir]',
+      '[--oracle=rardecode|libarchive|both] [--bsdtar=path] [--workdir=dir] '
+      '[--report=path]',
     );
     exit(2);
   }
@@ -80,17 +93,50 @@ void main(final List<String> arguments) {
       exit(1);
     }
   }
+  final report = <String, Object>{
+    'oracleVersions': {
+      if (useRardecode) 'rardecode': _rardecodeVersion(rardecodeBinary!),
+      if (useLibarchive) 'libarchive': _libarchiveVersion(bsdtar),
+      'pinned': {
+        'rardecodeModule': rardecodePinnedVersion,
+        'libarchiveSource': libarchivePinnedSource,
+      },
+    },
+    'archives': <Object>[],
+  };
+  if (versionsOnly) {
+    final versions = report['oracleVersions']! as Map<String, Object>;
+    stdout.writeln('rardecode: ${versions['rardecode']} (pinned module $rardecodePinnedVersion)');
+    if (useLibarchive) stdout.writeln('libarchive: ${versions['libarchive']}');
+    if (reportPath != null) {
+      File(
+        reportPath,
+      ).writeAsStringSync('${const convert.JsonEncoder.withIndent('  ').convert(report)}\n');
+    }
 
+    return;
+  }
+  var totalCompared = 0;
+  var totalRejects = 0;
   var failures = 0;
   var compared = 0;
   for (final archivePath in archives) {
     final name = archivePath.split(Platform.pathSeparator).last;
+    final archiveReport = <String, Object?>{
+      'name': name,
+      'entries': <Object?>[],
+      'rejects': <String>[],
+    };
+    (report['archives'] as List<Object>).add(archiveReport);
     final Map<String, Uint8List> dartEntries;
     try {
-      dartEntries = _decodeWithUnseal(archivePath);
+      dartEntries = _decodeWithUnseal(archivePath, archiveReport);
+      totalCompared += dartEntries.length;
     } on UnsealException catch (error) {
       if (allowReject) {
         stdout.writeln('reject $name (typed: ${error.message})');
+        totalRejects++;
+        (archiveReport['rejects']! as List<String>).add(error.message);
         continue;
       }
       stderr.writeln('FAIL $name: Unseal rejects the archive typed: ${error.message}');
@@ -107,6 +153,8 @@ void main(final List<String> arguments) {
     } on StateError catch (error) {
       if (allowReject) {
         stdout.writeln('reject $name (oracle failed: ${error.message.split('\n').first})');
+        totalRejects++;
+        (archiveReport['rejects']! as List<String>).add(error.message.split('\n').first);
         continue;
       }
       stderr.writeln('FAIL $name: oracle extraction failed: ${error.message.split('\n').first}');
@@ -149,6 +197,8 @@ void main(final List<String> arguments) {
             'reject $name/$entryName (Unseal is outside its subset; '
             'the oracle produced it)',
           );
+          totalRejects++;
+          (archiveReport['rejects']! as List<String>).add('$entryName: outside subset');
         } else {
           stderr.writeln('FAIL $name/$entryName: Unseal did not produce this entry');
           failures++;
@@ -192,18 +242,37 @@ void main(final List<String> arguments) {
           "${useRardecode && useLibarchive ? 'both oracles' : 'oracle'}"
           "${pairedByName ? '' : ', name paired by content'})",
         );
+        (archiveReport['entries']! as List<Object?>).add({
+          'name': entryName,
+          'bytes': unseal.length,
+          'sha256': _sha256Hex(unseal),
+          if (!pairedByName) 'namePairedByContent': true,
+        });
       } else {
         failures++;
       }
     }
   }
 
+  report['totals'] = {'compared': totalCompared, 'rejects': totalRejects, 'failures': failures};
+  if (reportPath != null) {
+    File(
+      reportPath,
+    ).writeAsStringSync('${const convert.JsonEncoder.withIndent('  ').convert(report)}\n');
+    stdout.writeln('report written to $reportPath');
+  }
+
   if (failures > 0) {
     stderr.writeln('FAILED: $failures of $compared entries diverge');
     exit(1);
   }
-  stdout.writeln('PASS: $compared entries byte-identical across decoders');
+  stdout.writeln(
+    'PASS: $compared entries byte-identical across decoders '
+    '($totalRejects expected rejections counted separately)',
+  );
 }
+
+String _sha256Hex(final Uint8List bytes) => crypto.sha256.convert(bytes).toString();
 
 /// Finds an entry with exactly [reference]'s content when the name
 /// itself is missing (filesystem name normalization), tolerating the
@@ -229,20 +298,24 @@ bool _sameBytes(final Uint8List a, final Uint8List b) {
   return true;
 }
 
-/// Decodes every file entry with Unseal's shared RAR 5 reader.
-Map<String, Uint8List> _decodeWithUnseal(final String path) {
+/// Decodes every file entry with Unseal's shared RAR 5 reader: solid
+/// chains decode in container order through one [Rar5SolidDecoder], so
+/// the comparison exercises the exact cross-entry history the parsers
+/// use.
+Map<String, Uint8List> _decodeWithUnseal(final String path, final Map<String, Object?> report) {
   final bytes = Uint8List.fromList(File(path).readAsBytesSync());
   final source = MemoryZipByteSource(bytes);
   final container = readRar5Structure(source);
+  report['archiveSolid'] = container.archiveSolid;
   final entries = <String, Uint8List>{};
+  final decoder = Rar5SolidDecoder();
   for (final header in container.entries) {
     if (header.isDirectory) continue;
-    final reason = header.unsupportedReason(
-      archiveSolid: container.archiveSolid,
-      sourceLength: bytes.length,
-    );
+    final reason = header.unsupportedReason(sourceLength: bytes.length);
     if (reason != null) {
-      stderr.writeln('note: Unseal rejects "${header.name}": $reason');
+      final message = 'Unseal rejects "${header.name}": $reason';
+      stderr.writeln('note: $message');
+      (report['rejects']! as List<String>).add(message);
       continue;
     }
     if (header.isStored) {
@@ -253,11 +326,16 @@ Map<String, Uint8List> _decodeWithUnseal(final String path) {
       );
       continue;
     }
+    if (header.unpackedSize == 0) {
+      entries[header.name] = Uint8List(0);
+      continue;
+    }
     final packed = source.read(header.dataStart, header.packedSize);
-    final decoded = decodeRar5Stream(
+    final decoded = decoder.decodeEntry(
       packed: packed,
       uncompressedSize: header.unpackedSize,
       windowSize: header.dictSize,
+      solid: header.solid,
     );
     if (header.hasDataCrc && getCrc32(decoded) != header.dataCrc32) {
       throw StateError('CRC-32 mismatch decoding "${header.name}"');
@@ -269,6 +347,34 @@ Map<String, Uint8List> _decodeWithUnseal(final String path) {
 }
 
 const String rardecodePinnedVersion = 'v2.0.0-20261013091751-ad22ba91a2ab';
+
+/// The libarchive commit the format reader was reviewed against.
+const String libarchivePinnedSource = '87dec938e1578901f4919faa76e5f541b4d145b1';
+
+/// The effective rardecode release the pinned module resolves to,
+/// read from the built binary's module metadata.
+String _rardecodeVersion(final String binary) {
+  final result = Process.runSync('go', ['version', '-m', binary]);
+  if (result.exitCode != 0) return 'unknown (go version -m failed)';
+  for (final line in result.stdout.toString().split('\n')) {
+    final match = RegExp(
+      r'(?:mod|dep)\s+github\.com/nwaples/rardecode/v2\s+(\S+)',
+    ).firstMatch(line);
+    if (match != null) return match.group(1)!;
+  }
+
+  return 'unknown (module line not found)';
+}
+
+/// The effective libarchive version behind [bsdtar], parsed from its
+/// `--version` banner.
+String _libarchiveVersion(final String bsdtar) {
+  final result = Process.runSync(bsdtar, const ['--version']);
+  if (result.exitCode != 0) return 'unknown (bsdtar --version failed)';
+  final match = RegExp(r'libarchive (\d+\.\d+\.\d+)').firstMatch(result.stdout.toString());
+
+  return match == null ? result.stdout.toString().trim() : 'libarchive ${match.group(1)}';
+}
 
 /// Builds the pinned rardecode extractor once into [workDir]; returns
 /// the binary path.

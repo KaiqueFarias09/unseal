@@ -40,6 +40,26 @@
   `spatial.altoBind` against the resident book, and the DjVu wire payload
   carries each page's encoded hidden-text chunk so wire-resident books
   rebuild their structures.
+- Solid RAR 5 comic chains: the per-entry solid bit continues a
+  dictionary carried across entries (window, Huffman tables, recent
+  offsets, filters), with each entry keeping its own framed block
+  stream, dictionary growth on continuation, and filter offsets that
+  restart per entry. The eager parse and every session drive the same
+  decoder, byte-identical against the rardecode (v2.4.5) and libarchive
+  (3.7.4) oracles on a pinned fixture corpus with real cross-entry
+  history. The archive-level solid flag alone leaves entries
+  independent, matching the reference decoder.
+
+### Changed
+
+- Progressive CBR sessions decode solid chains sequentially at open
+  (the page sniff walks the chain — the documented open cost) and serve
+  backward access by replaying from bounded dictionary checkpoints
+  under a cumulative 512 MiB replay budget, charged before the work.
+  Each session owns its decoder and checkpoints; a failed decode
+  poisons forward continuation until a checkpoint restore, and
+  reopening resets the budgets. Session CRC verification, including
+  declared zeros, is unchanged.
 
 ## 1.3.0 - October 17, 2026
 

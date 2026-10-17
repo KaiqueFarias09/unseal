@@ -333,6 +333,55 @@ final class _Rar5Header {
   Uint8List takeBytes() => _buffer.takeBytes();
 }
 
+/// Builds a RAR 5 archive whose first compressed entry declares a
+/// dictionary above the subset limit and whose second entry carries the
+/// solid bit — the second header is a typed rejection naming the broken
+/// dependency even though its own header is fine.
+Uint8List buildRar5SolidChainWithBrokenPredecessor() {
+  final builder = BytesBuilder(copy: false);
+  builder.add([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
+  _addRar5Block(
+    builder,
+    type: 1,
+    headerFlags: 0,
+    write: (final body) {
+      body.vint(0x0004); // archive solid flag
+    },
+  );
+  void file(final String name, {required final int dictExp, required final bool solid}) {
+    final nameBytes = convert.utf8.encode(name);
+    _addRar5Block(
+      builder,
+      type: 2,
+      headerFlags: 0x0002,
+      data: Uint8List.fromList(tinyJpegPage),
+      write: (final body) {
+        body.vint(0x0004); // file flags: has CRC
+        body.vint(tinyJpegPage.length); // unpacked size
+        body.vint(0x20); // attributes
+        body.uint32(0); // data CRC
+        body.vint((3 << 7) | (dictExp << 10) | (solid ? 0x40 : 0)); // comp info
+        body.addByte(0); // host OS
+        body.vint(nameBytes.length);
+        body.add(nameBytes);
+      },
+    );
+  }
+
+  file('001.jpg', dictExp: 10, solid: true); // above the subset limit
+  file('002.jpg', dictExp: 0, solid: true); // continues the broken chain
+  _addRar5Block(
+    builder,
+    type: 5,
+    headerFlags: 0,
+    write: (final body) {
+      body.vint(0);
+    },
+  );
+
+  return builder.takeBytes();
+}
+
 /// A stored page of [length] bytes with a JPEG magic at the front —
 /// big enough to push the session LRU over a small budget.
 Uint8List fatJpegPage(final int length) {

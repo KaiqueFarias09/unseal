@@ -27,6 +27,7 @@ final class RarEntryRecord implements ArchiveEntry {
     required this.version,
     required this.flags,
     required this.crc32,
+    required this.recordIndex,
     this.hasCrc32 = false,
     this.solid = false,
     this.isSplit = false,
@@ -38,6 +39,10 @@ final class RarEntryRecord implements ArchiveEntry {
   /// Entry path as stored in the archive.
   @override
   final String name;
+
+  /// Position of this record in container order — the solid chain's
+  /// decode order.
+  final int recordIndex;
 
   /// Whether the record carries a payload (directories do not).
   @override
@@ -107,11 +112,11 @@ final class RarEntryRecord implements ArchiveEntry {
 
   /// Why this record's payload is outside the supported subset, or null
   /// when it can be produced from a container of [sourceLength] bytes.
-  String? unsupportedReason({required final bool archiveSolid, required final int sourceLength}) {
+  String? unsupportedReason({required final int sourceLength}) {
     if (!isFile) return 'it is a directory';
     final rar5 = rar5Header;
     if (rar5 != null) {
-      return rar5.unsupportedReason(archiveSolid: archiveSolid, sourceLength: sourceLength);
+      return rar5.unsupportedReason(sourceLength: sourceLength);
     }
     if (isStored) {
       if (packedSize > 0 && dataStart + packedSize > sourceLength) {
@@ -137,44 +142,98 @@ final class RarEntryRecord implements ArchiveEntry {
   }
 }
 
+/// Cumulative solid-chain limits of one session. The per-file decode
+/// limits bound a single entry; these bound the session's accumulated
+/// work, so replaying history in a hostile access pattern cannot grow
+/// without a ceiling. Reopening the archive resets them.
+///
+/// - [maxRar5SolidReplayBytes]: total uncompressed bytes re-decoded to
+///   serve backward accesses across the whole session.
+/// - [maxRar5SolidCheckpoints] / [maxRar5SolidCheckpointBytes]: how many
+///   dictionary snapshots the session keeps, and the total window bytes
+///   they may occupy.
+const int maxRar5SolidReplayBytes = 512 * 1024 * 1024;
+
+/// Dictionary snapshots one session keeps. Together with
+/// [maxRar5SolidCheckpointBytes] this bounds checkpoint memory; the
+/// oldest snapshots are evicted first.
+const int maxRar5SolidCheckpoints = 16;
+
+/// Total window bytes the live checkpoints of one session may occupy.
+const int maxRar5SolidCheckpointBytes = 96 * 1024 * 1024;
+
 /// Random access over a CBR container: one header-indexing pass at open
 /// (the shared RAR 4 / RAR 5 container walk) and each entry decoded on
 /// demand.
 ///
 /// Support matrix mirrors the eager reader: RAR 4 stored (0x30) and
 /// ordinary non-solid method-29 streams (via the shared method-29
-/// decoder), RAR 5 stored entries and non-solid version-0 compressed
-/// streams (methods 1-5, filters 0-3, dictionaries through 64 MiB) via
-/// the shared RAR 5 decoder. Out-of-subset records stay indexed;
-/// touching them is a typed [ComicException] naming the entry and the
-/// reason.
+/// decoder), RAR 5 stored entries and version-0 compressed streams —
+/// solid chains included (methods 1-5, filters 0-3, dictionaries
+/// through 64 MiB) via the shared [Rar5SolidDecoder]. Out-of-subset
+/// records stay indexed; touching them is a typed [ComicException]
+/// naming the entry and the reason.
+///
+/// Solid state is per session: one decoder, one dictionary, one
+/// checkpoint set. Requests decode forward in container order; a
+/// backward request replays from the nearest checkpoint at or before
+/// the target (or the chain start) under the cumulative
+/// [maxRar5SolidReplayBytes] budget, charged before the work happens.
+/// A failed decode poisons the chain — forward requests fail typed
+/// until a checkpoint restore rebuilds the dictionary — and reopening
+/// the archive starts fresh.
 ///
 /// Security posture matches the zip random access: container-level
 /// guards reject hostile declared sizes at open (total > 1 GiB,
 /// largest entry > 512 MiB, expansion ratio > 200x above 32 MiB, the
 /// same constants as the zip path) and per-entry output stays bounded
 /// while it is produced. CRC delta, documented: the eager RAR reader
-/// never verifies CRCs, while the session verifies declared non-zero
-/// CRCs and rejects corruption typed — entries declared with CRC 0
-/// never reject.
+/// never verifies CRCs, while the session verifies declared CRCs and
+/// rejects corruption typed — a declared CRC of zero is a real
+/// checksum and still verifies.
 ///
 /// Sessions open only when the eager parse of the same bytes would too:
 /// every entry the eager reader cannot produce data for (unsupported
 /// compression, truncated stored payload it cannot keep verbatim) makes
 /// the whole eager parse fail typed, and the session header build
 /// touches every entry while sniffing pages, so the same typed failure
-/// surfaces at open.
+/// surfaces at open. Page sniffing decodes solid entries sequentially
+/// at open — the documented open cost of a solid CBR.
 final class RarRandomAccess implements ArchiveRandomAccess {
-  RarRandomAccess._(this._source, this._records, this._archiveSolid)
-    : _byLowerPath = _indexByLowerPath(_records);
+  RarRandomAccess._(this._source, this._records) : _byLowerPath = _indexByLowerPath(_records);
 
   final ZipByteSource _source;
   final List<RarEntryRecord> _records;
   final Map<String, RarEntryRecord> _byLowerPath;
 
-  /// Whether the RAR 5 main archive header declares the solid flag
-  /// (false for RAR 4 archives; RAR 4 solidity rides per entry).
-  final bool _archiveSolid;
+  // Solid-chain session state. Each RarRandomAccess owns its decoder,
+  // checkpoints, and budgets — two sessions on the same bytes never
+  // share a mutable dictionary.
+  Rar5SolidDecoder? _solid;
+
+  /// Container position of the next entry the chain can decode.
+  int _cursor = 0;
+
+  /// Container position of the farthest entry ever decoded. Chain work
+  /// at or below this mark is a re-decode and charges the replay
+  /// budget — whichever direction it decodes in.
+  int _highWater = -1;
+
+  /// Whether a decode failure broke the chain: forward continuation is
+  /// impossible until a checkpoint restore rebuilds the dictionary.
+  bool _poisoned = false;
+
+  /// Dictionary snapshots keyed by the container position they decode.
+  final Map<int, _SolidCheckpoint> _checkpoints = {};
+  int _checkpointBytes = 0;
+  int _replayBudgetBytes = maxRar5SolidReplayBytes;
+
+  /// Cumulative uncompressed bytes re-decoded for backward accesses so
+  /// far — the consumed share of [maxRar5SolidReplayBytes].
+  int get solidReplayBytesUsed => maxRar5SolidReplayBytes - _replayBudgetBytes;
+
+  /// Total window bytes held by live checkpoints.
+  int get solidCheckpointBytes => _checkpointBytes;
 
   /// Indexes the entry headers of [source] without decoding any
   /// payload, then validates the container-level guards. Costs no
@@ -191,10 +250,10 @@ final class RarRandomAccess implements ArchiveRandomAccess {
       throw const ComicException('Not a RAR archive.');
     }
 
-    final (records, archiveSolid) = isRar4 ? (_indexRar4(source), false) : _indexRar5(source);
+    final records = isRar4 ? _indexRar4(source) : _indexRar5(source);
     _assertExpansionBounded(source, records);
 
-    return RarRandomAccess._(source, records, archiveSolid);
+    return RarRandomAccess._(source, records);
   }
 
   /// Every indexed record in container order, directories included
@@ -248,10 +307,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
           );
         }
       case _PayloadMode.rar5:
-        final reason = entry.unsupportedReason(
-          archiveSolid: _archiveSolid,
-          sourceLength: _source.length,
-        );
+        final reason = entry.unsupportedReason(sourceLength: _source.length);
         if (reason != null) {
           throw ComicException('RAR entry "${entry.name}" is not supported: $reason.');
         }
@@ -268,23 +324,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
           return Uint8List(0);
         }
-        final packed = _source.read(entry.dataStart, entry.packedSize);
-        try {
-          final decoded = decodeRar5Stream(
-            packed: packed,
-            uncompressedSize: entry.uncompressedSize,
-            windowSize: entry.rar5DictSize,
-          );
-          _verifyCrc(entry, decoded);
-
-          return decoded;
-        } on UnsealException {
-          rethrow;
-        } on Object catch (error) {
-          throw ComicException(
-            'RAR entry "${entry.name}" could not be decoded (${error.runtimeType}).',
-          );
-        }
+        return _decodeSolidEntry(entry);
       case _PayloadMode.dropped:
         throw ComicException(
           'RAR entry "${entry.name}" has a truncated or mismatched stored payload.',
@@ -329,10 +369,10 @@ final class RarRandomAccess implements ArchiveRandomAccess {
     if (!entry.isFile) return _PayloadMode.dropped;
 
     if (entry.isRar5) {
-      // Out-of-subset RAR 5 records (split, solid, encrypted, later
-      // algorithms, hostile dictionaries) never reach a payload path.
-      if (entry.unsupportedReason(archiveSolid: _archiveSolid, sourceLength: _source.length) !=
-          null) {
+      // Out-of-subset RAR 5 records (split, broken solid chains,
+      // encrypted, later algorithms, hostile dictionaries) never reach
+      // a payload path.
+      if (entry.unsupportedReason(sourceLength: _source.length) != null) {
         return _PayloadMode.unsupported;
       }
       if (entry.isStored) {
@@ -374,14 +414,148 @@ final class RarRandomAccess implements ArchiveRandomAccess {
   ComicException _unsupportedCompression(final RarEntryRecord entry) {
     final String reason;
     if (entry.isRar5) {
-      reason =
-          entry.unsupportedReason(archiveSolid: _archiveSolid, sourceLength: _source.length) ??
-          'it is compressed';
+      reason = entry.unsupportedReason(sourceLength: _source.length) ?? 'it is compressed';
     } else {
       reason = 'only stored (uncompressed) and ordinary RAR 2.9/3.x payloads are supported';
     }
 
     return ComicException('RAR entry "${entry.name}" is not supported: $reason.');
+  }
+
+  // Decodes one compressed RAR 5 entry through the session's solid
+  // chain — the same decoder instance the eager parse drives, sequenced
+  // in container order.
+  //
+  // Forward requests decode the entries between the cursor and the
+  // target (their output builds the dictionary; only the target's bytes
+  // are served). Backward requests replay from the nearest checkpoint
+  // at or before the target — or the chain start — and charge every
+  // replayed entry against the cumulative replay budget before the
+  // work happens. Each served boundary is checkpointed, bounded by
+  // count and total window bytes.
+  Uint8List _decodeSolidEntry(final RarEntryRecord entry) {
+    final index = entry.recordIndex;
+    _solid ??= Rar5SolidDecoder();
+    try {
+      if (_poisoned) {
+        throw ComicException(
+          'RAR entry "${entry.name}" cannot be decoded because an earlier solid '
+          'entry failed; reopen the archive.',
+        );
+      }
+      final Uint8List decoded;
+      if (index >= _cursor) {
+        // Forward walk: intermediate entries build the dictionary.
+        // Anything the session has decoded before is a re-decode and
+        // charges the replay budget first, so alternating jumps across
+        // a decoded region stay bounded like backward replays.
+        _chargeReplay(_cursor, index);
+        for (var i = _cursor; i < index; i++) {
+          _decodeChainEntry(_records[i]);
+        }
+        _chargeReplay(index, index + 1);
+        decoded = _decodeChainEntry(entry);
+      } else {
+        decoded = _replayTo(entry);
+      }
+      if (index > _highWater) _highWater = index;
+      _verifyCrc(entry, decoded);
+
+      return decoded;
+    } on UnsealException {
+      rethrow;
+    } on Object catch (error) {
+      // A failed decode leaves the carried dictionary unusable for
+      // forward continuation; checkpoint restores still rebuild it.
+      _poisoned = true;
+      throw ComicException(
+        'RAR entry "${entry.name}" could not be decoded (${error.runtimeType}).',
+      );
+    }
+  }
+
+  // Decodes the compressed entry at [record]'s position, advancing the
+  // cursor and checkpointing the boundary. Returns the entry's output.
+  Uint8List _decodeChainEntry(final RarEntryRecord record) {
+    final solid = _solid!;
+    final decoded = solid.decodeEntry(
+      packed: _source.read(record.dataStart, record.packedSize),
+      uncompressedSize: record.uncompressedSize,
+      windowSize: record.rar5DictSize,
+      solid: record.solid,
+    );
+    _cursor = record.recordIndex + 1;
+    _rememberCheckpoint(record.recordIndex + 1);
+
+    return decoded;
+  }
+
+  // Serves a backward access by rebuilding the dictionary: restore the
+  // nearest checkpoint at or before the target (else restart the chain
+  // from the beginning), decode forward discarding intermediate
+  // outputs, then decode the target. The whole replay is charged
+  // against the cumulative budget BEFORE any decode work.
+  Uint8List _replayTo(final RarEntryRecord entry) {
+    final index = entry.recordIndex;
+    var best = -1;
+    for (final key in _checkpoints.keys) {
+      if (key <= index && key > best) best = key;
+    }
+    final from = best == -1 ? 0 : best;
+
+    _chargeReplay(from, index + 1);
+
+    final checkpoint = best == -1 ? null : _checkpoints[best];
+    if (checkpoint != null) {
+      _solid!.restoreState(checkpoint.state);
+    } else {
+      _solid = Rar5SolidDecoder();
+    }
+    _poisoned = false;
+
+    for (var i = from; i < index; i++) {
+      final record = _records[i];
+      if (record.uncompressedSize > 0) {
+        _decodeChainEntry(record);
+      }
+    }
+
+    return _decodeChainEntry(entry);
+  }
+
+  // Charges the cumulative budget for re-decoding the compressed
+  // entries in [from, to) — replay work, priced before it happens.
+  void _chargeReplay(final int from, final int to) {
+    var cost = 0;
+    for (var i = from; i < to && i <= _highWater; i++) {
+      final record = _records[i];
+      if (_modeOf(record) == _PayloadMode.rar5) cost += record.uncompressedSize;
+    }
+    if (cost > _replayBudgetBytes) {
+      throw ComicException(
+        "RAR solid replay of $cost bytes exceeds the session's remaining "
+        '$_replayBudgetBytes-byte cumulative replay budget; reopen the archive.',
+      );
+    }
+    _replayBudgetBytes -= cost;
+  }
+
+  // Snapshots the dictionary at a served boundary, bounded by count and
+  // total window bytes (oldest evicted first). Oversized windows (a
+  // declared dictionary above the checkpoint budget) disable
+  // checkpointing for the session; replay stays available.
+  void _rememberCheckpoint(final int index) {
+    final state = _solid!.captureState();
+    final weight = state.weightBytes;
+    if (weight > maxRar5SolidCheckpointBytes) return;
+    while (_checkpointBytes + weight > maxRar5SolidCheckpointBytes ||
+        _checkpoints.length >= maxRar5SolidCheckpoints) {
+      if (_checkpoints.isEmpty) return;
+      final oldestKey = _checkpoints.keys.first;
+      _checkpointBytes -= _checkpoints.remove(oldestKey)!.state.weightBytes;
+    }
+    _checkpoints[index] = _SolidCheckpoint(state, index);
+    _checkpointBytes += weight;
   }
 
   /// Session CRC verification: RAR 5 verifies declared CRCs (zero
@@ -393,6 +567,15 @@ final class RarRandomAccess implements ArchiveRandomAccess {
   }
 
   int _availableAt(final int offset) => math.max(0, _source.length - offset);
+}
+
+/// One dictionary snapshot: the decode state able to decode the entry
+/// at [recordIndex] next.
+final class _SolidCheckpoint {
+  _SolidCheckpoint(this.state, this.recordIndex);
+
+  final Rar5SolidState state;
+  final int recordIndex;
 }
 
 /// How the eager reader's payload grammar classifies a record.
@@ -490,6 +673,7 @@ List<RarEntryRecord> _indexRar4(final ZipByteSource source) {
           name: name,
           isFile: !isDirectory,
           isRar5: false,
+          recordIndex: records.length,
           dataStart: offset + headSize,
           packedSize: packSize,
           uncompressedSize: unpSize,
@@ -520,10 +704,11 @@ List<RarEntryRecord> _indexRar4(final ZipByteSource source) {
 /// Indexes the RAR 5 entry headers through the shared container walk —
 /// the same header grammar, CRC verification, and typed rejections the
 /// eager reader uses — and maps the result onto [RarEntryRecord].
-(List<RarEntryRecord>, bool) _indexRar5(final ZipByteSource source) {
+List<RarEntryRecord> _indexRar5(final ZipByteSource source) {
   final container = readRar5Structure(source);
   final records = <RarEntryRecord>[];
-  for (final header in container.entries) {
+  for (var index = 0; index < container.entries.length; index++) {
+    final header = container.entries[index];
     records.add(
       RarEntryRecord._(
         name: header.name,
@@ -536,6 +721,7 @@ List<RarEntryRecord> _indexRar4(final ZipByteSource source) {
         version: header.version,
         flags: header.isDirectory ? 0x0001 : 0,
         crc32: header.dataCrc32,
+        recordIndex: index,
         hasCrc32: header.hasDataCrc,
         solid: header.solid,
         isSplit: header.isSplit,
@@ -546,7 +732,7 @@ List<RarEntryRecord> _indexRar4(final ZipByteSource source) {
     );
   }
 
-  return (records, container.archiveSolid);
+  return records;
 }
 
 /// Container-level RAR bomb guards, applied to declared sizes before

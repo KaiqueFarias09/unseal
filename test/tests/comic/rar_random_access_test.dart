@@ -8,10 +8,22 @@ import 'package:unseal/src/features/comic/archive/rar_random_access.dart';
 import 'package:unseal/src/foundation/archive/zip_byte_source.dart';
 import 'package:unseal/unseal.dart';
 
+import '../../../tool/rar5_stream_encoder.dart';
 import '../../support/rar_fixtures.dart';
 
 Uint8List _bytes(final String name) =>
     Uint8List.fromList(File('test/resources/$name').readAsBytesSync());
+
+/// A hostile solid chain: many mid-size entries whose decode work adds
+/// up, built in-process by the same encoder that pins the fixtures.
+Uint8List _hostileSolidChain({final int entryCount = 12, final int entryBytes = 512 << 10}) {
+  final entries = <FixtureEntry>[
+    for (var i = 0; i < entryCount; i++)
+      FixtureEntry('page-${i.toString().padLeft(3, '0')}.jpg', fatJpegPage(entryBytes)),
+  ];
+
+  return buildRar5Archive(entries: entries, method: 3, dictExp: 0, archiveSolid: true);
+}
 
 void main() {
   group('RarRandomAccess parity with the eager decode', () {
@@ -194,19 +206,23 @@ void main() {
     });
 
     test('unsupported RAR 5 variants stay indexed and name their reason', () {
-      final cases = <String, Uint8List>{
-        'split across volumes': buildRar5(['001.jpg'], splitBlockFlags: 0x0010),
-        'algorithm version': buildRar5(['001.jpg'], method: 3, version: 1),
-        'reserved compression method': buildRar5(['001.jpg'], method: 7),
-        'subset limit': buildRar5(['001.jpg'], method: 3, dictExp: 10),
-        'solid stream': buildRar5(['001.jpg'], method: 3, solid: true),
-        'unpacked size': buildRar5(['001.jpg'], fileFlags: 0x0008),
+      final cases = <(String, String, Uint8List)>{
+        ('split across volumes', '001.jpg', buildRar5(['001.jpg'], splitBlockFlags: 0x0010)),
+        ('algorithm version', '001.jpg', buildRar5(['001.jpg'], method: 3, version: 1)),
+        ('reserved compression method', '001.jpg', buildRar5(['001.jpg'], method: 7)),
+        ('subset limit', '001.jpg', buildRar5(['001.jpg'], method: 3, dictExp: 10)),
+        ('unpacked size', '001.jpg', buildRar5(['001.jpg'], fileFlags: 0x0008)),
+        (
+          'continues from an entry that cannot be decoded',
+          '002.jpg',
+          buildRar5SolidChainWithBrokenPredecessor(),
+        ),
       };
 
-      cases.forEach((final expectedReason, final archive) {
+      for (final (expectedReason, entryName, archive) in cases) {
         final rar = RarRandomAccess.open(MemoryZipByteSource(archive));
         addTearDown(rar.close);
-        final record = rar.find('001.jpg')!;
+        final record = rar.find(entryName)!;
         expect(record.isFile, isTrue, reason: '$expectedReason stays indexed');
 
         try {
@@ -216,7 +232,7 @@ void main() {
           expect(error.message, contains(expectedReason), reason: error.message);
         }
         expect(() => rar.inflate(record), throwsA(isA<ComicException>()));
-      });
+      }
     });
 
     test('multi-volume archives fail at open', () {
@@ -309,6 +325,104 @@ void main() {
         () => RarRandomAccess.open(MemoryZipByteSource(bomb)),
         throwsA(isA<InvalidBookException>()),
       );
+    });
+  });
+
+  group('RarRandomAccess cumulative solid limits (RS05)', () {
+    test('alternating first/last access exhausts the replay budget typed', () {
+      final chain = _hostileSolidChain();
+      final rar = RarRandomAccess.open(MemoryZipByteSource(chain));
+      addTearDown(rar.close);
+      final files = [
+        for (final record in rar.entries)
+          if (record.isFile) record,
+      ];
+      expect(files.length, 12);
+
+      ComicException? lastError;
+      var rounds = 0;
+      var previousReplay = rar.solidReplayBytesUsed;
+      try {
+        while (rounds < 1000) {
+          rar.inflate(files.last);
+          rar.inflate(files.first);
+          rounds++;
+          expect(
+            rar.solidReplayBytesUsed,
+            greaterThan(previousReplay),
+            reason: 'round $rounds re-decodes must charge the cumulative budget',
+          );
+          previousReplay = rar.solidReplayBytesUsed;
+        }
+        fail('the hostile alternation must exhaust the budget');
+      } on ComicException catch (error) {
+        lastError = error;
+        expect(error.message, contains('replay budget'));
+      }
+      expect(lastError, isNotNull, reason: 'the budget rejected the pattern');
+      expect(rounds, lessThan(1000), reason: 'the budget stopped the loop');
+      expect(
+        rar.solidReplayBytesUsed,
+        lessThanOrEqualTo(maxRar5SolidReplayBytes),
+        reason: 'the charge never overshoots the cap',
+      );
+    });
+
+    test('checkpoints stay under their count and byte ceilings', () {
+      final chain = _hostileSolidChain();
+      final rar = RarRandomAccess.open(MemoryZipByteSource(chain));
+      addTearDown(rar.close);
+      final files = [
+        for (final record in rar.entries)
+          if (record.isFile) record,
+      ];
+
+      // Full reverse walk, then a zig-zag pass: checkpoints churn under
+      // eviction the whole time.
+      for (final record in files.reversed) {
+        rar.inflate(record);
+      }
+      for (final index in [0, 5, 2, 9, 1, 11, 3, 7]) {
+        rar.inflate(files[index]);
+      }
+
+      expect(rar.solidCheckpointBytes, lessThanOrEqualTo(maxRar5SolidCheckpointBytes));
+      for (final record in files) {
+        expect(rar.inflate(record), isNotNull, reason: '${record.name} still decodes');
+      }
+      expect(rar.solidCheckpointBytes, lessThanOrEqualTo(maxRar5SolidCheckpointBytes));
+    });
+
+    test('exhausting the replay budget leaves forward first-pass access working', () {
+      final chain = _hostileSolidChain(entryCount: 10, entryBytes: 256 << 10);
+      final rar = RarRandomAccess.open(MemoryZipByteSource(chain));
+      addTearDown(rar.close);
+      final files = [
+        for (final record in rar.entries)
+          if (record.isFile) record,
+      ];
+
+      // Burn the budget on alternation, then walk a FRESH reopen
+      // forward: first-pass sequential decode is never replay.
+      try {
+        while (true) {
+          rar.inflate(files.last);
+          rar.inflate(files.first);
+        }
+      } on ComicException {
+        // budget exhausted
+      }
+      final fresh = RarRandomAccess.open(MemoryZipByteSource(chain));
+      addTearDown(fresh.close);
+      final freshFiles = [
+        for (final record in fresh.entries)
+          if (record.isFile) record,
+      ];
+      expect(fresh.solidReplayBytesUsed, 0, reason: 'reopen resets the budget');
+      for (final record in freshFiles) {
+        expect(fresh.inflate(record), isNotNull, reason: '${record.name} first pass');
+      }
+      expect(fresh.solidReplayBytesUsed, 0, reason: 'a sequential pass charges nothing');
     });
   });
 }

@@ -158,11 +158,13 @@ Uint8List _decodeRar4Entry(
 List<_RarEntry> _readRar5(final Uint8List bytes) {
   final container = readRar5Structure(MemoryZipByteSource(bytes));
   final entries = <_RarEntry>[];
+
+  // One decoder drives the whole container in order: solid chains
+  // continue the carried dictionary, non-solid entries reset it — the
+  // exact sequencing the session path uses.
+  final decoder = Rar5SolidDecoder();
   for (final header in container.entries) {
-    final reason = header.unsupportedReason(
-      archiveSolid: container.archiveSolid,
-      sourceLength: bytes.length,
-    );
+    final reason = header.unsupportedReason(sourceLength: bytes.length);
     if (reason != null && !header.isDirectory) {
       throw ComicException('RAR entry "${header.name}" is not supported: $reason.');
     }
@@ -188,10 +190,11 @@ List<_RarEntry> _readRar5(final Uint8List bytes) {
         header.dataStart + header.packedSize,
       );
       try {
-        data = decodeRar5Stream(
+        data = decoder.decodeEntry(
           packed: packed,
           uncompressedSize: header.unpackedSize,
           windowSize: header.dictSize,
+          solid: header.solid,
         );
       } on FormatException catch (error) {
         throw ComicException('RAR entry "${header.name}" could not be decoded ($error).');

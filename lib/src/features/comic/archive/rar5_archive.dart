@@ -89,6 +89,12 @@ Rar5Container readRar5Structure(final ZipByteSource source) {
   final entries = <Rar5EntryHeader>[];
   var archiveSolid = false;
   var sawMainHeader = false;
+
+  /// Whether a following solid entry can continue the dictionary: the
+  /// previous compressed entry decoded inside the subset. A compressed
+  /// entry outside the subset makes every later solid continuation a
+  /// typed rejection.
+  var chainAvailable = true;
   var offset = 8; // signature
 
   while (offset + 4 <= length) {
@@ -152,15 +158,28 @@ Rar5Container readRar5Structure(final ZipByteSource source) {
         if (!sawMainHeader) {
           throw const ComicException('RAR 5 file header appears before the main archive header.');
         }
-        entries.add(
-          _parseRar5FileHeader(
-            reader: reader,
-            blockFlags: headerFlags,
-            extraAreaSize: extraAreaSize,
-            dataStart: headerEnd,
-            dataSize: dataSize,
-          ),
+        var header = _parseRar5FileHeader(
+          reader: reader,
+          blockFlags: headerFlags,
+          extraAreaSize: extraAreaSize,
+          dataStart: headerEnd,
+          dataSize: dataSize,
         );
+        if (!header.isDirectory && header.method != 0) {
+          // A compressed entry participates in the solid chain: a
+          // decodable one leaves the dictionary usable (its own solid
+          // bit decides continuation vs reset at decode time); one
+          // outside the subset poisons every later solid successor.
+          final selfSupported = header.unsupportedReason(sourceLength: length) == null;
+          if (!selfSupported) {
+            chainAvailable = false;
+          } else if (header.solid && !chainAvailable) {
+            header = _withSolidChainUnknown(header);
+          } else {
+            chainAvailable = true;
+          }
+        }
+        entries.add(header);
       case _blockService:
         break; // comments, quick-open and recovery data: skipped by size
       case _blockEnd:
@@ -206,6 +225,7 @@ final class Rar5EntryHeader {
     required this.unpackedSizeUnknown,
     required this.hasBlake2Hash,
     required this.isRedirect,
+    required this.solidChainUnknown,
   });
 
   /// Entry path as stored, decoded as UTF-8 (malformed bytes become
@@ -263,6 +283,12 @@ final class Rar5EntryHeader {
   /// the header CRC-32 when present.
   final bool hasBlake2Hash;
 
+  /// Whether the entry continues a solid chain whose dictionary state
+  /// is unavailable because an earlier compressed entry is outside the
+  /// supported subset. Such entries are typed rejections even though
+  /// their own headers are fine.
+  final bool solidChainUnknown;
+
   /// Declared dictionary size in bytes (128 KiB through 64 MiB inside
   /// the supported subset).
   int get dictSize => 0x20000 << dictExp;
@@ -272,10 +298,16 @@ final class Rar5EntryHeader {
 
   /// Why the entry is outside the supported RAR 5 subset, or null when
   /// the payload can be produced from a container of [sourceLength]
-  /// bytes. The [archiveSolid] argument marks archives whose compressed
-  /// streams depend on earlier entries even without the per-entry solid
-  /// bit.
-  String? unsupportedReason({required final bool archiveSolid, required final int sourceLength}) {
+  /// bytes.
+  ///
+  /// Solid entries are inside the subset: the per-entry solid bit
+  /// continues the dictionary carried from the previous compressed
+  /// entry (the archive-level flag only annotates the volume — the
+  /// reference decoder resets on the per-entry bit alone). What fails
+  /// typed is a solid continuation whose dictionary state is
+  /// unavailable because an earlier compressed entry is out of subset
+  /// ([solidChainUnknown]).
+  String? unsupportedReason({required final int sourceLength}) {
     if (isDirectory) return null;
     if (isSplit) return 'it is split across volumes';
     if (version != 0) return 'it uses compression algorithm version $version';
@@ -284,10 +316,12 @@ final class Rar5EntryHeader {
       return 'it declares a dictionary of ${dictSize >> 20} MiB, above the 64 MiB subset limit';
     }
     if (isRedirect) return 'it is a link or redirect';
-    if (solid || (archiveSolid && !isStored)) return 'it is a solid stream';
     if (unpackedSizeUnknown) return 'it does not declare its unpacked size';
     if (packedSize > 0 && dataStart + packedSize > sourceLength) {
       return 'its packed payload is truncated';
+    }
+    if (solidChainUnknown) {
+      return 'its solid stream continues from an entry that cannot be decoded';
     }
     return null;
   }
@@ -363,6 +397,30 @@ Rar5EntryHeader _parseRar5FileHeader({
     unpackedSizeUnknown: fileFlags & _fileFlagUnpackedSizeUnknown != 0,
     hasBlake2Hash: hasBlake2Hash,
     isRedirect: isRedirect,
+    solidChainUnknown: false,
+  );
+}
+
+/// Rebuilds [header] with the poisoned-chain flag — the only field the
+/// container walk decides after parsing.
+Rar5EntryHeader _withSolidChainUnknown(final Rar5EntryHeader header) {
+  return Rar5EntryHeader._(
+    name: header.name,
+    isDirectory: header.isDirectory,
+    unpackedSize: header.unpackedSize,
+    packedSize: header.packedSize,
+    dataStart: header.dataStart,
+    hasDataCrc: header.hasDataCrc,
+    dataCrc32: header.dataCrc32,
+    version: header.version,
+    solid: header.solid,
+    method: header.method,
+    dictExp: header.dictExp,
+    isSplit: header.isSplit,
+    unpackedSizeUnknown: header.unpackedSizeUnknown,
+    hasBlake2Hash: header.hasBlake2Hash,
+    isRedirect: header.isRedirect,
+    solidChainUnknown: true,
   );
 }
 

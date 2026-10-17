@@ -224,6 +224,32 @@ final class _Rar5Huffman {
 
     return _symbol[index];
   }
+
+  /// Deep copy for solid-state checkpoints: a solid continuation may
+  /// decode with the carried tables, so snapshots must preserve them.
+  _Rar5Huffman copy() {
+    final clone = _Rar5Huffman()
+      .._limit.setAll(0, _limit)
+      .._pos.setAll(0, _pos)
+      .._min = _min
+      .._quickBits = _quickBits
+      .._quickLength.setAll(0, _quickLength)
+      .._quickSymbol.setAll(0, _quickSymbol);
+    clone._symbol = Uint16List.fromList(_symbol);
+
+    return clone;
+  }
+
+  /// Replaces this decoder's tables with a deep copy of [other].
+  void restore(final _Rar5Huffman other) {
+    _limit.setAll(0, other._limit);
+    _pos.setAll(0, other._pos);
+    _symbol = Uint16List.fromList(other._symbol);
+    _min = other._min;
+    _quickBits = other._quickBits;
+    _quickLength.setAll(0, other._quickLength);
+    _quickSymbol.setAll(0, other._quickSymbol);
+  }
 }
 
 /// Reads the 20-entry precode and then the full code-length table —
@@ -315,23 +341,33 @@ final class _Rar5FilterBlock {
   final int length;
   final _Rar5FilterKind kind;
   final int param;
+
+  _Rar5FilterBlock copy() => _Rar5FilterBlock(offset, length, kind, param);
 }
 
 enum _Rar5FilterKind { delta, e8, e8e9, arm }
 
 /// The decode state: circular window, queued filters, and the block
 /// stream — the port of `decodeReader` plus `decoder50`.
-final class _Rar5DecodeState {
-  _Rar5DecodeState(final Uint8List packed, this._output, {required final int windowSize})
-    : windowSize = windowSize < _minWindowSize ? _minWindowSize : windowSize,
-      _bitReader = _Rar5BitReader(packed),
-      _codeLength = Uint8List(_tableSize5);
+///
+/// One instance carries the dictionary across a solid chain: entries
+/// with the solid bit decode against the carried window, Huffman
+/// tables, recent offsets, and filter queue, exactly like the
+/// reference decoder's persistent `decodeReader`
+/// (`init(reset: !solid)`). Entries without the bit reset to a fresh
+/// window. Every entry still owns a complete framed block stream —
+/// only the dictionary continues — so the eager parse, the comparator,
+/// and every session drive the same decoder, one chain per caller.
+final class Rar5SolidDecoder {
+  /// Creates a decoder with an empty dictionary; the first entry of a
+  /// chain decodes exactly like a non-solid one.
+  Rar5SolidDecoder();
 
-  final Uint8List _output;
-  final int windowSize;
-
-  final _Rar5BitReader _bitReader;
-  final Uint8List _codeLength;
+  Uint8List _window = Uint8List(_minWindowSize);
+  int _readIndex = 0;
+  int _writeIndex = 0;
+  int _overflowLength = 0;
+  int _overflowOffset = 0;
 
   final _Rar5Huffman _mainDecoder = _Rar5Huffman();
   final _Rar5Huffman _offsetDecoder = _Rar5Huffman();
@@ -342,45 +378,153 @@ final class _Rar5DecodeState {
   int _length = 0;
   bool _lastBlock = false;
 
-  // Window state (read index r, write index w).
-  late final Uint8List _window = Uint8List(windowSize);
-  int _readIndex = 0;
-  int _writeIndex = 0;
-  int _overflowLength = 0;
-  int _overflowOffset = 0;
-
-  // Filter queue, each offset relative to the previous entry.
+  /// Filter queue, each offset relative to the previous entry. A solid
+  /// continuation keeps the queue; a reset drops it.
   final List<_Rar5FilterBlock> _filters = [];
 
-  // Emitted output tracking.
+  // Per-entry decode state (never crosses entries).
+  _Rar5BitReader? _bitReader;
+  final Uint8List _codeLength = Uint8List(_tableSize5);
   bool _decoderEnded = false;
   int _total = 0;
   Uint8List _outBuffer = Uint8List(0);
   int _outPosition = 0;
 
-  // Decodes the whole stream into the preallocated output. The end of
-  // the block stream is a deferred error, exactly like the reference
-  // decoder: window contents produced before the end are emitted first,
-  // and only an incomplete output turns it into a failure.
-  Uint8List run() {
+  /// Decodes one entry's framed stream into exactly [uncompressedSize]
+  /// bytes, continuing the carried dictionary when [solid] is set.
+  ///
+  /// [packed] is the entry's data area and [windowSize] its declared
+  /// dictionary (`0x20000 << dictExp`). The window only grows: a solid
+  /// continuation with a larger declared dictionary rotates the carried
+  /// history into a bigger buffer — the exact copy the reference
+  /// decoder makes, stale tail included. Corruption throws
+  /// [FormatException]; every allocation is bounded by the declared
+  /// dictionary and output size, which callers validate before calling
+  /// (see `Rar5EntryHeader.unsupportedReason`).
+  Uint8List decodeEntry({
+    required final Uint8List packed,
+    required final int uncompressedSize,
+    required final int windowSize,
+    required final bool solid,
+  }) {
+    if (uncompressedSize < 0) {
+      throw const FormatException('RAR5: invalid output size.');
+    }
+    if (uncompressedSize == 0) return Uint8List(0);
+    if (windowSize < 0x20000 || (windowSize & (windowSize - 1)) != 0) {
+      throw const FormatException('RAR5: invalid dictionary size.');
+    }
+
+    // The reference decoder's init(reset: !solid): a reset entry gets a
+    // cleared window, filter queue, and recent offsets; a solid
+    // continuation keeps all of them and only grows the window. The
+    // read index always equals the write index between entries.
+    final wantedWindow = windowSize < _minWindowSize ? _minWindowSize : windowSize;
+    if (!solid) {
+      _window = Uint8List(wantedWindow);
+      _readIndex = 0;
+      _writeIndex = 0;
+      _filters.clear();
+      _offsets.fillRange(0, _offsets.length, 0);
+      _length = 0;
+    } else if (wantedWindow > _window.length) {
+      final oldLength = _window.length;
+      final grown = Uint8List(wantedWindow);
+      final tail = oldLength - _writeIndex;
+      grown.setRange(0, tail, _window, _writeIndex);
+      grown.setRange(tail, tail + _writeIndex, _window);
+      _window = grown;
+      _readIndex = oldLength;
+      _writeIndex = oldLength;
+    }
+    _overflowLength = 0;
+    _lastBlock = false;
+    _decoderEnded = false;
+    _total = 0;
+    _outBuffer = Uint8List(0);
+    _outPosition = 0;
+    _bitReader = _Rar5BitReader(packed);
+
+    final output = Uint8List(uncompressedSize);
+    try {
+      _run(output);
+    } on _Rar5OutOfDataException {
+      throw const FormatException('RAR5: stream ended before the declared output size.');
+    } on RangeError {
+      throw const FormatException('RAR5: corrupt stream state.');
+    }
+
+    return output;
+  }
+
+  /// Point-in-time copy of the dictionary state, taken between entries
+  /// (read index equals write index there). Sessions checkpoint these
+  /// to bound backward-access replay work.
+  Rar5SolidState captureState() {
+    return Rar5SolidState._(
+      window: Uint8List.fromList(_window),
+      readIndex: _readIndex,
+      writeIndex: _writeIndex,
+      main: _mainDecoder.copy(),
+      offset: _offsetDecoder.copy(),
+      lowOffset: _lowOffsetDecoder.copy(),
+      length: _lengthDecoder.copy(),
+      codeLength: Uint8List.fromList(_codeLength),
+      offsets: Int32List.fromList(_offsets),
+      matchLength: _length,
+      lastBlock: _lastBlock,
+      filters: [for (final filter in _filters) filter.copy()],
+      overflowLength: _overflowLength,
+      overflowOffset: _overflowOffset,
+    );
+  }
+
+  /// Replaces the decoder's dictionary state with a deep copy of
+  /// [state]; the captured object itself is never mutated by decoding.
+  void restoreState(final Rar5SolidState state) {
+    _window = Uint8List.fromList(state._window);
+    _readIndex = state._readIndex;
+    _writeIndex = state._writeIndex;
+    _mainDecoder.restore(state._main);
+    _offsetDecoder.restore(state._offset);
+    _lowOffsetDecoder.restore(state._lowOffset);
+    _lengthDecoder.restore(state._length);
+    _codeLength.setAll(0, state._codeLength);
+    _offsets.setAll(0, state._offsets);
+    _length = state._matchLength;
+    _lastBlock = state._lastBlock;
+    _filters
+      ..clear()
+      ..addAll([for (final filter in state._filters) filter.copy()]);
+    _overflowLength = state._overflowLength;
+    _overflowOffset = state._overflowOffset;
+  }
+
+  /// The carried dictionary's size in bytes — the memory weight of a
+  /// [captureState] snapshot.
+  int get windowBytes => _window.length;
+
+  // Decodes the whole stream into [output]. The end of the block stream
+  // is a deferred error, exactly like the reference decoder: window
+  // contents produced before the end are emitted first, and only an
+  // incomplete output turns it into a failure.
+  void _run(final Uint8List output) {
     var streamEnded = false;
     var filled = 0;
-    while (filled < _output.length && !streamEnded) {
+    while (filled < output.length && !streamEnded) {
       try {
         _decode();
       } on _Rar5OutOfDataException {
         streamEnded = true;
       }
-      while (_outPosition < _outBuffer.length && filled < _output.length) {
-        _output[filled++] = _outBuffer[_outPosition++];
+      while (_outPosition < _outBuffer.length && filled < output.length) {
+        output[filled++] = _outBuffer[_outPosition++];
       }
     }
 
-    if (filled < _output.length) {
+    if (filled < output.length) {
       throw const FormatException('RAR5: stream ended before the declared output size.');
     }
-
-    return _output;
   }
 
   // The port of decodeReader.decode: one window-sized step of output,
@@ -473,7 +617,7 @@ final class _Rar5DecodeState {
     if (_decoderEnded) {
       throw const _Rar5OutOfDataException();
     }
-    if (_writeIndex == windowSize) {
+    if (_writeIndex == _window.length) {
       _readIndex = 0;
       _writeIndex = 0;
       if (_overflowLength > 0) {
@@ -496,10 +640,10 @@ final class _Rar5DecodeState {
   // The port of decoder50.fill: symbols until the window is full,
   // crossing block boundaries as they end.
   void _fillFromDecoder() {
-    while (_writeIndex < windowSize) {
+    while (_writeIndex < _window.length) {
       int symbol;
       try {
-        symbol = _mainDecoder.readSymbol(_bitReader);
+        symbol = _mainDecoder.readSymbol(_bitReader!);
       } on _Rar5BlockEndException {
         if (_lastBlock) {
           throw const _Rar5OutOfDataException();
@@ -525,20 +669,20 @@ final class _Rar5DecodeState {
 
   // The port of decoder50.readBlockHeader.
   void _readBlockHeader() {
-    final flags = _bitReader.readByte();
+    final flags = _bitReader!.readByte();
 
     final byteCount = ((flags >> 3) & 3) + 1;
     if (byteCount == 4) {
       throw const FormatException('RAR5: corrupt block header.');
     }
 
-    final checksum = _bitReader.readByte();
+    final checksum = _bitReader!.readByte();
 
     final extraBits = (flags & 0x07) + 1;
     var blockBytes = 0;
     var sum = 0x5A ^ flags;
     for (var i = 0; i < byteCount; i++) {
-      final byte = _bitReader.readByte();
+      final byte = _bitReader!.readByte();
       sum ^= byte;
       blockBytes |= byte << (i * 8);
     }
@@ -547,11 +691,19 @@ final class _Rar5DecodeState {
     }
     final blockBits = extraBits + (blockBytes - 1) * 8;
 
-    _bitReader.setLimit(blockBits);
+    _bitReader!.setLimit(blockBits);
     _lastBlock = flags & 0x40 > 0;
 
     if (flags & 0x80 > 0) {
-      _readCodeLengthTable(_bitReader, _codeLength);
+      try {
+        _readCodeLengthTable(_bitReader!, _codeLength);
+      } on _Rar5BlockEndException {
+        // A table read that hits the block limit mirrors the reference
+        // decoder: the stream ends cleanly when this block is the last
+        // one; anywhere else it is corruption.
+        if (_lastBlock) throw const _Rar5OutOfDataException();
+        throw const FormatException('RAR5: corrupt block header.');
+      }
       var cursor = 0;
       _mainDecoder.init(_codeLength.sublist(cursor, _mainSize5));
       cursor += _mainSize5;
@@ -571,8 +723,8 @@ final class _Rar5DecodeState {
     }
     _offsets[0] = offset;
 
-    final lengthSlot = _lengthDecoder.readSymbol(_bitReader);
-    _length = _slotToLength(_bitReader, lengthSlot);
+    final lengthSlot = _lengthDecoder.readSymbol(_bitReader!);
+    _length = _slotToLength(_bitReader!, lengthSlot);
     _copyBytes(_length, _offsets[0]);
   }
 
@@ -583,10 +735,10 @@ final class _Rar5DecodeState {
   // shift becomes a multiplication because Dart-on-JS shifts are
   // 32-bit.
   void _decodeOffset(final int slot) {
-    var length = _slotToLength(_bitReader, slot);
+    var length = _slotToLength(_bitReader!, slot);
 
     var offset = 1;
-    final offsetSlot = _offsetDecoder.readSymbol(_bitReader);
+    final offsetSlot = _offsetDecoder.readSymbol(_bitReader!);
     if (offsetSlot < 4) {
       offset += offsetSlot;
     } else {
@@ -597,15 +749,15 @@ final class _Rar5DecodeState {
       if (bitCount >= 4) {
         bitCount -= 4;
         if (bitCount > 24) {
-          offset += _bitReader.readBits(24) * (1 << (4 + bitCount - 24));
+          offset += _bitReader!.readBits(24) * (1 << (4 + bitCount - 24));
           bitCount -= 24;
         }
         if (bitCount > 0) {
-          offset += _bitReader.readBits(bitCount) << 4;
+          offset += _bitReader!.readBits(bitCount) << 4;
         }
-        offset += _lowOffsetDecoder.readSymbol(_bitReader);
+        offset += _lowOffsetDecoder.readSymbol(_bitReader!);
       } else if (bitCount > 0) {
-        offset += _bitReader.readBits(bitCount);
+        offset += _bitReader!.readBits(bitCount);
       }
     }
     if (offset > 0x100) {
@@ -627,16 +779,16 @@ final class _Rar5DecodeState {
 
   // The port of decoder50.readFilter.
   void _readFilter() {
-    final offset = _readFilterData(_bitReader);
-    final length = _readFilterData(_bitReader);
-    final filterType = _bitReader.readBits(3);
+    final offset = _readFilterData(_bitReader!);
+    final length = _readFilterData(_bitReader!);
+    final filterType = _bitReader!.readBits(3);
 
     final _Rar5FilterKind kind;
     var param = 0;
     switch (filterType) {
       case 0:
         kind = _Rar5FilterKind.delta;
-        param = _bitReader.readBits(5) + 1;
+        param = _bitReader!.readBits(5) + 1;
       case 1:
         kind = _Rar5FilterKind.e8;
       case 2:
@@ -663,10 +815,10 @@ final class _Rar5DecodeState {
       }
       filter.offset -= queued.offset;
     }
-    filter.offset %= windowSize;
-    if (filter.offset < 0) filter.offset += windowSize;
-    var length = filter.length % windowSize;
-    if (length < 0) length += windowSize;
+    filter.offset %= _window.length;
+    if (filter.offset < 0) filter.offset += _window.length;
+    var length = filter.length % _window.length;
+    if (length < 0) length += _window.length;
     // filterBlock.length is final in the Go original; carry the masked
     // length through the queue entry itself.
     _filters.add(_Rar5FilterBlock(filter.offset, length, filter.kind, filter.param));
@@ -696,21 +848,21 @@ final class _Rar5DecodeState {
 
   // The port of decodeReader.copyBytes, overflow included.
   void _copyBytes(int length, final int offset) {
-    length = (windowSize + length) % windowSize;
-    final writeEnd = _writeIndex + length < windowSize ? _writeIndex + length : windowSize;
-    var source = (_writeIndex - offset) % windowSize;
+    length = (_window.length + length) % _window.length;
+    final writeEnd = _writeIndex + length < _window.length ? _writeIndex + length : _window.length;
+    var source = (_writeIndex - offset) % _window.length;
     if (source < 0) {
       // A corrupt offset can wrap past the window start.
-      source += windowSize;
+      source += _window.length;
     }
     if (source == _writeIndex) {
       length -= writeEnd - _writeIndex;
       _writeIndex = writeEnd;
       source = 0;
     } else if (source > _writeIndex) {
-      final copied = writeEnd - _writeIndex < windowSize - source
+      final copied = writeEnd - _writeIndex < _window.length - source
           ? writeEnd - _writeIndex
-          : windowSize - source;
+          : _window.length - source;
       _window.setRange(_writeIndex, _writeIndex + copied, _window, source);
       _writeIndex += copied;
       length -= copied;
@@ -809,31 +961,79 @@ Uint8List _filterArm(final Uint8List buffer, final int fileOffset) {
   return buffer;
 }
 
-/// Decodes one RAR 5 compression stream into exactly [uncompressedSize]
-/// bytes.
+/// Decodes one standalone RAR 5 compression stream into exactly
+/// [uncompressedSize] bytes — a fresh dictionary, no solid
+/// continuation.
 ///
 /// [packed] is the entry's data area, [windowSize] the declared
 /// dictionary size (0x20000 << dictExp). Every allocation is bounded by
-/// those two values; corruption throws [FormatException].
+/// those two values; corruption throws [FormatException]. Solid chains
+/// go through [Rar5SolidDecoder] instead so the dictionary continues.
 Uint8List decodeRar5Stream({
   required final Uint8List packed,
   required final int uncompressedSize,
   required final int windowSize,
 }) {
-  if (uncompressedSize < 0) {
-    throw const FormatException('RAR5: invalid output size.');
-  }
-  if (uncompressedSize == 0) return Uint8List(0);
-  if (windowSize < 0x20000 || (windowSize & (windowSize - 1)) != 0) {
-    throw const FormatException('RAR5: invalid dictionary size.');
-  }
+  return Rar5SolidDecoder().decodeEntry(
+    packed: packed,
+    uncompressedSize: uncompressedSize,
+    windowSize: windowSize,
+    solid: false,
+  );
+}
 
-  final state = _Rar5DecodeState(packed, Uint8List(uncompressedSize), windowSize: windowSize);
-  try {
-    return state.run();
-  } on _Rar5OutOfDataException {
-    throw const FormatException('RAR5: stream ended before the declared output size.');
-  } on RangeError {
-    throw const FormatException('RAR5: corrupt stream state.');
-  }
+/// A captured [Rar5SolidDecoder] dictionary state: the circular window,
+/// Huffman tables, recent offsets, filter queue, and copy overflow —
+/// everything a solid continuation decodes against. Immutable by
+/// convention: [Rar5SolidDecoder.restoreState] deep-copies on restore,
+/// so one capture can serve repeated backward seeks.
+final class Rar5SolidState {
+  Rar5SolidState._({
+    required Uint8List window,
+    required int readIndex,
+    required int writeIndex,
+    required _Rar5Huffman main,
+    required _Rar5Huffman offset,
+    required _Rar5Huffman lowOffset,
+    required _Rar5Huffman length,
+    required Uint8List codeLength,
+    required Int32List offsets,
+    required int matchLength,
+    required bool lastBlock,
+    required List<_Rar5FilterBlock> filters,
+    required int overflowLength,
+    required int overflowOffset,
+  }) : _window = window,
+       _readIndex = readIndex,
+       _writeIndex = writeIndex,
+       _main = main,
+       _offset = offset,
+       _lowOffset = lowOffset,
+       _length = length,
+       _codeLength = codeLength,
+       _offsets = offsets,
+       _matchLength = matchLength,
+       _lastBlock = lastBlock,
+       _filters = filters,
+       _overflowLength = overflowLength,
+       _overflowOffset = overflowOffset;
+
+  final Uint8List _window;
+  final int _readIndex;
+  final int _writeIndex;
+  final _Rar5Huffman _main;
+  final _Rar5Huffman _offset;
+  final _Rar5Huffman _lowOffset;
+  final _Rar5Huffman _length;
+  final Uint8List _codeLength;
+  final Int32List _offsets;
+  final int _matchLength;
+  final bool _lastBlock;
+  final List<_Rar5FilterBlock> _filters;
+  final int _overflowLength;
+  final int _overflowOffset;
+
+  /// Memory weight of the snapshot: the window dominates; the tables
+  /// and queues are bounded constants per dictionary.
+  int get weightBytes => _window.length;
 }

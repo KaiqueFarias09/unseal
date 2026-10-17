@@ -173,6 +173,41 @@ void main() {
     expect(await session.loadResource(book.pages.single.path), _rar5Page, reason: 'reread');
   });
 
+  test('a solid CBR session in the worker serves forward, reverse and rereads', () async {
+    // A solid chain: later pages reference earlier ones' dictionary
+    // state, so the worker runs the sequential decoder end to end.
+    final pages = <FixtureEntry>[
+      for (var i = 0; i < 4; i++)
+        FixtureEntry(
+          'page-$i.jpg',
+          Uint8List.fromList([...tinyJpegPage, ...List<int>.filled(2048, i), ...tinyJpegPage]),
+        ),
+    ];
+    final bytes = Uint8List.fromList(
+      buildRar5Archive(entries: pages, method: 3, dictExp: 0, archiveSolid: true),
+    );
+    await _expectRealWorker(bytes);
+
+    final session = await BookSession.open(bytes);
+    addTearDown(session.dispose);
+    final book = session.book as ComicBook;
+    expect(book.pageCount, 4);
+
+    for (var i = 0; i < pages.length; i++) {
+      expect(await session.loadResource(pages[i].name), pages[i].content, reason: 'forward $i');
+    }
+    for (var i = pages.length - 1; i >= 0; i--) {
+      expect(await session.loadResource(pages[i].name), pages[i].content, reason: 'reverse $i');
+    }
+
+    // A second session interleaves with its own dictionary.
+    final other = await BookSession.open(bytes);
+    addTearDown(other.dispose);
+    final otherBook = other.book as ComicBook;
+    expect(await other.loadResource(otherBook.pages.last.path), pages.last.content);
+    expect(await session.loadResource(book.pages.first.path), pages.first.content);
+  });
+
   test('two PDF sessions in the worker stay isolated', () async {
     final oneBytes = _pdfBytes();
     await _expectRealWorker(oneBytes);
