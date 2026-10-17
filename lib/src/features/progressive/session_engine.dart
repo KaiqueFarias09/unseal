@@ -21,6 +21,7 @@ import '../pdf/entities/pdf_book.dart';
 import '../pdf/entities/pdf_page.dart';
 import '../pdf/entities/pdf_page_text.dart';
 import '../pdf/header/pdf_document.dart';
+import '../pdf/layout/pdf_page_structure.dart';
 import '../pdf/reader/pdf_byte_source.dart';
 import '../pdf/reader/pdf_content_stream.dart';
 import '../pdf/reflow/pdf_reflow.dart';
@@ -301,6 +302,40 @@ final class SessionEngine {
     }
 
     return _pdfMaterialize(pageIndex + 1).pdfPage!;
+  }
+
+  /// The stable structure of one PDF page (0-based): words, blocks,
+  /// columns and tables with geometry, the source-line space and the
+  /// mapping into the page's canonical text. Built against the
+  /// session's sampled reflow plan — the `session-sample` scope, a
+  /// profile distinct from the eager document's. Negative indexes and
+  /// indexes past the page count throw [RangeError]. PDF sessions
+  /// only.
+  PdfPageStructure loadPdfPageStructure(final int pageIndex) {
+    _ensureOpen();
+    final pdf = _pdf;
+    final pageCount = pdf?.book.pageCount ?? 0;
+    if (pageIndex < 0 || pageIndex >= pageCount) {
+      throw RangeError.range(pageIndex, 0, pageCount - 1, 'pageIndex');
+    }
+
+    final canonical = _pdfMaterialize(pageIndex + 1).pdfPage!;
+    final layout = pdf!.extractor.extractLayout(
+      pdf.book.pages[pageIndex],
+      onImage: _discardPdfImage,
+    );
+
+    return PdfPageStructure.build(
+      pageIndex: pageIndex,
+      pageCount: pageCount,
+      geometry: PdfPageStructure.geometryOfPage(pdf.book.pages[pageIndex]),
+      sourceLines: layout.pageText.lines,
+      words: layout.words,
+      rules: layout.rules,
+      canonical: canonical,
+      canonicalScope: 'session-sample',
+      planRevision: pdfPlanRevision(pdf.plan),
+    );
   }
 
   /// Document text of a content document — the canonical offset space

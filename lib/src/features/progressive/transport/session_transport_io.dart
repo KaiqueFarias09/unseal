@@ -11,6 +11,7 @@ import '../../comic/exceptions/comic_exception.dart';
 import '../../epub/exceptions/exceptions.dart';
 import '../../pdf/entities/pdf_page_text.dart';
 import '../../pdf/exceptions/pdf_exception.dart';
+import '../../pdf/layout/pdf_page_structure.dart';
 import '../../reading/book_progression.dart';
 import '../../search/entities/search_mode.dart';
 import '../../search/entities/search_results.dart';
@@ -133,6 +134,7 @@ void _dispatch(final SessionEngine engine, final SendPort replyPort, final List<
       _opText => engine.documentText(message[2]! as String),
       _opSource => engine.documentSource(message[2]! as String),
       _opPdfLines => engine.loadPdfPageLines(message[2]! as int),
+      _opPdfStructure => engine.loadPdfPageStructure(message[2]! as int),
       _opSearch => engine.search(
         message[2]! as String,
         mode: SearchMode.values.byName(message[3]! as String),
@@ -163,6 +165,7 @@ const _opRange = 'range';
 const _opText = 'text';
 const _opSource = 'source';
 const _opPdfLines = 'pdfLines';
+const _opPdfStructure = 'pdfStructure';
 const _opSearch = 'search';
 const _opProgression = 'progression';
 const _opStatistics = 'statistics';
@@ -336,6 +339,11 @@ final class _IsolateSessionTransport implements SessionTransport {
   @override
   Future<PdfPageText?> pdfLines(final int pageIndex) async {
     return await _request([_opPdfLines, pageIndex]) as PdfPageText?;
+  }
+
+  @override
+  Future<PdfPageStructure?> pdfStructure(final int pageIndex) async {
+    return await _request([_opPdfStructure, pageIndex]) as PdfPageStructure?;
   }
 
   @override

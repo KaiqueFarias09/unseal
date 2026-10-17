@@ -15,21 +15,14 @@ and TIFF/BigTIFF parsing are already implemented. They are not backlog items.
 
 ## Reading positions and text stability
 
-### R1. Preserve PDF positions across extraction modes
-
-Current behavior: a PDF session builds its reflow plan from a sample of up
-to 20 pages. Full parsing uses all pages. For longer PDFs, the two plans can
-produce different canonical text and offsets. Within a session, document text
-and page-line text use the same plan.
-
-Pending work: define a stable source text space or explicit mappings between
-extraction modes before promising interchangeable persisted positions.
-
-Acceptance: annotate a PDF longer than the sample, materialize all pages,
-close and reopen it, and switch between session and full parsing. The same
-passage must resolve, or the API must report a migration, ambiguity, or
-missing target explicitly. Test different fonts, repeated headers, columns,
-and continuation lines beyond the sample.
+R1 is delivered: PDF pages expose source anchors (`PdfSourceRange`) whose
+mapping into any canonical text survives reopenings and full ↔ session mode
+switches, while canonical snapshots bind the reflow plan revision and refuse
+cross-mode reuse a destination cannot confirm. See the structured-layout
+section of the README and `PdfPageStructure.mapSourceRange`. What remains
+for positions is migration between *editions* (different files), which
+belongs to the durable-annotations campaign, not to same-file mode
+switching.
 
 ### R2. Define progression for non-linear EPUB items
 
@@ -47,13 +40,16 @@ effect on stored positions.
 
 ### R3. Add a shared spatial reading contract
 
-Current behavior: PDF exposes lines, coordinates, and extraction diagnostics.
-DjVu exposes page images and hidden text; TIFF exposes page images. They do
-not share a complete word-level geometry and text-origin contract.
+Current behavior: PDF exposes lines, coordinates, extraction diagnostics,
+words, blocks, columns, simple tables, and source anchors mapped to
+canonical ranges. DjVu exposes page images and hidden text; TIFF exposes
+page images. The other formats do not share the word-level geometry
+contract yet.
 
-Pending work: model page transforms, regions, lines, words, canonical ranges,
-language, origin, and confidence where the source supplies them. Reuse
-`PdfPageText` and resolve R1 before persisting derived positions.
+Pending work: extend the spatial contract beyond PDF (DjVu hidden text and
+TIFF), and add language, origin (native versus imported OCR), and
+confidence where the source supplies them. Table detection stays at one
+region per page and simple grids; complex layouts remain future work.
 
 Acceptance: verify coordinate transforms on rotated and multi-column pages,
 distinguish native text from imported OCR, and preserve uncertainty and source
@@ -203,15 +199,19 @@ independent verification. These are engineering recommendations, not measured
 claims about any AI model's performance.
 
 - Current gaps: search scans sections, RAR5 extracts stored entries, PDF image
-  extraction omits JPEG2000, and spatial PDF text is line-oriented. See
+  extraction omits JPEG2000, and the spatial contract beyond PDF (DjVu, TIFF)
+  is still open. PDF now carries words, blocks, columns, simple tables, and
+  stable source anchors. See
   [search](../lib/src/features/search/book_search.dart),
   [RAR5](../lib/src/features/comic/archive/rar_reader.dart),
-  [PDF images](../lib/src/features/pdf/reader/pdf_content_stream.dart), and
-  [PDF geometry](../lib/src/features/pdf/entities/pdf_page_text.dart).
+  [PDF images](../lib/src/features/pdf/reader/pdf_content_stream.dart),
+  [PDF layout](../lib/src/features/pdf/layout/pdf_page_structure.dart), and
+  [PDF geometry](../lib/src/features/pdf/entities/pdf_layout.dart).
 - Portable algorithms: PdfPig separates word extraction, block segmentation,
-  and reading-order detection. Those stages can build on Unseal's PDF parser
-  instead of replacing it. Table detection requires additional geometry and
-  algorithms, such as Tabula's extractors. See
+  and reading-order detection; those stages now build on Unseal's PDF parser
+  in `lib/src/features/pdf/layout/`, with Tabula's extractors ported for
+  table detection. Multi-table pages and complex layouts remain future work.
+  See
   [PdfPig layout analysis](https://github.com/UglyToad/PdfPig/wiki/Document-Layout-Analysis)
   and [Tabula Java](https://github.com/tabulapdf/tabula-java).
 - Layout scope: litehtml computes HTML/CSS layout and delegates drawing to its
@@ -230,7 +230,7 @@ claims about any AI model's performance.
 
 | Campaign and owner | Reference implementation | Bounded first delivery | Evidence required |
 | --- | --- | --- | --- |
-| Structured PDF reading: Unseal R1/R3, then Grimoire interaction | PdfPig (C#, Apache-2.0); Tabula Java (Java, MIT) | Words, blocks, columns, reading order, and mappings to canonical ranges. Add table extraction as a separate stage with access to ruling geometry. | Independently annotated rotated and multi-column pages; compare words/regions with the reference and reading order with human expectations. Verify stable positions between full and progressive parsing. |
+| Structured PDF reading: Unseal R1/R3, then Grimoire interaction | PdfPig (C#, Apache-2.0); Tabula Java (Java, MIT) | DELIVERED in Unseal (words, blocks, columns, one-region tables, source anchors mapped to canonical ranges; PdfPig dump comparator in `tool/pdf_layout_compare.dart`). Remaining: Grimoire interaction on top, multi-table pages, and the spatial contract beyond PDF. | Independently annotated rotated and multi-column pages validated; stable positions verified between full and progressive parsing in `pdf_page_structure_test.dart` and the Chrome worker test. |
 | Indexed search: Unseal R10, then Grimoire presentation | MiniSearch (TypeScript, MIT); Tantivy (Rust, MIT) | One-publication index, ranked/prefix/fuzzy queries, serialization, and exact source ranges. | Differential exact-match cases; expected relevance cases; real VM/browser latency and memory measurements, including index construction. |
 | Compressed RAR5: Unseal R7 | [rardecode](https://github.com/nwaples/rardecode) (Go, BSD-2-Clause); libarchive as a second decoder | Non-solid compressed entries and filters first; bounded solid-block reuse separately. | Byte-identical extraction against independent decoders; CRC failures, malformed blocks, dictionary limits, cancellation, and browser execution. |
 | JPEG2000: Unseal R7 | [OpenJPEG](https://github.com/uclouvain/openjpeg) (C, BSD-2-Clause) | A documented decoder subset, then PDF `JPXDecode` integration. Encoding is outside the first delivery. | Exact samples for supported lossless cases; specified tolerances for lossy/color conversions; oversized dimensions, malformed markers, tiles, and bounded allocation. |

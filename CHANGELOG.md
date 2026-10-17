@@ -1,3 +1,44 @@
+## Unreleased
+
+### Added
+
+- The common text contract for cross-mode positions (foundation): immutable
+  `CanonicalTextSnapshot` bound to a `PublicationRevision` (namespaced,
+  evidence-qualified source revision), a `SectionOccurrence` (zero-based
+  section index, exact parser path, reading-order digest), and a `TextProfile`
+  (algorithm, options, extraction-plan revision). `RevisionDigest` computes
+  `sha256:` revisions over little-endian UTF-16 code units — text, ordered
+  reading-order arrays, and text profiles — with identical bytes and hashes
+  on the VM and in Chrome (pinned vectors run in both). `CanonicalTextRange`
+  binds inclusive-start/exclusive-end UTF-16 bounds to a snapshot;
+  `CanonicalTextCodec` is the single encoder/decoder for snapshots and
+  ranges, revalidating every digest on import, refusing non-exportable
+  identities explicitly, and normalizing hostile payloads to
+  `CanonicalTextCodecException` while confirmed identity mismatches surface
+  as `IncompatibleRevisionException`.
+- PDF structured layout with stable positions: `PdfPageStructure` per page
+  (eager `buildPdfPageStructure`, session `loadPdfPageStructure`, and the
+  `sessionPdfStructure` worker op) exposes words derived from real glyph
+  advances (rotated words keep their advance direction; ligatures expand
+  through ToUnicode at a single advance), Docstrum-adapted text lines and
+  blocks, recursive XY-cut reading order with column regions and
+  header/footer roles, and Tabula-ported table detection — ruled lattices
+  (`spreadsheet`), vertical rulings plus text rows (`basic`), and the
+  whitespace-aligned fallback (`aligned-columns`), with typed refusals
+  (`rotated-rows`, `text-spans-grid`, `too-few-cells`) instead of silent
+  misses. `PdfSourceRange` anchors live in the per-page source-line space
+  and stay stable across reopenings and full ↔ session mode switches;
+  `mapSourceRange` resolves them into any canonical text as
+  `mapped`/`ambiguous`/`missing`/`unsupported` with explicit reasons. The
+  canonical profile binds the reflow plan revision (`pdf.reflow`, scope
+  `document` or `session-sample`), so the two modes never share a text
+  revision; snapshots bound to them refuse cross-mode reuse through
+  `CanonicalTextCodec` while anchors keep mapping. `PdfPageGeometry`
+  carries the cropped, rotated page space and the invertible affine back
+  to PDF user space. Ported from PdfPig `3452b9fb` (Apache-2.0) and
+  tabula-java `2cdf3b4f` (MIT) at the pinned revisions; the PdfPig dump
+  oracle and comparator live in `tool/pdf_layout_compare.dart`.
+
 ## 1.2.0 - October 16, 2026
 
 ### Added

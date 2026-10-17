@@ -7,6 +7,7 @@ import 'package:web/web.dart' as web;
 
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/pdf/entities/pdf_page_text.dart';
+import '../../features/pdf/layout/pdf_page_structure.dart';
 import '../../features/progressive/session_policy.dart';
 import '../../features/reading/book_progression.dart';
 import '../../features/search/entities/search_mode.dart';
@@ -16,6 +17,7 @@ import '../../foundation/entities/book_metadata.dart';
 import '../../foundation/entities/book_statistics.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
 import 'book_wire.dart';
+import 'wire/pdf_structure_wire.dart';
 
 /// Owns the configured web worker and the request/reply protocol.
 ///
@@ -272,6 +274,25 @@ final class WorkerClient {
             payload: _sessionPayload(sessionId, <String, Object?>{wireKeyPageIndex: pageIndex}),
           )
           as PdfPageText?,
+    );
+  }
+
+  /// One PDF page's stable structure from the resident session, decoded
+  /// from the structure wire payload. Same error contract as
+  /// [sessionPdfLinesInWorker].
+  Future<PdfPageStructure?> sessionPdfStructureInWorker(
+    final int sessionId,
+    final int pageIndex,
+  ) async {
+    _ensureResidentSession(sessionId);
+
+    return _nullOrClosed(
+      sessionId,
+      await _request(
+            workerOpSessionPdfStructure,
+            payload: _sessionPayload(sessionId, <String, Object?>{wireKeyPageIndex: pageIndex}),
+          )
+          as PdfPageStructure?,
     );
   }
 
@@ -553,6 +574,10 @@ final class WorkerClient {
           final reply = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           final page = reply[wireKeyPage] as Map<String, Object?>?;
           completer.complete(page == null ? null : decodePdfPageLinesWire(page));
+        case wireReplySessionPdfStructure:
+          final reply = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
+          final structure = reply[wireKeyStructure] as Map<String, Object?>?;
+          completer.complete(structure == null ? null : decodePdfPageStructureWire(structure));
         case wireReplySessionSearch:
           completer.complete(
             decodeSearchResultsWire(

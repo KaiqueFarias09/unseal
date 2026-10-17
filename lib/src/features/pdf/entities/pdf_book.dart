@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../../foundation/entities/entities.dart';
 
+import 'pdf_layout.dart';
 import 'pdf_page.dart';
 import 'pdf_page_text.dart';
 
@@ -24,6 +25,7 @@ class PdfBook extends Book {
     super.format = BookFormat.pdf,
     final List<TextFile> pageFiles = const <TextFile>[],
     this.pageTexts = const <PdfPageText>[],
+    this.pageLayouts = const <PdfPageLayoutExtraction>[],
     final List<BinaryFile> extractedImages = const <BinaryFile>[],
   }) : files = Files(
          images: extractedImages,
@@ -45,6 +47,11 @@ class PdfBook extends Book {
 
   /// The extracted canonical text of each page, aligned with [pages].
   final List<PdfPageText> pageTexts;
+
+  /// The per-page layout extraction (source lines, words, ruling
+  /// lines), aligned with [pages]. Session headers carry none — their
+  /// structures build inside the session's engine instead.
+  final List<PdfPageLayoutExtraction> pageLayouts;
 
   /// The bookmarks outline as navigation.
   @override

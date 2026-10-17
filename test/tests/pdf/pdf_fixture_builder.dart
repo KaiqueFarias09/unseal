@@ -589,3 +589,214 @@ PdfFixtureBuilder type0CMapPageFixture() {
     )
     ..addStreamObject(12, '', _type0EmbeddedToUnicode.codeUnits);
 }
+
+const String _columnContent =
+    'BT /F1 12 Tf 72 750 Td (The Title of the Pamphlet) Tj ET\n'
+    'BT /F1 12 Tf 72 60 Td (printed at the sign of the Dolphin) Tj ET\n'
+    'BT /F1 12 Tf 72 700 Td (Left column opens the argument here with) Tj ET\n'
+    'BT /F1 12 Tf 72 685 Td (several lines of body text to fill it out) Tj ET\n'
+    'BT /F1 12 Tf 72 670 Td (and give the gutter detector real work to do) Tj ET\n'
+    'BT /F1 12 Tf 72 655 Td (plus a shorter closing row) Tj ET\n'
+    'BT /F1 12 Tf 340 700 Td (Right column answers the argument in turn) Tj ET\n'
+    'BT /F1 12 Tf 340 685 Td (with its own body lines at the same height) Tj ET\n'
+    'BT /F1 12 Tf 340 670 Td (so the two columns share rows and the) Tj ET\n'
+    'BT /F1 12 Tf 340 655 Td (reading order must finish left before right) Tj ET\n';
+
+/// A one-page fixture with a spanning title, a spanning footer and two
+/// text columns separated by a wide empty gutter.
+PdfFixtureBuilder columnPageFixture() {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R >> >> >>',
+    )
+    ..addStreamObject(7, '', _columnContent.codeUnits)
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica '
+      '/Encoding /WinAnsiEncoding /FirstChar 32 /LastChar 126 >>',
+    );
+}
+
+/// Draws a stroked hairline rectangle (a table rule) with a `re`
+/// rectangle plus `S`.
+// ignore: comment_references
+String _rule(final double x, final double y, final double w, final double h) {
+  return 'q 0.5 w $x $y ${w.toStringAsFixed(1)} ${h.toStringAsFixed(1)} re S Q\n';
+}
+
+final String _ruledTableContent =
+    '${_rule(72, 600, 360, 100)}'
+    '${_rule(72, 650, 360, 0)}'
+    '${_rule(72, 600, 0, 100)}'
+    '${_rule(192, 600, 0, 100)}'
+    '${_rule(312, 600, 0, 100)}'
+    '${_rule(432, 600, 0, 100)}'
+    'BT /F1 12 Tf 82 675 Td (Alpha) Tj ET\n'
+    'BT /F1 12 Tf 202 675 Td (Beta) Tj ET\n'
+    'BT /F1 12 Tf 322 675 Td (Gamma) Tj ET\n'
+    'BT /F1 12 Tf 82 625 Td (Delta) Tj ET\n'
+    'BT /F1 12 Tf 202 625 Td (Epsilon) Tj ET\n'
+    'BT /F1 12 Tf 322 625 Td (Zeta) Tj ET\n'
+    'BT /F1 12 Tf 80 740 Td (Intro paragraph before the table for context.) Tj ET\n';
+
+/// A one-page fixture with a complete 2x3 ruled lattice plus a plain
+/// paragraph above it — the SpreadsheetExtractionAlgorithm shape.
+PdfFixtureBuilder ruledTableFixture() {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R >> >> >>',
+    )
+    ..addStreamObject(7, '', _ruledTableContent.codeUnits)
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica '
+      '/Encoding /WinAnsiEncoding /FirstChar 32 /LastChar 126 >>',
+    );
+}
+
+const String _alignedTableContent =
+    'BT /F1 12 Tf 72 700 Td (Name) Tj ET\n'
+    'BT /F1 12 Tf 220 700 Td (Role) Tj ET\n'
+    'BT /F1 12 Tf 360 700 Td (City) Tj ET\n'
+    'BT /F1 12 Tf 72 680 Td (Ada) Tj ET\n'
+    'BT /F1 12 Tf 220 680 Td (painter) Tj ET\n'
+    'BT /F1 12 Tf 360 680 Td (Paris) Tj ET\n'
+    'BT /F1 12 Tf 72 660 Td (Lou) Tj ET\n'
+    'BT /F1 12 Tf 220 660 Td (sculptor) Tj ET\n'
+    'BT /F1 12 Tf 360 660 Td (Lyon) Tj ET\n'
+    'BT /F1 12 Tf 72 640 Td (Ren) Tj ET\n'
+    'BT /F1 12 Tf 220 640 Td (critic) Tj ET\n'
+    'BT /F1 12 Tf 360 640 Td (Nice) Tj ET\n'
+    'BT /F1 12 Tf 72 600 Td (Prose paragraph underneath, ragged right, no grid.) Tj ET\n';
+
+/// A one-page fixture whose upper block aligns three columns of words
+/// across four rows with no ruling lines — the whitespace fallback.
+PdfFixtureBuilder alignedTableFixture() {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R >> >> >>',
+    )
+    ..addStreamObject(7, '', _alignedTableContent.codeUnits)
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica '
+      '/Encoding /WinAnsiEncoding /FirstChar 32 /LastChar 126 >>',
+    );
+}
+
+const String _rotatedContent =
+    'BT /F1 12 Tf 72 720 Td (Upright anchor line stays horizontal) Tj ET\n'
+    'BT /F1 12 Tf 0 1 -1 0 500 720 Tm (Sideways) Tj ET\n';
+
+/// A one-page fixture with a horizontal line and a 90-degree-rotated
+/// word (the `Tm` matrix carries the rotation).
+PdfFixtureBuilder rotatedTextFixture() {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R >> >> >>',
+    )
+    ..addStreamObject(7, '', _rotatedContent.codeUnits)
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica '
+      '/Encoding /WinAnsiEncoding /FirstChar 32 /LastChar 126 >>',
+    );
+}
+
+const String _ligatureCMap =
+    '/CIDInit /ProcSet findresource begin\n'
+    '12 dict begin\n'
+    'begincmap\n'
+    '/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n'
+    '/CMapType 2 def\n'
+    '1 begincodespacerange\n'
+    '<0000> <FFFF>\n'
+    'endcodespacerange\n'
+    '1 beginbfchar\n'
+    '<0001> <006600660069>\n'
+    'endbfchar\n'
+    'endcmap\n'
+    'CMapName currentdict /CMap defineresource pop\n'
+    'end\n'
+    'end';
+
+const String _ligatureContent = 'BT /F2 12 Tf 72 720 Td <0001> Tj ET\n';
+
+/// A one-page fixture where one CID code maps to the three characters
+/// `ffi` (a ligature expansion through ToUnicode) at a single advance.
+PdfFixtureBuilder ligatureWordFixture() {
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F2 10 0 R >> >> >>',
+    )
+    ..addStreamObject(7, '', _ligatureContent.codeUnits)
+    ..addObject(
+      10,
+      '<< /Type /Font /Subtype /Type0 /BaseFont /Lig-Identity '
+      '/Encoding /Identity-H /DescendantFonts [11 0 R] /ToUnicode 12 0 R >>',
+    )
+    ..addObject(
+      11,
+      '<< /Type /Font /Subtype /CIDFontType2 /BaseFont /Lig-Identity '
+      '/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> '
+      '/DW 500 >>',
+    )
+    ..addStreamObject(12, '', _ligatureCMap.codeUnits);
+}
+
+/// A [pageCount]-page fixture whose statistics change mid-document:
+/// the first [plainPages] pages render in 12 pt Helvetica, the rest in
+/// 10 pt — the eager plan sees both, the 20-page session sample sees
+/// only the first kind.
+PdfFixtureBuilder changingStatisticsFixture({final int pageCount = 26, final int plainPages = 20}) {
+  final fixture = PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(
+      3,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    );
+  const firstPageObject = 10;
+  final kids = <String>[];
+  for (var i = 0; i < pageCount; i++) {
+    final page = firstPageObject + i * 2;
+    final contents = page + 1;
+    kids.add('$page 0 R');
+    fixture.addObject(
+      page,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents $contents 0 R '
+      '/Resources << /Font << /F1 3 0 R >> >> >>',
+    );
+    final size = i < plainPages ? 12 : 10;
+    final top = i < plainPages ? 720 : 730;
+    final body = StringBuffer()
+      ..write('BT /F1 $size Tf 72 $top Td (Chapter page $i opens with a plain) Tj ET\n')
+      ..write('BT /F1 $size Tf 72 ${top - size + 3} Td (body line $i so statistics have) Tj ET\n')
+      ..write(
+        'BT /F1 $size Tf 72 ${top - 2 * (size - 3)} Td (real font clusters to find.) Tj ET\n',
+      );
+    fixture.addStreamObject(contents, '', body.toString().codeUnits);
+  }
+  fixture.addObject(2, '<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${kids.length} >>');
+
+  return fixture;
+}
