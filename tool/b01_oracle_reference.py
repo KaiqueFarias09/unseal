@@ -87,29 +87,37 @@ def main() -> int:
         "alto-2-1.xsd": "https://raw.githubusercontent.com/altoxml/schema/master/v2/alto-2-1.xsd",
         "alto-4-4.xsd": "https://raw.githubusercontent.com/altoxml/schema/master/v4/alto-4-4.xsd",
     }
+    def refresh(target: Path, fetch: "callable") -> bool:
+        """Rewrites [target] through [fetch] so the gate sees a fresh
+        artifact; a failed fetch falls back to the cached bytes (the
+        schema pins hash-check the result either way)."""
+        cached = target.read_bytes() if target.exists() else None
+        try:
+            fresh = fetch()
+            if not fresh:
+                raise ValueError("empty fetch")
+            target.write_bytes(fresh)
+        except Exception:
+            if cached is None:
+                problems.append(f"schema fetch failed: {target.name}")
+                return False
+            target.write_bytes(cached)
+        return True
+
+    def fetch_url(url: str, deadline: int = 90):
+        def fetch():
+            return subprocess.run(["curl", "-sL", "--max-time", str(deadline), url], capture_output=True).stdout
+
+        return fetch
+
     for name, url in schema_sources.items():
         target = xsd_dir / name
-        if not target.exists():
-            code, output = run(["curl", "-sL", "--max-time", "60", "-o", str(target), url])
-            if code != 0 or not target.exists() or target.stat().st_size < 1000:
-                problems.append(f"schema fetch failed: {name}")
-                continue
-        artifacts.append({"path": str(target), "sha256": sha256(target)})
-    (xsd_dir / "xlink.xsd").write_bytes(
-        subprocess.run(
-            [
-                "curl",
-                "-sL",
-                "--max-time",
-                "90",
-                "https://web.archive.org/web/2024id_/https://www.loc.gov/standards/xlink/xlink.xsd",
-            ],
-            capture_output=True,
-        ).stdout
-    )
-    (xsd_dir / "xml.xsd").write_bytes(
-        subprocess.run(["curl", "-sL", "--max-time", "60", "https://www.w3.org/2001/xml.xsd"], capture_output=True).stdout
-    )
+        if refresh(target, fetch_url(url)) and target.stat().st_size > 1000:
+            artifacts.append({"path": str(target), "sha256": sha256(target)})
+        else:
+            problems.append(f"schema fetch failed: {name}")
+    refresh(xsd_dir / "xlink.xsd", fetch_url("https://web.archive.org/web/2024id_/https://www.loc.gov/standards/xlink/xlink.xsd"))
+    refresh(xsd_dir / "xml.xsd", fetch_url("https://www.w3.org/2001/xml.xsd", deadline=60))
     (xsd_dir / "catalog.xml").write_text(CATALOG)
     for extra in ("xlink.xsd", "xml.xsd", "catalog.xml"):
         artifacts.append({"path": str(xsd_dir / extra), "sha256": sha256(xsd_dir / extra)})
