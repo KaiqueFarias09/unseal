@@ -10,6 +10,10 @@ Use [the codebase guide](doc/unseal-codebase-guide.md) for the file-by-file
 tour of formats, shared policies, and platform implementations.
 The README is the public product contract. Tests are the behavioral contract.
 
+Before implementing structured PDF, indexed search, RAR5, JPEG2000, or durable
+annotations, read [the five-agent plan](doc/parallel-implementation.md).
+It defines shared contracts, branch ownership, dependencies, and acceptance.
+
 ## Repository map
 
 - `lib/unseal.dart` is the main public entry point.

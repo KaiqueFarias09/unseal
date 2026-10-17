@@ -50,6 +50,13 @@ types exported by the same public entry point. Consumers must not import
 PDF page diagnostics and comic page roles remain format-specific contracts.
 Applications decide whether to request OCR, hide pages marked `Delete`, or
 render double-page spreads; Unseal only parses and reports the source data.
+PDF additionally carries a format-specific structure layer
+(`features/pdf/layout/`): words, blocks, columns, and tables with verifiable
+geometry in the cropped, rotated page space, plus source anchors that map
+into any canonical text of the page. Anchors are stable across reopenings
+and across the eager/session extraction modes, whose canonical profiles
+differ by the reflow plan revision; snapshot reuse the destination cannot
+confirm fails typed instead of silently resolving.
 
 The main operations are:
 
@@ -69,10 +76,10 @@ CB7 and CBC remain asynchronous because their 7-Zip reader is asynchronous.
 | Area | Paths | Responsibility |
 | --- | --- | --- |
 | Common model | `lib/src/foundation/entities/` | Books, files, resources, navigation, metadata, and statistics shared by formats. |
-| Shared safety and decoding | `lib/src/foundation/archive/`, `images/`, `text/` | Archive access, path normalization, image inspection, plain text, and XML decoding. |
+| Shared safety and decoding | `lib/src/foundation/archive/`, `images/`, `text/` | Archive access, path normalization, image inspection, plain text, XML decoding, and the common text-identity contract (snapshots, revisions, ranges, digests) that format features bind positions to. |
 | Detection and dispatch | `lib/src/features/detection/`, `reading/`, `lib/src/platform/unseal_reader.dart` | Detect the format, refine ambiguous MOBI input, select the parser, and normalize public errors. |
 | Format features | `lib/src/features/<format>/` | Parse one container or document family and build the common model. |
-| Reading services | `lib/src/features/search/`, `locators/`, `cfi/`, `annotations/`, `opds/` | Search, portable locations, EPUB CFI, annotation serialization, and OPDS parsing. |
+| Reading services | `lib/src/features/search/`, `locators/`, `cfi/`, `annotations/`, `opds/` | Search (scan and optional inverted index), portable locations, EPUB CFI, annotation serialization plus the durable anchor envelope and its W3C selector adapter, and OPDS parsing. |
 | Progressive reading | `lib/src/features/progressive/` | Session headers, requested resources, bounded caches, session operations, and VM/browser transports. |
 | Platform execution | `lib/src/platform/io/`, `web/`, `web/unseal_worker.dart` | Filesystem reads, isolate work, browser workers, and structured-clone wire codecs. |
 | Heuristics | `lib/src/heuristics/` | Small format-neutral text and chapter heuristics. |
@@ -112,7 +119,7 @@ one session does not replace another.
 EPUB and CBZ use random-access ZIP entries; CBR uses the RAR entry source,
 whose compressed entries currently inflate during opening. PDF uses a
 random-access byte source and a reflow plan to extract requested pages.
-Whole-book search, statistics, and progression can still traverse all content.
+Whole-book search, statistics, and progression can still traverse all content; the optional search index builds through the same bounded batches and coverage accounting.
 Comic pages have no searchable text, and sessions do not perform OCR.
 
 Cancellation fails pending requests while keeping the session usable.

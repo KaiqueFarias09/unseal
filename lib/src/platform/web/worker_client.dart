@@ -7,15 +7,21 @@ import 'package:web/web.dart' as web;
 
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/pdf/entities/pdf_page_text.dart';
+import '../../features/pdf/layout/pdf_page_structure.dart';
 import '../../features/progressive/session_policy.dart';
 import '../../features/reading/book_progression.dart';
 import '../../features/search/entities/search_mode.dart';
 import '../../features/search/entities/search_results.dart';
+import '../../features/search/index/indexed_query_mode.dart';
+import '../../features/search/index/indexed_search_results.dart';
+import '../../features/search/index/search_index_identity.dart';
+import '../../features/search/index/search_index_wire.dart';
 import '../../foundation/entities/book/book.dart';
 import '../../foundation/entities/book_metadata.dart';
 import '../../foundation/entities/book_statistics.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
 import 'book_wire.dart';
+import 'wire/pdf_structure_wire.dart';
 
 /// Owns the configured web worker and the request/reply protocol.
 ///
@@ -275,6 +281,25 @@ final class WorkerClient {
     );
   }
 
+  /// One PDF page's stable structure from the resident session, decoded
+  /// from the structure wire payload. Same error contract as
+  /// [sessionPdfLinesInWorker].
+  Future<PdfPageStructure?> sessionPdfStructureInWorker(
+    final int sessionId,
+    final int pageIndex,
+  ) async {
+    _ensureResidentSession(sessionId);
+
+    return _nullOrClosed(
+      sessionId,
+      await _request(
+            workerOpSessionPdfStructure,
+            payload: _sessionPayload(sessionId, <String, Object?>{wireKeyPageIndex: pageIndex}),
+          )
+          as PdfPageStructure?,
+    );
+  }
+
   /// Canonical document text of one content document of the resident
   /// session; `null` when the document does not exist. Throws
   /// [SessionClosedException] when no live session is resident.
@@ -334,6 +359,103 @@ final class WorkerClient {
       await _request(workerOpSessionProgression, payload: _sessionPayload(sessionId))
           as BookProgression?,
     );
+  }
+
+  /// Advances the resident session's search index by [maxSections]
+  /// sections; the reply is the coverage wire. Throws typed index
+  /// failures and [SessionClosedException] when no live session is
+  /// resident.
+  Future<Map<String, Object?>> sessionSearchIndexEnsureInWorker(
+    final int sessionId,
+    final int maxSections,
+    final SearchIndexIdentity? identity,
+  ) async {
+    _ensureResidentSession(sessionId);
+
+    return _requireLive(
+      sessionId,
+      await _request(
+            workerOpSessionSearchIndexEnsure,
+            payload: _sessionPayload(sessionId, <String, Object?>{
+              wireKeyMaxSections: maxSections,
+              wireKeyIndexIdentity: identity?.toWire(),
+            }),
+          )
+          as Map<String, Object?>?,
+    );
+  }
+
+  /// Runs an indexed query inside the resident session; the reply is
+  /// the indexed-results wire. Throws
+  /// [SessionClosedException] when no live session is resident.
+  Future<IndexedSearchResults> sessionSearchIndexQueryInWorker(
+    final int sessionId,
+    final String query, {
+    required final IndexedQueryMode mode,
+    required final int? maxMatches,
+    required final int? maxExpansions,
+    required final int contextChars,
+  }) async {
+    _ensureResidentSession(sessionId);
+    // The reply kind decodes to the typed results already.
+    final reply = _requireLive(
+      sessionId,
+      await _request(
+            workerOpSessionSearchIndexQuery,
+            payload: _sessionPayload(sessionId, <String, Object?>{
+              wireKeyQuery: query,
+              wireKeyMode: mode.name,
+              wireKeyMaxMatches: maxMatches,
+              wireKeyMaxExpansions: maxExpansions,
+              wireKeyContextChars: contextChars,
+            }),
+          )
+          as IndexedSearchResults?,
+    );
+
+    return reply;
+  }
+
+  /// Serializes the resident session's search index. Throws
+  /// [SessionClosedException] when no live session is resident and the
+  /// typed index failures (PDF persistence, incomplete builds).
+  Future<Map<String, Object?>> sessionSearchIndexExportInWorker(final int sessionId) async {
+    _ensureResidentSession(sessionId);
+
+    return _requireLive(
+      sessionId,
+      await _request(workerOpSessionSearchIndexExport, payload: _sessionPayload(sessionId))
+          as Map<String, Object?>?,
+    );
+  }
+
+  /// Validates and adopts an imported search index inside the resident
+  /// session; the reply is the adopted coverage wire.
+  Future<Map<String, Object?>> sessionSearchIndexImportInWorker(
+    final int sessionId,
+    final Map<String, Object?> payload,
+    final SearchIndexIdentity? identity,
+  ) async {
+    _ensureResidentSession(sessionId);
+
+    return _requireLive(
+      sessionId,
+      await _request(
+            workerOpSessionSearchIndexImport,
+            payload: _sessionPayload(sessionId, <String, Object?>{
+              wireKeyIndexPayload: payload,
+              wireKeyIndexIdentity: identity?.toWire(),
+            }),
+          )
+          as Map<String, Object?>?,
+    );
+  }
+
+  /// Drops the resident session's search index.
+  Future<void> sessionSearchIndexDropInWorker(final int sessionId) async {
+    _ensureResidentSession(sessionId);
+
+    await _request(workerOpSessionSearchIndexDrop, payload: _sessionPayload(sessionId));
   }
 
   /// Whole-book statistics inside the resident session. Throws
@@ -553,12 +675,28 @@ final class WorkerClient {
           final reply = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           final page = reply[wireKeyPage] as Map<String, Object?>?;
           completer.complete(page == null ? null : decodePdfPageLinesWire(page));
+        case wireReplySessionPdfStructure:
+          final reply = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
+          final structure = reply[wireKeyStructure] as Map<String, Object?>?;
+          completer.complete(structure == null ? null : decodePdfPageStructureWire(structure));
         case wireReplySessionSearch:
           completer.complete(
             decodeSearchResultsWire(
               decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart),
             ),
           );
+        case wireReplySessionSearchIndexCoverage:
+          completer.complete(decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart));
+        case wireReplySessionSearchIndexResults:
+          completer.complete(
+            decodeIndexedSearchResultsWire(
+              decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart),
+            ),
+          );
+        case wireReplySessionSearchIndexPayload:
+          completer.complete(decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart));
+        case wireReplySessionSearchIndexDrop:
+          completer.complete(null);
         case wireReplySessionProgression:
           final reply = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           completer.complete(

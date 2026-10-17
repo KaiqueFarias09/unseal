@@ -10,12 +10,15 @@ import '../../features/progressive/session_policy.dart';
 import '../../features/reading/book_dispatch.dart';
 import '../../features/search/book_search.dart';
 import '../../features/search/entities/search_mode.dart';
+import '../../features/search/index/indexed_query_mode.dart';
+import '../../features/search/index/search_index_identity.dart';
 import '../../foundation/entities/book/book.dart';
 import '../../foundation/entities/book_format.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
 
 import 'book_wire.dart';
 import 'wire/book_components_wire.dart';
+import 'wire/pdf_structure_wire.dart';
 
 /// Runs one worker op against the request [bytes], the
 /// [residentBook] left behind by the last successful parse and the
@@ -80,10 +83,22 @@ import 'wire/book_components_wire.dart';
       return _sessionSource(payload!, residentSession);
     case workerOpSessionPdfLines:
       return _sessionPdfLines(payload!, residentSession);
+    case workerOpSessionPdfStructure:
+      return _sessionPdfStructure(payload!, residentSession);
     case workerOpSessionText:
       return _sessionText(payload!, residentSession);
     case workerOpSessionSearch:
       return _sessionSearch(payload!, residentSession);
+    case workerOpSessionSearchIndexEnsure:
+      return _sessionSearchIndexEnsure(payload!, residentSession);
+    case workerOpSessionSearchIndexQuery:
+      return _sessionSearchIndexQuery(payload!, residentSession);
+    case workerOpSessionSearchIndexExport:
+      return _sessionSearchIndexExport(residentSession);
+    case workerOpSessionSearchIndexImport:
+      return _sessionSearchIndexImport(payload!, residentSession);
+    case workerOpSessionSearchIndexDrop:
+      return _sessionSearchIndexDrop(residentSession);
     case workerOpSessionProgression:
       return _sessionProgression(residentSession);
     case workerOpSessionStatistics:
@@ -266,6 +281,16 @@ _sessionPdfLines(final Map<String, Object?> payload, final SessionEngine? reside
   return (kind: wireReplySessionPdfLines, json: json, blobs: const <Object>[], session: null);
 }
 
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionPdfStructure(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+  final session = _sessionFor(residentSession);
+  final pageIndex = payload[wireKeyPageIndex] as int;
+  final structure = session.loadPdfPageStructure(pageIndex);
+  final json = <String, Object?>{wireKeyStructure: encodePdfPageStructureWire(structure)};
+
+  return (kind: wireReplySessionPdfStructure, json: json, blobs: const <Object>[], session: null);
+}
+
 ({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session}) _sessionText(
   final Map<String, Object?> payload,
   final SessionEngine? residentSession,
@@ -296,6 +321,84 @@ _sessionSearch(final Map<String, Object?> payload, final SessionEngine? resident
   return (
     kind: wireReplySessionSearch,
     json: encodeSearchResultsWire(results),
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexEnsure(
+  final Map<String, Object?> payload,
+  final SessionEngine? residentSession,
+) {
+  final coverage = _sessionFor(residentSession).searchIndexEnsure(
+    payload[wireKeyMaxSections] as int,
+    SearchIndexIdentity.fromWire(payload[wireKeyIndexIdentity]),
+  );
+
+  return (
+    kind: wireReplySessionSearchIndexCoverage,
+    json: coverage,
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexQuery(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+  final results = _sessionFor(residentSession).searchIndexQuery(
+    payload[wireKeyQuery] as String,
+    mode: IndexedQueryMode.values.byName(payload[wireKeyMode] as String),
+    maxMatches: payload[wireKeyMaxMatches] as int?,
+    maxExpansions: payload[wireKeyMaxExpansions] as int?,
+    contextChars: payload[wireKeyContextChars] as int,
+  );
+
+  return (
+    kind: wireReplySessionSearchIndexResults,
+    json: results,
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexExport(final SessionEngine? residentSession) {
+  final payload = _sessionFor(residentSession).searchIndexExport();
+
+  return (
+    kind: wireReplySessionSearchIndexPayload,
+    json: payload,
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexImport(
+  final Map<String, Object?> payload,
+  final SessionEngine? residentSession,
+) {
+  final coverage = _sessionFor(residentSession).searchIndexImport(
+    (payload[wireKeyIndexPayload]! as Map).cast<String, Object?>(),
+    SearchIndexIdentity.fromWire(payload[wireKeyIndexIdentity]),
+  );
+
+  return (
+    kind: wireReplySessionSearchIndexCoverage,
+    json: coverage,
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionSearchIndexDrop(final SessionEngine? residentSession) {
+  _sessionFor(residentSession).searchIndexDrop();
+
+  return (
+    kind: wireReplySessionSearchIndexDrop,
+    json: const <String, Object?>{},
     blobs: const <Object>[],
     session: null,
   );

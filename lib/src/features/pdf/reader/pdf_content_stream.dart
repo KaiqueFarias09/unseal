@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../codec/pdf_stream_decoder.dart';
+import '../entities/pdf_layout.dart';
 import '../entities/pdf_page.dart';
 import '../entities/pdf_page_text.dart';
 import '../exceptions/pdf_exception.dart';
@@ -42,7 +43,32 @@ class PdfTextExtractor {
     final PdfPage page, {
     final void Function(int objectNumber, Uint8List bytes, String extension)? onImage,
   }) {
+    final extraction = _extractAll(page, collectGlyphs: false, onImage: onImage);
+
+    return extraction.pageText;
+  }
+
+  /// Extracts [page]'s text together with the layout primitives the
+  /// structure layer segments: per-character glyph cells (real
+  /// advances, so word geometry is never invented from line widths)
+  /// and the page's ruling lines (filled hairline rectangles and
+  /// stroked segments, the input table detection needs). The
+  /// [PdfPageText] equals [extract]'s output for the same page.
+  PdfPageLayoutExtraction extractLayout(
+    final PdfPage page, {
+    final void Function(int objectNumber, Uint8List bytes, String extension)? onImage,
+  }) {
+    return _extractAll(page, collectGlyphs: true, onImage: onImage);
+  }
+
+  PdfPageLayoutExtraction _extractAll(
+    final PdfPage page, {
+    required final bool collectGlyphs,
+    final void Function(int objectNumber, Uint8List bytes, String extension)? onImage,
+  }) {
     final runs = <_Run>[];
+    final glyphs = collectGlyphs ? <_GlyphCell>[] : null;
+    final rules = collectGlyphs ? <_RuleSegment>[] : null;
     final images = <PdfImageBox>[];
     final streams = _contentStreams(page);
     var skippedContentStreams = 0;
@@ -54,15 +80,24 @@ class PdfTextExtractor {
         skippedContentStreams++;
         continue;
       }
-      _interpret(content, _resourcesOf(page), runs, images, onImage);
+      _interpret(content, _resourcesOf(page), runs, images, onImage, glyphs != null, rules);
     }
 
-    return _toPageText(
+    final pageText = _toPageText(
       runs,
       images,
       page,
       contentStreamCount: streams.length,
       skippedContentStreams: skippedContentStreams,
+    );
+    if (!collectGlyphs) {
+      return PdfPageLayoutExtraction(pageText: pageText, words: const [], rules: const []);
+    }
+
+    return PdfPageLayoutExtraction(
+      pageText: pageText,
+      words: _extractWords(runs, page),
+      rules: _placeRules(rules!, page),
     );
   }
 
@@ -139,8 +174,10 @@ class PdfTextExtractor {
     final List<_Run> runs,
     final List<PdfImageBox> images,
     final void Function(int objectNumber, Uint8List bytes, String extension)? onImage,
+    final bool collectCells,
+    final List<_RuleSegment>? rules,
   ) {
-    _ContentInterpreter(this, content, resources, runs, images, onImage).run();
+    _ContentInterpreter(this, content, resources, runs, images, onImage, collectCells, rules).run();
   }
 
   PdfObject? _fontEntry(final PdfDictionary? resources, final String name) {
@@ -151,13 +188,16 @@ class PdfTextExtractor {
   }
 
   /// Shows [bytes], records the run and returns the advanced text
-  /// matrix.
+  /// matrix. With [collectCells], one glyph cell per decoded character
+  /// code is recorded with its absolute pen position and real device
+  /// advance — the primitive word geometry derives from.
   _Mat _showText(
     final Uint8List bytes,
     final _Mat textMatrix,
     final _GraphicsState gstate,
-    final List<_Run> runs,
-  ) {
+    final List<_Run> runs, {
+    required final bool collectCells,
+  }) {
     final font = gstate.font ?? _fallbackFont();
     final (text, advanceEm, codeCount, spaceCount) = font.decode(bytes);
     final advanceText =
@@ -207,11 +247,78 @@ class PdfTextExtractor {
           width: widthDevice,
           fontSize: runFontSize,
           rotated: !horizontal,
+          cells: collectCells
+              ? _glyphCells(
+                  font,
+                  bytes,
+                  gstate,
+                  effective,
+                  horizontal: horizontal,
+                  fontSizeDevice: runFontSize,
+                  advanceScale: math.sqrt(effective.a * effective.a + effective.b * effective.b),
+                )
+              : const <_GlyphCell>[],
         ),
       );
     }
 
     return _Mat.multiply(_Mat.translation(advanceText * gstate.horizontalScale, 0), textMatrix);
+  }
+
+  /// The per-code glyph cells of one show-text payload: each cell
+  /// carries the decoded characters, the absolute pen position (device
+  /// space, baseline origin), the device advance along the text
+  /// direction and the direction unit vector itself. Positions come
+  /// from the font's own width metrics plus the text state — TJ
+  /// adjustments and inter-string moves show up as gaps between
+  /// absolute positions, so word segmentation never has to guess.
+  List<_GlyphCell> _glyphCells(
+    final PdfFont font,
+    final Uint8List bytes,
+    final _GraphicsState gstate,
+    final _Mat effective, {
+    required final bool horizontal,
+    required final double fontSizeDevice,
+    required final double advanceScale,
+  }) {
+    final cells = <_GlyphCell>[];
+    final horizontalScale = gstate.horizontalScale;
+    final directionNorm = math.sqrt(effective.a * effective.a + effective.b * effective.b);
+    var pen = 0.0;
+    var offset = 0;
+    while (offset + font.codeBytes <= bytes.length) {
+      var code = 0;
+      for (var i = 0; i < font.codeBytes; i++) {
+        code = code * 256 + bytes[offset + i];
+      }
+      offset += font.codeBytes;
+      final advanceEm = font.widthOfCode(code);
+      final charAdvance =
+          (advanceEm * gstate.fontSize + gstate.charSpacing) * horizontalScale +
+          (code == 0x20 && !font.isCid ? gstate.wordSpacing * horizontalScale : 0);
+      final piece = font.unicodeOfCode(code) ?? '';
+      // The pen advances in TEXT space, then the text matrix maps the
+      // point out — composition order matters for rotated text.
+      final point = _Mat.multiply(effective, _Mat.translation(pen, 0));
+      cells.add(
+        _GlyphCell(
+          text: piece,
+          x: point.e,
+          y: point.f,
+          // The device advance scales by the same matrix factor as the
+          // run's width; fontSize is the sanitized device size. Both
+          // must agree with the run so word gaps measure real spacing.
+          advance: charAdvance * advanceScale,
+          fontSize: fontSizeDevice,
+          directionX: directionNorm == 0 ? 1 : effective.a / directionNorm,
+          directionY: directionNorm == 0 ? 0 : effective.b / directionNorm,
+          horizontal: horizontal,
+        ),
+      );
+      pen += charAdvance;
+    }
+
+    return cells;
   }
 
   void _drawXObject(
@@ -470,6 +577,211 @@ class PdfTextExtractor {
     ];
   }
 
+  /// Words from the line-clustered runs' glyph cells: cells order
+  /// along the line's advance direction, split at whitespace
+  /// characters and at gaps exceeding the same threshold the line
+  /// joiner inserts spaces at, so word text and line text agree.
+  ///
+  /// Every box comes from real advances — never from dividing a
+  /// line's width by its character count.
+  List<PdfWord> _extractWords(final List<_Run> runs, final PdfPage page) {
+    final box = page.cropBox ?? page.mediaBox;
+    final visible = _visibleRuns(runs, box[0], box[2], box[1], box[3]);
+    final clusters = _lineClusters(visible);
+    final words = <PdfWord>[];
+    for (final cluster in clusters) {
+      final cells = <_GlyphCell>[];
+      for (final run in cluster) {
+        cells.addAll(run.cells);
+      }
+      if (cells.isEmpty) continue;
+
+      final directionX = cells.first.directionX;
+      final horizontal = cells.first.horizontal;
+      final rtl = directionX < 0;
+      if (horizontal) {
+        cells.sort((final a, final b) => rtl ? b.x.compareTo(a.x) : a.x.compareTo(b.x));
+      } else {
+        // Order along the dominant advance direction of the cluster.
+        final (dx, dy) = (cells.first.directionX, cells.first.directionY);
+        double projection(final _GlyphCell cell) => cell.x * dx + cell.y * dy;
+        cells.sort((final a, final b) => projection(a).compareTo(projection(b)));
+      }
+
+      const gapFactor = 0.28;
+      const gapFloor = 0.9;
+      var wordCells = <_GlyphCell>[];
+      var previousEnd = double.nan;
+      void flush() {
+        if (wordCells.isEmpty) return;
+        final text = wordCells
+            .map((final cell) => cell.text)
+            .join()
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+        if (text.isEmpty) {
+          wordCells = <_GlyphCell>[];
+          previousEnd = double.nan;
+          return;
+        }
+
+        final fontSize = _wordFontSize(wordCells);
+        // The word's own first cell decides the direction class: a
+        // cluster can mix upright runs with a same-baseline rotated
+        // one.
+        final wordHorizontal = wordCells.first.horizontal;
+        final boxPoints = _wordBox(wordCells);
+        final topLeft = _toRotatedPagePoint(boxPoints.$1, boxPoints.$2, page);
+        final bottomRight = _toRotatedPagePoint(boxPoints.$3, boxPoints.$4, page);
+        final left = topLeft.$1 <= bottomRight.$1 ? topLeft.$1 : bottomRight.$1;
+        final top = topLeft.$2 <= bottomRight.$2 ? topLeft.$2 : bottomRight.$2;
+        final right = topLeft.$1 <= bottomRight.$1 ? bottomRight.$1 : topLeft.$1;
+        final bottom = topLeft.$2 <= bottomRight.$2 ? bottomRight.$2 : topLeft.$2;
+        // The advance direction rotates with the page.
+        final first = wordCells.first;
+        final origin = _toRotatedPagePoint(boxPoints.$1, boxPoints.$2, page);
+        final moved = _toRotatedPagePoint(
+          boxPoints.$1 + first.directionX,
+          boxPoints.$2 + first.directionY,
+          page,
+        );
+        var (dx, dy) = (moved.$1 - origin.$1, moved.$2 - origin.$2);
+        final norm = math.sqrt(dx * dx + dy * dy);
+        if (norm < 1e-9) {
+          dx = 1;
+          dy = 0;
+        } else {
+          dx /= norm;
+          dy /= norm;
+        }
+        words.add(
+          PdfWord(
+            text: text,
+            x: left,
+            y: top,
+            width: right - left,
+            height: bottom - top,
+            fontSize: fontSize,
+            rotated: !wordHorizontal,
+            directionX: dx,
+            directionY: dy,
+          ),
+        );
+        wordCells = <_GlyphCell>[];
+      }
+
+      for (final cell in cells) {
+        final isWhitespace = cell.text.trim().isEmpty;
+        // The gap axis is the cell's own advance direction, so a
+        // rotated run inside a mostly-horizontal cluster still
+        // measures its gaps along its own baseline.
+        final cellStart = cell.x * cell.directionX + cell.y * cell.directionY;
+        final cellEnd = cellStart + cell.advance;
+        if (isWhitespace) {
+          flush();
+          previousEnd = double.nan;
+          continue;
+        }
+        if (wordCells.isNotEmpty) {
+          final smaller = cell.fontSize < wordCells.last.fontSize
+              ? cell.fontSize
+              : wordCells.last.fontSize;
+          final gap = previousEnd.isNaN ? 0.0 : (cellStart - previousEnd).abs();
+          if (gap > gapFactor * smaller + gapFloor) {
+            flush();
+          }
+        }
+        wordCells.add(cell);
+        previousEnd = cellEnd;
+      }
+      flush();
+    }
+
+    return words;
+  }
+
+  double _wordFontSize(final List<_GlyphCell> cells) {
+    var size = 0.0;
+    for (final cell in cells) {
+      if (cell.fontSize > size) size = cell.fontSize;
+    }
+
+    return size <= 0 ? 12 : size;
+  }
+
+  /// The axis-aligned device-space box of one word's cells: corners
+  /// `(minX, minY, maxX, maxY)`. Horizontal words span the advance
+  /// extent; rotated words take the parallelogram sweep (advance times
+  /// direction plus the 0.8 em ascent) over every cell.
+  (double, double, double, double) _wordBox(final List<_GlyphCell> cells) {
+    var minX = double.infinity;
+    var minY = double.infinity;
+    var maxX = double.negativeInfinity;
+    var maxY = double.negativeInfinity;
+    void grow(final double x, final double y) {
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+
+    for (final cell in cells) {
+      if (cell.horizontal) {
+        final end = cell.x + (cell.directionX < 0 ? -cell.advance : cell.advance);
+        // Device space grows upward: the box spans baseline to ascent.
+        grow(cell.x <= end ? cell.x : end, cell.y);
+        grow(cell.x <= end ? end : cell.x, cell.y + 0.8 * cell.fontSize);
+      } else {
+        final dx = cell.directionX;
+        final dy = cell.directionY;
+        final ascent = 0.8 * cell.fontSize;
+        // Advance plus the ascent perpendicular to the direction.
+        grow(cell.x, cell.y);
+        grow(cell.x + dx * cell.advance, cell.y + dy * cell.advance);
+        grow(cell.x - dy * ascent, cell.y + dx * ascent);
+        grow(cell.x + dx * cell.advance - dy * ascent, cell.y + dy * cell.advance + dx * ascent);
+      }
+    }
+
+    return (minX, minY, maxX, maxY);
+  }
+
+  /// Converts a device-space point to the cropped, rotated top-left
+  /// page space, matching the line placement.
+  (double, double) _toRotatedPagePoint(final double x, final double y, final PdfPage page) {
+    final box = page.cropBox ?? page.mediaBox;
+    final px = x - box[0];
+    final py = box[3] - y;
+    final pageWidth = box[2] - box[0];
+    final pageHeight = box[3] - box[1];
+
+    return switch (page.rotate % 360) {
+      90 => (pageHeight - py, px),
+      180 => (pageWidth - px, pageHeight - py),
+      270 => (py, pageWidth - px),
+      _ => (px, py),
+    };
+  }
+
+  /// Converts rule segments to axis-aligned page-space rule lines;
+  /// diagonal decoration drops here — the table detector reasons in
+  /// axis-aligned lattices only.
+  List<PdfRuleLine> _placeRules(final List<_RuleSegment> rules, final PdfPage page) {
+    final out = <PdfRuleLine>[];
+    for (final rule in rules) {
+      final a = _toRotatedPagePoint(rule.x0, rule.y0, page);
+      final b = _toRotatedPagePoint(rule.x1, rule.y1, page);
+      if ((a.$1 - b.$1).abs() < 0.05) {
+        if ((a.$2 - b.$2).abs() < 0.05) continue;
+        out.add(PdfRuleLine(x0: a.$1, y0: a.$2, x1: a.$1, y1: b.$2));
+      } else if ((a.$2 - b.$2).abs() < 0.05) {
+        out.add(PdfRuleLine(x0: a.$1, y0: a.$2, x1: b.$1, y1: a.$2));
+      }
+    }
+
+    return out;
+  }
+
   List<PdfTextLine> _rotateAll(
     final List<PdfTextLine> lines,
     final int rotate,
@@ -544,7 +856,11 @@ class PdfTextExtractor {
 
 /// Interprets one decoded content stream while keeping the mutable PDF
 /// graphics/text state together. The extractor remains responsible for font
-/// lookup and output, while this class owns operator sequencing.
+/// lookup and output, while this class owns operator sequencing. Layout
+/// extraction adds two bounded collectors: glyph cells (per character code,
+/// for word geometry) and rule segments (from path operators, for table
+/// detection) — both null on the plain text path, which stays allocation-
+/// free for them.
 final class _ContentInterpreter {
   _ContentInterpreter(
     this._extractor,
@@ -553,13 +869,20 @@ final class _ContentInterpreter {
     this._runs,
     this._images,
     this._onImage,
+    this._collectCells,
+    this._rules,
   ) : _lexer = _ContentLexer(content);
+
+  static const _maxRuleSegments = 4096;
+  static const _maxPathSegments = 8192;
 
   final PdfTextExtractor _extractor;
   final PdfDictionary? _resources;
   final List<_Run> _runs;
   final List<PdfImageBox> _images;
   final void Function(int objectNumber, Uint8List bytes, String extension)? _onImage;
+  final bool _collectCells;
+  final List<_RuleSegment>? _rules;
   final _ContentLexer _lexer;
   final List<Object?> _operands = <Object?>[];
   final List<_GraphicsState> _gstates = <_GraphicsState>[];
@@ -568,6 +891,14 @@ final class _ContentInterpreter {
   _Mat _lineMatrix = _Mat.identity;
   bool _inText = false;
   var _budget = 4000000;
+
+  /// Straight path segments awaiting a stroke decision, and the fat
+  /// (non-hairline) rectangle edges awaiting one too — a background
+  /// fill paints them away, a stroke turns them into rules.
+  final List<_RuleSegment> _pendingSegments = <_RuleSegment>[];
+  final List<_RuleSegment> _pendingFatRectEdges = <_RuleSegment>[];
+  var _pathSegments = 0;
+  bool _clipPending = false;
 
   void run() {
     while (true) {
@@ -638,6 +969,25 @@ final class _ContentInterpreter {
         _showArray();
       case 'Do':
         _drawObject();
+      case 'm' || 'l':
+        _pathPoint();
+      case 'c' || 'v' || 'y':
+        // Curves contribute their endpoint only: table rules are
+        // straight, and decorative curves carry no lattice.
+        if (_operands.length >= 2) {
+          _operands.removeRange(0, _operands.length - 2);
+          _pathPoint();
+        }
+      case 're':
+        _pathRect();
+      case 'S' || 's' || 'B' || 'B*' || 'b' || 'b*':
+        _paintPath(stroked: true);
+      case 'f' || 'F' || 'f*':
+        _paintPath(stroked: false);
+      case 'n':
+        _clearPath();
+      case 'W' || 'W*':
+        _clipPending = true;
     }
   }
 
@@ -676,7 +1026,13 @@ final class _ContentInterpreter {
   void _showString() {
     final bytes = _extractor._stringOperand(_operands);
     if (_inText && bytes != null) {
-      _textMatrix = _extractor._showText(bytes, _textMatrix, _gstate, _runs);
+      _textMatrix = _extractor._showText(
+        bytes,
+        _textMatrix,
+        _gstate,
+        _runs,
+        collectCells: _collectCells,
+      );
     }
   }
 
@@ -698,7 +1054,13 @@ final class _ContentInterpreter {
     }
     for (final element in array) {
       if (element is Uint8List) {
-        _textMatrix = _extractor._showText(element, _textMatrix, _gstate, _runs);
+        _textMatrix = _extractor._showText(
+          element,
+          _textMatrix,
+          _gstate,
+          _runs,
+          collectCells: _collectCells,
+        );
       } else if (element is num) {
         final shift = -element / 1000 * _gstate.fontSize * _gstate.horizontalScale;
         _textMatrix = _Mat.multiply(_Mat.translation(shift, 0), _textMatrix);
@@ -711,6 +1073,87 @@ final class _ContentInterpreter {
       _extractor._drawXObject(_operands[0] as String, _resources, _gstate, _images, _onImage);
     }
   }
+
+  /// Records one straight segment from the last two numeric operands
+  /// (`m` starts a subpath, `l` continues it), transformed to device
+  /// space as the operator appears.
+  void _pathPoint() {
+    if (_rules == null || _pathSegments >= _maxPathSegments) return;
+    if (_operands.length < 2 || _operands[0] is! num || _operands[1] is! num) return;
+    if (_pendingSegments.isEmpty && _pendingFatRectEdges.isEmpty && _operands.length == 2) {
+      // A lone `m`: the subpath anchor, no segment yet.
+      return;
+    }
+    final ctm = _gstate.ctm;
+    final (ax, ay) = _lastPoint ?? (0.0, 0.0);
+    final bx =
+        ctm.a * (_operands[0] as num).toDouble() + ctm.c * (_operands[1] as num).toDouble() + ctm.e;
+    final by =
+        ctm.b * (_operands[0] as num).toDouble() + ctm.d * (_operands[1] as num).toDouble() + ctm.f;
+    _lastPoint = (bx, by);
+    _pendingSegments.add(_RuleSegment(x0: ax, y0: ay, x1: bx, y1: by, stroked: false));
+    _pathSegments++;
+  }
+
+  (double, double)? _lastPoint;
+
+  /// Records the four edges of a `re` rectangle. Hairline rectangles
+  /// are rules whatever paints them; fat ones wait for a stroke — a
+  /// plain fill is a background, not a table lattice.
+  void _pathRect() {
+    if (_rules == null || _pathSegments >= _maxPathSegments) return;
+    if (_operands.length < 4) return;
+    for (var i = 0; i < 4; i++) {
+      if (_operands[i] is! num) return;
+    }
+    final ctm = _gstate.ctm;
+    double tx(final double x, final double y) => ctm.a * x + ctm.c * y + ctm.e;
+    double ty(final double x, final double y) => ctm.b * x + ctm.d * y + ctm.f;
+    final x = (_operands[0] as num).toDouble();
+    final y = (_operands[1] as num).toDouble();
+    final w = (_operands[2] as num).toDouble();
+    final h = (_operands[3] as num).toDouble();
+    final p0 = (tx(x, y), ty(x, y));
+    final p1 = (tx(x + w, y), ty(x + w, y));
+    final p2 = (tx(x + w, y + h), ty(x + w, y + h));
+    final p3 = (tx(x, y + h), ty(x, y + h));
+    final width = math.sqrt((p1.$1 - p0.$1) * (p1.$1 - p0.$1) + (p1.$2 - p0.$2) * (p1.$2 - p0.$2));
+    final height = math.sqrt((p3.$1 - p0.$1) * (p3.$1 - p0.$1) + (p3.$2 - p0.$2) * (p3.$2 - p0.$2));
+    final thin = width <= 2 || height <= 2;
+    final edges = <_RuleSegment>[
+      _RuleSegment(x0: p0.$1, y0: p0.$2, x1: p1.$1, y1: p1.$2, stroked: false),
+      _RuleSegment(x0: p1.$1, y0: p1.$2, x1: p2.$1, y1: p2.$2, stroked: false),
+      _RuleSegment(x0: p2.$1, y0: p2.$2, x1: p3.$1, y1: p3.$2, stroked: false),
+      _RuleSegment(x0: p3.$1, y0: p3.$2, x1: p0.$1, y1: p0.$2, stroked: false),
+    ];
+    _pathSegments += 4;
+    if (thin) {
+      _pendingSegments.addAll(edges);
+    } else {
+      _pendingFatRectEdges.addAll(edges);
+    }
+  }
+
+  /// Flushes the path: stroking turns pending segments (and fat-rect
+  /// edges) into rules; a pure fill paints the fat edges away — that
+  /// is the background-rectangle filter. Clipped paths draw nothing.
+  void _paintPath({required final bool stroked}) {
+    if (_rules != null && !_clipPending) {
+      if (stroked && _rules.length < _maxRuleSegments) {
+        _rules
+          ..addAll(_pendingSegments)
+          ..addAll(_pendingFatRectEdges);
+      }
+    }
+    _clearPath();
+  }
+
+  void _clearPath() {
+    _pendingSegments.clear();
+    _pendingFatRectEdges.clear();
+    _lastPoint = null;
+    _clipPending = false;
+  }
 }
 
 final class _Run {
@@ -721,6 +1164,7 @@ final class _Run {
     required this.width,
     required this.fontSize,
     required this.rotated,
+    this.cells = const <_GlyphCell>[],
   });
 
   final String text;
@@ -729,6 +1173,53 @@ final class _Run {
   final double width;
   final double fontSize;
   final bool rotated;
+
+  /// Per-character glyph cells in device space; empty unless the
+  /// extraction collected layout primitives.
+  final List<_GlyphCell> cells;
+}
+
+/// One character code's placement: the decoded characters, the pen
+/// position (device space, baseline origin), the device advance along
+/// the text direction and the direction unit vector.
+final class _GlyphCell {
+  const _GlyphCell({
+    required this.text,
+    required this.x,
+    required this.y,
+    required this.advance,
+    required this.fontSize,
+    required this.directionX,
+    required this.directionY,
+    required this.horizontal,
+  });
+
+  final String text;
+  final double x;
+  final double y;
+  final double advance;
+  final double fontSize;
+  final double directionX;
+  final double directionY;
+  final bool horizontal;
+}
+
+/// One straight rule segment in device space (a stroked line or a
+/// rectangle edge), the raw material of table detection.
+final class _RuleSegment {
+  const _RuleSegment({
+    required this.x0,
+    required this.y0,
+    required this.x1,
+    required this.y1,
+    required this.stroked,
+  });
+
+  final double x0;
+  final double y0;
+  final double x1;
+  final double y1;
+  final bool stroked;
 }
 
 final class _GraphicsState {

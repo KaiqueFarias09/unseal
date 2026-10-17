@@ -1,3 +1,102 @@
+## Unreleased
+
+### Added
+
+- The common text contract for cross-mode positions (foundation): immutable
+  `CanonicalTextSnapshot` bound to a `PublicationRevision` (namespaced,
+  evidence-qualified source revision), a `SectionOccurrence` (zero-based
+  section index, exact parser path, reading-order digest), and a `TextProfile`
+  (algorithm, options, extraction-plan revision). `RevisionDigest` computes
+  `sha256:` revisions over little-endian UTF-16 code units — text, ordered
+  reading-order arrays, and text profiles — with identical bytes and hashes
+  on the VM and in Chrome (pinned vectors run in both). `CanonicalTextRange`
+  binds inclusive-start/exclusive-end UTF-16 bounds to a snapshot;
+  `CanonicalTextCodec` is the single encoder/decoder for snapshots and
+  ranges, revalidating every digest on import, refusing non-exportable
+  identities explicitly, and normalizing hostile payloads to
+  `CanonicalTextCodecException` while confirmed identity mismatches surface
+  as `IncompatibleRevisionException`.
+- PDF structured layout with stable positions: `PdfPageStructure` per page
+  (eager `buildPdfPageStructure`, session `loadPdfPageStructure`, and the
+  `sessionPdfStructure` worker op) exposes words derived from real glyph
+  advances (rotated words keep their advance direction; ligatures expand
+  through ToUnicode at a single advance), Docstrum-adapted text lines and
+  blocks, recursive XY-cut reading order with column regions and
+  header/footer roles, and Tabula-ported table detection — ruled lattices
+  (`spreadsheet`), vertical rulings plus text rows (`basic`), and the
+  whitespace-aligned fallback (`aligned-columns`), with typed refusals
+  (`rotated-rows`, `text-spans-grid`, `too-few-cells`) instead of silent
+  misses. `PdfSourceRange` anchors live in the per-page source-line space
+  and stay stable across reopenings and full ↔ session mode switches;
+  `mapSourceRange` resolves them into any canonical text as
+  `mapped`/`ambiguous`/`missing`/`unsupported` with explicit reasons. The
+  canonical profile binds the reflow plan revision (`pdf.reflow`, scope
+  `document` or `session-sample`), so the two modes never share a text
+  revision; snapshots bound to them refuse cross-mode reuse through
+  `CanonicalTextCodec` while anchors keep mapping. `PdfPageGeometry`
+  carries the cropped, rotated page space and the invertible affine back
+  to PDF user space. Ported from PdfPig `3452b9fb` (Apache-2.0) and
+  tabula-java `2cdf3b4f` (MIT) at the pinned revisions; the PdfPig dump
+  oracle and comparator live in `tool/pdf_layout_compare.dart`.
+- Optional per-publication inverted index (`BookSearchIndex`): ranked search
+  over a book's canonical document text with BM25+ scoring (MiniSearch port),
+  prefix and bounded fuzzy query modes, and hits that cut the original UTF-16
+  text — the same offset space `Book.search` and CFI address. The tokenizer
+  profile is self-contained (no ICU), identical on VM and browser, joins
+  soft-hyphen and zero-width splits inside word runs, and folds Latin
+  diacritics plus Greek and Cyrillic case; exotic scripts index verbatim.
+- Incremental, cancellable construction: sections enter in finite batches
+  (`BookSearchIndex.build` yields between batches; the coverage counters keep
+  eligible, indexed, pending and failed sections apart), queries answer at any
+  construction stage and carry the coverage that produced them — an empty
+  result over a partial index never proves absence in the book.
+- Versioned serialization: `serialize`/`deserialize` payloads record schema,
+  tokenizer and normalization profile, identity and reading-order revision;
+  import validates size, schema, profile, identity and structural bounds
+  before trusting postings and can re-verify every section's text digest
+  against a book or a text resolver. Changing text, order, tokenizer or
+  profile refuses the index typed.
+- Session integration: `BookSession.buildSearchIndex` drives bounded batches
+  through the session's isolate or Web Worker (`searchIndex.*` ops) and
+  `searchIndexed` answers ranked queries; `exportSearchIndex` /
+  `importSearchIndex` move validated indexes between sessions over the same
+  book; `dropSearchIndex` and `dispose` release the index. Persisting an index
+  over PDF text is withheld until the P1 position-mapping acceptance
+  (`SearchIndexUnsupportedException`); in-memory indexing over PDF works.
+- Typed failures distinguish invalid argument, incompatible revision/profile,
+  exceeded limit, cancelled build, disposed index and withheld persistence
+  (`SearchIndex*Exception` hierarchy), across inline, isolate and worker
+  paths.
+- Indexed hits convert to locators (`IndexedSearchHit.toTextLocator`), keep
+  the deterministic C05 tiebreak (score desc, occurrence asc, start asc, end
+  asc), and preserve scores bit-identically through serialization round
+  trips. `Book.search` and its suite are unchanged.
+- Durable annotations with W3C exchange (`DurableAnnotations`,
+  `AnnotationAnchor`): an additive envelope storing publication identity,
+  source revision, section occurrence, extraction profile, text revision,
+  UTF-16 bounds and bounded quote/context evidence for a selection — never
+  the section text. Capture, a versioned structured-clone-safe codec
+  (`encodeAnchor`/`decodeAnchor` with typed hostile-input failures and
+  explicit refusal to export in-memory-only identities), and resolution
+  answering exactly one of `resolved`/`ambiguous`/`missing`/
+  `incompatibleRevision`/`unsupported`: the full identity tuple decides
+  verified reuse; `AnchorPolicy.explicitMigration` re-finds the selection
+  through exact, whitespace-normalized and bounded fuzzy passes (corrected
+  editions carry their measured edit distance); indistinguishable ties stay
+  ambiguous with capped candidates; another publication never migrates;
+  `contextRecovery` re-finds unverified positions and says so. The W3C
+  adapter (`W3cAnnotationAdapter`) implements the declared
+  TextQuoteSelector/TextPositionSelector subset with code point ↔ UTF-16
+  conversions (astral once, combining marks individually, mid-surrogate
+  bounds refused as unrepresentable), loss-reported context truncation and
+  explicit unknown-selector reporting. PDF pages join through their reading
+  mode's canonical snapshots: an anchor captured over an indexed hit
+  survives reopenings and full ↔ session mode switches on the long-document
+  corpus. Ported from Hypothesis `a7b7400d` (BSD-2-Clause) with stricter
+  ambiguity, Readium Kotlin `89b96c20` (BSD-3-Clause) as identity-layering
+  reference, and the W3C Web Annotation Data Model as the selector contract.
+  The v1 annotation/locator codecs and `relocateTextLocator` are unchanged.
+
 ## 1.2.0 - October 16, 2026
 
 ### Added

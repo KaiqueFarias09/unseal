@@ -31,6 +31,7 @@ import 'metadata_benchmarks.dart';
 import 'mobi_compression_benchmarks.dart';
 import 'parsing_benchmarks.dart';
 import 'pdf_benchmarks.dart';
+import 'search_index_benchmarks.dart';
 import 'utils_benchmarks.dart';
 
 /// Runs every benchmark group (or the filtered subset).
@@ -58,6 +59,7 @@ Future<void> main(final List<String> arguments) async {
     runGetterBenchmarks();
     runBookWireBenchmarks();
     runDocumentTextSearchBenchmarks();
+    await runSearchIndexBenchmarks();
     runUtilityBenchmarks();
     runCfiBenchmarks();
     await runPdfBenchmarks();

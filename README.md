@@ -28,8 +28,9 @@ document renderer.
 - One API for metadata-only scans and full book parsing.
 - Common models for metadata, HTML content, stylesheets, images, fonts,
   navigation, covers, and reading order.
-- Format detection, full-text search, reading progression, portable locators,
-  EPUB CFI operations, annotation codecs, and OPDS feed parsing.
+- Format detection, full-text search plus an optional ranked inverted index,
+  reading progression, portable locators, EPUB CFI operations, annotation
+  codecs, and OPDS feed parsing.
 - Pure Dart on the Dart VM, Flutter native targets, and browser JavaScript.
 - Optional web-worker parsing for browser applications.
 - Typed exceptions and format-specific recovery paths for damaged input.
@@ -64,7 +65,7 @@ development, and the single [roadmap](doc/roadmap.md).
 | CBR | RAR 4 stored and ordinary non-solid method-29 entries, plus RAR 5 stored entries | Split, solid, encrypted, PPMd, VM, and other unsupported variants are rejected. |
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
-| PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
+| PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, JPEG/CCITT/JBIG2 images, and structured layout: words, blocks, columns, tables, and stable source anchors mapped to canonical text | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
 | DjVu (JPEG, JB2, and IW44 subset) | Direct `BGjp` JPEG pages, `Sjbz` masks with shared `Djbz` dictionaries and `INCL` references, progressive `BG44`/`FG44` layers, and INFO dimensions and rotation in single-page or bundled documents; compressed `TXTz` hidden text, legacy `TXTa` OCR, and `NAVM` bookmark outlines | JB2 masks and composed IW44 pages become BMP images. Compressed text is byte-exact against `djvutxt`. Indirect document directories resolve through file-based opens only; `FGbz` recoloring, `FGjp`/`Smmr` layer replacements, `ANTz` annotations, and thumbnails are ignored or rejected as described below. |
 | TIFF / BigTIFF | Baseline uncompressed, PackBits, LZW, and Deflate/AdobeDeflate raster pages (8-bit gray and RGB, 16-bit gray, bilevel, with horizontal-differencing predictors), CCITT Group 4 and Group 3 (including modified Huffman and EOL-less producers), multi-page IFD chains in both byte orders, BigTIFF 64-bit offsets, ImageDescription/DateTime/Software/Artist metadata, and X/Y-resolution DPI | Pages become BMP images (JPEG passthrough when a page holds one self-contained strip). Tiled layouts, planar=2, palette, float/SampleFormat≠1, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and uncompressed-mode extensions are rejected typed. A page is capped at 256 megapixels; strips and tiles are bounds-checked before allocation; a document is capped at 128 MiB input, 1024 pages, 256 megapixels of decoded pixels, and 128 MiB of decoded raster. Pixel parity with libtiff (`tiffcmp`) is pinned by tests. |
 
@@ -209,10 +210,57 @@ not perform OCR. In browsers, use `BookSession.open(bytes)` and configure
 the worker as shown below. Without a healthy worker, sessions execute inline.
 
 PDF sessions derive their reflow plan from up to 20 sampled pages. For longer
-documents, their canonical text and offsets can differ from a full parse.
-Within a session, `loadDocumentText` and `loadPdfPageLines` use the same plan.
-Do not assume that offsets saved from one extraction mode address the same
-passage in the other mode.
+documents, that plan differs from a full parse, so the two modes carry
+different canonical text profiles (`document` versus `session-sample`) and a
+snapshot captured in one mode refuses to reuse in the other. Positions stay
+stable across the switch through source anchors: capture a `PdfSourceRange`
+on `loadPdfPageStructure`'s structure (page, line index, UTF-16 bounds) and
+`mapSourceRange` resolves it into any canonical text as
+`mapped`/`ambiguous`/`missing`/`unsupported` — the anchor never depends on
+the reflow plan.
+
+### Indexed search
+
+For repeated queries, prefix completion and typo tolerance, build an
+inverted index over a book: ranked BM25+ results, bounded fuzzy matching,
+and hits that cut the same canonical text `Book.search` addresses. `Book.search`
+is unchanged; the index is additive:
+
+```dart
+final index = await BookSearchIndex.build(book); // batches, yields between them
+final results = index.query('navegacao', mode: IndexedQueryMode.prefix);
+final locator = results.hits.first.toTextLocator(); // same offset space as Book.search
+```
+
+Normalization folds case and Latin diacritics (an unaccented query finds
+`navegação`), joins soft-hyphen and zero-width splits inside word runs, and
+folds Greek and Cyrillic case; scripts without tables (CJK, Hangul, Arabic,
+astral planes) index verbatim. Hits carry a snippet, the section's score, and
+the deterministic order score-desc, then section, start, end. Multi-token
+queries require every token and anchor hits on the first token's occurrences.
+Prefix and fuzzy expansion is capped (`SearchIndexLimits.maxExpansions`), so an
+adversarial token fails with `SearchIndexLimitExceededException` instead of
+hanging.
+
+Construction is incremental and observable. `coverage` reports eligible,
+indexed, pending and failed sections; `isComplete` means every eligible
+section is indexed. Queries over a partial index answer from what is indexed
+and carry the coverage, so an empty result never proves absence in the book:
+
+```dart
+final coverage = await session.buildSearchIndex(sectionsPerBatch: 4);
+final found = await session.searchIndexed('nave', mode: IndexedQueryMode.prefix);
+await session.exportSearchIndex(); // versioned payload; import re-verifies digests
+```
+
+Serialized payloads are versioned JSON-safe maps an application may persist.
+Import validates schema, tokenizer profile, identity, reading-order revision
+and structural bounds before trusting postings, and can re-verify every
+section's text digest against a book — changed text, order or profile refuses
+the index with `SearchIndexIncompatibleException`. Persisting an index over
+PDF text is withheld until the position-mapping acceptance; indexes over PDF
+sessions work in memory but refuse to serialize. The index retains its
+sections' text (for snippets) until `dispose`.
 
 ### Format-specific APIs
 
@@ -337,6 +385,47 @@ for (final page in comic.pageInfo) {
 }
 ```
 
+### Structured layout and stable positions for PDFs
+
+Every page exposes a structure with words (real glyph advances, never a
+divided line width), text lines and blocks (Docstrum-adapted segmentation),
+the reading order with column regions and header/footer roles, and simple
+tables (ruled lattices, vertical rulings, or whitespace-aligned columns —
+refusals come back as typed diagnoses, never as a silently empty page).
+Geometry lives in the cropped, rotated page space, top-left origin, with an
+invertible affine back to PDF user space.
+
+```dart
+final book = parsePdfBook(bytes) as PdfBook;
+final page = buildPdfPageStructure(book: book, pageIndex: 24);
+print('${page.words.length} words, ${page.blocks.length} blocks, '
+    '${page.columns.length} columns');
+for (final region in page.tableRegion?.rows ?? const <List<PdfTableCell>>[]) {
+  print([for (final cell in region) cell.text]);
+}
+// A source anchor survives reopenings and eager/session switches.
+final anchor = PdfSourceRange(
+  pageIndex: 24,
+  lineIndex: 3,
+  start: 0,
+  end: page.sourceLines[3].text.length,
+  expectedLineText: page.sourceLines[3].text,
+);
+final mapping = page.mapSourceRange(anchor);
+if (mapping is PdfPositionMapped) {
+  print(page.canonicalText.substring(
+      mapping.position.offset, mapping.position.end));
+}
+
+// Sessions answer the same model through the worker or isolate.
+final structure = await session.loadPdfPageStructure(24);
+```
+
+Tables are one region per page in this delivery; multi-table pages keep the
+strongest candidate. `snapshots` of a page's canonical text bind the reflow
+plan revision, the section occurrence, and the text digest, and
+`CanonicalTextCodec` refuses reuse a destination cannot confirm.
+
 Each `PdfPageText` reports `quality`, the number of content streams, and how
 many streams could not be decoded. `imageWithoutText` is a useful signal for
 an application that offers OCR; it does not prove that a page is a scan.
@@ -363,6 +452,73 @@ for (var i = 0; i < pdf.pageTexts.length; i++) {
   print('Page ${i + 1}: ${page.quality}, skipped=${page.skippedContentStreams}');
 }
 ```
+
+## Durable annotations and W3C exchange
+
+Highlights survive edition changes through durable anchors: an additive
+envelope that stores a selection's publication identity, source revision,
+section occurrence, extraction profile, text revision, UTF-16 bounds and the
+quote/context evidence — never the section text itself. The v1 annotation and
+locator codecs are untouched; anchors are a separate schema an application
+persists beside them.
+
+```dart
+final snapshot = DurableAnnotations.sectionSnapshot(
+  book,
+  sectionIndex: 3,
+  identity: identity, // PublicationRevision: namespaced id + verified source revision
+);
+final anchor = DurableAnnotations.capture(snapshot: snapshot, start: 120, end: 260);
+final payload = encodeAnchor(anchor); // versioned, structured-clone-safe map
+```
+
+Resolution answers exactly one of `resolved`, `ambiguous`, `missing`,
+`incompatibleRevision` or `unsupported`. The full identity tuple decides
+verified reuse first; anything else needs an explicit policy:
+
+```dart
+final outcome = DurableAnnotations.resolve(
+  anchor: anchor,
+  targets: DurableAnnotations.sectionSnapshots(revisedBook, identity: revisedIdentity),
+  policy: AnchorPolicy.explicitMigration, // same publication, new revision
+);
+switch (outcome) {
+  case AnchorResolved(:final range, :final verified):
+    print('${range.text} (verified: $verified)');
+  case AnchorAmbiguous(:final candidates):
+    print('${candidates.length} indistinguishable candidates');
+  case AnchorMissing():
+  case AnchorIncompatibleRevision(:final differingFields):
+  case AnchorUnsupported():
+}
+```
+
+The migration ladder re-finds the selection by exact text, then by
+whitespace-normalized text (re-wrapped editions), then by a bounded fuzzy
+match (corrected editions carry their measured edit distance). Indistinguishable
+ties stay ambiguous with the candidate list, even when one candidate appears
+earlier in the book — nothing attaches to a passage by picking the first hit.
+A removed target is `missing`; another publication id never migrates under any
+policy; `AnchorPolicy.contextRecovery` re-finds unverified positions for
+anchors whose identity cannot be confirmed, and says so on the outcome. PDF
+anchors bind to the page structures' canonical snapshots (one profile per
+reading mode), so a selection captured in the session survives the switch to
+the full document through migration.
+
+For interchange, the W3C adapter implements a declared subset of the Web
+Annotation Data Model: `TextQuoteSelector` (exact/prefix/suffix) and
+`TextPositionSelector`. Selector positions count Unicode code points over
+normalized text; the conversions project both ways against UTF-16, count astral
+characters once and combining marks individually, and refuse a bound inside a
+surrogate pair as unrepresentable instead of shifting the target. Context
+truncation is reported as a loss; unknown selector types are named by the
+support report, never silently dropped. Unknown identity, unverified anchors
+and hostile payloads stay bounded: `AnchorLimits` caps quote and context
+lengths, candidate counts, scan work and payload sizes, and imports fail typed
+(`AnchorCodecException`, `W3cAdapterException`). Anchors without a verified
+source revision or a known reading order work in memory and refuse export
+instead of inventing identity. There is no annotation UI, sync, storage or
+conflict resolution here — applications own those.
 
 ## The common book model
 
@@ -637,6 +793,18 @@ Compatibility work draws on:
   7-Zip implementation used by CB7 and CBC.
 - PDF.js and Poppler as independent references for PDF extraction and image
   behavior.
+- The [Hypothesis client](https://github.com/hypothesis/client/tree/a7b7400d0d706d4357ec37c2a3610b25dcca89d5)
+  anchoring (BSD-2-Clause) as the behavioral starting point for durable
+  annotation re-anchoring, compared case by case against its DOM-free
+  `matchQuote` by `tool/hypothesis_anchor_compare.dart`, with deliberately
+  stricter ambiguity handling, and
+  [Readium Kotlin](https://github.com/readium/kotlin-toolkit/tree/89b96c20c447d0aec17db57a06456b7decffde4c)
+  (BSD-3-Clause) as the identity/locator layering reference. Neither is a
+  runtime or source dependency; nothing here claims Readium or full W3C
+  conformance.
+- The [W3C Web Annotation Data Model](https://www.w3.org/TR/annotation-model/)
+  as the external contract for the TextQuoteSelector/TextPositionSelector
+  subset of the exchange adapter.
 - The [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf)
   for IFF structure, JB2 records, ZP coding, and the BZZ byte stream (BWT,
   modified MTF-4, and the 262-context decision tree). JB2 ZP state-table
