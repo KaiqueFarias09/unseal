@@ -178,7 +178,9 @@ void main() {
       );
     });
 
-    test('rejects solid compressed entries', () {
+    test('a solid header over non-stream bytes fails at decode, typed', () {
+      // The synthetic builder writes raw payload bytes into the data
+      // area; a solid declaration does not bypass the stream grammar.
       final archive = buildRar5(['001.jpg'], method: 3, solid: true);
 
       expect(
@@ -187,25 +189,25 @@ void main() {
           isA<ComicException>().having(
             (final error) => error.message,
             'message',
-            contains('solid stream'),
+            contains('could not be decoded'),
           ),
         ),
       );
     });
 
-    test('rejects archive-level solid flags on compressed entries', () {
-      final archive = buildRar5(['001.jpg'], method: 3, archiveFlags: 0x0004);
-
-      expect(
-        () => parseComicBook(archive),
-        throwsA(
-          isA<ComicException>().having(
-            (final error) => error.message,
-            'message',
-            contains('solid stream'),
-          ),
-        ),
+    test('an archive-level solid flag with independent entries decodes', () {
+      // Real solid-flagged archives written with unset per-entry solid
+      // bits (like the libarchive fixture) are independent streams:
+      // every entry resets the dictionary. The flag alone never
+      // rejects.
+      final archive = buildRar5Files(
+        {'001.jpg': tinyJpegPage, '002.jpg': tinyJpegPage},
+        method: 0,
+        archiveFlags: 0x0004,
       );
+      final book = parseComicBook(archive);
+
+      expect(book.pageCount, 2);
     });
 
     test('rejects encrypted entries', () {

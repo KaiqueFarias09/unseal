@@ -194,19 +194,23 @@ void main() {
     });
 
     test('unsupported RAR 5 variants stay indexed and name their reason', () {
-      final cases = <String, Uint8List>{
-        'split across volumes': buildRar5(['001.jpg'], splitBlockFlags: 0x0010),
-        'algorithm version': buildRar5(['001.jpg'], method: 3, version: 1),
-        'reserved compression method': buildRar5(['001.jpg'], method: 7),
-        'subset limit': buildRar5(['001.jpg'], method: 3, dictExp: 10),
-        'solid stream': buildRar5(['001.jpg'], method: 3, solid: true),
-        'unpacked size': buildRar5(['001.jpg'], fileFlags: 0x0008),
+      final cases = <(String, String, Uint8List)>{
+        ('split across volumes', '001.jpg', buildRar5(['001.jpg'], splitBlockFlags: 0x0010)),
+        ('algorithm version', '001.jpg', buildRar5(['001.jpg'], method: 3, version: 1)),
+        ('reserved compression method', '001.jpg', buildRar5(['001.jpg'], method: 7)),
+        ('subset limit', '001.jpg', buildRar5(['001.jpg'], method: 3, dictExp: 10)),
+        ('unpacked size', '001.jpg', buildRar5(['001.jpg'], fileFlags: 0x0008)),
+        (
+          'continues from an entry that cannot be decoded',
+          '002.jpg',
+          buildRar5SolidChainWithBrokenPredecessor(),
+        ),
       };
 
-      cases.forEach((final expectedReason, final archive) {
+      for (final (expectedReason, entryName, archive) in cases) {
         final rar = RarRandomAccess.open(MemoryZipByteSource(archive));
         addTearDown(rar.close);
-        final record = rar.find('001.jpg')!;
+        final record = rar.find(entryName)!;
         expect(record.isFile, isTrue, reason: '$expectedReason stays indexed');
 
         try {
@@ -216,7 +220,7 @@ void main() {
           expect(error.message, contains(expectedReason), reason: error.message);
         }
         expect(() => rar.inflate(record), throwsA(isA<ComicException>()));
-      });
+      }
     });
 
     test('multi-volume archives fail at open', () {

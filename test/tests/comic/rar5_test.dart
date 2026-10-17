@@ -17,19 +17,17 @@ Uint8List _bytes(final String name) =>
 String _sha256(final Uint8List bytes) => crypto.sha256.convert(bytes).toString();
 
 /// Decodes every file entry of [name] through the same shared walk +
-/// decoder the eager parser uses, for digest comparisons against the
-/// manifest and the recorded oracle results.
+/// solid-chain decoder the eager parser uses, for digest comparisons
+/// against the manifest and the recorded oracle results.
 Map<String, Uint8List> _decodeEntries(final String name) {
   final bytes = _bytes(name);
   final source = MemoryZipByteSource(bytes);
   final container = readRar5Structure(source);
   final entries = <String, Uint8List>{};
+  final decoder = Rar5SolidDecoder();
   for (final header in container.entries) {
     if (header.isDirectory) continue;
-    final reason = header.unsupportedReason(
-      archiveSolid: container.archiveSolid,
-      sourceLength: bytes.length,
-    );
+    final reason = header.unsupportedReason(sourceLength: bytes.length);
     expect(reason, isNull, reason: '$name/${header.name} must be inside the subset');
     if (header.isStored) {
       entries[header.name] = Uint8List.sublistView(
@@ -39,10 +37,11 @@ Map<String, Uint8List> _decodeEntries(final String name) {
       );
       continue;
     }
-    entries[header.name] = decodeRar5Stream(
+    entries[header.name] = decoder.decodeEntry(
       packed: source.read(header.dataStart, header.packedSize),
       uncompressedSize: header.unpackedSize,
       windowSize: header.dictSize,
+      solid: header.solid,
     );
   }
 
@@ -62,7 +61,11 @@ void main() {
       final name = fixture['file']! as String;
       test('$name matches every pinned entry digest', () {
         final decoded = _decodeEntries(name);
-        final expected = (fixture['entries']! as List<Object?>).cast<Map<String, Object?>>();
+        // Directories carry no payload; their presence is pinned by the
+        // manifest row but there are no bytes to compare.
+        final expected = (fixture['entries']! as List<Object?>).cast<Map<String, Object?>>().where(
+          (final entry) => !(entry['name']! as String).endsWith('/'),
+        );
         expect(decoded.keys, expected.map((final entry) => entry['name']));
 
         for (final entry in expected) {
