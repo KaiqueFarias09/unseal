@@ -26,21 +26,21 @@ import 'package:unseal/src/features/djvu/parse_djvu_book.dart';
 ///
 /// Exit code 0 means every comparison matched; 1 reports the mismatches
 /// and writes them to the JSON report when `--json` is given.
-void main(final List<String> args) {
-  final bookPath = args[0];
-  final referenceDir = Directory(args[1]);
-  final jsonIndex = args.indexOf('--json');
-  final reportPath = jsonIndex >= 0 ? args[jsonIndex + 1] : null;
-
-  final book = parseDjvuBook(File(bookPath).readAsBytesSync());
+Future<Map<String, Object?>> compareDjvuBook({
+  required final String bookPath,
+  required final String referenceDir,
+}) async {
   final mismatches = <String>[];
   var pagesCompared = 0;
   var zonesCompared = 0;
   var leafTextsCompared = 0;
   var textPagesCompared = 0;
 
+  final book = parseDjvuBook(File(bookPath).readAsBytesSync());
+  final dir = Directory(referenceDir);
+
   for (var pageIndex = 0; pageIndex < book.pages.length; pageIndex++) {
-    final sexprFile = File('${referenceDir.path}/page-${pageIndex + 1}.sexpr');
+    final sexprFile = File('${dir.path}/page-${pageIndex + 1}.sexpr');
     if (!sexprFile.existsSync()) {
       mismatches.add('page ${pageIndex + 1}: missing reference dump');
       continue;
@@ -81,7 +81,7 @@ void main(final List<String> args) {
       );
     }
 
-    final pureFile = File('${referenceDir.path}/page-${pageIndex + 1}.txt');
+    final pureFile = File('${dir.path}/page-${pageIndex + 1}.txt');
     if (pureFile.existsSync()) {
       final stored = pureFile.readAsStringSync();
       // print-pure-txt emits the stored text followed by the form-feed
@@ -99,8 +99,7 @@ void main(final List<String> args) {
     }
   }
 
-  final verdict = mismatches.isEmpty ? 'pass' : 'fail';
-  final report = <String, Object?>{
+  return <String, Object?>{
     'tool': 'djvu_spatial_compare',
     'book': bookPath,
     'pagesCompared': pagesCompared,
@@ -108,21 +107,29 @@ void main(final List<String> args) {
     'zoneRecordsCompared': zonesCompared,
     'leafTextsCompared': leafTextsCompared,
     'mismatches': mismatches,
-    'verdict': verdict,
+    'verdict': mismatches.isEmpty ? 'pass' : 'fail',
   };
-  if (reportPath != null) {
-    File(reportPath).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(report));
+}
+
+Future<void> main(final List<String> args) async {
+  final report = await compareDjvuBook(bookPath: args[0], referenceDir: args[1]);
+  final jsonIndex = args.indexOf('--json');
+  if (jsonIndex >= 0) {
+    File(args[jsonIndex + 1]).writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert(report),
+    );
   }
+  final mismatches = report['mismatches']! as List<String>;
   if (mismatches.isNotEmpty) {
     for (final mismatch in mismatches.take(20)) {
       stderr.writeln(mismatch);
     }
-    stderr.writeln('$verdict: ${mismatches.length} mismatches');
+    stderr.writeln('${report['verdict']}: ${mismatches.length} mismatches');
     exitCode = 1;
   } else {
     stdout.writeln(
-      'pass: $pagesCompared pages, $zonesCompared zone records, '
-      '$leafTextsCompared leaf texts, $textPagesCompared page texts',
+      'pass: ${report['pagesCompared']} pages, ${report['zoneRecordsCompared']} zone records, '
+      '${report['leafTextsCompared']} leaf texts, ${report['textPagesCompared']} page texts',
     );
   }
 }

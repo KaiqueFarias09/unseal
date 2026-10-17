@@ -155,7 +155,7 @@ AltoPage _parsePage(final XmlElement node, final int position) {
     id: node.getAttribute('ID'),
     width: width,
     height: height,
-    printedImageNumber: _intAttribute(node, 'PRINTED_IMG_NR'),
+    printedImageNumber: _intAttribute(node, 'PHYSICAL_IMG_NR'),
     confidence: _confidenceAttribute(node, 'PC'),
     accuracy: _floatAttribute(node, 'ACCURACY'),
     quality: node.getAttribute('QUALITY'),

@@ -76,7 +76,7 @@ CB7 and CBC remain asynchronous because their 7-Zip reader is asynchronous.
 | Area | Paths | Responsibility |
 | --- | --- | --- |
 | Common model | `lib/src/foundation/entities/` | Books, files, resources, navigation, metadata, and statistics shared by formats. |
-| Shared safety and decoding | `lib/src/foundation/archive/`, `images/`, `text/` | Archive access, path normalization, image inspection, plain text, XML decoding, and the common text-identity contract (snapshots, revisions, ranges, digests) that format features bind positions to. |
+| Shared safety and decoding | `lib/src/foundation/archive/`, `images/`, `text/`, `spatial/` | Archive access, path normalization, image inspection, plain text, XML decoding, the common text-identity contract (snapshots, revisions, ranges, digests) that format features bind positions to, and the minimal spatial contract (top-left rectangles, ALTO unit vocabulary, region/line/word zones with UTF-16 ranges, provenance, range lookups) that positioned-text features project onto. |
 | Detection and dispatch | `lib/src/features/detection/`, `reading/`, `lib/src/platform/unseal_reader.dart` | Detect the format, refine ambiguous MOBI input, select the parser, and normalize public errors. |
 | Format features | `lib/src/features/<format>/` | Parse one container or document family and build the common model. |
 | Reading services | `lib/src/features/search/`, `locators/`, `cfi/`, `annotations/`, `opds/` | Search (scan and optional inverted index), portable locations, EPUB CFI, annotation serialization plus the durable anchor envelope and its W3C selector adapter, and OPDS parsing. |
@@ -104,7 +104,18 @@ materializing content that the metadata path does not need.
 File-based DjVu reads can resolve indirect documents. The I/O adapter loads
 DIRM-named sibling components, checks names and declared sizes, and assembles
 the bounded document before parsing. Byte-based opens reject indirect input;
-Unseal does not fetch components from the network.
+Unseal does not fetch components from the network. DjVu hidden text decodes
+into a per-page spatial structure that binds the stored zone tree (bottom-left
+coordinates, all seven zone types) to canonical UTF-16 ranges under the stable
+`djvu.hidden-text` profile; the DjVu wire payload carries each page's encoded
+text chunk so wire-resident books rebuild the structure.
+
+ALTO OCR sidecars import as a reading feature, not a book format: the host
+supplies the OCR document and its link to a target page, Unseal parses the
+declared subset (namespaces v2–v4, pixel/`mm10`/`inch1200` units, positioned
+blocks, lines, strings with confidence) and binds its words onto a canonical
+snapshot. Coordinate conversion requires a verified scale; repeated quotes
+stay ambiguous with bounded candidate lists. Unseal does not run OCR.
 
 ## Progressive session flow
 
