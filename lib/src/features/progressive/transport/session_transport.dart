@@ -14,6 +14,7 @@ import '../../search/index/search_index_identity.dart';
 import '../../search/index/search_index_wire.dart';
 import '../byte_source_gate.dart';
 import '../session_engine.dart';
+import '../session_policy.dart';
 
 /// The delivery layer behind the public `BookSession`: one session's ops
 /// its resident engine.
@@ -129,6 +130,9 @@ final class InlineSourceSessionTransport extends InlineSessionTransport {
   final ByteSourceGate _gate;
 
   @override
+  String? get sourceRevision => _gate.revisionAtOpen;
+
+  @override
   void dispose() {
     super.dispose();
     unawaited(_gate.close());
@@ -150,37 +154,61 @@ class InlineSessionTransport implements SessionTransport {
   @override
   String? get sourceRevision => null;
 
-  @override
-  Future<Uint8List?> resource(final String path) async => _engine.resource(path);
+  var _disposed = false;
+  final Set<Completer<Object?>> _pending = <Completer<Object?>>{};
+
+  Future<T> _dispatch<T>(final FutureOr<T> Function() issue) {
+    if (_disposed) return Future<T>.error(const SessionClosedException());
+
+    final completer = Completer<Object?>();
+    _pending.add(completer);
+    unawaited(
+      Future<T>.sync(issue).then(
+        (final value) {
+          if (!completer.isCompleted) completer.complete(value);
+          _pending.remove(completer);
+        },
+        onError: (final Object error, final StackTrace stack) {
+          if (!completer.isCompleted) completer.completeError(error, stack);
+          _pending.remove(completer);
+        },
+      ),
+    );
+    return completer.future.then((final value) => value as T);
+  }
+
+  void _drain(final Object error) {
+    for (final request in _pending) {
+      request.completeError(error);
+    }
+    _pending.clear();
+  }
 
   @override
-  Future<Uint8List?> bytesRange(final int offset, final int count) async =>
-      _engine.bytesRange(offset, count);
-
+  Future<Uint8List?> resource(final String path) => _dispatch(() => _engine.resource(path));
   @override
-  Future<Map<String, Uint8List>> resources(final Set<String> paths) async {
+  Future<Uint8List?> bytesRange(final int offset, final int count) =>
+      _dispatch(() => _engine.bytesRange(offset, count));
+  @override
+  Future<Map<String, Uint8List>> resources(final Set<String> paths) => _dispatch(() async {
     final result = <String, Uint8List>{};
     for (final path in paths) {
       final bytes = await _engine.resource(path);
       if (bytes != null) result[path] = bytes;
     }
-
     return result;
-  }
-
+  });
   @override
-  Future<String?> documentText(final String path) async => _engine.documentText(path);
-
+  Future<String?> documentText(final String path) => _dispatch(() => _engine.documentText(path));
   @override
-  Future<String?> documentSource(final String path) async => _engine.documentSource(path);
-
+  Future<String?> documentSource(final String path) =>
+      _dispatch(() => _engine.documentSource(path));
   @override
-  Future<PdfPageText?> pdfLines(final int pageIndex) async => _engine.loadPdfPageLines(pageIndex);
-
+  Future<PdfPageText?> pdfLines(final int pageIndex) =>
+      _dispatch(() => _engine.loadPdfPageLines(pageIndex));
   @override
-  Future<PdfPageStructure?> pdfStructure(final int pageIndex) async =>
-      _engine.loadPdfPageStructure(pageIndex);
-
+  Future<PdfPageStructure?> pdfStructure(final int pageIndex) =>
+      _dispatch(() => _engine.loadPdfPageStructure(pageIndex));
   @override
   Future<SearchResults> search(
     final String query, {
@@ -190,8 +218,8 @@ class InlineSessionTransport implements SessionTransport {
     required final int nearChars,
     required final int contextChars,
     required final int maxMatches,
-  }) async {
-    return _engine.search(
+  }) => _dispatch(
+    () => _engine.search(
       query,
       mode: mode,
       isCaseSensitive: isCaseSensitive,
@@ -199,18 +227,15 @@ class InlineSessionTransport implements SessionTransport {
       nearChars: nearChars,
       contextChars: contextChars,
       maxMatches: maxMatches,
-    );
-  }
-
+    ),
+  );
   @override
-  Future<BookProgression> computeProgression() async => _engine.computeProgression();
-
+  Future<BookProgression> computeProgression() => _dispatch(_engine.computeProgression);
   @override
   Future<Map<String, Object?>> searchIndexEnsure(
     final int maxSections,
     final SearchIndexIdentity? identity,
-  ) async => _engine.searchIndexEnsure(maxSections, identity);
-
+  ) => _dispatch(() => _engine.searchIndexEnsure(maxSections, identity));
   @override
   Future<IndexedSearchResults> searchIndexQuery(
     final String query, {
@@ -218,49 +243,42 @@ class InlineSessionTransport implements SessionTransport {
     required final int? maxMatches,
     required final int? maxExpansions,
     required final int contextChars,
-  }) async => decodeIndexedSearchResultsWire(
-    _engine.searchIndexQuery(
-      query,
-      mode: mode,
-      maxMatches: maxMatches,
-      maxExpansions: maxExpansions,
-      contextChars: contextChars,
+  }) => _dispatch(
+    () => decodeIndexedSearchResultsWire(
+      _engine.searchIndexQuery(
+        query,
+        mode: mode,
+        maxMatches: maxMatches,
+        maxExpansions: maxExpansions,
+        contextChars: contextChars,
+      ),
     ),
   );
-
   @override
-  Future<Map<String, Object?>> searchIndexExport() async => _engine.searchIndexExport();
-
+  Future<Map<String, Object?>> searchIndexExport() => _dispatch(_engine.searchIndexExport);
   @override
   Future<Map<String, Object?>> searchIndexImport(
     final Map<String, Object?> payload,
     final SearchIndexIdentity? identity,
-  ) async => _engine.searchIndexImport(payload, identity);
-
+  ) => _dispatch(() => _engine.searchIndexImport(payload, identity));
   @override
-  Future<void> searchIndexDrop() async => _engine.searchIndexDrop();
-
+  Future<void> searchIndexDrop() => _dispatch(_engine.searchIndexDrop);
   @override
-  Future<BookStatistics> computeStatistics() async => _engine.computeStatistics();
-
+  Future<BookStatistics> computeStatistics() => _dispatch(_engine.computeStatistics);
   @override
-  Future<EpubCfiLocation?> resolveCfi(final String cfi) async => _engine.resolveCfi(cfi);
-
+  Future<EpubCfiLocation?> resolveCfi(final String cfi) => _dispatch(() => _engine.resolveCfi(cfi));
   @override
-  Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) {
-    return Future<String>.value(
-      _engine.buildCfi(contentIndex: contentIndex, offsetInText: offsetInText),
-    );
+  Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) =>
+      _dispatch(() => _engine.buildCfi(contentIndex: contentIndex, offsetInText: offsetInText));
+  @override
+  Future<Map<String, Object?>> metrics() => _dispatch(_engine.metrics);
+  @override
+  void cancelPending() => _drain(const SessionCancelledException());
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _drain(const SessionClosedException());
+    _engine.close();
   }
-
-  @override
-  Future<Map<String, Object?>> metrics() async => _engine.metrics();
-
-  @override
-  void cancelPending() {
-    // Engine ops run synchronously here: nothing can be in flight.
-  }
-
-  @override
-  void dispose() => _engine.close();
 }

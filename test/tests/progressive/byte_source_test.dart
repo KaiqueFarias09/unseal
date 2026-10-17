@@ -56,6 +56,11 @@ final class RecordingByteSource implements UnsealByteSource {
       <({int offset, int count, int sequence})>[];
   final Completer<void> _firstRead = Completer<void>();
 
+  var activeRequests = 0;
+  var activeBytes = 0;
+  var peakRequests = 0;
+  var peakBytes = 0;
+
   bool get closed => _closed;
   int get readCount => _readCount;
   int get totalBytesRequested => reads.fold(0, (final total, final read) => total + read.count);
@@ -72,21 +77,30 @@ final class RecordingByteSource implements UnsealByteSource {
     final sequence = _readCount++;
     reads.add((offset: offset, count: count, sequence: sequence));
     if (!_firstRead.isCompleted) _firstRead.complete();
-    if (delay > Duration.zero) await Future<void>.delayed(delay);
-    if (offset == throwAt || sequence == failOnSequence) {
-      throw Exception('host transport failure');
-    }
-    if (offset == shortReadAt || sequence == shortReadOnSequence) {
-      return Uint8List.sublistView(bytes, offset, offset + count - 1);
-    }
-    if (offset == longReadAt || sequence == longReadOnSequence) {
-      final long = Uint8List(count + 1);
-      long.setRange(0, count, Uint8List.sublistView(bytes, offset, offset + count));
+    activeRequests++;
+    activeBytes += count;
+    if (activeRequests > peakRequests) peakRequests = activeRequests;
+    if (activeBytes > peakBytes) peakBytes = activeBytes;
+    try {
+      if (delay > Duration.zero) await Future<void>.delayed(delay);
+      if (offset == throwAt || sequence == failOnSequence) {
+        throw Exception('host transport failure');
+      }
+      if (offset == shortReadAt || sequence == shortReadOnSequence) {
+        return Uint8List.sublistView(bytes, offset, offset + count - 1);
+      }
+      if (offset == longReadAt || sequence == longReadOnSequence) {
+        final long = Uint8List(count + 1);
+        long.setRange(0, count, Uint8List.sublistView(bytes, offset, offset + count));
 
-      return long;
-    }
+        return long;
+      }
 
-    return Uint8List.sublistView(bytes, offset, offset + count);
+      return Uint8List.sublistView(bytes, offset, offset + count);
+    } finally {
+      activeRequests--;
+      activeBytes -= count;
+    }
   }
 
   @override
@@ -96,6 +110,39 @@ final class RecordingByteSource implements UnsealByteSource {
 }
 
 void main() {
+  for (final scenario in <(String, int, int, int)>[
+    ('request slots', 2, 400 << 10, 2),
+    ('cumulative bytes', 3, 600 << 10, 1),
+  ]) {
+    test('public source bridge enforces ${scenario.$1} before host reads', () async {
+      final source = RecordingByteSource(
+        _bytes(chemistryEpub),
+        revision: 'budget-1',
+        delay: const Duration(milliseconds: 3),
+      );
+      final session = await BookSession.openSource(
+        source,
+        policy: SessionPolicy(
+          rangeRequestsInFlight: scenario.$2,
+          rangeBytesInFlight: 1 << 20,
+          rangeRequestBytes: 1 << 20,
+        ),
+      );
+      addTearDown(session.dispose);
+      source.peakRequests = 0;
+      source.peakBytes = 0;
+      final answers = await Future.wait(<Future<Uint8List?>>[
+        for (var i = 0; i < 8; i++) session.loadBytesRange(i * 7, scenario.$3),
+      ]);
+      for (var i = 0; i < answers.length; i++) {
+        expect(answers[i], source.bytes.sublist(i * 7, i * 7 + scenario.$3));
+      }
+      expect(source.peakRequests, scenario.$4);
+      expect(source.peakBytes, lessThanOrEqualTo(1 << 20));
+      expect(source.activeRequests, 0);
+    });
+  }
+
   group('ByteSourceGate contract', () {
     test('exact reads, bounds, and typed short/long/host failures', () async {
       final raw = _bytes(syntheticCbz);

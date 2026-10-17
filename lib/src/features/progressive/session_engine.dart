@@ -913,6 +913,7 @@ final class SessionEngine {
   }
 
   void _store(final String key, final _CacheEntry entry) {
+    _ensureOpen();
     _cache[key] = entry;
     _evictOverBudget();
   }

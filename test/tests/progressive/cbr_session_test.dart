@@ -300,7 +300,7 @@ void main() {
     });
   });
 
-  group('CBR solid sessions (RS04/RS06)', () async {
+  group('CBR solid sessions (RS04/RS06)', () {
     test('solid pages decode identically in forward, reverse and interleaved order', () async {
       final bytes = _bytes(rar5SolidComicCbr);
       final engine = await SessionEngine.openBytes(bytes);
@@ -409,7 +409,7 @@ void main() {
     });
   });
 
-  group('byteLength and loadBytesRange', () async {
+  group('byteLength and loadBytesRange', () {
     test('the engine reports the container length and clamps slices', () async {
       final bytes = _bytes(storedCbr);
       final engine = await SessionEngine.openBytes(bytes);
@@ -455,7 +455,7 @@ void main() {
     });
   });
 
-  group('CBR session lifecycle', () async {
+  group('CBR session lifecycle', () {
     test('cancelPending fails queued page loads typed and the session stays usable', () async {
       final session = await BookSession.openFile('test/resources/$method29Cbr');
       addTearDown(session.dispose);

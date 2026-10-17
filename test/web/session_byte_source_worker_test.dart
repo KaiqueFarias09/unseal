@@ -12,7 +12,7 @@ import 'package:unseal/unseal.dart';
 
 Uint8List _utf8(final String value) => Uint8List.fromList(convert.utf8.encode(value));
 
-Uint8List _epub(final String title, final String paragraph) {
+Uint8List _epub(final String title, final String paragraph, {final int paddingBytes = 0}) {
   final archive = Archive();
   archive.addFile(
     ArchiveFile('mimetype', 20, _utf8('application/epub+zip'))..compression = CompressionType.none,
@@ -36,6 +36,12 @@ Uint8List _epub(final String title, final String paragraph) {
   );
   archive.addFile(ArchiveFile('chapter.xhtml', chapter.length, chapter));
 
+  if (paddingBytes > 0) {
+    archive.addFile(
+      ArchiveFile('padding.bin', paddingBytes, Uint8List(paddingBytes))
+        ..compression = CompressionType.none,
+    );
+  }
   return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
@@ -65,6 +71,11 @@ final class RecordingByteSource implements UnsealByteSource {
   var _closed = false;
   final List<({int offset, int count})> reads = <({int offset, int count})>[];
 
+  var activeRequests = 0;
+  var activeBytes = 0;
+  var peakRequests = 0;
+  var peakBytes = 0;
+
   bool get closed => _closed;
   int get totalBytesRequested => reads.fold(0, (final total, final read) => total + read.count);
 
@@ -76,9 +87,18 @@ final class RecordingByteSource implements UnsealByteSource {
     if (_closed) throw const ByteSourceClosedException();
     RangeError.checkValidRange(offset, offset + count, bytes.length, 'offset', 'end');
     reads.add((offset: offset, count: count));
-    if (delay > Duration.zero) await Future<void>.delayed(delay);
+    activeRequests++;
+    activeBytes += count;
+    if (activeRequests > peakRequests) peakRequests = activeRequests;
+    if (activeBytes > peakBytes) peakBytes = activeBytes;
+    try {
+      if (delay > Duration.zero) await Future<void>.delayed(delay);
 
-    return Uint8List.sublistView(bytes, offset, offset + count);
+      return Uint8List.sublistView(bytes, offset, offset + count);
+    } finally {
+      activeRequests--;
+      activeBytes -= count;
+    }
   }
 
   @override
@@ -88,12 +108,72 @@ final class RecordingByteSource implements UnsealByteSource {
 }
 
 void main() {
+  for (final scenario in <(String, int, int, int)>[
+    ('request slots', 2, 400 << 10, 2),
+    ('cumulative bytes', 3, 600 << 10, 1),
+  ]) {
+    test('public source bridge enforces ${scenario.$1} before host reads', () async {
+      final source = RecordingByteSource(
+        _epub('Budgets', 'budget test', paddingBytes: 2 << 20),
+        revision: 'budget-1',
+        delay: const Duration(milliseconds: 3),
+      );
+      final session = await BookSession.openSource(
+        source,
+        policy: SessionPolicy(
+          rangeRequestsInFlight: scenario.$2,
+          rangeBytesInFlight: 1 << 20,
+          rangeRequestBytes: 1 << 20,
+        ),
+      );
+      addTearDown(session.dispose);
+      source.peakRequests = 0;
+      source.peakBytes = 0;
+      final answers = await Future.wait(<Future<Uint8List?>>[
+        for (var i = 0; i < 8; i++) session.loadBytesRange(i * 7, scenario.$3),
+      ]);
+      for (var i = 0; i < answers.length; i++) {
+        expect(answers[i], source.bytes.sublist(i * 7, i * 7 + scenario.$3));
+      }
+      expect(source.peakRequests, scenario.$4);
+      expect(source.peakBytes, lessThanOrEqualTo(1 << 20));
+      expect(source.activeRequests, 0);
+    });
+  }
+
   setUp(() {
     // The Chrome lane builds this worker before running test/web/.
     UnsealWorker.configure(Uri.base.resolve('unseal_worker.js'));
   });
 
   tearDown(UnsealWorker.dispose);
+
+  test(
+    'inline source fallback preserves revision and drains cancelled and disposed requests',
+    () async {
+      UnsealWorker.dispose();
+      final source = RecordingByteSource(
+        _epub('Inline', 'inline fallback content'),
+        revision: 'inline-1',
+        delay: const Duration(milliseconds: 5),
+      );
+      final session = await BookSession.openSource(source);
+      addTearDown(session.dispose);
+      expect(UnsealWorker.isConfigured, isFalse);
+      expect(session.sourceRevision, 'inline-1');
+      final path = session.book.readingOrder.first.name;
+      final pending = session.loadDocumentText(path);
+      session.cancelPending();
+      await expectLater(pending, throwsA(isA<SessionCancelledException>()));
+      expect(await session.loadDocumentText(path), contains('inline fallback content'));
+      final range = session.loadBytesRange(0, 20);
+      session.dispose();
+      await expectLater(range, throwsA(isA<SessionClosedException>()));
+      await expectLater(session.loadDocumentText(path), throwsA(isA<SessionClosedException>()));
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(source.closed, isTrue);
+    },
+  );
 
   test('two source sessions run in the real worker without exchanging bytes', () async {
     final a = RecordingByteSource(

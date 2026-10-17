@@ -6,6 +6,7 @@ import '../mobi/codec/mobi_base32.dart';
 import '../mobi/codec/mobi_byte_search.dart';
 import '../mobi/codec/mobi_text_codec.dart';
 import '../mobi/entities/entities.dart';
+import '../mobi/exceptions/mobi_exception.dart';
 import '../mobi/header/mobi_header.dart';
 import '../mobi/header/mobi_layout.dart';
 import '../mobi/header/pdb_header.dart';
@@ -208,6 +209,7 @@ int? _coverRecordIndex(final PdbRecordAccess pdb, final MobiHeader header) {
 BinaryFile _coverFile(final PdbRandomAccess pdb, final int? index, final SessionPolicy policy) {
   if (index == null) return BinaryFile.empty();
 
+  if (pdb.recordLength(index) > policy.coverMaxBytes) return BinaryFile.empty();
   final data = pdb.record(index);
   final type = sniffImageType(data);
   if (type == null) return BinaryFile.empty();
@@ -303,6 +305,7 @@ final class MobiSessionContent {
   /// The canonical [TextFile] of a section (MOBI 6), part or CSS flow
   /// (KF8), or null when the path does not exist.
   TextFile? textFile(final String path) {
+    _ensureResources();
     final file = isKf8 ? kf8!.textFile(path) : mobi6!.textFile(this, path);
     if (file != null) counter.addMaterialized(file.content.length * 2);
 
@@ -564,7 +567,18 @@ final class Mobi6ServingPlan {
     // are pure structure — removing them changes no canonical text.
     bytes = _stripDocumentWrappers(bytes);
 
-    final html = processMobi6Html(decodeBytes(bytes, content.header.codec), content._recindexNames);
+    final html = processMobi6Html(decodeBytes(bytes, content.header.codec), content._recindexNames)
+        .replaceAllMapped(RegExp(r'href="#filepos(\d+)"'), (final match) {
+          final target = int.parse(match.group(1)!);
+          final boundary = sectionPlan.boundaryByTarget[target];
+          if (boundary == null) return match.group(0)!;
+          for (final destination in sectionPlan.sections) {
+            if (boundary >= destination.start && boundary < destination.end) {
+              return 'href="${destination.name}#filepos$target"';
+            }
+          }
+          return match.group(0)!;
+        });
 
     return TextFile(content: html, name: section.name, type: 'html', path: section.name);
   }
@@ -627,7 +641,6 @@ final class Mobi8ServingPlan {
       if (descriptor.filename != null) descriptor.filename!: descriptor.number,
   };
 
-  final List<Mobi8Flow?> _flowCache = <Mobi8Flow?>[];
   final List<List<_BuiltSegment>> _segmentCache = <List<_BuiltSegment>>[];
   List<String?>? _embedNames;
 
@@ -660,7 +673,6 @@ final class Mobi8ServingPlan {
       } else {
         result.add(Mobi8FlowDescriptor(number, 'css', 'flow$padded.css', flags.start));
       }
-      _flowCache.add(null);
     }
 
     return result;
@@ -724,8 +736,8 @@ final class Mobi8ServingPlan {
       readSlice: _flow0Slice,
     );
 
-    _ensureInlineFlows(built);
-    final markup = _finalizer().finalizePart(partBytes: built, codec: _header.codec);
+    final inlineFlows = _inlineFlows(built);
+    final markup = _finalizer(inlineFlows).finalizePart(partBytes: built, codec: _header.codec);
 
     return TextFile(content: markup, name: path, type: 'html', path: path);
   }
@@ -737,44 +749,54 @@ final class Mobi8ServingPlan {
     return _store.slice(from, to);
   }
 
-  void _ensureInlineFlows(final Uint8List built) {
+  Map<int, String> _inlineFlows(final Uint8List built) {
+    final loaded = <int, String>{};
+    var materializedBytes = 0;
     final text = String.fromCharCodes(built);
     for (final match in mobi8FlowRefPattern.allMatches(text)) {
       try {
         final number = parseBase32(match.group(1)!);
         if (number < 1 || number > descriptors.length) continue;
-        if (_flowCache[number - 1] != null) continue;
+        if (loaded.containsKey(number)) continue;
         if (_descriptor(number).filename != null) continue;
 
-        flowContent(number);
+        final flow = flowContent(number, maxBytes: _maxFlowMaterializedBytes - materializedBytes);
+        materializedBytes += flow.length * 2;
+        loaded[number] = flow;
+      } on MobiException {
+        rethrow;
       } on Object {
         // Unparseable reference: the finalizer keeps the raw tag, like
         // the eager parse's unknown-flow path.
       }
     }
+    return loaded;
   }
 
-  /// Loads and link-rewrites a flow's content on demand.
-  String flowContent(final int flowNumber) {
-    final cached = _flowCache[flowNumber - 1];
-    if (cached != null) return cached.content;
+  static const _maxFlowMaterializedBytes = 64 << 20;
 
+  /// Loads one flow without retaining its text outside the engine's bounded LRU.
+  String flowContent(final int flowNumber, {final int maxBytes = _maxFlowMaterializedBytes}) {
     final descriptor = _descriptor(flowNumber);
     final flags = scan.flows[flowNumber - 1];
     final start = descriptor.contentStart;
     final end = flags.end > _store.streamLength ? _store.streamLength : flags.end;
+    if ((end - start) * 2 + 128 > maxBytes) {
+      throw const MobiException('KF8 flow content exceeds the materialization byte budget.');
+    }
     var asText = String.fromCharCodes(_store.slice(start, end));
     if (descriptor.kind == 'css' && descriptor.filename == null) {
       asText = '<style type="text/css">\n$asText\n</style>\n';
     }
     final flow = Mobi8Flow(descriptor.number, descriptor.kind, descriptor.filename, asText);
     flow.content = _finalizer().rewriteFlowContent(flow.content);
-    _flowCache[flowNumber - 1] = flow;
-
+    if (flow.content.length * 2 > maxBytes) {
+      throw const MobiException('KF8 rewritten flow exceeds the materialization byte budget.');
+    }
     return flow.content;
   }
 
-  Mobi8MarkupFinalizer _finalizer() {
+  Mobi8MarkupFinalizer _finalizer([final Map<int, String> inlineFlows = const <int, String>{}]) {
     return Mobi8MarkupFinalizer(
       flows: <Mobi8Flow>[
         for (var i = 0; i < descriptors.length; i++)
@@ -782,7 +804,7 @@ final class Mobi8ServingPlan {
             descriptors[i].number,
             descriptors[i].kind,
             descriptors[i].filename,
-            _flowCache[i]?.content ?? '',
+            inlineFlows[descriptors[i].number] ?? '',
           ),
       ],
       resourceMap: _embedNameMap(),
