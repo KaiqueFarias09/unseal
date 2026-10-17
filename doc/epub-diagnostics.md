@@ -97,6 +97,10 @@ Diagnostics do not change any existing outcome:
 
 ## Limits
 
+XML is checked before building its tree: at most 16 MiB, 128 nested elements,
+and one million elements per resource. Excessive structures fail typed even
+in optional navigation or fragment targets.
+
 Diagnostics run under the same container safety limits as reading
 (`decodeBookZip`), plus report-specific bounds in `EpubDiagnosticsOptions`:
 

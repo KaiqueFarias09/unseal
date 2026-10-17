@@ -206,7 +206,9 @@ Input is untrusted. The following rules are architectural, not parser details:
   with typed failures, and must decode identically on the VM and on compiled
   JavaScript (integer shifts normalized).
 - Bound XML depth and convert malformed or excessive structures to typed
-  failures.
+  failures. EPUB diagnostics preflight XML at 16 MiB, 128 nesting levels,
+  and one million elements. ALTO preflights nesting and element counts before
+  allocating a DOM and rejects non-finite geometry.
 - Preserve HTML as data. A consuming renderer must sanitize or isolate it.
 - Reject unsupported DRM. Do not attempt to bypass access controls.
 

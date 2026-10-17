@@ -10,7 +10,7 @@ first session commit.
 
 | Property | Value |
 | --- | --- |
-| Program | `/Applications/calibre.app/Contents/MacOS/ebook-convert` |
+| Programs | `ebook-convert` and `calibre-debug` from the same Calibre installation |
 | Installed version | 9.4.0 (frozen macOS bundle; the bundle embeds no git revision — `calibre.constants.git_version` is `None`) |
 | Source revision | calibre tag `v9.4.0` (tag object `55e3f7667ee04a52addee24a38c91b98b28a55d1`) → commit `0fe2747ab1959e715a239a7fe81eaa85692eb004` |
 | Installed and source recorded separately | yes, as required; the binary version and the upstream source commit are independent facts |
@@ -46,6 +46,11 @@ Declared before implementation. `tool/mobi_session_compare.dart`
 implements them; changing a rule invalidates prior evidence and
 requires a new dated declaration in this file.
 
+Integration review, October 17, 2026: R5 now additionally requires independent
+Calibre metadata, navigation and original resource comparisons, and R6 uses
+fresh processes for the memory baseline. Earlier text-only or same-process
+reports do not establish these additional checks; rerun the current driver.
+
 - **R1 canonical text (eager ↔ session).** Text space is
   `documentTextOf` (the shared canonical scanner). MOBI6: the
   concatenation of session section texts, in reading order, joined by
@@ -71,6 +76,12 @@ requires a new dated declaration in this file.
   calibration runs (below) show Calibre preserving a `U+00A0` the
   eager pipeline drops — a spacing reconstruction difference, not a
   content difference. Pass rule: exact equality after normalization.
+  The acceptance run requires both Calibre directories. It also compares
+  OPF title/authors/languages and source ASIN, NCX label order/depth and
+  resolved target text, plus exact image/font hash multisets from Calibre
+  extraction before conversion. `tool/mobi_calibre_resources.py` runs
+  inside Calibre to avoid treating its cover resizing or omitted thumbnail
+  as differences in the source resource bytes.
 - **R6 progressivity instrumentation.** The engine counts PDB record
   reads, text records decompressed, decompressed bytes, text bytes
   materialized, and resource bytes materialized. Required properties:
@@ -79,7 +90,10 @@ requires a new dated declaration in this file.
   its byte span covers (cross-checked against the record offset index
   the open pass built). The baseline measurement runs eager and
   session over the same file in the same execution mode and reports
-  wall time and peak RSS (VM).
+  wall time, sampled current RSS, and process peak RSS (VM). Each eager
+  and session measurement runs in its own fresh VM process; PIDs and
+  per-stage metrics are recorded. These are process measurements including
+  runtime overhead, not estimates of retained book objects.
 
 ### Calibration evidence (pre-implementation)
 
@@ -123,15 +137,17 @@ assemble one at a time over on-demand record slices; positions resolve over
 bounded built-byte windows (1 MiB backward budget), and the linked-aid set
 resolves fully at open so any part finalizes in any order with the eager
 markup outcome. Resources enumerate lazily via head-only record sniffs;
-fonts and covers keep eager names. DRM fails typed before any content work.
+fonts and covers keep eager names. Images and cross-section links resolve
+from the first chapter request. Cover size is checked before loading its
+record, and secondary flow text is transient rather than an unbounded
+format cache. DRM fails typed before any content work.
 
-Measured on the licensed corpus (same machine, same run, one warmed eager
-pass; `tool/mobi_session_bench.dart`):
-
-| Input | Eager open | Session open | First section | Session open materialized |
-| --- | --- | --- | --- | --- |
-| `alice-old-pg.mobi` (MOBI 6) | 10.7 ms | 25.0 ms (includes isolate spawn) | 2.2 ms | 0 bytes |
-| `alice-kf8-pg.azw3` (KF8) | 14.3 ms | 25.3 ms (includes isolate spawn) | 4.9 ms | 0 bytes |
+Reproduce timing and memory with `tool/mobi_session_bench.dart`. It runs the
+eager and session paths in separate fresh processes and records open, first
+section and resource timings, stage memory samples and process peak RSS.
+The acceptance comparator invokes it for both licensed books and links the
+command, result and log hash. Historical warm-process timings are omitted
+because they do not describe this isolated measurement method.
 
 The session's open pass reads and decodes the whole stream for the index
 (measured: ~456 KB decoded for the 241 KB MOBI 6), which is the declared

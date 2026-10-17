@@ -1,4 +1,4 @@
-## Unreleased
+## 1.3.0 - October 17, 2026
 
 ### Added
 
@@ -50,6 +50,41 @@
   history. The archive-level solid flag alone leaves entries
   independent, matching the reference decoder.
 
+
+- Structured PDF pages with glyph-derived words, lines, blocks, columns,
+  simple tables, page geometry, and stable source anchors. Source anchors
+  map to canonical text across reopening and eager/progressive mode changes;
+  canonical snapshots retain each mode's extraction profile and reflow plan.
+  Structures are available through eager parsing, sessions, and browser workers.
+- A common text contract with publication revisions, section occurrences,
+  extraction profiles, UTF-16 ranges, deterministic SHA-256 revisions, and
+  validated snapshot/range codecs.
+- Optional per-publication indexed search with BM25+ ranking, exact, prefix,
+  and bounded fuzzy queries. Incremental construction reports coverage and
+  supports cancellation. Results preserve original UTF-16 ranges and stable
+  ordering. Existing `Book.search` behavior is unchanged.
+- Search-index export/import for eager books and progressive sessions,
+  including PDF. Reuse verifies destination text, reading order, and extraction
+  profile. PDF indexes reopen within the same extraction mode; switching modes
+  requires rebuilding. Structurally imported indexes require live text
+  verification before querying.
+- Durable annotation anchors with publication identity, revision, occurrence,
+  quote/context evidence, a versioned codec, verified reuse, and explicit
+  migration. Resolution reports ambiguity, missing targets, incompatible
+  revisions, and unsupported cases. The W3C adapter supports TextQuoteSelector
+  and TextPositionSelector with code point/UTF-16 conversion. Existing v1
+  annotation and locator codecs remain unchanged.
+- Compressed RAR 5 comic entries using algorithm version 0,
+  methods 1-5, delta/E8/E8-E9/ARM filters, UTF-8 names, and dictionaries through
+  64 MiB. Eager and progressive readers share the decoder and container walk.
+- JPEG 2000 Part 1 decoding for PDF `JPXDecode`, including ASCII85 filter
+  chains: J2K/JP2, unsigned 8-bit grayscale/RGB, reversible 5/3 and irreversible
+  9/7 wavelets, LRCP/RLCP, single/multiple tiles, RCT/ICT, SOP/EPH markers,
+  segmentation symbols, custom precincts, and multiple quality layers.
+- Licensed fixtures, independent reference comparators, focused malformed-input
+  coverage, VM/browser parity tests, and benchmarks for the new features.
+  Reference tools remain development dependencies only.
+
 ### Changed
 
 - Progressive CBR sessions decode solid chains sequentially at open
@@ -93,46 +128,16 @@
   isolation so concurrent books never exchange bytes. Bytes, file,
   CBR, and PDF opens are unchanged.
 
-## 1.3.0 - October 17, 2026
-
-### Added
-
-- Structured PDF pages with glyph-derived words, lines, blocks, columns,
-  simple tables, page geometry, and stable source anchors. Source anchors
-  map to canonical text across reopening and eager/progressive mode changes;
-  canonical snapshots retain each mode's extraction profile and reflow plan.
-  Structures are available through eager parsing, sessions, and browser workers.
-- A common text contract with publication revisions, section occurrences,
-  extraction profiles, UTF-16 ranges, deterministic SHA-256 revisions, and
-  validated snapshot/range codecs.
-- Optional per-publication indexed search with BM25+ ranking, exact, prefix,
-  and bounded fuzzy queries. Incremental construction reports coverage and
-  supports cancellation. Results preserve original UTF-16 ranges and stable
-  ordering. Existing `Book.search` behavior is unchanged.
-- Search-index export/import for eager books and progressive sessions,
-  including PDF. Reuse verifies destination text, reading order, and extraction
-  profile. PDF indexes reopen within the same extraction mode; switching modes
-  requires rebuilding. Structurally imported indexes require live text
-  verification before querying.
-- Durable annotation anchors with publication identity, revision, occurrence,
-  quote/context evidence, a versioned codec, verified reuse, and explicit
-  migration. Resolution reports ambiguity, missing targets, incompatible
-  revisions, and unsupported cases. The W3C adapter supports TextQuoteSelector
-  and TextPositionSelector with code point/UTF-16 conversion. Existing v1
-  annotation and locator codecs remain unchanged.
-- Compressed, non-solid RAR 5 comic entries using algorithm version 0,
-  methods 1-5, delta/E8/E8-E9/ARM filters, UTF-8 names, and dictionaries through
-  64 MiB. Eager and progressive readers share the decoder and container walk.
-- JPEG 2000 Part 1 decoding for PDF `JPXDecode`, including ASCII85 filter
-  chains: J2K/JP2, unsigned 8-bit grayscale/RGB, reversible 5/3 and irreversible
-  9/7 wavelets, LRCP/RLCP, single/multiple tiles, RCT/ICT, SOP/EPH markers,
-  segmentation symbols, custom precincts, and multiple quality layers.
-- Licensed fixtures, independent reference comparators, focused malformed-input
-  coverage, VM/browser parity tests, and benchmarks for the new features.
-  Reference tools remain development dependencies only.
-
 ### Fixed
 
+- Mixed literal Unicode and percent-escaped EPUB paths resolve correctly.
+  Diagnostic XML is bounded before building its tree.
+- ALTO rejects non-finite or negative geometry with typed errors and cannot
+  report a repeated OCR quote as unique after truncating its candidate scan.
+- RAR solid random access handles stored intermediate entries and verifies
+  every dependency checksum before reusing decoder state.
+- MOBI session chapters preserve image and cross-section link targets;
+  cancellation also works when a host byte source runs inline.
 - PDF text matrices and text rise now compose correctly with the current
   transformation matrix. Word geometry matches the pinned PdfPig oracle on
   the real-book corpus without changing canonical text.
@@ -149,7 +154,7 @@
 ### Behavior and limits
 
 - RAR 5 validates header CRC-32 and declared data CRC-32, including zero.
-  Solid, split, encrypted, linked, unknown-size, unsupported-version, and
+  Split, encrypted, linked, unknown-size, unsupported-version, and
   oversized-dictionary entries fail with typed errors. RAR 4 is unchanged.
 - JPEG 2000 remains a bounded subset. Unsupported coding styles, color models,
   alpha, profiles, and conflicting dimensions fail with typed PDF errors.

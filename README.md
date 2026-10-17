@@ -492,6 +492,14 @@ an application that offers OCR; it does not prove that a page is a scan.
 `columnOrderApplied` indicates that Unseal reordered clearly separated,
 text-only columns for reflow and the canonical text stream.
 
+```dart
+final pdf = parsePdfBook(pdfBytes);
+for (var i = 0; i < pdf.pageTexts.length; i++) {
+  final page = pdf.pageTexts[i];
+  print('Page ${i + 1}: ${page.quality}, skipped=${page.skippedContentStreams}');
+}
+```
+
 `DjvuBook.pages` exposes directly stored JPEG pages, decoded JB2 masks as
 black-on-white 1-bit BMP images, and bounded IW44 photo or composed pages as
 24-bit BMP images. It preserves dimensions, DPI, rotation, and hidden text:
@@ -516,7 +524,9 @@ the same revision.
 
 ## ALTO OCR import
 
-`lib/alto.dart` imports ALTO OCR sidecars into the same spatial contract.
+The main `package:unseal/unseal.dart` entry point also imports ALTO OCR
+sidecars into the same spatial contract through `parseAltoDocument` and
+`bindAltoToSnapshot`. `package:unseal/alto.dart` is the narrow entry point.
 The supported subset covers namespaces v2, v3, and v4; the schema's units
 (`pixel`, `mm10`, `inch1200`); pages with dimensions, sequence numbers and
 confidence; text, composed, illustration and graphical-element blocks;
@@ -535,14 +545,6 @@ word reports missing, and a work budget stops hostile quadratic scans. The
 binding preserves the target's identity tuple and the OCR's origin,
 software, and confidence. Browser workers serve the same operations through
 `UnsealWorker.spatialDjvuPageInWorker` and `UnsealWorker.bindAltoInWorker`.
-
-```dart
-final pdf = parsePdfBook(pdfBytes);
-for (var i = 0; i < pdf.pageTexts.length; i++) {
-  final page = pdf.pageTexts[i];
-  print('Page ${i + 1}: ${page.quality}, skipped=${page.skippedContentStreams}');
-}
-```
 
 ## Durable annotations and W3C exchange
 
@@ -739,6 +741,10 @@ verified against libtiff by `tiffcmp` parity over the tracked corpus
 `test/resources/tiff/PROVENANCE.md`).
 
 ### Input and archive boundaries
+
+EPUB diagnostics preflight XML at 16 MiB, 128 nesting levels, and one million
+elements per resource. ALTO validates finite geometry and bounds XML nesting
+and element counts before building its tree.
 
 - Every ZIP-backed format goes through the same bounded decoder. Before
   inflation, unseal rejects containers declaring more than 1 GiB in total,
