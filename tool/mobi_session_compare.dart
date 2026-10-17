@@ -23,6 +23,7 @@
 /// ```
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -576,32 +577,55 @@ Future<void> _runAcceptance(final List<String> arguments) async {
 /// PATH setup.
 String get _dartBin => Platform.resolvedExecutable;
 
-Future<bool> _runDartTest(final List<String> files) async {
-  final result = await Process.run(_dartBin, ['test', ...files]);
+/// Runs [arguments] with the child's output redirected to a file:
+/// browser-test grandchildren (chromedriver, Chrome) inherit the file
+/// descriptor instead of this tool's pipes, so [Process.run] sees EOF
+/// when the direct child exits.
+Future<(bool, String)> _runCaptured(final List<String> arguments) async {
+  final log = File('build/evidence/b04/child-${DateTime.now().microsecondsSinceEpoch}.log');
+  await log.parent.create(recursive: true);
+  final process = await Process.start('/bin/sh', [
+    '-c',
+    '"$_dartBin" ${arguments.map(_shellQuote).join(' ')} > "${log.path}" 2>&1',
+  ]);
+  // Drain the pipes so no open handle keeps this VM alive after main
+  // returns; the child's own output goes to the log file.
+  unawaited(process.stdin.close());
+  unawaited(process.stdout.drain<void>());
+  unawaited(process.stderr.drain<void>());
+  final code = await process.exitCode;
 
-  return result.exitCode == 0;
+  return (code == 0, await log.readAsString());
+}
+
+String _shellQuote(final String value) => "'${value.replaceAll("'", "'\\''")}'";
+
+Future<bool> _runDartTest(final List<String> files) async {
+  final (ok, _) = await _runCaptured(['test', ...files]);
+
+  return ok;
 }
 
 Future<bool> _runChromeWorkerTest() async {
   // Compile the worker, run the browser lane for MOBI sessions, clean
   // the artifacts — the same ritual CI's chrome lane uses.
-  final compile = await Process.run(_dartBin, [
+  final (compileOk, _) = await _runCaptured([
     'compile',
     'js',
     'web/unseal_worker.dart',
     '-o',
     'test/web/unseal_worker.js',
   ]);
-  if (compile.exitCode != 0) return false;
+  if (!compileOk) return false;
   try {
-    final run = await Process.run(_dartBin, [
+    final (ok, _) = await _runCaptured([
       'test',
       '-p',
       'chrome',
       'test/web/session_mobi_worker_test.dart',
     ]);
 
-    return run.exitCode == 0;
+    return ok;
   } finally {
     for (final artifact in [
       'test/web/unseal_worker.js',
