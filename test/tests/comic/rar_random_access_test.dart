@@ -130,6 +130,110 @@ void main() {
     });
   });
 
+  group('RarRandomAccess RAR 5 header contract', () {
+    test('a declared zero CRC is a real checksum that verifies', () {
+      // Content whose CRC-32 is genuinely zero: the session must verify
+      // it (flag present, value zero) instead of treating zero as
+      // "absent".
+      final page = withZeroCrc32(tinyJpegPage);
+      expect(getCrc32(page), isZero);
+      final rar = RarRandomAccess.open(
+        MemoryZipByteSource(buildRar5Files({'a.jpg': page}, dataCrc: 0)),
+      );
+      addTearDown(rar.close);
+      final record = rar.find('a.jpg')!;
+      expect(record.verifiesCrc, isTrue, reason: 'flag 0x0004 present');
+
+      expect(rar.inflate(record), page);
+    });
+
+    test('a declared zero CRC still rejects mismatching content', () {
+      final rar = RarRandomAccess.open(
+        MemoryZipByteSource(buildRar5Files({'a.jpg': tinyJpegPage}, dataCrc: 0)),
+      );
+      addTearDown(rar.close);
+
+      expect(() => rar.inflate(rar.find('a.jpg')!), throwsA(isA<ComicException>()));
+    });
+
+    test('absent CRC flag never rejects, present CRC verifies', () {
+      final absent = RarRandomAccess.open(MemoryZipByteSource(buildRar5(['a.jpg'])));
+      addTearDown(absent.close);
+      expect(absent.find('a.jpg')!.verifiesCrc, isFalse);
+      expect(absent.inflate(absent.find('a.jpg')!), tinyJpegPage);
+
+      final present = RarRandomAccess.open(
+        MemoryZipByteSource(
+          buildRar5Files({'a.jpg': tinyJpegPage}, dataCrc: getCrc32(tinyJpegPage)),
+        ),
+      );
+      addTearDown(present.close);
+      expect(present.find('a.jpg')!.verifiesCrc, isTrue);
+      expect(present.inflate(present.find('a.jpg')!), tinyJpegPage);
+
+      final wrong = RarRandomAccess.open(
+        MemoryZipByteSource(buildRar5Files({'a.jpg': tinyJpegPage}, dataCrc: 0xDEADBEEF)),
+      );
+      addTearDown(wrong.close);
+      expect(() => wrong.inflate(wrong.find('a.jpg')!), throwsA(isA<ComicException>()));
+    });
+
+    test('the shared walk fails open on a broken header CRC', () {
+      final archive = buildRar5(['001.jpg'], headerCrcOverride: 0xDEADBEEF);
+
+      expect(
+        () => RarRandomAccess.open(MemoryZipByteSource(archive)),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('fails its CRC-32 check'),
+          ),
+        ),
+      );
+    });
+
+    test('unsupported RAR 5 variants stay indexed and name their reason', () {
+      final cases = <String, Uint8List>{
+        'split across volumes': buildRar5(['001.jpg'], splitBlockFlags: 0x0010),
+        'algorithm version': buildRar5(['001.jpg'], method: 3, version: 1),
+        'reserved compression method': buildRar5(['001.jpg'], method: 7),
+        'subset limit': buildRar5(['001.jpg'], method: 3, dictExp: 10),
+        'solid stream': buildRar5(['001.jpg'], method: 3, solid: true),
+        'unpacked size': buildRar5(['001.jpg'], fileFlags: 0x0008),
+      };
+
+      cases.forEach((final expectedReason, final archive) {
+        final rar = RarRandomAccess.open(MemoryZipByteSource(archive));
+        addTearDown(rar.close);
+        final record = rar.find('001.jpg')!;
+        expect(record.isFile, isTrue, reason: '$expectedReason stays indexed');
+
+        try {
+          rar.head(record, 8);
+          fail('head must reject: $expectedReason');
+        } on ComicException catch (error) {
+          expect(error.message, contains(expectedReason), reason: error.message);
+        }
+        expect(() => rar.inflate(record), throwsA(isA<ComicException>()));
+      });
+    });
+
+    test('multi-volume archives fail at open', () {
+      expect(
+        () =>
+            RarRandomAccess.open(MemoryZipByteSource(buildRar5(['001.jpg'], archiveFlags: 0x0001))),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('multi-volume'),
+          ),
+        ),
+      );
+    });
+  });
+
   group('RarRandomAccess CRC verification (session-only delta)', () {
     test('declared non-zero CRCs verify on stored RAR 4 payloads', () {
       final crc = getCrc32(tinyJpegPage);

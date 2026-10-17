@@ -484,7 +484,9 @@ The flow is:
 | `features/comic/entities/comic_page_info.dart` | Defines typed page roles and ComicInfo hints such as double-page spreads. Unknown role tokens stay available to callers. |
 | `features/comic/entities/entities.dart` | Re-exports the public comic entity types. |
 | `features/comic/metadata/comic_info.dart` | Reads descriptive fields, `Manga=YesAndRightToLeft`, and indexed `<Page>` attributes. Invalid or out-of-range page declarations do not shift image indices. |
-| `features/comic/archive/rar_reader.dart` | Reads RAR headers and stored entries, then delegates compressed RAR 4 data to the owned decoder. |
+| `features/comic/archive/rar_reader.dart` | Reads RAR headers and stored entries, decodes compressed RAR 4 and RAR 5 streams, and verifies declared RAR 5 checksums. |
+| `features/comic/archive/rar5_archive.dart` | The shared RAR 5 container walk: header CRC verification, bounded vints, UTF-8 names, extra-area records, and the typed out-of-subset classification. |
+| `features/comic/archive/rar5_decoder.dart` | The RAR 5 LZ/Huffman decompressor (algorithm version 0, methods 1-5, filters), a bounded adaptation of rardecode. |
 | `features/comic/archive/rar4_method29_decoder.dart` | Implements the shared bit, Huffman, distance, and copy state machines for supported RAR method-29 compression. |
 | `features/comic/archive/rar_random_access.dart` | Exposes the RAR entry source used by progressive CBR sessions. |
 | `features/comic/exceptions/comic_exception.dart` | Reports invalid archives, unsupported RAR methods, and missing image pages. |
@@ -492,9 +494,9 @@ The flow is:
 
 The RAR decoder is long because it implements a compression algorithm. Splitting tables and tightly coupled state into arbitrary small files would make the algorithm harder to follow. The useful boundary is between archive framing, decompression, metadata, ordering, and book construction.
 
-Current CBR support is deliberately narrower than "any RAR." Stored RAR4 and RAR5 entries work. Common non-solid RAR4 method-29 compression works. Solid archives, split entries, password protection, PPMd, RAR virtual-machine filters, and compressed RAR5 entries do not.
+Current CBR support is deliberately narrower than "any RAR." Stored RAR4 and RAR5 entries work. Common non-solid RAR4 method-29 compression works. Non-solid RAR 5 compression works: algorithm version 0, methods 1-5, the delta / E8 / E8-E9 / ARM filters, UTF-8 names, header and data CRC-32 (a declared zero is a real checksum), and dictionaries through 64 MiB, identical through the eager parse and sessions and byte-checked against the rardecode and libarchive oracles (`tool/rar5_compare.dart`). Solid streams, split volumes, password protection, links, algorithm versions above 0, PPMd, and RAR virtual-machine filters reject typed with the entry name and reason.
 
-Comic page sniffing currently recognizes JPEG, PNG, GIF, BMP, and WebP bytes. RAR CRC values are not validated, and non-ASCII RAR filenames may decode incorrectly. Natural sorting compares basenames first when pages sit at different folder depths, then uses full paths as a tiebreaker.
+Comic page sniffing currently recognizes JPEG, PNG, GIF, BMP, and WebP bytes. RAR 5 headers verify their CRC-32 and RAR 5 declared data CRCs verify after decode; RAR 4 keeps its legacy rule of verifying non-zero declared CRCs only. RAR 5 names decode as UTF-8; RAR 4 names remain byte-for-byte. Natural sorting compares basenames first when pages sit at different folder depths, then uses full paths as a tiebreaker.
 
 ## CB7 and CBC: add 7-Zip comics and collections
 

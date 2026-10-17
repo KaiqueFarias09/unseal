@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:unseal/src/platform/web/worker_client.dart';
 import 'package:unseal/unseal.dart';
 
+import '../../tool/rar5_stream_encoder.dart';
 import '../support/rar_fixtures.dart';
 import '../tests/pdf/pdf_fixture_builder.dart';
 
@@ -21,6 +22,18 @@ Uint8List _cbrBytes() => Uint8List.fromList(
     'a.jpg': tinyJpegPage,
   }),
 );
+
+/// A RAR 5 archive whose single page is a compressed stream — built in
+/// the browser with the same encoder that generates the VM fixtures.
+final Uint8List _rar5Page = Uint8List.fromList([
+  ...tinyJpegPage,
+  ...tinyJpegPage,
+  ...tinyJpegPage,
+  ...tinyJpegPage,
+]);
+
+Uint8List _rar5CompressedBytes() =>
+    buildRar5Archive(entries: [FixtureEntry('a.jpg', _rar5Page)], method: 3, dictExp: 0);
 
 /// Proves the shared worker is live (never the inline fallback) by
 /// opening and retiring a probe session over [bytes] through the raw
@@ -136,6 +149,28 @@ void main() {
 
     expect(await session.loadResource('a.jpg'), tinyJpegPage);
     expect(await session.loadBytesRange(0, 4), Uint8List.fromList('Rar!'.codeUnits));
+  });
+
+  test('a RAR 5 compressed CBR session in the worker serves decoded pages', () async {
+    final bytes = _rar5CompressedBytes();
+    await _expectRealWorker(bytes);
+
+    final session = await BookSession.open(bytes);
+    addTearDown(session.dispose);
+
+    final book = session.book as ComicBook;
+    expect(book.format, BookFormat.cbr);
+    expect(book.pageCount, 1);
+    expect(book.pages.single.path, 'a.jpg');
+    // The decoded page matches the pre-image bytes the encoder started
+    // from — the worker ran the RAR 5 LZ decoder, not a passthrough.
+    // Out-of-order across two sessions: the same bytes everywhere.
+    final other = await BookSession.open(bytes);
+    addTearDown(other.dispose);
+    final otherBook = other.book as ComicBook;
+    expect(await other.loadResource(otherBook.pages.single.path), _rar5Page);
+    expect(await session.loadResource(book.pages.single.path), _rar5Page);
+    expect(await session.loadResource(book.pages.single.path), _rar5Page, reason: 'reread');
   });
 
   test('two PDF sessions in the worker stay isolated', () async {

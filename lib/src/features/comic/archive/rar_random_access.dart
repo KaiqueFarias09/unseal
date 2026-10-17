@@ -10,6 +10,8 @@ import '../../../foundation/archive/zip_byte_source.dart';
 import '../../../foundation/exceptions/unseal_exception.dart';
 import '../exceptions/comic_exception.dart';
 import 'rar4_method29_decoder.dart';
+import 'rar5_archive.dart';
+import 'rar5_decoder.dart';
 
 /// One indexed RAR record: everything needed to decode a single entry
 /// later without touching any other entry.
@@ -25,6 +27,12 @@ final class RarEntryRecord implements ArchiveEntry {
     required this.version,
     required this.flags,
     required this.crc32,
+    this.hasCrc32 = false,
+    this.solid = false,
+    this.isSplit = false,
+    this.dictExp = 0,
+    this.unpackedSizeUnknown = false,
+    this.rar5Header,
   });
 
   /// Entry path as stored in the archive.
@@ -65,18 +73,81 @@ final class RarEntryRecord implements ArchiveEntry {
   /// carries none.
   final int crc32;
 
+  /// RAR 5 only: whether the header declares a data CRC-32. RAR 5
+  /// distinguishes an absent checksum from a declared one, and a
+  /// declared CRC of zero is valid and still verifies.
+  final bool hasCrc32;
+
+  /// RAR 5 only: whether the entry continues a solid stream.
+  final bool solid;
+
+  /// RAR 5 only: whether the entry is split across volumes.
+  final bool isSplit;
+
+  /// RAR 5 only: dictionary exponent (size is 0x20000 << [dictExp]).
+  final int dictExp;
+
+  /// RAR 5 only: whether the header declares the unpacked size unknown.
+  final bool unpackedSizeUnknown;
+
   /// Whether the payload is kept verbatim (RAR 4 `0x30`, RAR 5 `0`).
   bool get isStored => isRar5 ? method == 0 : method == 0x30;
+
+  /// Declared RAR 5 dictionary size (128 KiB base, meaningful only for
+  /// compressed entries).
+  int get rar5DictSize => 0x20000 << dictExp;
+
+  /// Whether payload verification applies: RAR 5 verifies whenever the
+  /// header declares a CRC (zero included); RAR 4 keeps its legacy rule
+  /// of verifying only non-zero declared CRCs.
+  bool get verifiesCrc => isRar5 ? hasCrc32 : crc32 != 0;
+
+  /// The parsed RAR 5 header behind this record; null for RAR 4.
+  final Rar5EntryHeader? rar5Header;
+
+  /// Why this record's payload is outside the supported subset, or null
+  /// when it can be produced from a container of [sourceLength] bytes.
+  String? unsupportedReason({required final bool archiveSolid, required final int sourceLength}) {
+    if (!isFile) return 'it is a directory';
+    final rar5 = rar5Header;
+    if (rar5 != null) {
+      return rar5.unsupportedReason(archiveSolid: archiveSolid, sourceLength: sourceLength);
+    }
+    if (isStored) {
+      if (packedSize > 0 && dataStart + packedSize > sourceLength) {
+        return 'its stored payload is truncated';
+      }
+
+      return null;
+    }
+    // RAR 4: ordinary non-solid method-29 is the only compressed stream.
+    final ordinaryMethod29 =
+        method >= 0x31 &&
+        method <= 0x35 &&
+        version == 29 &&
+        flags & 0x0017 == 0 &&
+        packedSize > 0 &&
+        uncompressedSize > 0;
+    if (!ordinaryMethod29) {
+      return 'only stored (uncompressed) and ordinary RAR 2.9/3.x payloads are supported';
+    }
+    if (dataStart + packedSize > sourceLength) return 'its packed payload is truncated';
+
+    return null;
+  }
 }
 
 /// Random access over a CBR container: one header-indexing pass at open
-/// (the same RAR 4 / RAR 5 grammar the eager reader walks) and each
-/// entry decoded on demand.
+/// (the shared RAR 4 / RAR 5 container walk) and each entry decoded on
+/// demand.
 ///
 /// Support matrix mirrors the eager reader: RAR 4 stored (0x30) and
 /// ordinary non-solid method-29 streams (via the shared method-29
-/// decoder), RAR 5 stored only. Unsupported compressed entries stay
-/// indexed; touching them is a typed [ComicException] naming the entry.
+/// decoder), RAR 5 stored entries and non-solid version-0 compressed
+/// streams (methods 1-5, filters 0-3, dictionaries through 64 MiB) via
+/// the shared RAR 5 decoder. Out-of-subset records stay indexed;
+/// touching them is a typed [ComicException] naming the entry and the
+/// reason.
 ///
 /// Security posture matches the zip random access: container-level
 /// guards reject hostile declared sizes at open (total > 1 GiB,
@@ -94,11 +165,16 @@ final class RarEntryRecord implements ArchiveEntry {
 /// touches every entry while sniffing pages, so the same typed failure
 /// surfaces at open.
 final class RarRandomAccess implements ArchiveRandomAccess {
-  RarRandomAccess._(this._source, this._records) : _byLowerPath = _indexByLowerPath(_records);
+  RarRandomAccess._(this._source, this._records, this._archiveSolid)
+    : _byLowerPath = _indexByLowerPath(_records);
 
   final ZipByteSource _source;
   final List<RarEntryRecord> _records;
   final Map<String, RarEntryRecord> _byLowerPath;
+
+  /// Whether the RAR 5 main archive header declares the solid flag
+  /// (false for RAR 4 archives; RAR 4 solidity rides per entry).
+  final bool _archiveSolid;
 
   /// Indexes the entry headers of [source] without decoding any
   /// payload, then validates the container-level guards. Costs no
@@ -115,10 +191,10 @@ final class RarRandomAccess implements ArchiveRandomAccess {
       throw const ComicException('Not a RAR archive.');
     }
 
-    final records = isRar4 ? _indexRar4(source) : _indexRar5(source);
+    final (records, archiveSolid) = isRar4 ? (_indexRar4(source), false) : _indexRar5(source);
     _assertExpansionBounded(source, records);
 
-    return RarRandomAccess._(source, records);
+    return RarRandomAccess._(source, records, archiveSolid);
   }
 
   /// Every indexed record in container order, directories included
@@ -143,7 +219,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
   /// Decodes one entry, bounded by [maxBytes] (default: the declared
   /// size capped at the shared entry cap), verifying the declared CRC
-  /// when it is non-zero.
+  /// when it is present (zero included).
   @override
   Uint8List inflate(covariant final RarEntryRecord entry, {final int? maxBytes}) {
     final limit = math.min(maxBytes ?? maxZipEntryUncompressedBytes, maxZipEntryUncompressedBytes);
@@ -171,6 +247,44 @@ final class RarRandomAccess implements ArchiveRandomAccess {
             'RAR entry "${entry.name}" could not be decoded (${error.runtimeType}).',
           );
         }
+      case _PayloadMode.rar5:
+        final reason = entry.unsupportedReason(
+          archiveSolid: _archiveSolid,
+          sourceLength: _source.length,
+        );
+        if (reason != null) {
+          throw ComicException('RAR entry "${entry.name}" is not supported: $reason.');
+        }
+        // The RAR 5 decoder allocates exactly the declared output, so
+        // the bound applies before any decode work happens.
+        if (entry.uncompressedSize > limit) {
+          throw InvalidBookException(
+            'RAR entry "${entry.name}" declares ${entry.uncompressedSize} uncompressed '
+            'bytes, above the $limit-byte expansion limit.',
+          );
+        }
+        if (entry.uncompressedSize == 0) {
+          _verifyCrc(entry, Uint8List(0));
+
+          return Uint8List(0);
+        }
+        final packed = _source.read(entry.dataStart, entry.packedSize);
+        try {
+          final decoded = decodeRar5Stream(
+            packed: packed,
+            uncompressedSize: entry.uncompressedSize,
+            windowSize: entry.rar5DictSize,
+          );
+          _verifyCrc(entry, decoded);
+
+          return decoded;
+        } on UnsealException {
+          rethrow;
+        } on Object catch (error) {
+          throw ComicException(
+            'RAR entry "${entry.name}" could not be decoded (${error.runtimeType}).',
+          );
+        }
       case _PayloadMode.dropped:
         throw ComicException(
           'RAR entry "${entry.name}" has a truncated or mismatched stored payload.',
@@ -182,9 +296,9 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
   /// Returns the first [byteCount] payload bytes of [entry] — the
   /// prefix the eager reader would pair with the record: stored slices
-  /// verbatim, method-29 streams decoded (so page sniffing at open
+  /// verbatim, compressed streams decoded (so page sniffing at open
   /// matches the eager parse), dropped entries empty, unsupported
-  /// compressed entries a typed rejection.
+  /// records a typed rejection.
   @override
   Uint8List head(covariant final RarEntryRecord entry, final int byteCount) {
     switch (_modeOf(entry)) {
@@ -194,6 +308,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
         return _source.read(entry.dataStart, math.min(byteCount, available));
       case _PayloadMode.method29:
+      case _PayloadMode.rar5:
         final decoded = inflate(entry);
 
         return Uint8List.sublistView(decoded, 0, math.min(byteCount, decoded.length));
@@ -213,6 +328,24 @@ final class RarRandomAccess implements ArchiveRandomAccess {
   _PayloadMode _modeOf(final RarEntryRecord entry) {
     if (!entry.isFile) return _PayloadMode.dropped;
 
+    if (entry.isRar5) {
+      // Out-of-subset RAR 5 records (split, solid, encrypted, later
+      // algorithms, hostile dictionaries) never reach a payload path.
+      if (entry.unsupportedReason(archiveSolid: _archiveSolid, sourceLength: _source.length) !=
+          null) {
+        return _PayloadMode.unsupported;
+      }
+      if (entry.isStored) {
+        final intact =
+            entry.uncompressedSize == entry.packedSize &&
+            entry.dataStart + entry.packedSize <= _source.length;
+
+        return intact ? _PayloadMode.stored : _PayloadMode.dropped;
+      }
+
+      return _PayloadMode.rar5;
+    }
+
     if (entry.isStored) {
       final intact =
           entry.uncompressedSize == entry.packedSize &&
@@ -225,8 +358,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
     // eager reader decodes; everything else (solid, password-protected,
     // split, other methods/versions, RAR 5 compression) yields empty
     // data there and fails the whole parse typed.
-    if (!entry.isRar5 &&
-        entry.method >= 0x31 &&
+    if (entry.method >= 0x31 &&
         entry.method <= 0x35 &&
         entry.version == 29 &&
         entry.flags & 0x0017 == 0 &&
@@ -240,16 +372,22 @@ final class RarRandomAccess implements ArchiveRandomAccess {
   }
 
   ComicException _unsupportedCompression(final RarEntryRecord entry) {
-    return ComicException(
-      'RAR entry "${entry.name}" is compressed; only stored (uncompressed) '
-      'and ordinary RAR 2.9/3.x CBR archives are supported.',
-    );
+    final String reason;
+    if (entry.isRar5) {
+      reason =
+          entry.unsupportedReason(archiveSolid: _archiveSolid, sourceLength: _source.length) ??
+          'it is compressed';
+    } else {
+      reason = 'only stored (uncompressed) and ordinary RAR 2.9/3.x payloads are supported';
+    }
+
+    return ComicException('RAR entry "${entry.name}" is not supported: $reason.');
   }
 
-  /// Session-only CRC delta (see the class docs): declared non-zero
-  /// CRCs are verified, CRC 0 never rejects.
+  /// Session CRC verification: RAR 5 verifies declared CRCs (zero
+  /// included); RAR 4 verifies non-zero declared CRCs only.
   void _verifyCrc(final RarEntryRecord entry, final Uint8List content) {
-    if (entry.crc32 != 0 && getCrc32(content) != entry.crc32) {
+    if (entry.verifiesCrc && getCrc32(content) != entry.crc32) {
       throw ComicException('RAR entry "${entry.name}" has an invalid checksum.');
     }
   }
@@ -259,6 +397,10 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
 /// How the eager reader's payload grammar classifies a record.
 enum _PayloadMode {
+  /// RAR 5 compressed stream the shared decoder handles (out-of-subset
+  /// records reject before reaching this mode).
+  rar5,
+
   /// Stored payload kept verbatim (size-matched and inside the
   /// container).
   stored,
@@ -375,118 +517,36 @@ List<RarEntryRecord> _indexRar4(final ZipByteSource source) {
   return records;
 }
 
-/// Indexes the RAR 5 entry headers, starting after the 8-byte
-/// signature — the same walk the eager reader does, minus the
-/// decoding.
-List<RarEntryRecord> _indexRar5(final ZipByteSource source) {
-  final length = source.length;
+/// Indexes the RAR 5 entry headers through the shared container walk —
+/// the same header grammar, CRC verification, and typed rejections the
+/// eager reader uses — and maps the result onto [RarEntryRecord].
+(List<RarEntryRecord>, bool) _indexRar5(final ZipByteSource source) {
+  final container = readRar5Structure(source);
   final records = <RarEntryRecord>[];
-  var offset = 8; // signature
-
-  while (offset + 8 <= length) {
-    final blockStart = offset;
-    final sizeWindow = source.read(offset + 4, math.min(20, length - offset - 4));
-    final (headerSize, consumedSize) = _vint(sizeWindow, 0);
-    if (consumedSize == 0) break;
-
-    // Header size counts from the type field to the end of the header,
-    // excluding the CRC and the size vint itself.
-    final headerStart = offset + 4 + consumedSize;
-    final headerEnd = headerStart + headerSize;
-    if (headerEnd > length) break;
-
-    final header = source.read(headerStart, headerEnd - headerStart);
-    final (headerType, consumedType) = _vint(header, 0);
-    var h = consumedType;
-    final (headerFlags, consumedFlags) = _vint(header, h);
-    h += consumedFlags;
-    var extraAreaSize = 0;
-    if (headerFlags & 0x0001 != 0) {
-      // RAR 5 stores EXTRA_AREA_SIZE before DATA_SIZE in the common header.
-      final (size, consumedExtra) = _vint(header, h);
-      extraAreaSize = size;
-      h += consumedExtra;
-    }
-    var dataSize = 0;
-    if (headerFlags & 0x0002 != 0) {
-      final (size, consumedData) = _vint(header, h);
-      dataSize = size;
-      h += consumedData;
-    }
-
-    if (headerType == 2) {
-      // File header.
-      final (fileFlags, consumedFileFlags) = _vint(header, h);
-      h += consumedFileFlags;
-      final (unpackedSize, consumedUnpacked) = _vint(header, h);
-      h += consumedUnpacked;
-      final (_, consumedAttributes) = _vint(header, h);
-      h += consumedAttributes; // attributes
-      if (fileFlags & 0x0002 != 0) {
-        h += 4; // mtime
-      }
-      var crc = 0;
-      if (fileFlags & 0x0004 != 0) {
-        if (h + 4 <= header.length) crc = _readUint32(header, h);
-        h += 4; // data CRC
-      }
-      final (compressionInfo, consumedCompression) = _vint(header, h);
-      h += consumedCompression;
-      h += 1; // host OS
-      final (nameLength, consumedName) = _vint(header, h);
-      h += consumedName;
-      final nameEnd = h + nameLength;
-      if (nameEnd > header.length) break;
-
-      final name = String.fromCharCodes(header.sublist(h, nameEnd));
-      final extraAreaEnd = nameEnd + extraAreaSize;
-      if (extraAreaEnd > header.length) break;
-
-      records.add(
-        RarEntryRecord._(
-          name: name,
-          isFile: fileFlags & 0x0001 == 0,
-          isRar5: true,
-          dataStart: headerEnd,
-          packedSize: dataSize,
-          uncompressedSize: unpackedSize,
-          method: (compressionInfo >> 7) & 0x07,
-          version: compressionInfo & 0x3F,
-          flags: fileFlags,
-          crc32: crc,
-        ),
-      );
-    }
-    offset = headerEnd + dataSize;
-
-    if (headerType == 5) {
-      break; // end of archive (1 = main header, skipped above)
-    }
-    if (offset <= blockStart) {
-      break; // guard against malformed headers
-    }
+  for (final header in container.entries) {
+    records.add(
+      RarEntryRecord._(
+        name: header.name,
+        isFile: !header.isDirectory,
+        isRar5: true,
+        dataStart: header.dataStart,
+        packedSize: header.packedSize,
+        uncompressedSize: header.unpackedSize,
+        method: header.method,
+        version: header.version,
+        flags: header.isDirectory ? 0x0001 : 0,
+        crc32: header.dataCrc32,
+        hasCrc32: header.hasDataCrc,
+        solid: header.solid,
+        isSplit: header.isSplit,
+        dictExp: header.dictExp,
+        unpackedSizeUnknown: header.unpackedSizeUnknown,
+        rar5Header: header,
+      ),
+    );
   }
 
-  return records;
-}
-
-/// Reads a RAR 5 vint (LEB128, 7 bits per byte) from [bytes] at
-/// [offset]; the same grammar the eager reader uses.
-(int, int) _vint(final Uint8List bytes, final int offset) {
-  var value = 0;
-  var shift = 0;
-  var consumed = 0;
-  while (offset + consumed < bytes.length) {
-    final byte = bytes[offset + consumed];
-    consumed++;
-    value |= (byte & 0x7F) << shift;
-    if (byte & 0x80 == 0) break;
-
-    shift += 7;
-    if (shift > 63) break;
-  }
-
-  return (value, consumed);
+  return (records, container.archiveSolid);
 }
 
 /// Container-level RAR bomb guards, applied to declared sizes before

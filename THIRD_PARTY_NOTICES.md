@@ -121,3 +121,26 @@ Recommendation](https://www.w3.org/TR/annotation-model/): positions count
 Unicode code points over normalized text in logical order. The spec is cited
 as the external contract, not vendored; the conversion and validation code is
 Unseal's own.
+
+## rardecode
+
+The RAR 5 decompressor in `lib/src/features/comic/archive/rar5_decoder.dart`
+is a bounded Dart adaptation of the [rardecode](https://github.com/nwaples/rardecode)
+Go implementation (BSD-2-Clause), pinned at `ad22ba91a2ab`
+(`decode50.go`, `decode_reader.go`, `huffman.go`, `bit_reader.go`, and the
+V5 filters of `filters.go`). Copyright 2015, Nicholas Waples. The license
+text is included at `licenses/rardecode-BSD-2-Clause.txt`. `tool/rar5_compare.dart`
+builds the same pinned revision as the mandatory extraction oracle.
+
+## libarchive
+
+The RAR 5 container walk (`rar5_archive.dart`) and the fixture corpus
+under `test/resources/books/comic/rar5/` were cross-checked against
+[libarchive](https://github.com/libarchive/libarchive) at pinned commit
+`87dec938e1578901f4919faa76e5f541b4d145b1`; no libarchive code is
+copied — it serves as the second independent decoder (through `bsdtar`)
+and the source of the real RAR 5 test archives (uudecoded from
+`libarchive/test/`, unmodified apart from the `libarchive-` filename
+prefix). The libarchive COPYING is included at
+`licenses/libarchive-COPYING`. See
+`test/resources/books/comic/rar5/PROVENANCE.md` for per-file provenance.

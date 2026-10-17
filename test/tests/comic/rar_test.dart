@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:test/test.dart';
 import 'package:unseal/unseal.dart';
 
@@ -66,10 +67,29 @@ void main() {
     });
 
     test('parses headers carrying mtime and data crc', () {
-      final book = parseComicBook(buildRar5(['001.jpg'], fileFlags: 0x0006));
+      final book = parseComicBook(
+        buildRar5Files(
+          {'001.jpg': tinyJpegPage},
+          fileFlags: 0x0002,
+          dataCrc: getCrc32(tinyJpegPage),
+        ),
+      );
 
       expect(book.pages.single.name, '001.jpg');
       expect(book.pages.single.content, tinyJpegPage);
+    });
+
+    test('rejects a wrong declared data crc through the eager path', () {
+      expect(
+        () => parseComicBook(buildRar5Files({'001.jpg': tinyJpegPage}, dataCrc: 0xDEADBEEF)),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('invalid checksum'),
+          ),
+        ),
+      );
     });
 
     test('marks directory entries', () {
@@ -91,6 +111,223 @@ void main() {
         () => parseComicBook(Uint8List.fromList('NOTARAR!'.codeUnits)),
         throwsA(isA<ComicException>()),
       );
+    });
+  });
+
+  group('RAR 5 header contract', () {
+    test('decodes entry names as UTF-8', () {
+      final book = parseComicBook(buildRar5(['página-日本-otronível/ümlauf.jpg']));
+
+      expect(book.pages.single.name, 'ümlauf.jpg');
+      expect(book.pages.single.path, 'página-日本-otronível/ümlauf.jpg');
+    });
+
+    test('rejects a header whose CRC-32 does not verify', () {
+      final archive = buildRar5(['001.jpg'], headerCrcOverride: 0xDEADBEEF);
+
+      expect(
+        () => parseComicBook(archive),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('fails its CRC-32 check'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects file data areas that run past the end of the file', () {
+      final archive = buildRar5(['001.jpg']);
+      // Cut the end block and half the packed data: the declared data
+      // area no longer fits the container.
+      final truncated = Uint8List.sublistView(archive, 0, archive.length - 12);
+
+      expect(
+        () => parseComicBook(truncated),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('data area past the end'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects split (multi-volume) archives and split entries', () {
+      expect(
+        () => parseComicBook(buildRar5(['001.jpg'], archiveFlags: 0x0001)),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('multi-volume'),
+          ),
+        ),
+      );
+      expect(
+        () => parseComicBook(buildRar5(['001.jpg'], splitBlockFlags: 0x0010)),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('split across volumes'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects solid compressed entries', () {
+      final archive = buildRar5(['001.jpg'], method: 3, solid: true);
+
+      expect(
+        () => parseComicBook(archive),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('solid stream'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects archive-level solid flags on compressed entries', () {
+      final archive = buildRar5(['001.jpg'], method: 3, archiveFlags: 0x0004);
+
+      expect(
+        () => parseComicBook(archive),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('solid stream'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects encrypted entries', () {
+      // A minimal file-encryption extra record: (size=2, type=1, flags,
+      // version) — rejected before any payload work.
+      final archive = buildRar5(['001.jpg'], extraRecord: [2, 1, 0, 0]);
+
+      expect(
+        () => parseComicBook(archive),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('encrypted'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects later compression algorithm versions', () {
+      final archive = buildRar5(['001.jpg'], method: 3, version: 1);
+
+      expect(
+        () => parseComicBook(archive),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('algorithm version 1'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects reserved compression methods', () {
+      final archive = buildRar5(['001.jpg'], method: 6);
+
+      expect(
+        () => parseComicBook(archive),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('reserved compression method 6'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects dictionary declarations above the subset limit', () {
+      final archive = buildRar5(['001.jpg'], method: 3, dictExp: 10);
+
+      expect(
+        () => parseComicBook(archive),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('above the 64 MiB subset limit'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects entries with unknown unpacked size', () {
+      final archive = buildRar5(['001.jpg'], fileFlags: 0x0008);
+
+      expect(
+        () => parseComicBook(archive),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('unpacked size'),
+          ),
+        ),
+      );
+    });
+
+    test('skips service headers and their data areas', () {
+      final archive = buildRar5(['001.jpg'], serviceData: [1, 2, 3, 4]);
+      final book = parseComicBook(archive);
+
+      expect(book.pages.single.name, '001.jpg');
+      expect(book.pages.single.content, tinyJpegPage);
+    });
+
+    test('rejects an unknown block type', () {
+      final archive = buildRar5(['001.jpg'], withEndBlock: false);
+      // Append a block with an unrecognized type after the file entry.
+      final bodyBytes = Uint8List.fromList([0x09, 0x00, 0xAA]); // type 9
+      final corrupt = Uint8List.fromList([
+        ...archive,
+        ...((ByteData(4)..setUint32(
+              0,
+              getCrc32(Uint8List.fromList([bodyBytes.length, ...bodyBytes])),
+              Endian.little,
+            ))
+            .buffer
+            .asUint8List()),
+        bodyBytes.length,
+        ...bodyBytes,
+      ]);
+
+      expect(
+        () => parseComicBook(corrupt),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.message,
+            'message',
+            contains('unknown block type 9'),
+          ),
+        ),
+      );
+    });
+
+    test('indexes readable entries when the end block is missing', () {
+      // rardecode tolerates the missing end block the same way: files
+      // before the truncation point stay readable.
+      final book = parseComicBook(buildRar5(['001.jpg'], withEndBlock: false));
+
+      expect(book.pages.single.name, '001.jpg');
     });
   });
 

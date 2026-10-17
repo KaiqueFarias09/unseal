@@ -62,7 +62,7 @@ development, and the single [roadmap](doc/roadmap.md).
 | ODT | OpenDocument paragraphs, headings, styles, lists, tables, images, links, and metadata | Semantic conversion; not pixel-perfect LibreOffice layout. |
 | AZW4 | PalmDB/MOBI wrapper validation, PDF extraction, metadata, pages, and original PDF bytes | Requires a valid, unencrypted PDF payload. |
 | CBZ | ZIP comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Page-oriented data; no comic UI is included. |
-| CBR | RAR 4 stored and ordinary non-solid method-29 entries, plus RAR 5 stored entries | Split, solid, encrypted, PPMd, VM, and other unsupported variants are rejected. |
+| CBR | RAR 4 stored and ordinary non-solid method-29 entries; RAR 5 stored entries and non-solid compressed streams (algorithm version 0, methods 1-5, delta/E8/E8-E9/ARM filters, dictionaries up to 64 MiB) | Split (multi-volume), solid, encrypted, linked entries, PPMd, RAR VM, later algorithm versions, and oversized dictionaries are rejected typed. Solid RAR 5 compression and compressed RAR 4 PPMd/VM streams remain on the roadmap. |
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, JPEG/CCITT/JBIG2 images, and structured layout: words, blocks, columns, tables, and stable source anchors mapped to canonical text | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
@@ -198,8 +198,9 @@ other formats throw `SessionUnsupportedFormatException` and should use
 `Unseal.read` instead. PDF sessions materialize pages on demand
 (`loadDocumentSource('page_<i>.html')`, `loadPdfPageLines(i)` for the
 facsimile text-layer geometry) and serve byte ranges of the original
-document via `loadBytesRange`. Compressed CBR entries inflate during session
-opening, and session startup overhead can outweigh savings for small books.
+document via `loadBytesRange`. Compressed CBR entries inflate while the
+session header sniffs page types at opening (one decode per page), and
+session startup overhead can outweigh savings for small books.
 The classic entry points retain their full-book behavior.
 
 `SessionPolicy` defaults to a 64 MiB resource cache, an 8 MiB header cover
@@ -644,8 +645,11 @@ verified against libtiff by `tiffcmp` parity over the tracked corpus
   so forged central-directory sizes cannot bypass the limit. Encrypted
   entries, symbolic links, and compression methods other than stored or
   deflated are rejected with `InvalidBookException`.
-- CBR supports a deliberate subset of RAR. Unsupported compression modes,
-  solid or split archives, and encrypted entries are rejected.
+- CBR supports a deliberate subset of RAR. RAR 5 headers verify their
+  CRC-32; a declared data CRC-32 (zero included) verifies after decode.
+  RAR 5 decoding allocates the declared output before decompressing and
+  rejects dictionaries above 64 MiB. Unsupported compression modes,
+  solid or split archives, links, and encrypted entries are rejected.
 - CB7 entries are bounded and parsed asynchronously. Unsupported codecs and
   encrypted entries are rejected.
 - AZW4 requires an unencrypted PDF payload. EPUB font obfuscation supports
