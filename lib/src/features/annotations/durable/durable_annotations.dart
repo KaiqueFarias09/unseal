@@ -646,7 +646,9 @@ final class _CandidateCollector {
   final AnchorMatchBasis _basis;
   final int Function(AnchorCandidate candidate) _levelOf;
   final List<AnchorCandidate> _candidates = [];
-  var _bestLevel = 0x7FFFFFFFFFFFFFFF;
+  // 2^53 - 1: the sentinel must stay JS-exact — the browser compiles
+  // this file through dart2js, where wider integers lose precision.
+  var _bestLevel = 0x1FFFFFFFFFFFFF;
   var _tieCount = 0;
 
   AnchorMatchBasis get basis => _basis;
