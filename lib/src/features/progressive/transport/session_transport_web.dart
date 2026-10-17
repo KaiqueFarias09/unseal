@@ -124,10 +124,16 @@ final class _WorkerSessionTransport implements SessionTransport {
       <int, void Function(UnsealException error)>{};
 
   Future<T> _dispatch<T>(final Future<T> Function() issue) {
-    if (_disposed) throw const SessionClosedException();
+    // A disposed session fails as a failed future — the same shape the
+    // isolate transport drains with — never as a synchronous throw.
+    final completer = Completer<T>();
+    if (_disposed) {
+      completer.completeError(const SessionClosedException());
+
+      return completer.future;
+    }
 
     final request = _nextRequest++;
-    final completer = Completer<T>();
     _pending[request] = (final UnsealException error) {
       if (!completer.isCompleted) completer.completeError(error);
     };

@@ -48,6 +48,7 @@ final class WorkerClient {
   web.Worker? _worker;
   Uri? _script;
   bool _broken = false;
+
   bool _residentBook = false;
   int _nextId = 0;
   int _nextSessionId = 0;
@@ -851,7 +852,9 @@ final class WorkerClient {
     if (worker == null) return;
 
     final sessionId = (data.getProperty(wireKeySessionId.toJS) as JSNumber).toDartInt;
-    final requestId = (data.getProperty(wireKeyRequestId.toJS) as JSNumber).toDartInt;
+    // The worker shell posts the bridge request id under the shared
+    // `id` key; replies go back the same way.
+    final requestId = (data.getProperty(wireKeyId.toJS) as JSNumber).toDartInt;
     final offset = (data.getProperty('offset'.toJS) as JSNumber).toDartInt;
     final count = (data.getProperty('count'.toJS) as JSNumber).toDartInt;
     final revision = data.hasProperty(wireKeyRevision.toJS).toDart
