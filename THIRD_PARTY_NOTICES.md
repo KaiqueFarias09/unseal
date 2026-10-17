@@ -77,16 +77,27 @@ The durable-anchor resolution in
 `lib/src/features/annotations/durable/` ports the anchoring *approach* of the
 [Hypothesis client](https://github.com/hypothesis/client) at revision
 `a7b7400d0d706d4357ec37c2a3610b25dcca89d5`, chiefly
-`src/annotator/anchoring/`: a selection survives content changes through its
-quote plus surrounding context, re-found with a bounded approximate match when
-the exact text no longer occurs. The Dart implementation works on the
-canonical text snapshots of the common text contract instead of a browser DOM
-(no diff-match-patch dependency), uses sampled exact-gram seeding with a
-free-start edit distance instead of a full diff, and is deliberately stricter
-than the oracle where the campaign contract requires it: indistinguishable
-ties stay ambiguous and report candidates rather than picking the first match,
-and every migrated position reports itself as not verified. Hypothesis is
-BSD-2-Clause with separately licensed subcomponents; the text is included at
+`src/annotator/anchoring/match-quote.ts`: a selection survives content
+changes through its quote plus surrounding context, re-found with a bounded
+approximate match when the exact text no longer occurs. The Dart
+implementation works on the canonical text snapshots of the common text
+contract instead of a browser DOM, uses sampled exact-gram seeding with a
+free-start edit distance instead of `approx-string-match`'s full search, and
+is deliberately stricter where the campaign contract requires it:
+indistinguishable ties stay ambiguous and report candidates rather than
+picking the first match, and every migrated position reports itself as not
+verified.
+
+The comparison runs for real: `tool/hypothesis_anchor_compare.dart` executes
+the pinned `matchQuote` in Node against Unseal's resolver over the licensed
+Gutenberg corpus (see `tool/reference/hypothesis_anchor_oracle/README.md`).
+On its case matrix both implementations anchor identical offsets for exact,
+corrected (small edit distance), re-wrapped, repeated-with-context, astral
+and removed-target cases; the only divergence is the declared stricter
+policy — with byte-identical context around two occurrences, the oracle
+returns the leftmost occurrence and Unseal reports two indistinguishable
+candidates. Hypothesis is BSD-2-Clause with separately licensed
+subcomponents; the text is included at
 `licenses/hypothesis-client-BSD-2-Clause.txt`.
 
 ## Readium Kotlin

@@ -795,7 +795,9 @@ Compatibility work draws on:
   behavior.
 - The [Hypothesis client](https://github.com/hypothesis/client/tree/a7b7400d0d706d4357ec37c2a3610b25dcca89d5)
   anchoring (BSD-2-Clause) as the behavioral starting point for durable
-  annotation re-anchoring, with deliberately stricter ambiguity handling, and
+  annotation re-anchoring, compared case by case against its DOM-free
+  `matchQuote` by `tool/hypothesis_anchor_compare.dart`, with deliberately
+  stricter ambiguity handling, and
   [Readium Kotlin](https://github.com/readium/kotlin-toolkit/tree/89b96c20c447d0aec17db57a06456b7decffde4c)
   (BSD-3-Clause) as the identity/locator layering reference. Neither is a
   runtime or source dependency; nothing here claims Readium or full W3C
