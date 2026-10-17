@@ -130,7 +130,7 @@ final class JpxMqDecoder {
       _c = _data[_offset] << 16;
     }
     _byteIn();
-    _c <<= 7;
+    _c = (_c << 7) & _kCMask;
     _ct -= 7;
     _a = 0x8000;
   }
@@ -168,6 +168,11 @@ final class JpxMqDecoder {
   int _a = 0;
   int _ct = 0;
 
+  /// The reference keeps the code register in 32 bits; every update
+  /// masks to the same width so the VM (64-bit ints) and the compiled
+  /// web build (32-bit shifts) agree bit for bit.
+  static const int _kCMask = 0xFFFFFFFF;
+
   /// Bytes past the segment answer the synthetic 0xFF 0xFF marker
   /// OpenJPEG plants at `data[len]`, so overreads terminate the
   /// arithmetic decoder instead of consuming the next codeblock.
@@ -199,16 +204,16 @@ final class JpxMqDecoder {
     final next = _byteAt(_bp + 1);
     if (_byteAt(_bp) == 0xFF) {
       if (next > 0x8F) {
-        _c += 0xFF00;
+        _c = (_c + 0xFF00) & _kCMask;
         _ct = 8;
       } else {
         _bp++;
-        _c += next << 9;
+        _c = (_c + (next << 9)) & _kCMask;
         _ct = 7;
       }
     } else {
       _bp++;
-      _c += next << 8;
+      _c = (_c + (next << 8)) & _kCMask;
       _ct = 8;
     }
   }
@@ -219,7 +224,7 @@ final class JpxMqDecoder {
         _byteIn();
       }
       _a <<= 1;
-      _c <<= 1;
+      _c = (_c << 1) & _kCMask;
       _ct--;
     } while (_a < 0x8000);
   }
@@ -234,7 +239,7 @@ final class JpxMqDecoder {
     final mps = _kMqStates[entry * 4 + 1];
     _a -= qeval;
     int decision;
-    if ((_c >> 16) < qeval) {
+    if ((_c >>> 16) < qeval) {
       // LPS exchange.
       if (_a < qeval) {
         _a = qeval;
@@ -247,7 +252,7 @@ final class JpxMqDecoder {
       }
       _renorm();
     } else {
-      _c -= qeval << 16;
+      _c = (_c - (qeval << 16)) & _kCMask;
       if ((_a & 0x8000) == 0) {
         // MPS exchange.
         if (_a < qeval) {
@@ -287,6 +292,6 @@ final class JpxMqDecoder {
       }
     }
     _ct--;
-    return (_c >> _ct) & 1;
+    return (_c >>> _ct) & 1;
   }
 }

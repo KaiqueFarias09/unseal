@@ -35,6 +35,11 @@ int _subNoOverflow(final int a, final int b) {
   return a - b;
 }
 
+/// Arithmetic shift right with identical semantics on the VM (64-bit
+/// ints) and on the compiled web build, whose shifts come back
+/// uint32-normalized for negative results.
+int _shr(final int value, final int bits) => (value >> bits).toSigned(32);
+
 /// Inverse discrete wavelet transform for JPEG 2000 tiles: the exact
 /// integer 5/3 lifting of OpenJPEG's scalar path and the float32 9/7
 /// pipeline with the same update order and boundary mirroring. Tile
@@ -156,7 +161,7 @@ final class JpxDwt {
   ]) {
     var s1n = buffer[evenBase];
     var d1n = buffer[oddBase];
-    var s0n = _subNoOverflow(s1n, (d1n + 1) >> 1);
+    var s0n = _subNoOverflow(s1n, _shr(d1n + 1, 1));
     var i = 0;
     var j = 0;
     while (i < length - 3) {
@@ -165,18 +170,18 @@ final class JpxDwt {
       j++;
       s1n = buffer[evenBase + j * stride];
       d1n = buffer[oddBase + j * stride];
-      s0n = _subNoOverflow(s1n, (d1c + d1n + 2) >> 2);
+      s0n = _subNoOverflow(s1n, _shr(d1c + d1n + 2, 2));
       tmp[i] = s0c;
-      tmp[i + 1] = _addNoOverflow(d1c, (s0c + s0n) >> 1);
+      tmp[i + 1] = _addNoOverflow(d1c, _shr(s0c + s0n, 1));
       i += 2;
     }
     tmp[i] = s0n;
     if (length.isOdd) {
       tmp[length - 1] = _subNoOverflow(
         buffer[evenBase + (length - 1) ~/ 2 * stride],
-        (d1n + 1) >> 1,
+        _shr(d1n + 1, 1),
       );
-      tmp[length - 2] = _addNoOverflow(d1n, (s0n + tmp[length - 1]) >> 1);
+      tmp[length - 2] = _addNoOverflow(d1n, _shr(s0n + tmp[length - 1], 1));
     } else {
       tmp[length - 1] = _addNoOverflow(d1n, s0n);
     }
@@ -192,16 +197,16 @@ final class JpxDwt {
     final int stride = 1,
   ]) {
     var s1 = buffer[evenBase + stride];
-    var dc = _subNoOverflow(buffer[oddBase], (_addNoOverflow(buffer[evenBase], s1) + 2) >> 2);
+    var dc = _subNoOverflow(buffer[oddBase], _shr(_addNoOverflow(buffer[evenBase], s1) + 2, 2));
     tmp[0] = _addNoOverflow(buffer[evenBase], dc);
     var i = 1;
     var j = 1;
     final bound = length - 2 - (length.isOdd ? 0 : 1);
     while (i < bound) {
       final s2 = buffer[evenBase + (j + 1) * stride];
-      final dn = _subNoOverflow(buffer[oddBase + j * stride], (_addNoOverflow(s1, s2) + 2) >> 2);
+      final dn = _subNoOverflow(buffer[oddBase + j * stride], _shr(_addNoOverflow(s1, s2) + 2, 2));
       tmp[i] = dc;
-      tmp[i + 1] = _addNoOverflow(s1, (dn + dc) >> 1);
+      tmp[i + 1] = _addNoOverflow(s1, _shr(dn + dc, 1));
       dc = dn;
       s1 = s2;
       i += 2;
@@ -209,8 +214,8 @@ final class JpxDwt {
     }
     tmp[i] = dc;
     if (!length.isOdd) {
-      final dn = _subNoOverflow(buffer[oddBase + (length ~/ 2 - 1) * stride], (s1 + 1) >> 1);
-      tmp[length - 2] = _addNoOverflow(s1, (dn + dc) >> 1);
+      final dn = _subNoOverflow(buffer[oddBase + (length ~/ 2 - 1) * stride], _shr(s1 + 1, 1));
+      tmp[length - 2] = _addNoOverflow(s1, _shr(dn + dc, 1));
       tmp[length - 1] = dn;
     } else {
       tmp[length - 1] = _addNoOverflow(s1, dc);
