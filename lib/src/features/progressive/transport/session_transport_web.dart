@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import '../../../foundation/archive/async_byte_reader.dart';
 import '../../../foundation/entities/entities.dart';
 import '../../../foundation/exceptions/unseal_exception.dart';
 import '../../../platform/web/worker_client.dart';
@@ -13,6 +14,8 @@ import '../../search/entities/search_results.dart';
 import '../../search/index/indexed_query_mode.dart';
 import '../../search/index/indexed_search_results.dart';
 import '../../search/index/search_index_identity.dart';
+import '../byte_source.dart';
+import '../byte_source_gate.dart';
 import '../session_engine.dart';
 import '../session_policy.dart';
 import 'session_transport.dart';
@@ -38,9 +41,61 @@ Future<(SessionTransport, Book)> openSessionTransport({
     return (_WorkerSessionTransport(client, opened.sessionId, opened.byteLength), opened.book);
   }
 
-  final engine = SessionEngine.openBytes(bytes, password: password, policy: policy);
+  final engine = await SessionEngine.openBytes(bytes, password: password, policy: policy);
 
   return (InlineSessionTransport(engine), engine.book);
+}
+
+/// Opens a session over a host-owned byte source on the web. The
+/// configured worker runs the engine and pulls exact ranges through
+/// the byteSource.v1 bridge; this thread's gate serves them, so the
+/// source never leaves the main thread. Without a worker the engine
+/// runs inline against the same gate. The gate closes the source when
+/// the session is disposed (worker path) or inline (fallback).
+Future<(SessionTransport, Book)> openSessionSourceTransport({
+  required final UnsealByteSource source,
+  required final SessionPolicy policy,
+}) async {
+  final client = WorkerClient.instance;
+  if (client.isConfigured) {
+    try {
+      final opened = await client.sessionOpenSourceInWorker(source, policy: policy);
+      if (opened != null) {
+        return (
+          _WorkerSessionTransport(
+            client,
+            opened.sessionId,
+            opened.byteLength,
+            sourceRevision: opened.revision,
+          ),
+          opened.book,
+        );
+      }
+    } on Object {
+      // A typed open failure owns no registration anywhere; the host
+      // source must not outlive the failed session.
+      await source.close();
+      rethrow;
+    }
+  }
+
+  final gate = ByteSourceGate(source, policy: policy);
+  try {
+    final engine = await SessionEngine.openRemote(
+      CallbackAsyncByteReader(
+        length: gate.length,
+        revision: gate.revisionAtOpen,
+        read: (final offset, final count) =>
+            gate.read(offset, count, expectedRevision: gate.revisionAtOpen),
+      ),
+      policy: policy,
+    );
+
+    return (InlineSourceSessionTransport(engine, gate), engine.book);
+  } on Object {
+    unawaited(gate.close());
+    rethrow;
+  }
 }
 
 /// Transport driving the session engine resident in the shared web
@@ -49,7 +104,7 @@ Future<(SessionTransport, Book)> openSessionTransport({
 /// request this transport has not yet observed completes typed when
 /// [dispose] or [cancelPending] lands, like the isolate transport.
 final class _WorkerSessionTransport implements SessionTransport {
-  _WorkerSessionTransport(this._client, this._sessionId, this.byteLength);
+  _WorkerSessionTransport(this._client, this._sessionId, this.byteLength, {this.sourceRevision});
 
   final WorkerClient _client;
   final int _sessionId;
@@ -58,19 +113,27 @@ final class _WorkerSessionTransport implements SessionTransport {
   @override
   final int byteLength;
 
+  /// The byte-source revision the session opened against; null for
+  /// bytes-opened sessions and unverified sources.
+  @override
+  final String? sourceRevision;
+
   var _disposed = false;
   var _nextRequest = 0;
   final Map<int, void Function(UnsealException error)> _pending =
       <int, void Function(UnsealException error)>{};
 
-  Future<T> _dispatch<T>(final Future<T> Function() issue) async {
-    // Async so a post-dispose call completes with the typed failure
-    // instead of throwing synchronously, matching the isolate
-    // transport's contract.
-    if (_disposed) throw const SessionClosedException();
+  Future<T> _dispatch<T>(final Future<T> Function() issue) {
+    // A disposed session fails as a failed future — the same shape the
+    // isolate transport drains with — never as a synchronous throw.
+    final completer = Completer<T>();
+    if (_disposed) {
+      completer.completeError(const SessionClosedException());
+
+      return completer.future;
+    }
 
     final request = _nextRequest++;
-    final completer = Completer<T>();
     _pending[request] = (final UnsealException error) {
       if (!completer.isCompleted) completer.completeError(error);
     };

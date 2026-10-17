@@ -60,7 +60,7 @@ void main() {
     for (final name in fixtureNames) {
       final ceiling = ceilings[name];
       if (name.contains('-bypass')) {
-        test('$name rejects arithmetic bypass with a typed error', () {
+        test('$name rejects arithmetic bypass with a typed error', () async {
           final bytes = File('$_fixturesDir/$name.j2k').readAsBytesSync();
           expect(
             () => decodeJpxImage(bytes),
@@ -112,7 +112,7 @@ void main() {
     // Ysiz (12-15) big-endian, Csiz at 40-41.
     final baseSiz = File('$_fixturesDir/gray53-lossless-lrcp.j2k').readAsBytesSync();
 
-    test('a raster beyond the sample budget rejects before allocating', () {
+    test('a raster beyond the sample budget rejects before allocating', () async {
       final patched = Uint8List.fromList(baseSiz);
       // Height 2^26 keeps every declared coordinate inside 31 bits but
       // pushes 64 x 2^26 samples far above the 2^28-sample cap.
@@ -123,14 +123,14 @@ void main() {
       );
     });
 
-    test('a component count beyond the budget rejects typed', () {
+    test('a component count beyond the budget rejects typed', () async {
       final patched = Uint8List.fromList(baseSiz);
       patched[40] = 0x42;
       patched[41] = 0x20; // 16928 > 16384 declared components.
       expect(() => decodeJpxImage(patched), throwsA(isA<JpxException>()));
     });
 
-    test('a truncated payload inside the budget decodes-or-fails typed', () {
+    test('a truncated payload inside the budget decodes-or-fails typed', () async {
       // A 256x256 lossy fixture with a legal SIZ but cut short: the
       // failure surfaces as JpxException, never RangeError/StateError.
       final full = File('$_fixturesDir/gray97-lossy-256.j2k').readAsBytesSync();
@@ -145,7 +145,7 @@ void main() {
       ('rgb53-lossless-nomct-jp2', 17),
       ('rgb53-lossless-nomct-jp2', 18),
     ]) {
-      test('$fixtureName refuses incompatible or unsupported EnumCS $enumcs', () {
+      test('$fixtureName refuses incompatible or unsupported EnumCS $enumcs', () async {
         final bytes = File('$_fixturesDir/$fixtureName.jp2').readAsBytesSync();
         final boxTypeOffset = latin1.decode(bytes).indexOf('colr');
         expect(boxTypeOffset, greaterThanOrEqualTo(0));
@@ -159,7 +159,7 @@ void main() {
   group('corruption normalizes to typed failures', () {
     final base = File('$_fixturesDir/gray53-lossless-lrcp.j2k').readAsBytesSync();
 
-    test('truncations at a stride never leak untyped errors', () {
+    test('truncations at a stride never leak untyped errors', () async {
       for (var cut = 2; cut < base.length; cut += 37) {
         try {
           decodeJpxImage(base.sublist(0, cut));
@@ -171,7 +171,7 @@ void main() {
       }
     });
 
-    test('single-byte mutations either decode or reject typed', () {
+    test('single-byte mutations either decode or reject typed', () async {
       final generator = Random(20261017);
       for (var trial = 0; trial < 64; trial++) {
         final mutated = Uint8List.fromList(base);
@@ -193,7 +193,7 @@ void main() {
     final grayJ2k = File('$_fixturesDir/gray53-lossless-lrcp.j2k').readAsBytesSync();
     final rgbJ2k = File('$_fixturesDir/rgb53-lossless-rct.j2k').readAsBytesSync();
 
-    test('a gray JPXDecode XObject extracts as a 64x64 PNG', () {
+    test('a gray JPXDecode XObject extracts as a 64x64 PNG', () async {
       final document = _document(jpxImagePageFixture(grayJ2k, width: 64, height: 64));
       final result = decodePdfImageObject(document, 8);
       expect(result, isNotNull);
@@ -205,7 +205,7 @@ void main() {
       expect((png[20] << 24) | (png[21] << 16) | (png[22] << 8) | png[23], 64);
     });
 
-    test('an RGB codestream extracts as truecolor PNG', () {
+    test('an RGB codestream extracts as truecolor PNG', () async {
       final document = _document(jpxImagePageFixture(rgbJ2k, width: 64, height: 64, components: 3));
       final result = decodePdfImageObject(document, 8);
       expect(result, isNotNull);
@@ -213,7 +213,7 @@ void main() {
       expect(result!.$1[25], 2);
     });
 
-    test('an /ASCII85Decode /JPXDecode chain decodes through both filters', () {
+    test('an /ASCII85Decode /JPXDecode chain decodes through both filters', () async {
       final document = _document(
         jpxImagePageFixture(grayJ2k, width: 64, height: 64, ascii85: true),
       );
@@ -226,7 +226,7 @@ void main() {
       expect(result!.$1, direct!.$1, reason: 'ASCII85 is transport-only');
     });
 
-    test('an indirect /ColorSpace reference binds like a direct one', () {
+    test('an indirect /ColorSpace reference binds like a direct one', () async {
       final document = _document(
         jpxImagePageFixture(grayJ2k, width: 64, height: 64, indirectColorSpace: true),
       );
@@ -235,7 +235,7 @@ void main() {
       expect(result!.$2, 'png');
     });
 
-    test('a /Width conflict with the codestream rejects typed', () {
+    test('a /Width conflict with the codestream rejects typed', () async {
       final document = _document(jpxImagePageFixture(grayJ2k, width: 63, height: 64));
       expect(
         () => decodePdfJpxSamples(document, document.object(8)! as PdfStream),
@@ -243,7 +243,7 @@ void main() {
       );
     });
 
-    test('an /ICCBased N mismatch rejects typed', () {
+    test('an /ICCBased N mismatch rejects typed', () async {
       final fixture = PdfFixtureBuilder()
         ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
         ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
@@ -273,7 +273,7 @@ void main() {
       ('[/CalGray << /WhitePoint [1 1 1] /Gamma 2.2 >>]', grayJ2k),
       ('[/CalRGB << /WhitePoint [1 1 1] /Gamma [2.2 2.2 2.2] >>]', rgbJ2k),
     ]) {
-      test('$colorSpace refuses unimplemented color conversion', () {
+      test('$colorSpace refuses unimplemented color conversion', () async {
         final document = _jpxDocument(samples, '/ColorSpace $colorSpace');
         expect(
           () => decodePdfJpxSamples(document, document.object(8)! as PdfStream),
@@ -284,7 +284,7 @@ void main() {
     }
 
     for (final value in ['1', '2', '13 0 R']) {
-      test('image dictionary SMaskInData $value rejects typed', () {
+      test('image dictionary SMaskInData $value rejects typed', () async {
         final document = _jpxDocument(grayJ2k, '/ColorSpace /DeviceGray /SMaskInData $value');
         expect(
           () => decodePdfJpxSamples(document, document.object(8)! as PdfStream),
@@ -294,12 +294,12 @@ void main() {
       });
     }
 
-    test('image dictionary SMaskInData zero allows an opaque image', () {
+    test('image dictionary SMaskInData zero allows an opaque image', () async {
       final document = _jpxDocument(grayJ2k, '/ColorSpace /DeviceGray /SMaskInData 0');
       expect(decodePdfImageObject(document, 8), isNotNull);
     });
 
-    test('a corrupted codestream degrades to geometry-only, never throws', () {
+    test('a corrupted codestream degrades to geometry-only, never throws', () async {
       final corrupted = Uint8List.fromList(grayJ2k);
       for (var i = 40; i < 40 + 24; i++) {
         corrupted[i] = 0xFF;
@@ -313,7 +313,7 @@ void main() {
   group('JPXDecode through extraction and the session engine', () {
     final grayJ2k = File('$_fixturesDir/gray53-lossless-lrcp.j2k').readAsBytesSync();
 
-    test('parsePdfBook extracts the JPX image as a drawable PNG', () {
+    test('parsePdfBook extracts the JPX image as a drawable PNG', () async {
       final book =
           Unseal.parse(jpxImagePageFixture(grayJ2k, width: 64, height: 64).build()) as PdfBook;
       expect(book.files.images, hasLength(1));
@@ -322,14 +322,14 @@ void main() {
       expect(image.content.sublist(0, 8), [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
     });
 
-    test('the session engine serves the same JPX bytes on demand', () {
+    test('the session engine serves the same JPX bytes on demand', () async {
       final bytes = Uint8List.fromList(jpxImagePageFixture(grayJ2k, width: 64, height: 64).build());
       final book = Unseal.parse(bytes) as PdfBook;
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
 
       final eagerImage = book.files.images.single;
-      expect(engine.resource(eagerImage.path), eagerImage.content);
+      expect(await engine.resource(eagerImage.path), eagerImage.content);
       expect(engine.resourceLength(eagerImage.path), eagerImage.content.length);
     });
   });

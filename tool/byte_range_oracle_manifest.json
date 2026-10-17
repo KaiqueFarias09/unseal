@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "mission": "B02",
+  "referencePin": "Python 3.15.0 (macOS arm64) standard-library zipfile; inventory tool tool/zip_reference_inventory.py",
+  "commands": {
+    "version": ["python3", "--version"],
+    "reference": [
+      "python3", "tool/zip_reference_inventory.py",
+      "--output", "build/evidence/B02/reference-inventory.json",
+      "test/resources/epub/Alices Adventures in Wonderland.epub",
+      "test/resources/books/epub/elements-of-chemistry.epub",
+      "test/resources/books/epub/mahabharata.epub",
+      "test/resources/books/comic/halfpenny-surprise-1895.cbz",
+      "test/resources/books/comic/synthetic-pages.cbz"
+    ],
+    "compare": [
+      "dart", "run", "tool/byte_range_compare.dart",
+      "--inventory", "build/evidence/B02/reference-inventory.json",
+      "--report", "build/evidence/B02/comparison.json"
+    ]
+  },
+  "referenceArtifacts": [
+    "build/evidence/B02/reference-inventory.json"
+  ],
+  "comparisonReport": "build/evidence/B02/comparison.json",
+  "requiredCases": {
+    "BS01": ["pass"],
+    "BS02": ["pass"],
+    "BS03": ["pass"],
+    "BS04": ["pass"],
+    "BS05": ["pass"],
+    "BS06": ["pass"],
+    "BS07": ["pass"]
+  }
+}

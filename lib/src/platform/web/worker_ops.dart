@@ -15,6 +15,7 @@ import '../../features/search/book_search.dart';
 import '../../features/search/entities/search_mode.dart';
 import '../../features/search/index/indexed_query_mode.dart';
 import '../../features/search/index/search_index_identity.dart';
+import '../../foundation/archive/async_byte_reader.dart';
 import '../../foundation/entities/book/book.dart';
 import '../../foundation/entities/book_format.dart';
 import '../../foundation/exceptions/unseal_exception.dart';
@@ -45,13 +46,15 @@ import 'wire/spatial_wire.dart';
 /// bad [SearchMode.regex] pattern or proximity query surfaces as
 /// [FormatException] untouched, so the error reply keeps the exception
 /// type.
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session}) runWorkerOp({
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+runWorkerOp({
   required final String op,
   final Map<String, Object?>? payload,
   final Uint8List? bytes,
   final Book? residentBook,
   final SessionEngine? residentSession,
-}) {
+  final AsyncByteReader? byteBridge,
+}) async {
   switch (op) {
     case workerOpParse:
       final book = BookDispatch.parseBook(bytes!);
@@ -80,7 +83,7 @@ import 'wire/spatial_wire.dart';
     case workerOpCfiBuild:
       return _cfiBuild(payload!, residentBook);
     case workerOpSessionOpen:
-      return _sessionOpen(bytes!, payload, residentSession);
+      return _sessionOpen(bytes, payload, residentSession, byteBridge);
     case workerOpSessionResource:
       return _sessionResource(payload!, residentSession);
     case workerOpSessionResources:
@@ -235,21 +238,33 @@ _spatialAltoBind(
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session}) _sessionOpen(
-  final Uint8List bytes,
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionOpen(
+  final Uint8List? bytes,
   final Map<String, Object?>? payload,
   final SessionEngine? residentSession,
-) {
+  final AsyncByteReader? byteBridge,
+) async {
   final defaults = const SessionPolicy();
-  final session = SessionEngine.openBytes(
-    bytes,
-    password: (payload?[wireKeyPassword] as String?) ?? '',
-    policy: SessionPolicy(
-      cacheBytes: (payload?[wireKeyCacheBytes] as int?) ?? defaults.cacheBytes,
-      coverMaxBytes: (payload?[wireKeyCoverMaxBytes] as int?) ?? defaults.coverMaxBytes,
-      rangeMaxBytes: (payload?[wireKeyRangeMaxBytes] as int?) ?? defaults.rangeMaxBytes,
-    ),
+  final policy = SessionPolicy(
+    cacheBytes: (payload?[wireKeyCacheBytes] as int?) ?? defaults.cacheBytes,
+    coverMaxBytes: (payload?[wireKeyCoverMaxBytes] as int?) ?? defaults.coverMaxBytes,
+    rangeMaxBytes: (payload?[wireKeyRangeMaxBytes] as int?) ?? defaults.rangeMaxBytes,
+    rangeRequestsInFlight:
+        (payload?[wireKeyRangeRequestsInFlight] as int?) ?? defaults.rangeRequestsInFlight,
+    rangeBytesInFlight:
+        (payload?[wireKeyRangeBytesInFlight] as int?) ?? defaults.rangeBytesInFlight,
+    rangeRequestBytes: (payload?[wireKeyRangeRequestBytes] as int?) ?? defaults.rangeRequestBytes,
   );
+  final session = payload?[wireKeyByteSource] == true
+      // The host's byte source stays on the main thread; the engine
+      // pulls exact ranges through the byteSource.v1 bridge.
+      ? await SessionEngine.openRemote(byteBridge!, password: '', policy: policy)
+      : await SessionEngine.openBytes(
+          bytes!,
+          password: (payload?[wireKeyPassword] as String?) ?? '',
+          policy: policy,
+        );
   // A fresh open replaces only the session selected by this request;
   // closing only after the new container parsed keeps a failed open
   // from destroying the session that was still serving.
@@ -262,9 +277,9 @@ _spatialAltoBind(
   return (kind: wireReplySessionOpen, json: json, blobs: blobs, session: session);
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionResource(final Map<String, Object?> payload, final SessionEngine? residentSession) {
-  final bytes = _sessionFor(residentSession).resource(payload[wireKeyPath] as String);
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionResource(final Map<String, Object?> payload, final SessionEngine? residentSession) async {
+  final bytes = await _sessionFor(residentSession).resource(payload[wireKeyPath] as String);
   final blobs = <Object>[];
 
   return (
@@ -275,13 +290,14 @@ _sessionResource(final Map<String, Object?> payload, final SessionEngine? reside
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionResources(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionResources(final Map<String, Object?> payload, final SessionEngine? residentSession) async {
   final session = _sessionFor(residentSession);
   final blobs = <Object>[];
   final found = <String>[];
   for (final path in (payload[wireKeyPaths] as List<Object?>).cast<String>()) {
-    if (session.resource(path) case final Uint8List bytes) {
+    final bytes = await session.resource(path);
+    if (bytes != null) {
       found.add(path);
       pushWireBlob(blobs, bytes);
     }
@@ -295,9 +311,9 @@ _sessionResources(final Map<String, Object?> payload, final SessionEngine? resid
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionRange(final Map<String, Object?> payload, final SessionEngine? residentSession) {
-  final slice = _sessionFor(
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionRange(final Map<String, Object?> payload, final SessionEngine? residentSession) async {
+  final slice = await _sessionFor(
     residentSession,
   ).bytesRange(payload[wireKeyOffset] as int, payload[wireKeyCount] as int);
   final blobs = <Object>[];
@@ -310,9 +326,9 @@ _sessionRange(final Map<String, Object?> payload, final SessionEngine? residentS
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionSource(final Map<String, Object?> payload, final SessionEngine? residentSession) {
-  final text = _sessionFor(residentSession).documentSource(payload[wireKeyPath] as String);
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionSource(final Map<String, Object?> payload, final SessionEngine? residentSession) async {
+  final text = await _sessionFor(residentSession).documentSource(payload[wireKeyPath] as String);
   final blobs = <Object>[];
 
   return (
@@ -323,11 +339,11 @@ _sessionSource(final Map<String, Object?> payload, final SessionEngine? resident
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionPdfLines(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionPdfLines(final Map<String, Object?> payload, final SessionEngine? residentSession) async {
   final session = _sessionFor(residentSession);
   final pageIndex = payload[wireKeyPageIndex] as int;
-  final page = session.loadPdfPageLines(pageIndex);
+  final page = await session.loadPdfPageLines(pageIndex);
   final geometry = (session.book as PdfBook).pages[pageIndex];
   final json = <String, Object?>{
     wireKeyPage: encodePdfPageLinesWire(
@@ -340,21 +356,22 @@ _sessionPdfLines(final Map<String, Object?> payload, final SessionEngine? reside
   return (kind: wireReplySessionPdfLines, json: json, blobs: const <Object>[], session: null);
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionPdfStructure(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionPdfStructure(
+  final Map<String, Object?> payload,
+  final SessionEngine? residentSession,
+) async {
   final session = _sessionFor(residentSession);
   final pageIndex = payload[wireKeyPageIndex] as int;
-  final structure = session.loadPdfPageStructure(pageIndex);
+  final structure = await session.loadPdfPageStructure(pageIndex);
   final json = <String, Object?>{wireKeyStructure: encodePdfPageStructureWire(structure)};
 
   return (kind: wireReplySessionPdfStructure, json: json, blobs: const <Object>[], session: null);
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session}) _sessionText(
-  final Map<String, Object?> payload,
-  final SessionEngine? residentSession,
-) {
-  final text = _sessionFor(residentSession).documentText(payload[wireKeyPath] as String);
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionText(final Map<String, Object?> payload, final SessionEngine? residentSession) async {
+  final text = await _sessionFor(residentSession).documentText(payload[wireKeyPath] as String);
   final blobs = <Object>[];
 
   return (
@@ -365,9 +382,9 @@ _sessionPdfStructure(final Map<String, Object?> payload, final SessionEngine? re
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionSearch(final Map<String, Object?> payload, final SessionEngine? residentSession) {
-  final results = _sessionFor(residentSession).search(
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionSearch(final Map<String, Object?> payload, final SessionEngine? residentSession) async {
+  final results = await _sessionFor(residentSession).search(
     payload[wireKeyQuery] as String,
     mode: SearchMode.values.byName(payload[wireKeyMode] as String),
     isCaseSensitive: payload[wireKeyCaseSensitive] as bool,
@@ -385,12 +402,12 @@ _sessionSearch(final Map<String, Object?> payload, final SessionEngine? resident
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
 _sessionSearchIndexEnsure(
   final Map<String, Object?> payload,
   final SessionEngine? residentSession,
-) {
-  final coverage = _sessionFor(residentSession).searchIndexEnsure(
+) async {
+  final coverage = await _sessionFor(residentSession).searchIndexEnsure(
     payload[wireKeyMaxSections] as int,
     SearchIndexIdentity.fromWire(payload[wireKeyIndexIdentity]),
   );
@@ -403,8 +420,11 @@ _sessionSearchIndexEnsure(
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionSearchIndexQuery(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionSearchIndexQuery(
+  final Map<String, Object?> payload,
+  final SessionEngine? residentSession,
+) async {
   final results = _sessionFor(residentSession).searchIndexQuery(
     payload[wireKeyQuery] as String,
     mode: IndexedQueryMode.values.byName(payload[wireKeyMode] as String),
@@ -421,8 +441,8 @@ _sessionSearchIndexQuery(final Map<String, Object?> payload, final SessionEngine
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionSearchIndexExport(final SessionEngine? residentSession) {
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionSearchIndexExport(final SessionEngine? residentSession) async {
   final payload = _sessionFor(residentSession).searchIndexExport();
 
   return (
@@ -433,12 +453,12 @@ _sessionSearchIndexExport(final SessionEngine? residentSession) {
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
 _sessionSearchIndexImport(
   final Map<String, Object?> payload,
   final SessionEngine? residentSession,
-) {
-  final coverage = _sessionFor(residentSession).searchIndexImport(
+) async {
+  final coverage = await _sessionFor(residentSession).searchIndexImport(
     (payload[wireKeyIndexPayload]! as Map).cast<String, Object?>(),
     SearchIndexIdentity.fromWire(payload[wireKeyIndexIdentity]),
   );
@@ -451,8 +471,8 @@ _sessionSearchIndexImport(
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionSearchIndexDrop(final SessionEngine? residentSession) {
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionSearchIndexDrop(final SessionEngine? residentSession) async {
   _sessionFor(residentSession).searchIndexDrop();
 
   return (
@@ -463,9 +483,9 @@ _sessionSearchIndexDrop(final SessionEngine? residentSession) {
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionProgression(final SessionEngine? residentSession) {
-  final progression = _sessionFor(residentSession).computeProgression();
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionProgression(final SessionEngine? residentSession) async {
+  final progression = await _sessionFor(residentSession).computeProgression();
 
   return (
     kind: wireReplySessionProgression,
@@ -488,9 +508,9 @@ _sessionMetrics(final SessionEngine? residentSession) {
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionStatistics(final SessionEngine? residentSession) {
-  final statistics = _sessionFor(residentSession).computeStatistics();
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionStatistics(final SessionEngine? residentSession) async {
+  final statistics = await _sessionFor(residentSession).computeStatistics();
 
   return (
     kind: wireReplySessionStatistics,
@@ -503,11 +523,11 @@ _sessionStatistics(final SessionEngine? residentSession) {
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionCfiResolve(final Map<String, Object?> payload, final SessionEngine? residentSession) {
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionCfiResolve(final Map<String, Object?> payload, final SessionEngine? residentSession) async {
   // The engine owns CFI parsing, like the inline resolver: malformed
   // and unresolving CFIs come back as JSON null.
-  final location = _sessionFor(residentSession).resolveCfi(payload[wireKeyCfi] as String);
+  final location = await _sessionFor(residentSession).resolveCfi(payload[wireKeyCfi] as String);
 
   return (
     kind: wireReplySessionCfiLocation,
@@ -517,9 +537,9 @@ _sessionCfiResolve(final Map<String, Object?> payload, final SessionEngine? resi
   );
 }
 
-({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_sessionCfiBuild(final Map<String, Object?> payload, final SessionEngine? residentSession) {
-  final cfi = _sessionFor(residentSession).buildCfi(
+Future<({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})>
+_sessionCfiBuild(final Map<String, Object?> payload, final SessionEngine? residentSession) async {
+  final cfi = await _sessionFor(residentSession).buildCfi(
     contentIndex: payload[wireKeyContentIndex] as int,
     offsetInText: payload[wireKeyOffsetInText] as int,
   );

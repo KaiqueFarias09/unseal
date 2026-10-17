@@ -1066,14 +1066,20 @@ Palm databases throw `SessionUnsupportedFormatException`.
 
 | File | What it does and why it exists |
 | --- | --- |
-| `features/progressive/book_session.dart` | Defines opening, resource/text requests, search, statistics, progression, CFI, cancellation, and disposal. |
-| `features/progressive/session_policy.dart` | Defines cache, cover, and byte-range limits plus session lifecycle errors. |
+| `features/progressive/book_session.dart` | Defines opening (bytes, file, or a host byte source), resource/text requests, search, statistics, progression, CFI, cancellation, and disposal. |
+| `features/progressive/byte_source.dart` | The public `UnsealByteSource` contract (length, revision identity, exact `readRange`, close) and its typed failure hierarchy — the seam a host implements to stream EPUB/CBZ by ranges it serves. |
+| `features/progressive/byte_source_gate.dart` | The authoritative host-side gate: bounds, exact answers, revision identity, in-flight request/byte caps with FIFO backpressure, and the per-request refusal, all on the thread that owns the source. |
+| `features/progressive/session_policy.dart` | Defines cache, cover, byte-range limits, and the external-source range budgets plus session lifecycle errors. |
+| `features/progressive/session_engine.dart` | Owns the resident source, format-specific opening, header, cache, and requested operations — asynchronous end to end, reading through an `AsyncByteReader`. |
+| `foundation/archive/async_zip_random_access.dart` | The remote-source twin of `ZipRandomAccess`: one EOCD tail read plus bounded central-directory windows at open, then a local-header read and one payload read per entry, sharing the synchronous reader's record decoder and guards. |
+| `foundation/archive/async_archive_random_access.dart` | The async twin of `ArchiveRandomAccess` plus the adapter that completes immediately over the synchronous RAR source. |
+| `foundation/archive/async_byte_reader.dart` | The internal async byte-reader contract and the synchronous adapter, so bytes/file sessions and remote sessions run one engine. |
+| `features/progressive/transport/session_transport.dart` | Defines the transport contract and inline execution (including the source-open inline transport that closes the gate at disposal). |
+| `features/progressive/transport/session_transport_io.dart` | Keeps a session in a long-lived VM isolate, reads file sources there, and serves the engine's `byteSource.v1` range requests through the host gate. |
+| `features/progressive/transport/session_transport_web.dart` | Routes requests to the configured browser worker, registers the served source for the `byteSource.v1` bridge, and falls back to inline execution when unavailable. |
+| `platform/web/byte_source_bridge.dart` | The worker-side half of the bridge: pure request/reply correlation a test can drive without browser types. |
 | `features/progressive/mobi_session_header.dart` | Builds MOBI/AZW3 session headers and their serving state: the open pass over records, MOBI 6 section materialization (anchor-chain splices, body-range clamping, wrapper stripping), KF8 per-part assembly with bounded position resolution, and the lazy resource walk. |
 | `features/progressive/session_metrics.dart` | The shared session counter (source reads, decoded units and bytes, materialized content), the counting byte source, and the `SessionMetrics` snapshot behind `BookSession.metrics`. |
-| `features/progressive/session_engine.dart` | Owns the resident source, format-specific opening, header, cache, and requested operations. |
-| `features/progressive/transport/session_transport.dart` | Defines the transport contract and inline execution. |
-| `features/progressive/transport/session_transport_io.dart` | Keeps a session in a long-lived VM isolate and reads file sources there. |
-| `features/progressive/transport/session_transport_web.dart` | Routes requests to the configured browser worker, with inline execution when unavailable. |
 
 Browser session identifiers keep separate engines for concurrent books.
 `cancelPending` fails in-flight requests but leaves the session usable;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -21,7 +22,7 @@ import 'rar5_stream_encoder.dart';
 ///
 /// Numbers are wall-clock on the host running the tool; treat them as
 /// relative evidence between the measured modes, not absolute claims.
-void main(final List<String> arguments) {
+Future<void> main(final List<String> arguments) async {
   var pages = 12;
   var reps = 7;
   for (var i = 0; i < arguments.length; i++) {
@@ -53,34 +54,38 @@ void main(final List<String> arguments) {
   );
   stdout.writeln();
 
-  _report('eager parse (compressed)', () => Unseal.parse(Uint8List.fromList(compressed)), reps);
-  _report('eager parse (stored)      ', () => Unseal.parse(Uint8List.fromList(stored)), reps);
-  _report('eager parse (solid)       ', () => Unseal.parse(Uint8List.fromList(solid)), reps);
-  _report('session open (compressed) ', () {
-    final engine = SessionEngine.openBytes(Uint8List.fromList(compressed));
+  await _report(
+    'eager parse (compressed)',
+    () => Unseal.parse(Uint8List.fromList(compressed)),
+    reps,
+  );
+  await _report('eager parse (stored)      ', () => Unseal.parse(Uint8List.fromList(stored)), reps);
+  await _report('eager parse (solid)       ', () => Unseal.parse(Uint8List.fromList(solid)), reps);
+  await _report('session open (compressed) ', () async {
+    final engine = await SessionEngine.openBytes(Uint8List.fromList(compressed));
     engine.close();
   }, reps);
-  _report('session open (stored)     ', () {
-    final engine = SessionEngine.openBytes(Uint8List.fromList(stored));
+  await _report('session open (stored)     ', () async {
+    final engine = await SessionEngine.openBytes(Uint8List.fromList(stored));
     engine.close();
   }, reps);
   // The solid open sniffs every page through the sequential chain — the
   // documented cost, directly comparable with the non-solid open.
-  _report('session open (solid)      ', () {
-    final engine = SessionEngine.openBytes(Uint8List.fromList(solid));
+  await _report('session open (solid)      ', () async {
+    final engine = await SessionEngine.openBytes(Uint8List.fromList(solid));
     engine.close();
   }, reps);
 
   // Hot page load: one engine, repeated loads of the same page.
-  final engine = SessionEngine.openBytes(Uint8List.fromList(compressed));
+  final engine = await SessionEngine.openBytes(Uint8List.fromList(compressed));
   final path = (engine.book as ComicBook).pages.first.path;
-  _report('hot load page 0 (cache)   ', () => engine.resource(path), reps);
+  await _report('hot load page 0 (cache)   ', () => engine.resource(path), reps);
   engine.close();
 
   // Cold decode: one engine per load, so the cache never serves it.
-  _report('cold open + load (cached) ', () {
-    final one = SessionEngine.openBytes(Uint8List.fromList(compressed));
-    one.resource(path);
+  await _report('cold open + load (cached) ', () async {
+    final one = await SessionEngine.openBytes(Uint8List.fromList(compressed));
+    await one.resource(path);
     one.close();
   }, reps);
 
@@ -88,58 +93,58 @@ void main(final List<String> arguments) {
   // reverse replays through bounded checkpoints, one re-decode per
   // step; repeated reverse passes measure the checkpointed steady
   // state against the non-solid hot baseline.
-  final solidEngine = SessionEngine.openBytes(Uint8List.fromList(solid));
+  final solidEngine = await SessionEngine.openBytes(Uint8List.fromList(solid));
   final solidPaths = [for (final p in (solidEngine.book as ComicBook).pages) p.path];
-  _report('solid forward walk (cache)', () {
+  await _report('solid forward walk (cache)', () async {
     for (final p in solidPaths) {
-      solidEngine.resource(p);
+      await solidEngine.resource(p);
     }
   }, reps);
-  _report('solid reverse walk (1st)  ', () {
+  await _report('solid reverse walk (1st)  ', () async {
     for (final p in solidPaths.reversed) {
-      solidEngine.resource(p);
+      await solidEngine.resource(p);
     }
   }, 1);
-  _report('solid reverse walk (again)', () {
+  await _report('solid reverse walk (again)', () async {
     for (final p in solidPaths.reversed) {
-      solidEngine.resource(p);
+      await solidEngine.resource(p);
     }
   }, reps);
-  _report('solid repeat decode (revo)', () {
+  await _report('solid repeat decode (revo)', () async {
     for (final p in solidPaths.reversed) {
-      solidEngine.resource(p);
+      await solidEngine.resource(p);
     }
   }, reps);
   solidEngine.close();
 
   // Replay steady state: a minimal cache forces every load through the
   // chain — backward steps replay through the bounded checkpoints.
-  final replayEngine = SessionEngine.openBytes(
+  final replayEngine = await SessionEngine.openBytes(
     Uint8List.fromList(solid),
     policy: const SessionPolicy(cacheBytes: 1 << 20),
   );
   final replayPaths = [for (final p in (replayEngine.book as ComicBook).pages) p.path];
-  _report('solid reverse walk (cold) ', () {
+  await _report('solid reverse walk (cold) ', () async {
     for (final p in replayPaths.reversed) {
-      replayEngine.resource(p);
+      await replayEngine.resource(p);
     }
   }, reps);
-  _report('solid zig-zag walk (cold) ', () {
+  await _report('solid zig-zag walk (cold) ', () async {
     for (var i = 0; i < replayPaths.length; i++) {
-      replayEngine.resource(replayPaths[replayPaths.length - 1 - i]);
-      replayEngine.resource(replayPaths[i]);
+      await replayEngine.resource(replayPaths[replayPaths.length - 1 - i]);
+      await replayEngine.resource(replayPaths[i]);
     }
   }, reps);
   replayEngine.close();
 
   // Memory: RSS growth of one solid session open over the baseline of
   // the same-shape non-solid open.
-  final solidRss = _rssGrowth(() {
-    final one = SessionEngine.openBytes(Uint8List.fromList(solid));
+  final solidRss = await _rssGrowth(() async {
+    final one = await SessionEngine.openBytes(Uint8List.fromList(solid));
     one.close();
   });
-  final plainRss = _rssGrowth(() {
-    final one = SessionEngine.openBytes(Uint8List.fromList(compressed));
+  final plainRss = await _rssGrowth(() async {
+    final one = await SessionEngine.openBytes(Uint8List.fromList(compressed));
     one.close();
   });
   stdout.writeln(
@@ -148,9 +153,9 @@ void main(final List<String> arguments) {
   );
 }
 
-int _rssGrowth(final void Function() body) {
+Future<int> _rssGrowth(final FutureOr<void> Function() body) async {
   final before = ProcessInfo.currentRss;
-  body();
+  await body();
 
   return ProcessInfo.currentRss - before;
 }
@@ -171,13 +176,17 @@ Uint8List _repeatingPage(final int length) {
   return data;
 }
 
-void _report(final String label, final void Function() body, final int reps) {
+Future<void> _report(
+  final String label,
+  final FutureOr<void> Function() body,
+  final int reps,
+) async {
   // Warm-up outside the sample.
-  body();
+  await body();
   final samples = <double>[];
   for (var i = 0; i < reps; i++) {
     final watch = Stopwatch()..start();
-    body();
+    await body();
     watch.stop();
     samples.add(watch.elapsedMicroseconds / 1000);
   }

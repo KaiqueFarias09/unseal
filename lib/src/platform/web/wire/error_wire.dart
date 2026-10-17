@@ -11,6 +11,7 @@ import '../../../features/html/exceptions/html_exception.dart';
 import '../../../features/mobi/exceptions/mobi_exception.dart';
 import '../../../features/odt/exceptions/odt_exception.dart';
 import '../../../features/pdf/exceptions/pdf_exception.dart';
+import '../../../features/progressive/byte_source.dart';
 import '../../../features/progressive/session_policy.dart';
 import '../../../features/search/index/search_index_exceptions.dart';
 import '../../../features/tiff/tiff_exception.dart';
@@ -36,6 +37,18 @@ Object decodeErrorWire(final String type, final String message) {
       return const SessionCancelledException();
     case 'SessionUnsupportedFormatException':
       return SessionUnsupportedFormatException(message);
+    case 'ByteSourceClosedException':
+      return const ByteSourceClosedException();
+    case 'ByteSourceShortReadException':
+      return const ByteSourceShortReadException(offset: 0, count: 0, received: 0);
+    case 'ByteSourceLongReadException':
+      return const ByteSourceLongReadException(offset: 0, count: 0, received: 0);
+    case 'ByteSourceReadException':
+      return ByteSourceReadException(message);
+    case 'ByteSourceRevisionChangedException':
+      return const ByteSourceRevisionChangedException(expected: null, actual: null);
+    case 'ByteSourceLimitExceededException':
+      return ByteSourceLimitExceededException(message);
     case 'SearchIndexException':
       return SearchIndexException(message);
     case 'SearchIndexInvalidArgumentException':

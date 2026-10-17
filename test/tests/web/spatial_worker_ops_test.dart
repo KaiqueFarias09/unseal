@@ -17,7 +17,7 @@ import 'package:unseal/src/platform/web/wire/spatial_wire.dart';
 import 'package:unseal/src/platform/web/worker_ops.dart';
 import 'package:unseal/unseal.dart';
 
-void main() {
+Future<void> main() async {
   final goody = Uint8List.fromList(
     File('test/resources/djvu/goody-twoshoes.djvu').readAsBytesSync(),
   );
@@ -30,12 +30,12 @@ void main() {
     sourceEvidence: SourceEvidence.sha256,
   );
 
-  final parseReply = runWorkerOp(op: workerOpParse, bytes: goody);
+  final parseReply = await runWorkerOp(op: workerOpParse, bytes: goody);
   final resident = decodeBookWire(parseReply.json, parseReply.blobs);
   final inlineBook = parseDjvuBook(goody);
 
-  test('spatial.djvuPage returns the structure the inline book holds', () {
-    final reply = runWorkerOp(
+  test('spatial.djvuPage returns the structure the inline book holds', () async {
+    final reply = await runWorkerOp(
       op: workerOpSpatialDjvuPage,
       payload: <String, Object?>{wireKeyPageIndex: 0},
       residentBook: resident,
@@ -56,7 +56,7 @@ void main() {
     expect(wireWord.rect, inlineWord.rect);
   });
 
-  test('spatial.djvuPage reports pages without hidden text as null', () {
+  test('spatial.djvuPage reports pages without hidden text as null', () async {
     final lastPage = inlineBook.pages.length - 1;
     var pageIndexWithoutChunk = -1;
     for (var i = 0; i < inlineBook.pages.length; i++) {
@@ -68,7 +68,7 @@ void main() {
     if (pageIndexWithoutChunk < 0) {
       pageIndexWithoutChunk = lastPage;
     }
-    final reply = runWorkerOp(
+    final reply = await runWorkerOp(
       op: workerOpSpatialDjvuPage,
       payload: <String, Object?>{wireKeyPageIndex: pageIndexWithoutChunk},
       residentBook: resident,
@@ -83,8 +83,8 @@ void main() {
     );
   });
 
-  test('spatial.altoBind matches the inline binding', () {
-    final reply = runWorkerOp(
+  test('spatial.altoBind matches the inline binding', () async {
+    final reply = await runWorkerOp(
       op: workerOpSpatialAltoBind,
       bytes: altoXml,
       payload: <String, Object?>{
@@ -109,7 +109,7 @@ void main() {
     expect(bound.pages.single.provenance.softwareName, 'Tesseract');
   });
 
-  test('spatial ops fail typed without a resident DjVu book', () {
+  test('spatial ops fail typed without a resident DjVu book', () async {
     expect(
       () =>
           runWorkerOp(op: workerOpSpatialDjvuPage, payload: <String, Object?>{wireKeyPageIndex: 0}),
@@ -130,7 +130,7 @@ void main() {
     final epubBytes = Uint8List.fromList(
       File('test/resources/epub/Alices Adventures in Wonderland.epub').readAsBytesSync(),
     );
-    final epubReply = runWorkerOp(op: workerOpParse, bytes: epubBytes);
+    final epubReply = await runWorkerOp(op: workerOpParse, bytes: epubBytes);
     final epubResident = decodeBookWire(epubReply.json, epubReply.blobs);
     expect(
       () => runWorkerOp(
@@ -142,7 +142,7 @@ void main() {
     );
   });
 
-  test('spatial.altoBind fails typed for malformed ALTO and missing chunks', () {
+  test('spatial.altoBind fails typed for malformed ALTO and missing chunks', () async {
     expect(
       () => runWorkerOp(
         op: workerOpSpatialAltoBind,

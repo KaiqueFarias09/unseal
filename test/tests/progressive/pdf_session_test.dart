@@ -33,9 +33,9 @@ void main() {
       ('8-page synthetic', eightPages),
       ('continuation fixture', continuationPages),
     ]) {
-      test('per-page canonical text and reflow HTML match byte for byte: $name', () {
+      test('per-page canonical text and reflow HTML match byte for byte: $name', () async {
         final full = _eager(bytes);
-        final engine = SessionEngine.openBytes(bytes);
+        final engine = await SessionEngine.openBytes(bytes);
         addTearDown(engine.close);
         final header = engine.book as PdfBook;
 
@@ -51,38 +51,38 @@ void main() {
         for (var i = 0; i < full.pageCount; i++) {
           final path = 'page_${i + 1}.html';
           expect(
-            engine.documentText(path),
+            await engine.documentText(path),
             full.pageTexts[i].text,
             reason: 'canonical text of page ${i + 1}',
           );
           expect(
-            engine.documentSource(path),
+            await engine.documentSource(path),
             full.files.html[i].content,
             reason: 'reflow HTML of page ${i + 1}',
           );
         }
       });
 
-      test('materializing in reverse order keeps every page byte-identical: $name', () {
+      test('materializing in reverse order keeps every page byte-identical: $name', () async {
         final full = _eager(bytes);
-        final engine = SessionEngine.openBytes(bytes);
+        final engine = await SessionEngine.openBytes(bytes);
         addTearDown(engine.close);
 
         for (var i = full.pageCount; i >= 1; i--) {
           expect(
-            engine.documentText('page_$i.html'),
+            await engine.documentText('page_$i.html'),
             full.pageTexts[i - 1].text,
             reason: 'canonical text of page $i (reverse walk)',
           );
         }
       });
 
-      test('search, progression, statistics and navigation match: $name', () {
+      test('search, progression, statistics and navigation match: $name', () async {
         final full = _eager(bytes);
-        final engine = SessionEngine.openBytes(bytes);
+        final engine = await SessionEngine.openBytes(bytes);
         addTearDown(engine.close);
 
-        final sessionSearch = engine.search('quixoticmarker', maxMatches: 1000);
+        final sessionSearch = await engine.search('quixoticmarker', maxMatches: 1000);
         final eagerSearch = full.search('quixoticmarker', maxMatches: 1000);
         expect(sessionSearch.matches.length, eagerSearch.matches.length);
         for (var i = 0; i < eagerSearch.matches.length; i++) {
@@ -91,10 +91,10 @@ void main() {
           expect(sessionSearch.matches[i].end, eagerSearch.matches[i].end);
         }
 
-        final progression = engine.computeProgression();
+        final progression = await engine.computeProgression();
         expect(progression.sectionLengths, [for (final page in full.pageTexts) page.text.length]);
 
-        final statistics = engine.computeStatistics();
+        final statistics = await engine.computeStatistics();
         final eagerStatistics = BookStatistics.fromTexts([
           for (final file in full.files.html) file.plainText,
         ]);
@@ -108,32 +108,35 @@ void main() {
       });
     }
 
-    test('the running header and footer cut applies to every page, eager and session alike', () {
-      // The §3.4 frozen decision: skips come from the sampled plan,
-      // and the eager scanner reads the same first 20 pages. The
-      // observable contract on a 400-page book: the repeated
-      // header/footer lines are gone from every page's canonical text
-      // both ways (the direct plan-level pin lives in
-      // pdf_reflow_plan_test.dart).
-      final full = _eager(fourHundredPages);
-      final engine = SessionEngine.openBytes(fourHundredPages);
-      addTearDown(engine.close);
+    test(
+      'the running header and footer cut applies to every page, eager and session alike',
+      () async {
+        // The §3.4 frozen decision: skips come from the sampled plan,
+        // and the eager scanner reads the same first 20 pages. The
+        // observable contract on a 400-page book: the repeated
+        // header/footer lines are gone from every page's canonical text
+        // both ways (the direct plan-level pin lives in
+        // pdf_reflow_plan_test.dart).
+        final full = _eager(fourHundredPages);
+        final engine = await SessionEngine.openBytes(fourHundredPages);
+        addTearDown(engine.close);
 
-      expect(full.pageTexts.first.text, isNot(contains('A Tale of Two Cities')));
-      expect(full.pageTexts.last.text, isNot(contains('A Tale of Two Cities')));
-      for (var i = 1; i <= full.pageCount; i++) {
-        final text = engine.documentText('page_$i.html')!;
-        expect(text, isNot(contains('A Tale of Two Cities')), reason: 'header cut, page $i');
-        expect(text, isNot(contains('Page $i')), reason: 'footer cut, page $i');
-      }
-    });
+        expect(full.pageTexts.first.text, isNot(contains('A Tale of Two Cities')));
+        expect(full.pageTexts.last.text, isNot(contains('A Tale of Two Cities')));
+        for (var i = 1; i <= full.pageCount; i++) {
+          final text = (await engine.documentText('page_$i.html'))!;
+          expect(text, isNot(contains('A Tale of Two Cities')), reason: 'header cut, page $i');
+          expect(text, isNot(contains('Page $i')), reason: 'footer cut, page $i');
+        }
+      },
+    );
   });
 
   group('PDF session equivalence (real fixtures beyond the sample bound)', () {
-    test('gutenberg 31-pager: same match counts, non-empty pages, close progression', () {
+    test('gutenberg 31-pager: same match counts, non-empty pages, close progression', () async {
       final bytes = _bytes(gutenberg31);
       final full = _eager(bytes);
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
 
       // The outline is the one structure with byte parity: it is
@@ -143,20 +146,20 @@ void main() {
       // Distinctive queries from different parts of the book: the
       // equivalence contract is equal match counts and sections.
       for (final query in ['accommodation', ' Humphry ', 'reconstruct']) {
-        final sessionSearch = engine.search(query.trim(), maxMatches: 1000);
+        final sessionSearch = await engine.search(query.trim(), maxMatches: 1000);
         final eagerSearch = full.search(query.trim(), maxMatches: 1000);
         expect(sessionSearch.matches.length, eagerSearch.matches.length, reason: query);
       }
 
       var progressionReached = 0;
       for (var i = 1; i <= full.pageCount; i++) {
-        final text = engine.documentText('page_$i.html');
+        final text = await engine.documentText('page_$i.html');
         expect(text, isNotNull, reason: 'page $i materializes');
         if (text!.trim().isNotEmpty) progressionReached++;
       }
       expect(progressionReached, full.pageCount, reason: 'every page carries text');
 
-      final progression = engine.computeProgression();
+      final progression = await engine.computeProgression();
       final eagerTotal = full.pageTexts.fold<int>(
         0,
         (final sum, final page) => sum + page.text.length,
@@ -165,21 +168,21 @@ void main() {
       expect(delta, lessThan(0.05), reason: 'progression totals within 5% of eager');
     });
 
-    test('400-page synthetic: identical skips, equal distinctive counts, 5% progression', () {
+    test('400-page synthetic: identical skips, equal distinctive counts, 5% progression', () async {
       final full = _eager(fourHundredPages);
-      final engine = SessionEngine.openBytes(fourHundredPages);
+      final engine = await SessionEngine.openBytes(fourHundredPages);
       addTearDown(engine.close);
 
-      final sessionSearch = engine.search('quixoticmarker', maxMatches: 1000);
+      final sessionSearch = await engine.search('quixoticmarker', maxMatches: 1000);
       expect(sessionSearch.matches.length, 400, reason: 'one marker hit per page');
       final eagerSearch = full.search('quixoticmarker', maxMatches: 1000);
       expect(sessionSearch.matches.length, eagerSearch.matches.length);
 
       for (var i = 1; i <= full.pageCount; i++) {
-        expect(engine.documentText('page_$i.html'), isNotEmpty, reason: 'page $i');
+        expect(await engine.documentText('page_$i.html'), isNotEmpty, reason: 'page $i');
       }
 
-      final progression = engine.computeProgression();
+      final progression = await engine.computeProgression();
       final eagerTotal = full.pageTexts.fold<int>(
         0,
         (final sum, final page) => sum + page.text.length,
@@ -189,20 +192,20 @@ void main() {
   });
 
   group('PDF session content ops', () {
-    test('textFile returns reflow-shaped TextFiles and resource is null for pages', () {
-      final engine = SessionEngine.openBytes(eightPages);
+    test('textFile returns reflow-shaped TextFiles and resource is null for pages', () async {
+      final engine = await SessionEngine.openBytes(eightPages);
       addTearDown(engine.close);
 
-      final file = engine.textFile('page_3.html')!;
+      final file = (await engine.textFile('page_3.html'))!;
       expect(file.name, 'page_3.html');
       expect(file.type, 'html');
       expect(file.path, 'page_3.html');
       expect(file.content, startsWith('<!DOCTYPE html>'));
 
-      expect(engine.textFile('page_0.html'), isNull);
-      expect(engine.textFile('page_9.html'), isNull);
-      expect(engine.textFile('nope.html'), isNull);
-      expect(engine.resource('page_1.html'), isNull, reason: 'pages are not resources');
+      expect(await engine.textFile('page_0.html'), isNull);
+      expect(await engine.textFile('page_9.html'), isNull);
+      expect(await engine.textFile('nope.html'), isNull);
+      expect(await engine.resource('page_1.html'), isNull, reason: 'pages are not resources');
       expect(
         engine.resourceLength('page_1.html'),
         isNull,
@@ -210,39 +213,39 @@ void main() {
       );
     });
 
-    test('loadBytesRange slices the raw document under the policy cap', () {
-      final engine = SessionEngine.openBytes(
+    test('loadBytesRange slices the raw document under the policy cap', () async {
+      final engine = await SessionEngine.openBytes(
         fourHundredPages,
         policy: const SessionPolicy(rangeMaxBytes: 1 << 16),
       );
       addTearDown(engine.close);
 
       expect(engine.byteLength, fourHundredPages.length);
-      expect(engine.bytesRange(0, 8), fourHundredPages.sublist(0, 8));
+      expect(await engine.bytesRange(0, 8), fourHundredPages.sublist(0, 8));
       expect(
-        engine.bytesRange(fourHundredPages.length - 4, 100),
+        await engine.bytesRange(fourHundredPages.length - 4, 100),
         fourHundredPages.sublist(fourHundredPages.length - 4),
       );
-      expect(engine.bytesRange(0, 1 << 20).length, 1 << 16, reason: 'policy clamp');
+      expect((await engine.bytesRange(0, 1 << 20)).length, 1 << 16, reason: 'policy clamp');
       expect(() => engine.bytesRange(-1, 4), throwsA(isA<RangeError>()));
       expect(() => engine.bytesRange(0, -1), throwsA(isA<RangeError>()));
       expect(() => engine.bytesRange(fourHundredPages.length + 1, 4), throwsA(isA<RangeError>()));
     });
 
-    test('images decode on demand by object number, without the eager cap', () {
+    test('images decode on demand by object number, without the eager cap', () async {
       final bytes = Uint8List.fromList(imagePageFixture(tinyJpegPage).build());
       final full = _eager(bytes);
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
 
       expect(full.files.images, hasLength(1));
       final eagerImage = full.files.images.single;
-      expect(engine.resource(eagerImage.path), eagerImage.content);
+      expect(await engine.resource(eagerImage.path), eagerImage.content);
       // After materialization the length is known.
       expect(engine.resourceLength(eagerImage.path), eagerImage.content.length);
-      expect(engine.resource('images/pdf-image-9999.jpg'), isNull);
-      expect(engine.resource('images/pdf-image-8.png'), isNull, reason: 'wrong extension');
-      expect(engine.resource('images/nope.png'), isNull);
+      expect(await engine.resource('images/pdf-image-9999.jpg'), isNull);
+      expect(await engine.resource('images/pdf-image-8.png'), isNull, reason: 'wrong extension');
+      expect(await engine.resource('images/nope.png'), isNull);
     });
 
     test(
@@ -277,10 +280,10 @@ void main() {
   });
 
   group('PDF session cache policy', () {
-    test('a tiny budget evicts whole pages without corrupting them', () {
+    test('a tiny budget evicts whole pages without corrupting them', () async {
       final bytes = fourHundredPages;
       final full = _eager(bytes);
-      final engine = SessionEngine.openBytes(
+      final engine = await SessionEngine.openBytes(
         bytes,
         policy: const SessionPolicy(cacheBytes: 1 << 20),
       );
@@ -292,7 +295,7 @@ void main() {
       for (var pass = 0; pass < 2; pass++) {
         for (var i = 1; i <= full.pageCount; i++) {
           expect(
-            engine.documentText('page_$i.html'),
+            await engine.documentText('page_$i.html'),
             full.pageTexts[i - 1].text,
             reason: 'page $i pass $pass',
           );
@@ -401,17 +404,17 @@ void main() {
       expect(await session.loadDocumentText('page_1.html'), eager.pageTexts.single.text);
     });
 
-    test('broken xref opens through the recovery scan, like the eager parse', () {
+    test('broken xref opens through the recovery scan, like the eager parse', () async {
       final builder = multipageTextFixture(pageCount: 4, withHeaderFooter: true)
         ..corruptXref = true;
       final bytes = Uint8List.fromList(builder.build());
       final full = _eager(bytes);
 
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
 
       expect((engine.book as PdfBook).pageCount, full.pageCount);
-      expect(engine.documentText('page_1.html'), full.pageTexts[0].text);
+      expect(await engine.documentText('page_1.html'), full.pageTexts[0].text);
     });
 
     test('hostile bytes stay typed and lenient bytes match the eager outcome', () async {
@@ -446,7 +449,7 @@ void main() {
         eagerOutcome = error;
       }
       try {
-        final engine = SessionEngine.openBytes(truncated);
+        final engine = await SessionEngine.openBytes(truncated);
         addTearDown(engine.close);
         expect(eagerOutcome, isA<int>(), reason: 'session opened; the eager parse opens too');
         expect((engine.book as PdfBook).pageCount, eagerOutcome, reason: 'page count parity');

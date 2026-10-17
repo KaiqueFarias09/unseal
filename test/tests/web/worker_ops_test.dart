@@ -49,20 +49,20 @@ void _expectSameResults(final SearchResults wire, final SearchResults inline) {
   }
 }
 
-void main() {
+Future<void> main() async {
   final bytes = _bytes('epub/Alices Adventures in Wonderland.epub');
   final inline = Unseal.parse(bytes) as EpubBook;
 
   // The resident book exactly the way the worker shell keeps it:
   // decoded back from the parse reply it just produced.
-  final parseReply = runWorkerOp(op: workerOpParse, bytes: bytes);
+  final parseReply = await runWorkerOp(op: workerOpParse, bytes: bytes);
   final resident = decodeBookWire(parseReply.json, parseReply.blobs);
 
   group('search op', () {
-    test('runs after a parse op and matches the inline search', () {
+    test('runs after a parse op and matches the inline search', () async {
       expect(parseReply.kind, wireReplyBook);
 
-      final reply = runWorkerOp(
+      final reply = await runWorkerOp(
         op: workerOpSearch,
         payload: _searchPayload('alice'),
         residentBook: resident,
@@ -73,8 +73,8 @@ void main() {
       _expectSameResults(decodeSearchResultsWire(reply.json), inline.search('alice'));
     });
 
-    test('forwards the non-default options', () {
-      final capped = runWorkerOp(
+    test('forwards the non-default options', () async {
+      final capped = await runWorkerOp(
         op: workerOpSearch,
         payload: _searchPayload('the', maxMatches: 5),
         residentBook: resident,
@@ -82,7 +82,7 @@ void main() {
       expect(decodeSearchResultsWire(capped.json).isTruncated, isTrue);
       _expectSameResults(decodeSearchResultsWire(capped.json), inline.search('the', maxMatches: 5));
 
-      final caseFolded = runWorkerOp(
+      final caseFolded = await runWorkerOp(
         op: workerOpSearch,
         payload: _searchPayload('ALICE', isCaseSensitive: true),
         residentBook: resident,
@@ -114,11 +114,11 @@ void main() {
   });
 
   group('cfi ops', () {
-    test('cfiBuild then cfiResolve round-trips the offset', () {
+    test('cfiBuild then cfiResolve round-trips the offset', () async {
       const section = 5;
       const offset = 6140;
 
-      final buildReply = runWorkerOp(
+      final buildReply = await runWorkerOp(
         op: workerOpCfiBuild,
         payload: <String, Object?>{wireKeyContentIndex: section, wireKeyOffsetInText: offset},
         residentBook: resident,
@@ -127,7 +127,7 @@ void main() {
       final cfi = buildReply.json[wireKeyCfi] as String;
       expect(cfi, startsWith('epubcfi('));
 
-      final resolveReply = runWorkerOp(
+      final resolveReply = await runWorkerOp(
         op: workerOpCfiResolve,
         payload: <String, Object?>{wireKeyCfi: cfi},
         residentBook: resident,
@@ -142,8 +142,8 @@ void main() {
       expect(location.charOffset, offset);
     });
 
-    test('yields JSON null for a CFI outside the book', () {
-      final reply = runWorkerOp(
+    test('yields JSON null for a CFI outside the book', () async {
+      final reply = await runWorkerOp(
         op: workerOpCfiResolve,
         payload: const <String, Object?>{wireKeyCfi: 'epubcfi(/6/40!/4/1:0)'},
         residentBook: resident,
@@ -153,8 +153,8 @@ void main() {
       expect(reply.json[wireKeyLocation], isNull);
     });
 
-    test('yields JSON null for a malformed CFI', () {
-      final reply = runWorkerOp(
+    test('yields JSON null for a malformed CFI', () async {
+      final reply = await runWorkerOp(
         op: workerOpCfiResolve,
         payload: const <String, Object?>{wireKeyCfi: 'not-a-cfi'},
         residentBook: resident,
@@ -169,8 +169,8 @@ void main() {
       expect(() => runWorkerOp(op: 'nope'), throwsA(isA<UnsealException>()));
     });
 
-    test('metadata op keeps its reply kind', () {
-      final reply = runWorkerOp(op: workerOpMetadata, bytes: bytes);
+    test('metadata op keeps its reply kind', () async {
+      final reply = await runWorkerOp(op: workerOpMetadata, bytes: bytes);
 
       expect(reply.kind, wireReplyMetadata);
       expect(decodeMetadataWire(reply.json, reply.blobs).title, inline.metadata.title);

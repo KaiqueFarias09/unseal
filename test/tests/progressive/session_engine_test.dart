@@ -15,9 +15,9 @@ void main() {
     ];
 
     for (final fixture in fixtures) {
-      test('header structure equals the eager parse: $fixture', () {
+      test('header structure equals the eager parse: $fixture', () async {
         final bytes = File(fixture).readAsBytesSync();
-        final engine = SessionEngine.openBytes(bytes);
+        final engine = await SessionEngine.openBytes(bytes);
         final full = Unseal.parse(bytes) as EpubBook;
         addTearDown(engine.close);
 
@@ -57,40 +57,40 @@ void main() {
   group('SessionEngine on-demand content', () {
     const fixture = 'test/resources/books/epub/elements-of-chemistry.epub';
 
-    test('resource and document text bytes equal the eager parse', () {
+    test('resource and document text bytes equal the eager parse', () async {
       final bytes = File(fixture).readAsBytesSync();
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
       final full = Unseal.parse(bytes) as EpubBook;
 
       for (final file in full.files.html) {
-        expect(engine.documentText(file.path), documentTextOf(file), reason: file.path);
+        expect(await engine.documentText(file.path), documentTextOf(file), reason: file.path);
       }
       for (final file in [...full.files.images, ...full.files.fonts, ...full.files.others]) {
-        expect(engine.resource(file.path), file.content, reason: file.path);
+        expect(await engine.resource(file.path), file.content, reason: file.path);
       }
       for (final file in full.files.css) {
-        expect(engine.textFile(file.path)!.content, file.content, reason: file.path);
+        expect((await engine.textFile(file.path))!.content, file.content, reason: file.path);
       }
     });
 
-    test('missing entries resolve to null', () {
+    test('missing entries resolve to null', () async {
       final bytes = File(fixture).readAsBytesSync();
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
 
-      expect(engine.resource('does/not/exist.png'), isNull);
-      expect(engine.documentText('does/not/exist.xhtml'), isNull);
+      expect(await engine.resource('does/not/exist.png'), isNull);
+      expect(await engine.documentText('does/not/exist.xhtml'), isNull);
     });
 
-    test('search results equal BookSearch on the full parse', () {
+    test('search results equal BookSearch on the full parse', () async {
       final bytes = File(fixture).readAsBytesSync();
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
       final full = Unseal.parse(bytes);
 
       final query = full.metadata.title?.split(' ').first ?? 'chemistry';
-      final sessionResults = engine.search(query, maxMatches: 500);
+      final sessionResults = await engine.search(query, maxMatches: 500);
       final fullResults = full.search(query, maxMatches: 500);
 
       expect(sessionResults.matches.length, fullResults.matches.length, reason: 'match count');
@@ -102,13 +102,13 @@ void main() {
       }
     });
 
-    test('progression equals the full parse progression', () {
+    test('progression equals the full parse progression', () async {
       final bytes = File(fixture).readAsBytesSync();
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
       final full = Unseal.parse(bytes);
 
-      final sessionProgression = engine.computeProgression();
+      final sessionProgression = await engine.computeProgression();
       final fullProgression = BookProgression.of(full);
 
       expect(sessionProgression.sectionCount, fullProgression.sectionCount);
@@ -119,9 +119,9 @@ void main() {
       );
     });
 
-    test('CFI build and resolve round-trip through the session', () {
+    test('CFI build and resolve round-trip through the session', () async {
       final bytes = File(fixture).readAsBytesSync();
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
       final full = Unseal.parse(bytes) as EpubBook;
 
@@ -131,21 +131,21 @@ void main() {
       final offset = text.length ~/ 2;
       final expected = full.buildEpubCfi(contentIndex: sectionIndex, offsetInText: offset);
 
-      final built = engine.buildCfi(contentIndex: sectionIndex, offsetInText: offset);
+      final built = await engine.buildCfi(contentIndex: sectionIndex, offsetInText: offset);
       expect(built, expected);
 
-      final location = engine.resolveCfi(built);
+      final location = await engine.resolveCfi(built);
       expect(location, isNotNull);
       expect(location!.contentIndex, sectionIndex);
       expect(location.charOffset, offset);
     });
 
-    test('statistics measure the whole book, not the loaded slice', () {
+    test('statistics measure the whole book, not the loaded slice', () async {
       final bytes = File(fixture).readAsBytesSync();
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
 
-      final stats = engine.computeStatistics();
+      final stats = await engine.computeStatistics();
       expect(stats.wordCount, greaterThan(0));
     });
   });
@@ -153,9 +153,9 @@ void main() {
   group('SessionEngine comic sessions', () {
     const fixture = 'test/resources/books/comic/halfpenny-surprise-1895.cbz';
 
-    test('page inventory and cover match the eager parse', () {
+    test('page inventory and cover match the eager parse', () async {
       final bytes = File(fixture).readAsBytesSync();
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
       final full = Unseal.parse(bytes) as ComicBook;
       final header = engine.book as ComicBook;
@@ -170,17 +170,17 @@ void main() {
       expect(header.cover.content, full.cover.content);
       for (final page in header.pages) {
         expect(page.content, isEmpty, reason: 'placeholder pages carry no bytes');
-        final loaded = engine.resource(page.path);
+        final loaded = await engine.resource(page.path);
         expect(loaded, isNotNull);
       }
     });
   });
 
   group('SessionEngine cache policy', () {
-    test('entries stay correct when the LRU evicts under a tiny budget', () {
+    test('entries stay correct when the LRU evicts under a tiny budget', () async {
       final bytes = File('test/resources/books/epub/elements-of-chemistry.epub').readAsBytesSync();
       final full = Unseal.parse(bytes) as EpubBook;
-      final engine = SessionEngine.openBytes(
+      final engine = await SessionEngine.openBytes(
         bytes,
         policy: const SessionPolicy(cacheBytes: 1 << 20),
       );
@@ -190,16 +190,16 @@ void main() {
       // every reload must still be exact.
       for (var pass = 0; pass < 2; pass++) {
         for (final file in full.files.html) {
-          expect(engine.documentText(file.path), documentTextOf(file), reason: file.path);
+          expect(await engine.documentText(file.path), documentTextOf(file), reason: file.path);
         }
       }
     });
 
-    test('an oversized cover leaves the header cover empty but loadable', () {
+    test('an oversized cover leaves the header cover empty but loadable', () async {
       final bytes = File(
         'test/resources/books/comic/halfpenny-surprise-1895.cbz',
       ).readAsBytesSync();
-      final engine = SessionEngine.openBytes(
+      final engine = await SessionEngine.openBytes(
         bytes,
         policy: const SessionPolicy(coverMaxBytes: 1024),
       );
@@ -208,14 +208,14 @@ void main() {
       final full = Unseal.parse(bytes) as ComicBook;
 
       expect(header.cover.isEmpty, isTrue);
-      expect(engine.resource(full.cover.path), isNotNull);
+      expect(await engine.resource(full.cover.path), isNotNull);
     });
   });
 
   group('SessionEngine lifecycle and guards', () {
-    test('closed engines fail typed', () {
+    test('closed engines fail typed', () async {
       final bytes = File('test/resources/books/epub/elements-of-chemistry.epub').readAsBytesSync();
-      final engine = SessionEngine.openBytes(bytes);
+      final engine = await SessionEngine.openBytes(bytes);
       engine.close();
 
       expect(() => engine.resource('x'), throwsA(isA<SessionClosedException>()));
@@ -224,7 +224,7 @@ void main() {
       expect(() => engine.documentText('x'), throwsA(isA<SessionClosedException>()));
     });
 
-    test('unsupported formats throw the typed session error', () {
+    test('unsupported formats throw the typed session error', () async {
       final bytes = File('test/resources/books/txt/synthetic.txt').readAsBytesSync();
 
       expect(
@@ -233,7 +233,7 @@ void main() {
       );
     });
 
-    test('broken containers surface the parse failure hierarchy', () {
+    test('broken containers surface the parse failure hierarchy', () async {
       final bytes = Uint8List.fromList(<int>[0x50, 0x4b, 0x03, 0x04, 1, 2, 3]);
 
       expect(() => SessionEngine.openBytes(bytes), throwsA(isA<UnsealException>()));

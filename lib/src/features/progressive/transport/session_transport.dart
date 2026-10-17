@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import '../../../foundation/entities/entities.dart';
@@ -11,6 +12,7 @@ import '../../search/index/indexed_query_mode.dart';
 import '../../search/index/indexed_search_results.dart';
 import '../../search/index/search_index_identity.dart';
 import '../../search/index/search_index_wire.dart';
+import '../byte_source_gate.dart';
 import '../session_engine.dart';
 
 /// The delivery layer behind the public `BookSession`: one session's ops
@@ -18,6 +20,10 @@ import '../session_engine.dart';
 abstract interface class SessionTransport {
   /// Total length of the session's raw container source in bytes.
   int get byteLength;
+
+  /// The byte-source revision token the session was opened against,
+  /// or null for bytes/file sessions.
+  String? get sourceRevision;
 
   /// Inflated bytes of one container entry, or null when missing.
   Future<Uint8List?> resource(final String path);
@@ -113,10 +119,26 @@ abstract interface class SessionTransport {
   void dispose();
 }
 
+/// Inline transport for source opens: like [InlineSessionTransport],
+/// plus the gate close on disposal, so the host source never outlives
+/// the session.
+final class InlineSourceSessionTransport extends InlineSessionTransport {
+  /// Wraps the engine and the gate its reads went through.
+  InlineSourceSessionTransport(super.engine, this._gate);
+
+  final ByteSourceGate _gate;
+
+  @override
+  void dispose() {
+    super.dispose();
+    unawaited(_gate.close());
+  }
+}
+
 /// Transport that runs the engine in the caller: the fallback when no
 /// isolate or Web Worker is available, and the reference behavior the
 /// remote transports must match.
-final class InlineSessionTransport implements SessionTransport {
+class InlineSessionTransport implements SessionTransport {
   /// Wraps the engine this transport drives.
   InlineSessionTransport(this._engine);
 
@@ -124,6 +146,9 @@ final class InlineSessionTransport implements SessionTransport {
 
   @override
   int get byteLength => _engine.byteLength;
+
+  @override
+  String? get sourceRevision => null;
 
   @override
   Future<Uint8List?> resource(final String path) async => _engine.resource(path);
@@ -136,7 +161,7 @@ final class InlineSessionTransport implements SessionTransport {
   Future<Map<String, Uint8List>> resources(final Set<String> paths) async {
     final result = <String, Uint8List>{};
     for (final path in paths) {
-      final bytes = _engine.resource(path);
+      final bytes = await _engine.resource(path);
       if (bytes != null) result[path] = bytes;
     }
 

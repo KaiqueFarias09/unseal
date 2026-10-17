@@ -175,12 +175,12 @@ final class ZipRandomAccess implements ArchiveRandomAccess {
       math.min(_localHeaderFixedBytes, math.max(0, _source.length - entry.localHeaderOffset)),
     );
     if (localHeader.length < _localHeaderFixedBytes ||
-        _readUint32(localHeader, 0) != _localHeaderSignature) {
+        zipReadUint32(localHeader, 0) != _localHeaderSignature) {
       throw InvalidBookException('Zip entry ${entry.name} has an unreadable local header.');
     }
 
-    final nameLength = _readUint16(localHeader, 26);
-    final extraLength = _readUint16(localHeader, 28);
+    final nameLength = zipReadUint16(localHeader, 26);
+    final extraLength = zipReadUint16(localHeader, 28);
     final dataStart = entry.localHeaderOffset + _localHeaderFixedBytes + nameLength + extraLength;
     var sliceLength = entry.compressedSize;
     if (capBytes != null) sliceLength = math.min(sliceLength, capBytes);
@@ -218,6 +218,76 @@ const _zip32Marker = 0xFFFFFFFF;
 /// ratio.
 const _headCompressedWindow = 8 << 10;
 
+/// Validates and decodes one central-directory record from its
+/// [header] (the 46 fixed bytes) and [nameBytes] — shared by the
+/// synchronous and the asynchronous container readers so their
+/// acceptance rules cannot diverge. Encryption, symlinks, unsupported
+/// compression methods and zip64 markers are the same typed
+/// rejections both paths raise.
+ZipEntryRecord decodeZipCentralDirectoryRecord({
+  required final Uint8List header,
+  required final Uint8List nameBytes,
+}) {
+  if (zipReadUint32(header, 0) != _centralDirectorySignature) {
+    throw const InvalidBookException('Zip central directory is corrupt.');
+  }
+
+  final flags = zipReadUint16(header, 8);
+  if ((flags & 0x1) != 0) {
+    throw InvalidBookException('Encrypted zip entries are not supported.');
+  }
+
+  final externalAttributes = zipReadUint32(header, 38);
+  final unixFileType = (externalAttributes >> 16) & 0xF000;
+  if (unixFileType == 0xA000) {
+    throw const InvalidBookException('Symbolic links are not supported in book containers.');
+  }
+
+  final compressionMethod = zipReadUint16(header, 10);
+  if (compressionMethod != _storedMethod && compressionMethod != _deflateMethod) {
+    throw InvalidBookException('Zip entry uses unsupported compression method $compressionMethod.');
+  }
+
+  final name = String.fromCharCodes(nameBytes, 0, nameBytes.length);
+  final crc = zipReadUint32(header, 16);
+  final compressedSize = zipReadUint32(header, 20);
+  final uncompressedSize = zipReadUint32(header, 24);
+  final localHeaderOffset = zipReadUint32(header, 42);
+  if (compressedSize == _zip32Marker ||
+      uncompressedSize == _zip32Marker ||
+      localHeaderOffset == _zip32Marker) {
+    throw const Zip64NotSupportedException(
+      'Zip container declares zip64 records, which random access does not support.',
+    );
+  }
+
+  return ZipEntryRecord._(
+    name: name,
+    isFile: !name.endsWith('/') && !name.endsWith('\\'),
+    compressionMethod: compressionMethod,
+    crc32: crc,
+    compressedSize: compressedSize,
+    uncompressedSize: uncompressedSize,
+    localHeaderOffset: localHeaderOffset,
+  );
+}
+
+/// Little-endian uint16 read bounded to [bytes]; out-of-range reads
+/// return 0, matching the container readers' lenient tail handling.
+int zipReadUint16(final Uint8List bytes, final int offset) {
+  if (offset < 0 || offset + 2 > bytes.length) return 0;
+
+  return ByteData.sublistView(bytes, offset, offset + 2).getUint16(0, Endian.little);
+}
+
+/// Little-endian uint32 read bounded to [bytes]; out-of-range reads
+/// return 0, matching the container readers' lenient tail handling.
+int zipReadUint32(final Uint8List bytes, final int offset) {
+  if (offset < 0 || offset + 4 > bytes.length) return 0;
+
+  return ByteData.sublistView(bytes, offset, offset + 4).getUint32(0, Endian.little);
+}
+
 /// Reads and validates every central-directory record, first to last.
 List<ZipEntryRecord> _readCentralDirectory(final ZipByteSource source) {
   final end = _locateEndOfCentralDirectory(source);
@@ -228,15 +298,15 @@ List<ZipEntryRecord> _readCentralDirectory(final ZipByteSource source) {
   }
 
   final tail = source.read(end, math.min(22, source.length - end));
-  final diskNumber = _readUint16(tail, 4);
-  final directoryDisk = _readUint16(tail, 6);
+  final diskNumber = zipReadUint16(tail, 4);
+  final directoryDisk = zipReadUint16(tail, 6);
   if (diskNumber != 0 || directoryDisk != 0) {
     throw const InvalidBookException('Multi-disk zip containers are not supported.');
   }
 
-  var entryCount = _readUint16(tail, 10);
-  final directoryOffset = _readUint32(tail, 16);
-  final directorySize = _readUint32(tail, 12);
+  var entryCount = zipReadUint16(tail, 10);
+  final directoryOffset = zipReadUint32(tail, 16);
+  final directorySize = zipReadUint32(tail, 12);
   if (entryCount == 0xFFFF || directoryOffset == _zip32Marker || directorySize == _zip32Marker) {
     throw const Zip64NotSupportedException(
       'Zip container declares zip64 records, which random access does not support.',
@@ -251,59 +321,17 @@ List<ZipEntryRecord> _readCentralDirectory(final ZipByteSource source) {
   final directoryEnd = directoryOffset + directorySize;
   while (entryCount > 0 && cursor + 46 <= directoryEnd) {
     final header = source.read(cursor, 46);
-    if (_readUint32(header, 0) != _centralDirectorySignature) {
+    // Signature first, so a corrupt directory fails typed even when the
+    // record's declared name would overrun the source.
+    if (zipReadUint32(header, 0) != _centralDirectorySignature) {
       throw const InvalidBookException('Zip central directory is corrupt.');
     }
 
-    final flags = _readUint16(header, 8);
-    if ((flags & 0x1) != 0) {
-      throw InvalidBookException('Encrypted zip entries are not supported.');
-    }
-
-    final externalAttributes = _readUint32(header, 38);
-    final unixFileType = (externalAttributes >> 16) & 0xF000;
-    if (unixFileType == 0xA000) {
-      throw const InvalidBookException('Symbolic links are not supported in book containers.');
-    }
-
-    final compressionMethod = _readUint16(header, 10);
-    if (compressionMethod != _storedMethod && compressionMethod != _deflateMethod) {
-      throw InvalidBookException(
-        'Zip entry uses unsupported compression method $compressionMethod.',
-      );
-    }
-
-    final nameLength = _readUint16(header, 28);
-    final extraLength = _readUint16(header, 30);
-    final commentLength = _readUint16(header, 32);
+    final nameLength = zipReadUint16(header, 28);
     final nameBytes = source.read(cursor + 46, nameLength);
-    final name = String.fromCharCodes(nameBytes, 0, nameBytes.length);
+    records.add(decodeZipCentralDirectoryRecord(header: header, nameBytes: nameBytes));
 
-    final crc = _readUint32(header, 16);
-    final compressedSize = _readUint32(header, 20);
-    final uncompressedSize = _readUint32(header, 24);
-    final localHeaderOffset = _readUint32(header, 42);
-    if (compressedSize == _zip32Marker ||
-        uncompressedSize == _zip32Marker ||
-        localHeaderOffset == _zip32Marker) {
-      throw const Zip64NotSupportedException(
-        'Zip container declares zip64 records, which random access does not support.',
-      );
-    }
-
-    records.add(
-      ZipEntryRecord._(
-        name: name,
-        isFile: !name.endsWith('/') && !name.endsWith('\\'),
-        compressionMethod: compressionMethod,
-        crc32: crc,
-        compressedSize: compressedSize,
-        uncompressedSize: uncompressedSize,
-        localHeaderOffset: localHeaderOffset,
-      ),
-    );
-
-    cursor += 46 + nameLength + extraLength + commentLength;
+    cursor += 46 + nameLength + zipReadUint16(header, 30) + zipReadUint16(header, 32);
     entryCount--;
   }
 
@@ -317,7 +345,7 @@ int _locateEndOfCentralDirectory(final ZipByteSource source) {
   var cursor = source.length - recordLength;
   while (cursor >= searchStart) {
     final window = source.read(cursor, recordLength);
-    if (_readUint32(window, 0) == _endOfCentralDirectorySignature) return cursor;
+    if (zipReadUint32(window, 0) == _endOfCentralDirectorySignature) return cursor;
 
     cursor--;
   }
@@ -356,18 +384,6 @@ void _assertExpansionBounded(final ZipByteSource source, final List<ZipEntryReco
       );
     }
   }
-}
-
-int _readUint16(final Uint8List bytes, final int offset) {
-  if (offset < 0 || offset + 2 > bytes.length) return 0;
-
-  return ByteData.sublistView(bytes, offset, offset + 2).getUint16(0, Endian.little);
-}
-
-int _readUint32(final Uint8List bytes, final int offset) {
-  if (offset < 0 || offset + 4 > bytes.length) return 0;
-
-  return ByteData.sublistView(bytes, offset, offset + 4).getUint32(0, Endian.little);
 }
 
 /// Output stream that captures the first [maxBytes] bytes and then

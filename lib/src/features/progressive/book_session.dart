@@ -11,6 +11,7 @@ import '../search/index/book_search_index.dart';
 import '../search/index/indexed_query_mode.dart';
 import '../search/index/indexed_search_results.dart';
 import '../search/index/search_index_identity.dart';
+import 'byte_source.dart';
 import 'session_metrics.dart';
 import 'session_policy.dart';
 import 'transport/session_transport.dart';
@@ -56,6 +57,10 @@ final class BookSession {
   /// compressed file for every supported format.
   int get byteLength => _transport.byteLength;
 
+  /// The byte source's revision token this session was opened against,
+  /// or null for bytes/file sessions and sources without identity.
+  String? get sourceRevision => _transport.sourceRevision;
+
   /// Opens a progressive session over [bytes].
   ///
   /// Throws the parse-time `UnsealException` hierarchy on broken
@@ -92,6 +97,30 @@ final class BookSession {
       password: password,
       policy: policy,
     );
+
+    return BookSession._(header, isProgressive: true, transport: transport);
+  }
+
+  /// Opens a progressive session over a host-owned byte source — an
+  /// EPUB or CBZ the host streams by range over its own transport
+  /// (HTTP, storage, authentication stay with the host).
+  ///
+  /// Unseal requests the central directory and structural entries at
+  /// open and each requested entry on demand; the host's
+  /// [UnsealByteSource.readRange] answers with exact ranges. Formats
+  /// and variants outside the EPUB/CBZ cut are refused explicitly with
+  /// [SessionUnsupportedFormatException]; RAR and PDF sessions keep
+  /// opening from bytes or files.
+  ///
+  /// The source's [UnsealByteSource.revision] (when present) is
+  /// captured at open: reads are stamped with it and fail typed if the
+  /// source's revision changes under the session. The source is closed
+  /// when the session is disposed.
+  static Future<BookSession> openSource(
+    final UnsealByteSource source, {
+    final SessionPolicy policy = const SessionPolicy(),
+  }) async {
+    final (transport, header) = await openSessionSourceTransport(source: source, policy: policy);
 
     return BookSession._(header, isProgressive: true, transport: transport);
   }

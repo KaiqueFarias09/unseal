@@ -69,6 +69,8 @@ The main operations are:
 - `BookSession.open` and `BookSession.openFile` for progressive EPUB, CBZ,
   CBR, PDF, and MOBI/AZW3 reads with a structure-only header and requested
   content.
+- `BookSession.openSource` over a host-owned `UnsealByteSource` for
+  progressive EPUB and CBZ reads by exact byte ranges.
 
 CB7 and CBC remain asynchronous because their 7-Zip reader is asynchronous.
 
@@ -144,7 +146,21 @@ document at the table-of-contents anchors and intersect the document body
 range; KF8 parts assemble per part over on-demand record slices, resolve
 positions over bounded built-byte windows, and keep their linked-aid set
 complete from open so any part finalizes in any order with the eager
-markup outcome. Whole-book search, statistics, and progression can
+markup outcome.
+
+EPUB and CBZ sessions can also open over a host-owned byte source
+(`UnsealByteSource`: length, revision identity, exact `readRange`,
+close). The engine reads through an asynchronous container layer — one
+end-of-central-directory tail scan, bounded central-directory windows,
+then one local header and one compressed payload per entry, a Deflate
+entry's whole compressed payload being its real decompression unit —
+and pulls those ranges from the host through a versioned
+(`byteSource.v1`) bridge over the VM isolate or the Web Worker. The
+host-side gate enforces the source contract, the session's in-flight
+budgets, and the revision identity on the thread that owns the source;
+other formats refuse the external-source path explicitly.
+
+Whole-book search, statistics, and progression can
 still traverse all content. The optional search index builds through bounded
 batches with coverage accounting. `BookSession.metrics` reports container
 reads, decode work, and materialized content, which is how progressive
