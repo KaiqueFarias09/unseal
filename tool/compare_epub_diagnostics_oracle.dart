@@ -6,6 +6,8 @@ import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:unseal/epub.dart';
 
+import 'oracle_test_lane.dart';
+
 /// Reproducible EPUBCheck oracle driver for the B03 diagnostics mission.
 ///
 /// Stages:
@@ -316,6 +318,24 @@ void _runCompare(final _Options options) {
     limits: limits,
     fixtureCount: fixtureCases.length,
   );
+  final lanes = [
+    runOracleDartLane(Directory('build/evidence/b03-lanes'), 'vm', [
+      'test',
+      'test/tests/epub/epub_diagnostics_test.dart',
+    ]),
+    runOracleDartLane(Directory('build/evidence/b03-lanes'), 'chrome', [
+      'test',
+      '-p',
+      'chrome',
+      'test/web/epub_diagnostics_web_test.dart',
+    ]),
+  ];
+  final ed07 = edCases.singleWhere((c) => c['id'] == 'ED07');
+  ed07['executedLanes'] = lanes;
+  if (lanes.any((l) => l['exitCode'] != 0)) {
+    ed07['verdict'] = 'fail';
+    failures++;
+  }
 
   _writeJson(options.detailReport, {
     'generatedAt': 'deterministic-compare',
@@ -329,7 +349,10 @@ void _runCompare(final _Options options) {
         {'id': detail['id'], 'elapsedMicros': detail['elapsedMicros']},
     ],
     'limitsProbeElapsedMicros': limits['elapsedMicros'],
-    'processPeakRssBytes': ProcessInfo.currentRss,
+    'memoryScope':
+        'comparator process including all sequential diagnoses; sampled current RSS and process peak, not per-book allocation',
+    'processCurrentRssBytes': ProcessInfo.currentRss,
+    'processPeakRssBytes': ProcessInfo.maxRss,
   });
 
   _writeJson(options.report, {
@@ -670,7 +693,8 @@ List<Map<String, Object?>> _acceptanceCases({
           'suite test/web/epub_diagnostics_web_test.dart assert the same '
           'expected rules from manifest.json on the same fixture bytes; '
           'reading behavior is unchanged across the corpus; '
-          'per-case wall time is recorded in build/evidence/measurements.json; '
+          'per-case wall time and comparator-process current/peak RSS are '
+          'recorded in build/evidence/measurements.json; '
           'no worker wire format is used by the diagnostics API.',
     },
   ];

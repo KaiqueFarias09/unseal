@@ -206,6 +206,39 @@ void main() {
     final otherBook = other.book as ComicBook;
     expect(await other.loadResource(otherBook.pages.last.path), pages.last.content);
     expect(await session.loadResource(book.pages.first.path), pages.first.content);
+
+    final cancelled = session.loadResource(book.pages.last.path);
+    final cancelledExpectation = expectLater(cancelled, throwsA(isA<SessionCancelledException>()));
+    final survivingRead = other.loadResource(otherBook.pages.first.path);
+    session.cancelPending();
+    await cancelledExpectation;
+    expect(await survivingRead, pages.first.content);
+    expect(
+      await session.loadResource(book.pages.last.path),
+      pages.last.content,
+      reason: 'cancelled solid sessions remain usable',
+    );
+
+    final disposed = session.loadResource(book.pages.first.path);
+    final disposedExpectation = expectLater(disposed, throwsA(isA<SessionClosedException>()));
+    session.dispose();
+    await disposedExpectation;
+    expect(
+      () => session.loadResource(book.pages.last.path),
+      throwsA(isA<SessionClosedException>()),
+    );
+    expect(
+      await other.loadResource(otherBook.pages.last.path),
+      pages.last.content,
+      reason: 'disposing one solid dictionary does not end the other session',
+    );
+    final reopened = await BookSession.open(bytes);
+    addTearDown(reopened.dispose);
+    expect(
+      await reopened.loadResource(pages.last.name),
+      pages.last.content,
+      reason: 'late replies cannot replace a fresh solid session',
+    );
   });
 
   test('two PDF sessions in the worker stay isolated', () async {

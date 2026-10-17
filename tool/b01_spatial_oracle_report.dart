@@ -3,11 +3,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:unseal/alto.dart';
 import 'package:unseal/unseal.dart';
 
 import 'alto_compare.dart';
 import 'djvu_spatial_compare.dart';
+import 'oracle_test_lane.dart';
 
 /// The B01 comparison report: every acceptance case the oracle gate
 /// requires, executed for real against the reference artifacts the
@@ -30,9 +30,8 @@ import 'djvu_spatial_compare.dart';
 ///        OCR origin and confidence preserved through a binding.
 /// SP05 — typed rejections for hostile zone records, malformed ALTO,
 ///        exceeded budgets, and inconsistent wire payloads.
-/// SP06 — the recorded test-matrix summary (written by the full matrix
-///        run before this report) shows analysis, VM, Chrome worker, fuzz,
-///        corpus and publish dry-run green.
+/// SP06 — freshly executed focused VM, compiled-worker Chrome and benchmark
+///        lanes. The coordinator also runs the complete release gate.
 
 Future<void> main(final List<String> args) async {
   final oracleDir = Directory(args[0]);
@@ -163,9 +162,35 @@ Future<void> main(final List<String> args) async {
     sp03['astral'] = 'diacritic and astral zones land on UTF-16 boundaries';
   }
   final goodyStructure = parseDjvuBook(goodyBytes).pageStructureAt(0)!;
-  sp03['rotation'] =
-      'page rotation ${goodyStructure.rotation} carried as metadata; '
-      'zone coordinates follow the reference tools\' stored convention';
+  final rotations = <Object?>[];
+  for (final rotation in [0, 90, 180, 270]) {
+    final rotated = DjvuPageStructure(
+      pageIndex: goodyStructure.pageIndex,
+      pageCount: goodyStructure.pageCount,
+      width: goodyStructure.width,
+      height: goodyStructure.height,
+      dpi: goodyStructure.dpi,
+      rotation: rotation,
+      chunk: goodyStructure.chunk,
+      readingOrderPaths: goodyStructure.readingOrderPaths,
+    );
+    final projected = rotated.spatialPage!;
+    final nativeWord = rotated.nativeZones.firstWhere((z) => z.type == djvuZoneTypeWord);
+    final word = projected.zones.firstWhere((z) => z.kind == SpatialZoneKind.word);
+    final valid =
+        projected.rotation == rotation &&
+        projected.width == rotated.width &&
+        projected.height == rotated.height &&
+        word.rect.x == nativeWord.xmin &&
+        word.rect.y == rotated.height - nativeWord.ymax &&
+        word.rect.width == nativeWord.xmax - nativeWord.xmin &&
+        word.rect.height == nativeWord.ymax - nativeWord.ymin &&
+        word.textStart == nativeWord.utf16Start &&
+        word.textEnd == nativeWord.utf16End;
+    if (!valid) sp03Verdict = 'fail';
+    rotations.add({'rotation': rotation, 'sourceSpaceProjectionCorrect': valid});
+  }
+  sp03['rotation'] = rotations;
   final repeated = DjvuPageStructure(
     pageIndex: 0,
     pageCount: 1,
@@ -370,27 +395,39 @@ Future<void> main(final List<String> args) async {
     _case('SP05', sp05Verdict, 'typed rejections for hostile zone records, ALTO and budgets', sp05),
   );
 
-  // --- SP06: recorded test matrix ---
-  final matrixFile = File('${oracleDir.path}/matrix/test-matrix.json');
-  if (!matrixFile.existsSync()) {
-    cases.add(
-      _case('SP06', 'fail', 'test matrix summary missing; run the full matrix before the gate', {}),
-    );
-  } else {
-    final matrix = jsonDecode(matrixFile.readAsStringSync()) as Map<String, Object?>;
-    final allGreen = matrix.entries
-        .where((entry) => entry.key != 'generatedAt')
-        .every((entry) => entry.value == true);
-    cases.add(
-      _case(
-        'SP06',
-        allGreen ? 'pass' : 'fail',
-        'analysis, VM suite, Chrome worker suite, fuzz campaign, corpus '
-            'manifest, and publish dry-run recorded green by the matrix run',
-        matrix,
-      ),
-    );
-  }
+  final laneOutput = Directory('${oracleDir.path}/matrix');
+  final lanes = <Map<String, Object?>>[
+    runOracleDartLane(laneOutput, 'vm', [
+      'test',
+      'test/tests/alto/',
+      'test/tests/djvu/',
+      'test/tests/web/spatial_worker_ops_test.dart',
+    ]),
+    runOracleDartLane(laneOutput, 'compile-worker', [
+      'compile',
+      'js',
+      'web/unseal_worker.dart',
+      '-o',
+      'test/web/unseal_worker.js',
+    ]),
+    runOracleDartLane(laneOutput, 'chrome', [
+      'test',
+      '-p',
+      'chrome',
+      'test/web/spatial_worker_test.dart',
+      'test/web/djvu_wire_test.dart',
+    ]),
+  ];
+  final matrix = <String, Object?>{'lanes': lanes};
+  File('${laneOutput.path}/test-matrix.json').writeAsStringSync(jsonEncode(matrix));
+  cases.add(
+    _case(
+      'SP06',
+      lanes.every((l) => l['exitCode'] == 0) ? 'pass' : 'fail',
+      'Fresh focused VM and compiled-worker Chrome tests; full release validation is coordinator-owned.',
+      matrix,
+    ),
+  );
 
   final report = <String, Object?>{
     'tool': 'b01_spatial_oracle_report',
@@ -414,12 +451,7 @@ Map<String, Object?> _case(
   final String verdict,
   final String description,
   final Map<String, Object?> detail,
-) => <String, Object?>{
-  'id': id,
-  'verdict': verdict,
-  'description': description,
-  'detail': detail,
-};
+) => <String, Object?>{'id': id, 'verdict': verdict, 'description': description, 'detail': detail};
 
 const String _sampleAlto = '''<?xml version="1.0" encoding="UTF-8"?>
 <alto xmlns="http://www.loc.gov/standards/alto/ns-v3#">

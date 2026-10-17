@@ -1,6 +1,8 @@
 import 'dart:convert' as convert;
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 /// Runs the B05 acceptance pipeline and assembles the oracle-gate
 /// comparison report: one verdict per RS01-RS07 acceptance, each backed
 /// by a real command that ran during this invocation.
@@ -12,7 +14,7 @@ import 'dart:io';
 /// 2. `dart test` on the solid acceptance suites (corruption, order,
 ///    replay budget, isolation) — RS03/RS04/RS05/RS06.
 /// 3. `dart test -p chrome` on the worker session suite — RS06 on a
-///    real browser worker (requires a compiled `unseal_worker.js` and a
+///    real browser worker (compiles the current `unseal_worker.js`; requires a
 ///    chromedriver on :4444).
 /// 4. `tool/rar5_bench.dart --solid scenarios` — RS07 measurements,
 ///    recorded beside the report.
@@ -140,22 +142,34 @@ void main(final List<String> arguments) {
   var chromeOk = false;
   var chromeNote = 'Chrome worker run disabled by flag';
   if (runChrome) {
-    final chromeRun = _run([
+    final compileRun = _run([
       dart,
-      'test',
-      '-p',
-      'chrome',
-      'test/web/session_pdf_cbr_worker_test.dart',
-      '--plain-name',
-      'solid CBR session in the worker',
-      '-j',
-      '1',
+      'compile',
+      'js',
+      'web/unseal_worker.dart',
+      '-o',
+      'test/web/unseal_worker.js',
     ]);
-    chromeOk = chromeRun.exitCode == 0;
-    chromeNote = chromeOk
-        ? 'a real worker session serves forward, reverse and interleaved '
-              'loads through the compiled unseal_worker.js'
-        : 'the Chrome worker run failed';
+    if (compileRun.exitCode == 0) {
+      final chromeRun = _run([
+        dart,
+        'test',
+        '-p',
+        'chrome',
+        'test/web/session_pdf_cbr_worker_test.dart',
+        '--plain-name',
+        'solid CBR session in the worker',
+        '-j',
+        '1',
+      ]);
+      chromeOk = chromeRun.exitCode == 0;
+      chromeNote = chromeOk
+          ? 'a real worker session serves forward, reverse and interleaved '
+                'loads, pending cancellation/disposal and reopening through a freshly compiled unseal_worker.js'
+          : 'the Chrome worker run failed';
+    } else {
+      chromeNote = 'the current worker failed to compile';
+    }
   }
   verdict(
     'RS06',
@@ -182,7 +196,13 @@ void main(final List<String> arguments) {
     'cases': cases,
     'commandRuns': [
       for (final run in _runs)
-        {'argv': run.argv, 'exitCode': run.exitCode, 'outputTail': _tail(run.output)},
+        {
+          'argv': run.argv,
+          'exitCode': run.exitCode,
+          'log': run.log,
+          'logSha256': sha256.convert(convert.utf8.encode(run.output)).toString(),
+          'outputTail': _tail(run.output),
+        },
     ],
   };
   final reportFile = File('$outDir/comparison.json');
@@ -227,7 +247,11 @@ final List<_CommandRun> _runs = [];
 _CommandRun _run(final List<String> argv) {
   stdout.writeln('+ ${argv.skip(1).join(' ')}');
   final result = Process.runSync(argv.first, argv.sublist(1));
-  final run = _CommandRun(argv, result.exitCode, '${result.stdout}\n${result.stderr}');
+  final output = '${result.stdout}\n${result.stderr}';
+  final log = File('build/evidence/b05/command-${DateTime.now().microsecondsSinceEpoch}.log');
+  log.parent.createSync(recursive: true);
+  log.writeAsStringSync(output);
+  final run = _CommandRun(argv, result.exitCode, output, log.path);
   _runs.add(run);
   if (result.exitCode != 0) {
     stdout.writeln(_tail(run.output));
@@ -243,9 +267,10 @@ String _tail(final String output) {
 }
 
 final class _CommandRun {
-  _CommandRun(this.argv, this.exitCode, this.output);
+  _CommandRun(this.argv, this.exitCode, this.output, this.log);
 
   final List<String> argv;
   final int exitCode;
   final String output;
+  final String log;
 }
