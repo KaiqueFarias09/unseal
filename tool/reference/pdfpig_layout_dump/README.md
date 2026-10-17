@@ -90,7 +90,7 @@ Both real Gutenberg books, every page, against this exact setup:
 
 - `pg5200-generated.pdf` (31 pages): 31/31 PASS, word score 1.0 on
   every page, mean IoU 0.93–0.95, after unseal's text-matrix
-  composition fix (see the Unreleased changelog).
+  composition fix (see the 1.3.0 changelog).
 - `pg11-generated.pdf` (55 pages): 55/55 PASS, word score 1.0, mean
   IoU 0.93–0.96.
 

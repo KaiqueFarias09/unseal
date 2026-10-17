@@ -220,8 +220,8 @@ final class BookSession {
   }
 
   /// Serializes the resident index into a versioned payload the host
-  /// may persist. Refuses while the build is incomplete and, over PDF
-  /// text, until the P1 position-mapping acceptance.
+  /// may persist. Refuses while the build is incomplete. PDF indexes bind
+  /// the extraction profile and can reopen in the same reading mode.
   Future<Map<String, Object?>> exportSearchIndex() => _transport.searchIndexExport();
 
   /// Validates [payload] against this session's book — reading order,

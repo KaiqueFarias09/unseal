@@ -136,9 +136,9 @@ builds the same pinned revision as the mandatory extraction oracle.
 
 The RAR 5 container walk (`rar5_archive.dart`) and the fixture corpus
 under `test/resources/books/comic/rar5/` were cross-checked against
-[libarchive](https://github.com/libarchive/libarchive) at pinned commit
-`87dec938e1578901f4919faa76e5f541b4d145b1`; no libarchive code is
-copied — it serves as the second independent decoder (through `bsdtar`)
+[libarchive](https://github.com/libarchive/libarchive) at source revision
+`87dec938e1578901f4919faa76e5f541b4d145b1`, with executable comparison
+through the system libarchive 3.7.4 `bsdtar`; no libarchive code is copied — it serves as the second independent decoder (through `bsdtar`)
 and the source of the real RAR 5 test archives (uudecoded from
 `libarchive/test/`, unmodified apart from the `libarchive-` filename
 prefix). The libarchive COPYING is included at

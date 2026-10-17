@@ -83,7 +83,7 @@ Or add the dependency manually:
 
 ```yaml
 dependencies:
-  unseal: ^1.2.0
+  unseal: ^1.3.0
 ```
 
 The package requires Dart `>=3.8.0 <4.0.0`.
@@ -255,13 +255,15 @@ await session.exportSearchIndex(); // versioned payload; import re-verifies dige
 ```
 
 Serialized payloads are versioned JSON-safe maps an application may persist.
-Import validates schema, tokenizer profile, identity, reading-order revision
-and structural bounds before trusting postings, and can re-verify every
-section's text digest against a book — changed text, order or profile refuses
-the index with `SearchIndexIncompatibleException`. Persisting an index over
-PDF text is withheld until the position-mapping acceptance; indexes over PDF
-sessions work in memory but refuse to serialize. The index retains its
-sections' text (for snippets) until `dispose`.
+Import validates schema, tokenizer and extraction profiles, identity,
+reading-order revision, and structural bounds. Pass a destination `book` or
+`sectionText` resolver to `BookSearchIndex.deserialize` to verify the live
+text before querying. Structural imports allow metadata inspection but refuse
+queries without a live destination. Session imports verify their own materialized text.
+Changed text, order, or profile throws `SearchIndexIncompatibleException`.
+PDF indexes reopen within the same extraction mode; eager and progressive
+modes use different reflow profiles and require rebuilding when switching.
+The index retains its sections' text for snippets until `dispose`.
 
 ### Format-specific APIs
 
@@ -612,20 +614,8 @@ transforms, custom precincts, SOP/EPH markers, segmentation symbols, multiple
 quality layers, and `/ASCII85Decode /JPXDecode` chains. Lossless decodes are
 byte-exact against the OpenJPEG oracle; lossy decodes stay inside ceilings fixed
 before the first Dart comparison; VM and compiled-browser decodes are
-byte-identical. Arithmetic coding bypass, Part 2 extensions, CMYK/palette
-colorspaces, `SMaskInData` alpha, and PDF/codestream geometry conflicts fail
-typed instead of inventing pixels.
-
-PDF `JPXDecode` images decode through a pure-Dart JPEG 2000 Part 1 subset ported
-from a pinned OpenJPEG revision: bare J2K codestreams and JP2 wrappers, unsigned
-8-bit grayscale and RGB, the reversible 5/3 and irreversible 9/7 wavelets, LRCP
-and RLCP progression, single and multiple tiles, RCT and ICT component
-transforms, custom precincts, SOP/EPH markers, segmentation symbols, multiple
-quality layers, and `/ASCII85Decode /JPXDecode` chains. Lossless decodes are
-byte-exact against the OpenJPEG oracle; lossy decodes stay inside ceilings fixed
-before the first Dart comparison; VM and compiled-browser decodes are
-byte-identical. Arithmetic coding bypass, Part 2 extensions, CMYK/palette
-colorspaces, `SMaskInData` alpha, and PDF/codestream geometry conflicts fail
+byte-identical. Arithmetic coding bypass, Part 2 extensions, CMYK/palette, sYCC, ICC and calibrated
+color spaces, `SMaskInData` alpha, and PDF/codestream geometry conflicts fail
 typed instead of inventing pixels.
 
 DjVu visual reading covers direct JPEG pages, JB2 masks encoded with direct

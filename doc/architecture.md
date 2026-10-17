@@ -177,6 +177,14 @@ LRF bounds indexed objects, pages, metadata inflation, and expanded zlib
 streams before exposing reflowed content. LRX2 metadata reads are limited to
 the plaintext nested metadata stream; book content is rejected as DRM-protected.
 
+Search indexes and durable anchors share the immutable canonical-text identity
+contract in `foundation/text/`. Persisted positions require verified destination
+text and matching identity, occurrence, and extraction profile. PDF profiles
+include the reflow plan and its eager or progressive scope. Importing an index
+without a destination permits structural inspection only. Applications own
+storage; changing extraction modes requires rebuilding an index or explicitly
+migrating an anchor. Incomplete anchor scans cannot establish uniqueness.
+
 ## Testing strategy
 
 - Unit tests cover codecs, metadata, models, and narrow parser decisions.

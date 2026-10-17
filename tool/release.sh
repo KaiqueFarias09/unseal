@@ -79,7 +79,7 @@ require_dart_version() {
 
 require_version_metadata() {
   [ -n "$release_version" ] ||
-    fail 'VERSION is required. Example: make release-check VERSION=1.2.0'
+    fail 'VERSION is required. Example: make release-check VERSION=1.3.0'
 
   printf '%s\n' "$release_version" |
     grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$' ||

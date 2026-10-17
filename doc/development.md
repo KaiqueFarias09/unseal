@@ -106,7 +106,7 @@ Commit reviewed changes and start from a clean `main`. Match the version in
 `pubspec.yaml` and its section in `CHANGELOG.md`, then run:
 
 ```sh
-make release-check VERSION=1.2.0
+make release-check VERSION=1.3.0
 ```
 
 Use `DART_BIN=/path/to/dart` if automatic SDK discovery does not select the
@@ -120,8 +120,8 @@ record the actual release date, rerun the gate, push `main`, and wait for
 green CI. Then run:
 
 ```sh
-make release-github VERSION=1.2.0
-make publish VERSION=1.2.0
+make release-github VERSION=1.3.0
+make publish VERSION=1.3.0
 ```
 
 These commands recheck release requirements. GitHub release creation requires

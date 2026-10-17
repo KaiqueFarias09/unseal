@@ -15,13 +15,10 @@ class BookSummaryPage extends StatelessWidget {
         future: _loadExampleBook(),
         builder: (final context, final snapshot) {
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Could not read book: ${snapshot.error}'),
-            );
+            return Center(child: Text('Could not read book: ${snapshot.error}'));
           }
 
-          if (!snapshot.hasData)
-            return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
           final book = snapshot.requireData;
 
@@ -49,9 +46,7 @@ class BookSummaryPage extends StatelessWidget {
   }
 
   static Future<Book> _loadExampleBook() async {
-    final assetBytes = await rootBundle.load(
-      'assets/Alices Adventures in Wonderland.epub',
-    );
+    final assetBytes = await rootBundle.load('assets/Alices Adventures in Wonderland.epub');
     return Unseal.read(Uint8List.sublistView(assetBytes));
   }
 }

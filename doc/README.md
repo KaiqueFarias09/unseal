@@ -28,7 +28,6 @@ storage, synchronization, OCR execution, and audio playback.
 | [Development](development.md) | Run checks, reproduce measurements, and prepare a release. |
 | [Parser references](format-parser-references.md) | Format specifications, reference implementations, and fixture provenance. |
 | [Roadmap](roadmap.md) | The single list of pending work and proposals. |
-| [Five-agent implementation plan](parallel-implementation.md) | Frozen contracts, five branch missions, reference code, acceptance tests, and integration responsibilities. |
 
 The README describes the current public contract. The roadmap describes
 future work, not supported behavior or a release commitment. Fixture licenses,
