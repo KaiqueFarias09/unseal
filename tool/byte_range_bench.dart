@@ -85,16 +85,18 @@ Future<void> main(final List<String> arguments) async {
     stdout.writeln('== $name (${raw.length} bytes)');
 
     // Eager baseline.
+    final rssBefore = ProcessInfo.currentRss;
     final eagerWatch = Stopwatch()..start();
     final eager = Unseal.parse(raw);
     final eagerOpenMicros = eagerWatch.elapsedMicroseconds;
+    final eagerRssDelta = ProcessInfo.currentRss - rssBefore;
     final eagerFirst = eager.readingOrder.first.name;
     final eagerFirstWatch = Stopwatch()..start();
     final eagerBytes = _eagerContentFor(eager, eagerFirst);
     final eagerFirstMicros = eagerFirstWatch.elapsedMicroseconds;
     stdout.writeln(
       '  eager          open=${eagerOpenMicros ~/ 1000}ms first=${eagerFirstMicros ~/ 1000}ms '
-      'content=${eagerBytes?.length ?? 0}B',
+      'content=${eagerBytes?.length ?? 0}B rssDelta=${eagerRssDelta ~/ 1024}KiB',
     );
 
     // File-backed session (the 1.3.0 progressive baseline).
@@ -139,12 +141,15 @@ Future<void> main(final List<String> arguments) async {
         seekBytes += (await session.loadResource(section.name))?.length ?? 0;
       }
       final seekMicros = seekWatch.elapsedMicroseconds;
+      final rssBeforeSource = rssBefore; // same baseline as the eager run
+      final sourceRssDelta = ProcessInfo.currentRss - rssBeforeSource;
       final totals = <String, int>{
         'requests': source.requests,
         'bytes': source.bytesServed,
         'openRequests': openRequests,
         'openBytes': openServed,
         'contentBytes': seekBytes,
+        'rssDeltaBytes': sourceRssDelta,
       };
       session.dispose();
       sourceRow = SourceRows(openMicros, firstMicros, seekMicros, totals, first);
@@ -153,7 +158,8 @@ Future<void> main(final List<String> arguments) async {
     stdout.writeln(
       '  session-source open=${source.openMicros ~/ 1000}ms first=${source.firstContentMicros ~/ 1000}ms '
       'seeks(5)=${source.seekLoopMicros ~/ 1000}ms bytes=${source.totals['bytes']} '
-      '(open ${source.totals['openBytes']}, ${((source.totals['openBytes'] ?? 1) / raw.length * 100).toStringAsFixed(1)}% of file)',
+      '(open ${source.totals['openBytes']}, ${((source.totals['openBytes'] ?? 1) / raw.length * 100).toStringAsFixed(1)}% of file) '
+      'rssDelta=${(source.totals['rssDeltaBytes'] ?? 0) ~/ 1024}KiB',
     );
 
     (results['fixtures']! as List<Object?>).add(<String, Object?>{
@@ -163,6 +169,7 @@ Future<void> main(final List<String> arguments) async {
         'openMicros': eagerOpenMicros,
         'firstContentMicros': eagerFirstMicros,
         'firstContentBytes': eagerBytes?.length ?? 0,
+        'rssDeltaBytes': eagerRssDelta,
       },
       'sessionFile': <String, Object?>{
         'openMicros': fileRow.openMicros,

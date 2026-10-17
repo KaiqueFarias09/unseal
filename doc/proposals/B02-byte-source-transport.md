@@ -5,6 +5,11 @@ README requires. B02 implements it on `codex/unseal-byte-ranges`; B04/B05
 do not depend on it. PDF/MOBI/RAR over an external source are out of
 scope for this round.
 
+Architectural reference: Readium's `Resource`/`Container` split — the
+publication reads through a host-provided random-access source while
+the parser owns offsets and caching. Readium is the shape reference
+only; no Kotlin build is required or used.
+
 ## Public contract (host-owned transport)
 
 ```dart
