@@ -346,12 +346,7 @@ PdfFixtureBuilder jpxImagePageFixture(
       9,
       '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     )
-    ..addObject(
-      10,
-      indirectColorSpace
-          ? '/$pdfColorSpace'
-          : '<< /Type /Metadata /Subtype /XML >>',
-    );
+    ..addObject(10, indirectColorSpace ? '/$pdfColorSpace' : '<< /Type /Metadata /Subtype /XML >>');
 }
 
 /// Adobe-style ASCII85 (no whitespace, `<~` header omitted, `~>`

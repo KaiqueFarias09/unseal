@@ -290,11 +290,9 @@ final Uint8List rgbJ2k = base64Decode(
 /// imports), so every assertion below exercises the worker's parse
 /// path end to end.
 void main() {
-  test('browser worker decodes a gray JPXDecode image to the VM-identical PNG',
-      () {
-    final book = Unseal.parse(
-      jpxImagePageFixture(grayJ2k, width: 64, height: 64).build(),
-    ) as PdfBook;
+  test('browser worker decodes a gray JPXDecode image to the VM-identical PNG', () {
+    final book =
+        Unseal.parse(jpxImagePageFixture(grayJ2k, width: 64, height: 64).build()) as PdfBook;
     expect(book.files.images, hasLength(1));
     final image = book.files.images.single;
     expect(image.path, 'images/pdf-image-8.png');
@@ -305,8 +303,7 @@ void main() {
     // host-stable), so the golden pins the inflated IDAT rows.
     final idatLength = ByteData.sublistView(image.content).getUint32(33);
     final rows = Uint8List.fromList(
-      const ZLibDecoder()
-          .decodeBytes(image.content.sublist(41, 41 + idatLength)),
+      const ZLibDecoder().decodeBytes(image.content.sublist(41, 41 + idatLength)),
     );
     expect(
       sha256.convert(rows).toString(),
@@ -315,56 +312,39 @@ void main() {
   });
 
   test('browser worker decodes an RGB RCT codestream', () {
-    final book = Unseal.parse(
-      jpxImagePageFixture(rgbJ2k, width: 64, height: 64, components: 3)
-          .build(),
-    ) as PdfBook;
+    final book =
+        Unseal.parse(jpxImagePageFixture(rgbJ2k, width: 64, height: 64, components: 3).build())
+            as PdfBook;
     final image = book.files.images.single;
     // Color type 2 (truecolor) at IHDR offset 9.
     expect(image.content[25], 2);
   });
 
-  test('an ASCII85 chain decodes to the same PNG as the direct stream',
-      () {
-    final direct = Unseal.parse(
-      jpxImagePageFixture(grayJ2k, width: 64, height: 64).build(),
-    ) as PdfBook;
-    final chained = Unseal.parse(
-      jpxImagePageFixture(
-        grayJ2k,
-        width: 64,
-        height: 64,
-        ascii85: true,
-      ).build(),
-    ) as PdfBook;
-    expect(
-      chained.files.images.single.content,
-      direct.files.images.single.content,
-    );
+  test('an ASCII85 chain decodes to the same PNG as the direct stream', () {
+    final direct =
+        Unseal.parse(jpxImagePageFixture(grayJ2k, width: 64, height: 64).build()) as PdfBook;
+    final chained =
+        Unseal.parse(jpxImagePageFixture(grayJ2k, width: 64, height: 64, ascii85: true).build())
+            as PdfBook;
+    expect(chained.files.images.single.content, direct.files.images.single.content);
   });
 
   test('JPX images survive the book wire roundtrip', () {
-    final book = Unseal.parse(
-      jpxImagePageFixture(grayJ2k, width: 64, height: 64).build(),
-    ) as PdfBook;
+    final book =
+        Unseal.parse(jpxImagePageFixture(grayJ2k, width: 64, height: 64).build()) as PdfBook;
     final (json, blobs) = encodeBookWire(book);
     final decoded = decodeBookWire(json, blobs) as PdfBook;
     expect(decoded.files.images, hasLength(1));
-    expect(
-      decoded.files.images.single.content,
-      book.files.images.single.content,
-    );
+    expect(decoded.files.images.single.content, book.files.images.single.content);
   });
 
-  test('a corrupted codestream degrades to geometry-only, never crashes',
-      () {
+  test('a corrupted codestream degrades to geometry-only, never crashes', () {
     final corrupted = Uint8List.fromList(grayJ2k);
     for (var i = 40; i < 64; i++) {
       corrupted[i] = 0xFF;
     }
-    final book = Unseal.parse(
-      jpxImagePageFixture(corrupted, width: 64, height: 64).build(),
-    ) as PdfBook;
+    final book =
+        Unseal.parse(jpxImagePageFixture(corrupted, width: 64, height: 64).build()) as PdfBook;
     expect(book.files.images, isEmpty);
   });
 }

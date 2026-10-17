@@ -27,46 +27,35 @@ void main() {
     return;
   }
   final tolerances =
-      const JsonDecoder().convert(tolerancesFile.readAsStringSync())
-          as Map<String, Object?>;
+      const JsonDecoder().convert(tolerancesFile.readAsStringSync()) as Map<String, Object?>;
   final globalMax = tolerances['globalMaxAbsError']! as int;
   final globalRmse = (tolerances['globalRmse']! as num).toDouble();
-  final ceilings =
-      (tolerances['fixtures']! as Map<String, Object?>).cast<String,
-          Map<String, Object?>>();
+  final ceilings = (tolerances['fixtures']! as Map<String, Object?>)
+      .cast<String, Map<String, Object?>>();
 
   final fixtures = <String>[
     for (final entry in Directory(_fixturesDir).listSync())
-      if (entry is File &&
-          (entry.path.endsWith('.j2k') || entry.path.endsWith('.jp2')))
-        entry.path,
+      if (entry is File && (entry.path.endsWith('.j2k') || entry.path.endsWith('.jp2'))) entry.path,
   ]..sort();
 
   var failures = 0;
   for (final path in fixtures) {
-    final name = path
-        .split(Platform.pathSeparator)
-        .last
-        .replaceFirst(RegExp(r'\.(j2k|jp2)$'), '');
+    final name = path.split(Platform.pathSeparator).last.replaceFirst(RegExp(r'\.(j2k|jp2)$'), '');
     final oracleFile = File('$_fixturesDir/oracle/$name.raw');
     if (!oracleFile.existsSync()) {
-      stderr.writeln('$name: FAIL (no oracle payload — run '
-          'tool/generate_jpx_fixtures.dart first)');
+      stderr.writeln(
+        '$name: FAIL (no oracle payload — run '
+        'tool/generate_jpx_fixtures.dart first)',
+      );
       failures++;
       continue;
     }
     final oracle = oracleFile.readAsBytesSync();
     try {
-      final image = decodeJpxImage(
-        Uint8List.fromList(File(path).readAsBytesSync()),
-      );
-      final actual = <int>[
-        for (final plane in image.samples) ...plane,
-      ];
+      final image = decodeJpxImage(Uint8List.fromList(File(path).readAsBytesSync()));
+      final actual = <int>[for (final plane in image.samples) ...plane];
       if (actual.length != oracle.length) {
-        stderr.writeln(
-          '$name: FAIL (size ${actual.length} vs oracle ${oracle.length})',
-        );
+        stderr.writeln('$name: FAIL (size ${actual.length} vs oracle ${oracle.length})');
         failures++;
         continue;
       }
@@ -77,9 +66,7 @@ void main() {
           if (actual[index] != oracle[index]) differing++;
         }
         if (differing != 0) {
-          stderr.writeln(
-            '$name: FAIL (lossless, $differing samples differ from oracle)',
-          );
+          stderr.writeln('$name: FAIL (lossless, $differing samples differ from oracle)');
           failures++;
         } else {
           stdout.writeln('$name: EXACT');
@@ -89,9 +76,7 @@ void main() {
       final maxAllowed = (ceiling['maxAbsError']! as num).toDouble();
       final rmseAllowed = (ceiling['rmse']! as num).toDouble();
       if (maxAllowed > globalMax || rmseAllowed > globalRmse) {
-        stderr.writeln(
-          '$name: FAIL (tolerances.json ceiling exceeds the globals)',
-        );
+        stderr.writeln('$name: FAIL (tolerances.json ceiling exceeds the globals)');
         failures++;
         continue;
       }
@@ -102,8 +87,7 @@ void main() {
         if (delta.abs() > max) max = delta.abs();
         sumSquares += delta * delta;
       }
-      final rmse =
-          _sqrt(sumSquares / oracle.length.toDouble());
+      final rmse = _sqrt(sumSquares / oracle.length.toDouble());
       if (max > maxAllowed || rmse > rmseAllowed) {
         stderr.writeln(
           '$name: FAIL (max |err| $max > $maxAllowed or '
@@ -123,9 +107,7 @@ void main() {
       if (name.contains('-bypass')) {
         stdout.writeln('$name: REJECTED AS DESIGNED (${error.message})');
       } else {
-        stderr.writeln(
-          '$name: FAIL (unexpected unsupported feature: ${error.message})',
-        );
+        stderr.writeln('$name: FAIL (unexpected unsupported feature: ${error.message})');
         failures++;
       }
     } on JpxException catch (error) {

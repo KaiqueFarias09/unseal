@@ -64,7 +64,7 @@ development, and the single [roadmap](doc/roadmap.md).
 | CBR | RAR 4 stored and ordinary non-solid method-29 entries, plus RAR 5 stored entries | Split, solid, encrypted, PPMd, VM, and other unsupported variants are rejected. |
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
-| PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. |
+| PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, and JPEG/JPEG 2000/CCITT/JBIG2 images | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. JPEG 2000 covers a documented Part 1 subset (below); the rest fails typed. |
 | DjVu (JPEG, JB2, and IW44 subset) | Direct `BGjp` JPEG pages, `Sjbz` masks with shared `Djbz` dictionaries and `INCL` references, progressive `BG44`/`FG44` layers, and INFO dimensions and rotation in single-page or bundled documents; compressed `TXTz` hidden text, legacy `TXTa` OCR, and `NAVM` bookmark outlines | JB2 masks and composed IW44 pages become BMP images. Compressed text is byte-exact against `djvutxt`. Indirect document directories resolve through file-based opens only; `FGbz` recoloring, `FGjp`/`Smmr` layer replacements, `ANTz` annotations, and thumbnails are ignored or rejected as described below. |
 | TIFF / BigTIFF | Baseline uncompressed, PackBits, LZW, and Deflate/AdobeDeflate raster pages (8-bit gray and RGB, 16-bit gray, bilevel, with horizontal-differencing predictors), CCITT Group 4 and Group 3 (including modified Huffman and EOL-less producers), multi-page IFD chains in both byte orders, BigTIFF 64-bit offsets, ImageDescription/DateTime/Software/Artist metadata, and X/Y-resolution DPI | Pages become BMP images (JPEG passthrough when a page holds one self-contained strip). Tiled layouts, planar=2, palette, float/SampleFormat≠1, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and uncompressed-mode extensions are rejected typed. A page is capped at 256 megapixels; strips and tiles are bounds-checked before allocation; a document is capped at 128 MiB input, 1024 pages, 256 megapixels of decoded pixels, and 128 MiB of decoded raster. Pixel parity with libtiff (`tiffcmp`) is pinned by tests. |
 
@@ -446,6 +446,30 @@ of pixel-perfect rendering for every PDF producer. Vector graphics, forms,
 annotations, and image codecs outside the supported extraction contract may be
 omitted. The original PDF bytes are retained for an application that provides
 its own facsimile renderer.
+
+PDF `JPXDecode` images decode through a pure-Dart JPEG 2000 Part 1 subset ported
+from a pinned OpenJPEG revision: bare J2K codestreams and JP2 wrappers, unsigned
+8-bit grayscale and RGB, the reversible 5/3 and irreversible 9/7 wavelets, LRCP
+and RLCP progression, single and multiple tiles, RCT and ICT component
+transforms, custom precincts, SOP/EPH markers, segmentation symbols, multiple
+quality layers, and `/ASCII85Decode /JPXDecode` chains. Lossless decodes are
+byte-exact against the OpenJPEG oracle; lossy decodes stay inside ceilings fixed
+before the first Dart comparison; VM and compiled-browser decodes are
+byte-identical. Arithmetic coding bypass, Part 2 extensions, CMYK/palette
+colorspaces, `SMaskInData` alpha, and PDF/codestream geometry conflicts fail
+typed instead of inventing pixels.
+
+PDF `JPXDecode` images decode through a pure-Dart JPEG 2000 Part 1 subset ported
+from a pinned OpenJPEG revision: bare J2K codestreams and JP2 wrappers, unsigned
+8-bit grayscale and RGB, the reversible 5/3 and irreversible 9/7 wavelets, LRCP
+and RLCP progression, single and multiple tiles, RCT and ICT component
+transforms, custom precincts, SOP/EPH markers, segmentation symbols, multiple
+quality layers, and `/ASCII85Decode /JPXDecode` chains. Lossless decodes are
+byte-exact against the OpenJPEG oracle; lossy decodes stay inside ceilings fixed
+before the first Dart comparison; VM and compiled-browser decodes are
+byte-identical. Arithmetic coding bypass, Part 2 extensions, CMYK/palette
+colorspaces, `SMaskInData` alpha, and PDF/codestream geometry conflicts fail
+typed instead of inventing pixels.
 
 DjVu visual reading covers direct JPEG pages, JB2 masks encoded with direct
 symbols, matched refinements, symbol copies, and shared-dictionary

@@ -21,3 +21,13 @@ the independent [djvu-rs](https://github.com/matyushkin/djvu-rs) implementation
 as protocol data. Its MIT license is included in `licenses/djvu-rs-MIT.txt`.
 The JB2 decoding logic itself was implemented in pure Dart from the DjVu 3
 specification; no DjVuLibre GPL source is copied.
+
+## OpenJPEG
+
+The JPEG 2000 decoder in `lib/src/features/pdf/codec/jpeg2000/` is a pure-Dart
+port of a pinned [OpenJPEG](https://github.com/uclouvain/openjpeg) revision
+(8314119b067c0fc77834731168daaebd379fdb12) developed for Unseal's reading model
+and VM/browser runtimes. The MQ coder state table and lifting constants are
+transcribed protocol data; acceptance compares decoded output against OpenJPEG
+oracle payloads. OpenJPEG is licensed under BSD-2-Clause; the license text is
+included at `licenses/openjpeg-LICENSE`.

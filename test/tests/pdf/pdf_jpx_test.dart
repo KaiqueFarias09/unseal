@@ -18,9 +18,8 @@ import 'pdf_fixture_builder.dart';
 
 const String _fixturesDir = 'test/resources/pdf/jpeg2000';
 
-PdfDocument _document(final PdfFixtureBuilder builder) => PdfDocument.parse(
-      MemoryPdfByteSource(builder.build()),
-    );
+PdfDocument _document(final PdfFixtureBuilder builder) =>
+    PdfDocument.parse(MemoryPdfByteSource(builder.build()));
 
 /// JPXDecode: the pure-Dart JPEG 2000 Part 1 port of the pinned
 /// OpenJPEG revision (8314119b), accepted against the committed oracle
@@ -35,17 +34,15 @@ PdfDocument _document(final PdfFixtureBuilder builder) => PdfDocument.parse(
 ///   normalizes to `JpxException`, never to a RangeError or invented
 ///   pixels.
 void main() {
-  final tolerances = const JsonDecoder().convert(
-    File('$_fixturesDir/tolerances.json').readAsStringSync(),
-  ) as Map<String, Object?>;
-  final ceilings =
-      (tolerances['fixtures']! as Map<String, Object?>).cast<String,
-          Map<String, Object?>>();
+  final tolerances =
+      const JsonDecoder().convert(File('$_fixturesDir/tolerances.json').readAsStringSync())
+          as Map<String, Object?>;
+  final ceilings = (tolerances['fixtures']! as Map<String, Object?>)
+      .cast<String, Map<String, Object?>>();
 
   final fixtureNames = <String>[
     for (final entry in Directory(_fixturesDir).listSync())
-      if (entry is File &&
-          (entry.path.endsWith('.j2k') || entry.path.endsWith('.jp2')))
+      if (entry is File && (entry.path.endsWith('.j2k') || entry.path.endsWith('.jp2')))
         entry.uri.pathSegments.last.replaceFirst(RegExp(r'\.(j2k|jp2)$'), ''),
   ]..sort();
 
@@ -73,14 +70,10 @@ void main() {
             ? '$name matches the oracle byte-exact'
             : '$name stays inside the fixed lossy ceiling',
         () {
-          final oracle =
-              File('$_fixturesDir/oracle/$name.raw').readAsBytesSync();
+          final oracle = File('$_fixturesDir/oracle/$name.raw').readAsBytesSync();
           final extension = name.contains('jp2') ? '.jp2' : '.j2k';
-          final image =
-              decodeJpxImage(File('$_fixturesDir/$name$extension').readAsBytesSync());
-          final actual = <int>[
-            for (final plane in image.samples) ...plane,
-          ];
+          final image = decodeJpxImage(File('$_fixturesDir/$name$extension').readAsBytesSync());
+          final actual = <int>[for (final plane in image.samples) ...plane];
           expect(actual, hasLength(oracle.length), reason: name);
           if (ceiling == null) {
             expect(actual, oracle, reason: name);
@@ -97,11 +90,7 @@ void main() {
           }
           final rmse = sqrt(sumSquares / oracle.length);
           expect(max <= maxAllowed, isTrue, reason: '$name max |err| $max');
-          expect(
-            rmse <= rmseAllowed,
-            isTrue,
-            reason: '$name rmse ${rmse.toStringAsFixed(4)}',
-          );
+          expect(rmse <= rmseAllowed, isTrue, reason: '$name rmse ${rmse.toStringAsFixed(4)}');
         },
       );
     }
@@ -111,8 +100,7 @@ void main() {
     // The gray 64x64 lossless fixture with its SIZ geometry patched:
     // SOC/Lsiz/Rsiz occupy the first 8 bytes, then Xsiz (8-11) and
     // Ysiz (12-15) big-endian, Csiz at 40-41.
-    final baseSiz = File('$_fixturesDir/gray53-lossless-lrcp.j2k')
-        .readAsBytesSync();
+    final baseSiz = File('$_fixturesDir/gray53-lossless-lrcp.j2k').readAsBytesSync();
 
     test('a raster beyond the sample budget rejects before allocating', () {
       final patched = Uint8List.fromList(baseSiz);
@@ -121,13 +109,7 @@ void main() {
       patched[12] = 0x04;
       expect(
         () => decodeJpxImage(patched),
-        throwsA(
-          isA<JpxException>().having(
-            (final e) => e.message,
-            'message',
-            contains('budget'),
-          ),
-        ),
+        throwsA(isA<JpxException>().having((final e) => e.message, 'message', contains('budget'))),
       );
     });
 
@@ -142,10 +124,7 @@ void main() {
       // A 256x256 lossy fixture with a legal SIZ but cut short: the
       // failure surfaces as JpxException, never RangeError/StateError.
       final full = File('$_fixturesDir/gray97-lossy-256.j2k').readAsBytesSync();
-      expect(
-        () => decodeJpxImage(full.sublist(0, 120)),
-        throwsA(isA<JpxException>()),
-      );
+      expect(() => decodeJpxImage(full.sublist(0, 120)), throwsA(isA<JpxException>()));
     });
   });
 
@@ -183,45 +162,32 @@ void main() {
   });
 
   group('PDF JPXDecode adapter', () {
-    final grayJ2k =
-        File('$_fixturesDir/gray53-lossless-lrcp.j2k').readAsBytesSync();
-    final rgbJ2k =
-        File('$_fixturesDir/rgb53-lossless-rct.j2k').readAsBytesSync();
+    final grayJ2k = File('$_fixturesDir/gray53-lossless-lrcp.j2k').readAsBytesSync();
+    final rgbJ2k = File('$_fixturesDir/rgb53-lossless-rct.j2k').readAsBytesSync();
 
     test('a gray JPXDecode XObject extracts as a 64x64 PNG', () {
-      final document = _document(
-        jpxImagePageFixture(grayJ2k, width: 64, height: 64),
-      );
+      final document = _document(jpxImagePageFixture(grayJ2k, width: 64, height: 64));
       final result = decodePdfImageObject(document, 8);
       expect(result, isNotNull);
       expect(result!.$2, 'png');
       // PNG signature + IHDR geometry.
       final png = result.$1;
-      expect(png.sublist(0, 8),
-          [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      expect(png.sublist(0, 8), [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
       expect((png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19], 64);
       expect((png[20] << 24) | (png[21] << 16) | (png[22] << 8) | png[23], 64);
     });
 
     test('an RGB codestream extracts as truecolor PNG', () {
-      final document = _document(
-        jpxImagePageFixture(rgbJ2k, width: 64, height: 64, components: 3),
-      );
+      final document = _document(jpxImagePageFixture(rgbJ2k, width: 64, height: 64, components: 3));
       final result = decodePdfImageObject(document, 8);
       expect(result, isNotNull);
       // Color type 2 (truecolor) lives at IHDR byte offset 9.
       expect(result!.$1[25], 2);
     });
 
-    test('an /ASCII85Decode /JPXDecode chain decodes through both filters',
-        () {
+    test('an /ASCII85Decode /JPXDecode chain decodes through both filters', () {
       final document = _document(
-        jpxImagePageFixture(
-          grayJ2k,
-          width: 64,
-          height: 64,
-          ascii85: true,
-        ),
+        jpxImagePageFixture(grayJ2k, width: 64, height: 64, ascii85: true),
       );
       final result = decodePdfImageObject(document, 8);
       expect(result, isNotNull);
@@ -234,12 +200,7 @@ void main() {
 
     test('an indirect /ColorSpace reference binds like a direct one', () {
       final document = _document(
-        jpxImagePageFixture(
-          grayJ2k,
-          width: 64,
-          height: 64,
-          indirectColorSpace: true,
-        ),
+        jpxImagePageFixture(grayJ2k, width: 64, height: 64, indirectColorSpace: true),
       );
       final result = decodePdfImageObject(document, 8);
       expect(result, isNotNull);
@@ -247,9 +208,7 @@ void main() {
     });
 
     test('a /Width conflict with the codestream rejects typed', () {
-      final document = _document(
-        jpxImagePageFixture(grayJ2k, width: 63, height: 64),
-      );
+      final document = _document(jpxImagePageFixture(grayJ2k, width: 63, height: 64));
       expect(
         () => decodePdfJpxSamples(document, document.object(8)! as PdfStream),
         throwsA(isA<JpxException>()),
@@ -265,11 +224,7 @@ void main() {
           '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
           '/Resources << /XObject << /Im0 8 0 R >> >> >>',
         )
-        ..addStreamObject(
-          7,
-          '',
-          'q 200 0 0 150 72 500 cm /Im0 Do Q\n'.codeUnits,
-        )
+        ..addStreamObject(7, '', 'q 200 0 0 150 72 500 cm /Im0 Do Q\n'.codeUnits)
         ..addStreamObject(
           8,
           ' /Subtype /Image /Width 64 /Height 64 /BitsPerComponent 8'
@@ -284,49 +239,38 @@ void main() {
       );
     });
 
-    test('a corrupted codestream degrades to geometry-only, never throws',
-        () {
+    test('a corrupted codestream degrades to geometry-only, never throws', () {
       final corrupted = Uint8List.fromList(grayJ2k);
       for (var i = 40; i < 40 + 24; i++) {
         corrupted[i] = 0xFF;
       }
-      final document = _document(
-        jpxImagePageFixture(corrupted, width: 64, height: 64),
-      );
+      final document = _document(jpxImagePageFixture(corrupted, width: 64, height: 64));
       // The adapter's documented degradation: no raster, no crash.
       expect(decodePdfImageObject(document, 8), isNull);
     });
   });
 
   group('JPXDecode through extraction and the session engine', () {
-    final grayJ2k =
-        File('$_fixturesDir/gray53-lossless-lrcp.j2k').readAsBytesSync();
+    final grayJ2k = File('$_fixturesDir/gray53-lossless-lrcp.j2k').readAsBytesSync();
 
     test('parsePdfBook extracts the JPX image as a drawable PNG', () {
-      final book = Unseal.parse(
-        jpxImagePageFixture(grayJ2k, width: 64, height: 64).build(),
-      ) as PdfBook;
+      final book =
+          Unseal.parse(jpxImagePageFixture(grayJ2k, width: 64, height: 64).build()) as PdfBook;
       expect(book.files.images, hasLength(1));
       final image = book.files.images.single;
       expect(image.path, 'images/pdf-image-8.png');
-      expect(image.content.sublist(0, 8),
-          [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      expect(image.content.sublist(0, 8), [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
     });
 
     test('the session engine serves the same JPX bytes on demand', () {
-      final bytes = Uint8List.fromList(
-        jpxImagePageFixture(grayJ2k, width: 64, height: 64).build(),
-      );
+      final bytes = Uint8List.fromList(jpxImagePageFixture(grayJ2k, width: 64, height: 64).build());
       final book = Unseal.parse(bytes) as PdfBook;
       final engine = SessionEngine.openBytes(bytes);
       addTearDown(engine.close);
 
       final eagerImage = book.files.images.single;
       expect(engine.resource(eagerImage.path), eagerImage.content);
-      expect(
-        engine.resourceLength(eagerImage.path),
-        eagerImage.content.length,
-      );
+      expect(engine.resourceLength(eagerImage.path), eagerImage.content.length);
     });
   });
 }

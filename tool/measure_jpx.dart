@@ -14,7 +14,8 @@ import 'dart:typed_data';
 
 import 'package:unseal/src/features/pdf/codec/jpeg2000/jpx_decoder.dart';
 
-final Uint8List _gray = base64Decode('/0//UQApAAAAAABAAAAAQAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAAAAABBwEB/1IADAAAAAEA'
+final Uint8List _gray = base64Decode(
+  '/0//UQApAAAAAABAAAAAQAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAAAAABBwEB/1IADAAAAAEA'
   'BAQEAAH/XAAQQEBISFBISFBISFBISFD/ZAAlAAFDcmVhdGVkIGJ5IE9wZW5KUEVHIHZlcnNp'
   'b24gMi41LjT/kAAKAAAAAA2XAAH/k8+0QBILZ/z4hb8bHnMu/szfnTvB846H1B0H1BwUmsdu'
   'K0S+3uZcW7S0SwFUKBmBsj805pIWetG/INAoSoEFkh45YJCRkH/D6i+H1GUPtOASNpukjAAF'
@@ -80,9 +81,11 @@ final Uint8List _gray = base64Decode('/0//UQApAAAAAABAAAAAQAAAAAAAAAAAAAAAQAAAAE
   '1ARDd97O605Z2eySkJukrcs0TvXb/woIIvegE8bhf3AOOrX2Wi4sJm6Np3G15k2mR5tZiNez'
   '6oXxJBtiEYdkOcJvomCQHwzdm+gxHNP2A5eGcendx+5zI8enZNMC73N6PZWcPViAyyj1KB/f'
   'MWGcZaKWFyil2ctubww3baiXB3WBt5h4/zz0Y9RNko6K9D+4rLB712eeddmf9kb0PWvbutEm'
-  '/TIOV+mCY49hmnfxV0tDaaZp3zr4Pn3LnN0L8N9Fi//Z');
+  '/TIOV+mCY49hmnfxV0tDaaZp3zr4Pn3LnN0L8N9Fi//Z',
+);
 
-final Uint8List _rgb = base64Decode('/0//UQAvAAAAAABAAAAAQAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAAAAADBwEBBwEBBwEB/1IA'
+final Uint8List _rgb = base64Decode(
+  '/0//UQAvAAAAAABAAAAAQAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAAAAADBwEBBwEBBwEB/1IA'
   'DAAAAAEBBAQEAAH/XAAQQEBISFBISFBISFBISFD/ZAAlAAFDcmVhdGVkIGJ5IE9wZW5KUEVH'
   'IHZlcnNpb24gMi41LjT/kAAKAAAAACkTAAH/k8fUHBFgQgwW6IxIQaQf0su7wfIKD+y94E9I'
   'sATt38D4Sg7MRrg/Wm/73H/B846B8guB844iCEkAZur3ACsBVdiSbxSZ54vp0fvf2ErnA5eL'
@@ -279,9 +282,11 @@ final Uint8List _rgb = base64Decode('/0//UQAvAAAAAABAAAAAQAAAAAAAAAAAAAAAQAAAAEA
   'x4PV4a+IALrlV3LPBZLK6U2MxHmDXhs840e/g+zbUl/iiEYPUA38fmSsS/mNv8VbO1lvJPnu'
   '2OTnH8DqwjDRLTUUtosiOoS3HVaX7ibbZej78TXOIzM17fzKeo2o2e5FwjqKsGMiw0zf19xI'
   'FV1sE1dlzrpnUjQ98R5VSrpxgjX1S6WaBEoXSCpkmKetl6RpwmEIhGEKXQhP0l+/P+F7ui//'
-  '2Q==');
+  '2Q==',
+);
 
-final Uint8List _big = base64Decode('/0//UQApAAAAAAEAAAABAAAAAAAAAAAAAAABAAAAAQAAAAAAAAAAAAABBwEB/1IADAAAAAEA'
+final Uint8List _big = base64Decode(
+  '/0//UQApAAAAAAEAAAABAAAAAAAAAAAAAAABAAAAAQAAAAAAAAAAAAABBwEB/1IADAAAAAEA'
   'BQQEAAD/XAAjQncgdvB28HbAbwBvAG7gZ1BnUGdoUAVQBVBHV9NX01di/2QAJQABQ3JlYXRl'
   'ZCBieSBPcGVuSlBFRyB2ZXJzaW9uIDIuNS40/5AACgAAAAAoYgAB/5PH2GY1TD9EbQ0KNBjM'
   'Z7NgnwS7Jjefsf2bhR/IhSLxVobhB94Kf8n5jhXWT+xbXuhImfVsOIrAfEbgPiOQHwOgNqPZ'
@@ -474,7 +479,8 @@ final Uint8List _big = base64Decode('/0//UQApAAAAAAEAAAABAAAAAAAAAAAAAAABAAAAAQA
   '4PeW+qsfdAQL22n0tj2C28QaIMWwRqSbX1G0gVKD5D3tFYecGir1cHE0HsTitBaTDVf3E01Z'
   'o8EVTE5auGwEFm0NbdDee2J95VfFYM8Gkwkj7+fKKTqFASDuOwA6T7ZuFp1QXeM7MxZ5FOF2'
   'JjIeELJxoboxw6qbOXQWNLRz3GnDBF9qONfbI9pTY3CS71GTNnnZKCzwuKLECnN2G+eljxWa'
-  'sNfN0RZfFfl6FqOvQt715FZcDlMLsOG+J6EVm1fe8n3kAdtgcxD/RN/Q7XLjgUPX/hss/9k=');
+  'sNfN0RZfFfl6FqOvQt715FZcDlMLsOG+J6EVm1fe8n3kAdtgcxD/RN/Q7XLjgUPX/hss/9k=',
+);
 
 /// (warm-up, timed) iterations per fixture.
 const int _warmup = 8;
@@ -502,15 +508,16 @@ void _measure(final String label, final Uint8List bytes) {
   samples.sort();
   final p50 = samples[samples.length ~/ 2];
   final p95 = samples[(samples.length * 95) ~/ 100];
-  final mean =
-      samples.fold<double>(0, (final a, final b) => a + b) / samples.length;
+  final mean = samples.fold<double>(0, (final a, final b) => a + b) / samples.length;
   final inputKb = (bytes.length / 1024).toStringAsFixed(1);
   // A measurement tool: stdout is the deliverable, so the
   // print lint does not apply.
   // ignore: avoid_print
-  print('$label ($inputKb KiB, x$_samples): '
-      'p50 ${p50.toStringAsFixed(0)} us  '
-      'mean ${mean.toStringAsFixed(0)} us  '
-      'p95 ${p95.toStringAsFixed(0)} us  '
-      '(checksum $checksum)');
+  print(
+    '$label ($inputKb KiB, x$_samples): '
+    'p50 ${p50.toStringAsFixed(0)} us  '
+    'mean ${mean.toStringAsFixed(0)} us  '
+    'p95 ${p95.toStringAsFixed(0)} us  '
+    '(checksum $checksum)',
+  );
 }

@@ -126,7 +126,6 @@ Do not replace the existing contracts solely to match an external schema.
 | --- | --- | --- |
 | DjVu | `FGjp`, `Smmr`, `FGbz` palette colors, chained shared dictionaries, annotations, and `BMKz`. | Replacement visual codecs and chained dictionaries fail typed. Palette recoloring, annotations, thumbnails, and `BMKz` are ignored. Composed output uses a hard mask rather than ddjvu's blended stencil. |
 | TIFF/BigTIFF | Tiled and planar raster, palettes, additional sample formats, external JPEG tables, multi-strip JPEG, old JPEG, reversed FillOrder, and further predictors. | Unsupported layouts/codecs fail with typed exceptions. Support must remain bounded before allocation. |
-| PDF images | JPEG2000 decoding and `JPXDecode` integration. | The image extraction path handles JPEG, CCITT, and JBIG2; unsupported image filters can leave geometry without extracted pixels. This is distinct from Grimoire's PDF.js rendering. |
 | CBR/RAR5 | Compressed entries, filters, checksums, and bounded handling of solid archives. | The RAR5 reader currently extracts stored entries only. Do not describe the existing RAR4 decoder as compressed RAR5 support. |
 | CHM | More codepages, merged help, and full-text index data. | Reading covers supported HTML topics/resources and the documented codepages. |
 | Plucker/eReader | More record and bitmap variants, with independent fixtures. | Existing reading-oriented formatting, resources, links, and navigation remain supported. |

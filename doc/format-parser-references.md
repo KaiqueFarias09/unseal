@@ -19,6 +19,7 @@ and validation gaps.
 | PDF | [PDF.js](https://github.com/mozilla/pdf.js) and [Poppler](https://poppler.freedesktop.org/) | Independent extraction and bitmap behavior references. Unseal is not a complete PDF renderer. |
 | DjVu | [DjVu 3 specification](https://www.sndjvu.org/spec.html), [djvu-rs](https://github.com/matyushkin/djvu-rs), and [DjVuLibre](https://djvu.sourceforge.net/) tools | Container/codec semantics, ZP constants, text output from `djvutxt`, and reference pixels from `ddjvu`. |
 | TIFF and BigTIFF | [TIFF 6.0](https://download.osgeo.org/libtiff/doc/TIFF6.pdf), [BigTIFF](https://libtiff.gitlab.io/libtiff/specification/bigtiff.html), and [libtiff](https://libtiff.gitlab.io/libtiff/) | IFD/offset semantics, strip codecs, and `tiffcp`/`tiffcmp` pixel comparisons. |
+| JPEG 2000 | [ISO/IEC 15444-1](https://www.itu.int/rec/T-REC-T.800) and [OpenJPEG](https://github.com/uclouvain/openjpeg) (C, BSD-2-Clause, pinned revision 8314119b) | Codestream/JP2 marker semantics, MQ coder state table, tier-1 passes, 5/3 and 9/7 lifting, and oracle payload comparison. |
 
 Reference implementations are development tools, not mandatory runtime
 executables. Preserve each source's license boundary. Attribution and bundled

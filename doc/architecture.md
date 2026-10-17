@@ -146,6 +146,11 @@ Input is untrusted. The following rules are architectural, not parser details:
 - Bound TIFF/BigTIFF IFD traversal, entry counts, offsets, strip sizes, decoded
   pixels, and raster bytes before allocation. Reject unsupported codecs and
   raster layouts with format-owned typed failures.
+- Bound JPEG 2000 codestream reads (input bytes, raster samples, tile buffers,
+  component and tile counts) before allocation. The decoder lives beside the
+  PDF feature, enforces a documented Part 1 subset, rejects unsupported features
+  with typed failures, and must decode identically on the VM and on compiled
+  JavaScript (integer shifts normalized).
 - Bound XML depth and convert malformed or excessive structures to typed
   failures.
 - Preserve HTML as data. A consuming renderer must sanitize or isolate it.
@@ -191,6 +196,9 @@ bytes and provenance unless the change intentionally updates the fixture.
 - TIFF/BigTIFF produces page images rather than reflowed text. Supported
   strip codecs are documented in the README; tiled and other unsupported
   raster layouts fail explicitly.
+- PDF `JPXDecode` extracts images through the JPEG 2000 subset decoder; the
+  acceptance contract is the pinned OpenJPEG oracle (exact lossless, pre-fixed
+  lossy ceilings), and the PDF dispatch keeps text/reflow untouched.
 - DOCX and ODT conversion preserves semantic reading structure, not exact page
   layout.
 - HTML remains unsanitized so parsing does not silently rewrite content.

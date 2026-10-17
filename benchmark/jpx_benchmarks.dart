@@ -29,11 +29,7 @@ void runJpxBenchmarks() {
     }
     final bytes = Uint8List.fromList(fixture.readAsBytesSync());
     decodeJpxImage(bytes); // Warm-up: JIT and code-page touch.
-    group.add(
-      'decodeJpxImage — $name',
-      () => decodeJpxImage(bytes),
-      inputBytes: bytes.length,
-    );
+    group.add('decodeJpxImage — $name', () => decodeJpxImage(bytes), inputBytes: bytes.length);
   }
 
   addFixture('gray 64x64 5/3 lossless', 'gray53-lossless-lrcp.j2k');
