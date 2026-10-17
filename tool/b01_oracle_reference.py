@@ -134,22 +134,25 @@ def main() -> int:
     # --- 1. verified read-only input copies ---
     inputs = out / "inputs"
     inputs.mkdir(exist_ok=True)
+
+    def stage_input(source: Path) -> Path:
+        # Earlier runs leave the copies read-only; replace them instead
+        # of writing over them.
+        target = inputs / source.name
+        if target.exists():
+            target.chmod(0o644)
+        shutil.copyfile(source, target)
+        if sha256(source) != sha256(target):
+            problems.append(f"input copy hash mismatch: {source}")
+        target.chmod(0o444)
+        artifacts.append({"path": str(target), "sha256": sha256(target)})
+
+        return target
+
     for fixture in FIXTURES:
-        source = Path("test/resources/djvu") / f"{fixture}.djvu"
-        target = inputs / source.name
-        shutil.copyfile(source, target)
-        if sha256(source) != sha256(target):
-            problems.append(f"input copy hash mismatch: {source}")
-        target.chmod(0o444)
-        artifacts.append({"path": str(target), "sha256": sha256(target)})
+        stage_input(Path("test/resources/djvu") / f"{fixture}.djvu")
     for name in ALTO_FIXTURES:
-        source = Path("test/resources/alto") / f"{name}.xml"
-        target = inputs / source.name
-        shutil.copyfile(source, target)
-        if sha256(source) != sha256(target):
-            problems.append(f"input copy hash mismatch: {source}")
-        target.chmod(0o444)
-        artifacts.append({"path": str(target), "sha256": sha256(target)})
+        stage_input(Path("test/resources/alto") / f"{name}.xml")
 
     # --- 2. DjVuLibre per-page dumps ---
     djvu_out = out / "djvu"
@@ -197,6 +200,8 @@ def main() -> int:
             problems.append(f"committed ALTO {name} fails schema validation")
     for name, url in (OFFICIAL_V4, OFFICIAL_V2):
         target = inputs / name
+        if target.exists():
+            target.chmod(0o644)
         if not target.exists():
             code, output = run(["curl", "-sL", "--max-time", "60", "-o", str(target), url])
             if code != 0 or not target.exists() or target.stat().st_size < 1000:
