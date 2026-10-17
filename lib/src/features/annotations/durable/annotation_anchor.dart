@@ -107,6 +107,7 @@ final class AnnotationAnchor {
       textRevision: snapshot.textRevision,
       start: start,
       end: end,
+      annotationId: annotationId,
       quote: AnchorQuote(
         exact: exact,
         before: _contextBefore(snapshot.text, start, limits.maxContextLength),

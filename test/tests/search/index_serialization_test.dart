@@ -90,10 +90,13 @@ void main() {
       });
       final index = await BookSearchIndex.build(book);
       final before = index.query('navegacao');
-      // Structural reload: identical hits and bit-identical scores; the
-      // snippet stays empty because no text source was provided.
+      // Structural reload exposes metadata, but carried claims cannot
+      // authorize queries without destination content verification.
       final structural = BookSearchIndex.deserialize(index.serialize());
-      final after = structural.query('navegacao');
+      expect(structural.coverage.isComplete, isTrue);
+      expect(() => structural.query('navegacao'), throwsA(isA<SearchIndexIncompatibleException>()));
+      final verified = BookSearchIndex.deserialize(index.serialize(), book: book);
+      final after = verified.query('navegacao');
       expect(after.hits, hasLength(before.hits.length));
       expect(after.hits.single.sectionIndex, before.hits.single.sectionIndex);
       expect(after.hits.single.start, before.hits.single.start);
@@ -102,10 +105,9 @@ void main() {
       expect(after.coverage.isComplete, isTrue);
       // Prefix queries behave identically after the reload.
       final prefixBefore = index.query('nave', mode: IndexedQueryMode.prefix);
-      final prefixAfter = structural.query('nave', mode: IndexedQueryMode.prefix);
+      final prefixAfter = verified.query('nave', mode: IndexedQueryMode.prefix);
       expect(prefixAfter.hits, hasLength(prefixBefore.hits.length));
       // Verified reload with the book: snippets come back too.
-      final verified = BookSearchIndex.deserialize(index.serialize(), book: book);
       expect(verified.query('navegacao').hits.single.snippet, before.hits.single.snippet);
     });
 
@@ -113,6 +115,69 @@ void main() {
       final payload = (await builtIndex()).serialize();
       final again = (await builtIndex()).serialize();
       expect(again.toString(), payload.toString());
+    });
+
+    test('carried revision claims alone cannot unlock imported postings', () async {
+      const identity = SearchIndexIdentity(publicationId: 'host:book');
+      final book = buildIndexedBook({0: 'a selected word'});
+      final payload = (await BookSearchIndex.build(book, identity: identity)).serialize();
+      final imported = BookSearchIndex.deserialize(payload, identity: identity);
+
+      expect(imported.identity.publicationId, identity.publicationId);
+      expect(imported.coverage.indexedSections, 1);
+      expect(() => imported.query('selected'), throwsA(isA<SearchIndexIncompatibleException>()));
+      final checked = BookSearchIndex.deserialize(
+        payload,
+        identity: identity,
+        sectionText: (final _, final _) => 'a selected word',
+      );
+      expect(checked.query('selected').hits, hasLength(1));
+    });
+
+    test('malformed identity and non-JSON values fail typed', () async {
+      final payload = (await builtIndex()).serialize();
+      for (final invalid in [
+        {
+          ...payload,
+          'identity': <String, Object?>{'sourceEvidence': 7},
+        },
+        {...payload, 'sections': Object()},
+      ]) {
+        expect(
+          () => BookSearchIndex.deserialize(invalid),
+          throwsA(isA<SearchIndexInvalidArgumentException>()),
+        );
+      }
+    });
+
+    test('imports require a known reading order and complete destination coverage', () async {
+      final book = buildIndexedBook({0: 'first text', 1: 'second text'});
+      final payload = (await BookSearchIndex.build(book)).serialize();
+      for (final malformed in [
+        {...payload, 'readingOrderRevision': null},
+        {...payload}..remove('readingOrderRevision'),
+        {
+          ...payload,
+          'sections': [
+            (payload['sections'] as List<Object?>).first,
+            (payload['sections'] as List<Object?>).first,
+          ],
+          'terms': <Object?>[],
+        },
+      ]) {
+        expect(
+          () => BookSearchIndex.deserialize(malformed, book: book),
+          throwsA(isA<SearchIndexInvalidArgumentException>()),
+        );
+      }
+      expect(
+        () => BookSearchIndex.deserialize({
+          ...payload,
+          'sections': <Object?>[],
+          'terms': <Object?>[],
+        }, book: book),
+        throwsA(isA<SearchIndexIncompatibleException>()),
+      );
     });
 
     test('identity survives the round trip and gates imports', () async {
@@ -184,7 +249,7 @@ void main() {
     test('hostile payloads fail before allocations', () {
       expect(
         () => BookSearchIndex.deserialize(<String, Object?>{}),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<SearchIndexInvalidArgumentException>()),
       );
       // A section entry with a malformed field.
       expect(
@@ -194,14 +259,15 @@ void main() {
             'tokenizer': SearchIndexTokenizer.tokenizerId,
             'normalization': SearchIndexTokenizer.normalizationId,
             'textProfile': SearchIndexTokenizer.textProfileId,
+            'extraction': documentTextProfile.id,
           },
-          'readingOrderRevision': null,
+          'readingOrderRevision': readingOrderRevisionOf([]),
           'sections': <Object?>[
             <Object?>[0, 'p0.html', 'many', 5, 'sha256:${'x' * 64}'],
           ],
           'terms': <Object?>[],
         }),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<SearchIndexInvalidArgumentException>()),
       );
       // A range outside the declared section text.
       expect(
@@ -211,9 +277,10 @@ void main() {
             'tokenizer': SearchIndexTokenizer.tokenizerId,
             'normalization': SearchIndexTokenizer.normalizationId,
             'textProfile': SearchIndexTokenizer.textProfileId,
+            'extraction': documentTextProfile.id,
           },
           'identity': null,
-          'readingOrderRevision': null,
+          'readingOrderRevision': readingOrderRevisionOf([]),
           'sections': <Object?>[
             <Object?>[0, 'a.html', 1, 5, 'sha256:${'x' * 64}'],
           ],
@@ -229,7 +296,7 @@ void main() {
             ],
           ],
         }),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<SearchIndexInvalidArgumentException>()),
       );
       // Negative offsets and odd range lists fail the same way.
       expect(
@@ -239,9 +306,10 @@ void main() {
             'tokenizer': SearchIndexTokenizer.tokenizerId,
             'normalization': SearchIndexTokenizer.normalizationId,
             'textProfile': SearchIndexTokenizer.textProfileId,
+            'extraction': documentTextProfile.id,
           },
           'identity': null,
-          'readingOrderRevision': null,
+          'readingOrderRevision': readingOrderRevisionOf([]),
           'sections': <Object?>[
             <Object?>[0, 'a.html', 1, 5, 'sha256:${'x' * 64}'],
           ],
@@ -257,7 +325,7 @@ void main() {
             ],
           ],
         }),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<SearchIndexInvalidArgumentException>()),
       );
     });
 
@@ -290,8 +358,7 @@ void main() {
       expect(index.serialize, throwsA(isA<SearchIndexException>()));
     });
 
-    test('pdf-sourced indexes build and query but refuse persistence', () async {
-      // The adapter marks PDF indexes unpersistable; prove the gate.
+    test('explicit memory-only indexes query but refuse persistence', () async {
       final index = BookSearchIndex.empty(persistable: false);
       final pending = index.beginEligible([
         const ReadingOrderItem(name: 'page_1.html', isHtml: true),

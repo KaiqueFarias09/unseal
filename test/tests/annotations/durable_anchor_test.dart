@@ -15,6 +15,22 @@ void main() {
       'resto é contexto diferente do primeiro capítulo.';
 
   group('anchor capture', () {
+    test('preserves the host annotation id through capture and codec round trip', () {
+      final anchor = AnnotationAnchor.capture(
+        snapshot: AnchorFixtures.snapshot(
+          chapter1,
+          sectionIndex: 0,
+          identity: AnchorFixtures.verifiedIdentity(),
+        ),
+        start: 0,
+        end: 10,
+        annotationId: 'host:highlight-42',
+      );
+
+      expect(anchor.annotationId, 'host:highlight-42');
+      expect(decodeAnchor(encodeAnchor(anchor)).annotationId, 'host:highlight-42');
+    });
+
     test('captures identity, occurrence, revisions and bounded evidence', () {
       final (start, end) = AnchorFixtures.spanOf(chapter1, 'O verbo estava com Deus');
       final anchor = AnchorFixtures.anchor(

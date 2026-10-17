@@ -55,9 +55,8 @@ final class SearchIndexDisposedException extends SearchIndexException {
   const SearchIndexDisposedException(super.message);
 }
 
-/// The requested index behavior exists but is deliberately withheld in
-/// this delivery: persisting an index over PDF text waits for the P1
-/// position-mapping acceptance. In-memory querying stays available.
+/// The index has been configured for memory-only use or lacks a known
+/// canonical extraction plan required for persistence.
 final class SearchIndexUnsupportedException extends SearchIndexException {
   /// Creates the unsupported-behavior failure.
   const SearchIndexUnsupportedException(super.message);

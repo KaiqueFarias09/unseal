@@ -73,6 +73,10 @@ enum AnchorUnsupportedReason {
   /// The scan budget ([AnchorLimits.maxScanCodeUnits] worth of code
   /// units) ran out before the target sections were fully searched.
   scanWorkExceeded,
+
+  /// The fuzzy pass exhausted its gram-scan, verification, or
+  /// candidate-window budget before all targets could be checked.
+  fuzzyWorkExceeded,
 }
 
 /// Why the resolution reported an identity/revision incompatibility.
@@ -190,7 +194,7 @@ final class AnchorMissing extends AnchorResolution {
   final AnchorMissingReason reason;
 
   /// Whether the fuzzy pass was skipped for its size bound (a longer
-  /// quote) or work budget — the missing verdict then covers the exact
+  /// quote) — the missing verdict then covers the exact
   /// and normalized passes only.
   final bool fuzzySkipped;
 

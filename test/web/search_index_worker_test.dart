@@ -9,6 +9,8 @@ import 'package:test/test.dart';
 import 'package:unseal/src/platform/web/worker_client.dart';
 import 'package:unseal/unseal.dart';
 
+import '../support/indexed_pdf_fixture.dart';
+
 Uint8List _utf8(final String value) => Uint8List.fromList(convert.utf8.encode(value));
 
 /// A small EPUB whose sections carry the acceptance corpus: accented
@@ -58,6 +60,46 @@ void main() {
   });
 
   tearDown(UnsealWorker.dispose);
+
+  test('PDF worker indexes reopen in the same mode and reject eager mode payloads', () async {
+    final bytes = indexedPdfFixture();
+    final probe = await WorkerClient.instance.sessionOpenInWorker(bytes);
+    expect(probe, isNotNull, reason: 'PDF persistence must run through the real worker');
+    WorkerClient.instance.sessionDisposeInWorker(probe!.sessionId);
+
+    final eager = await Unseal.read(bytes) as PdfBook;
+    expect(eager.canonicalTextProfile!.options['scope'], 'document');
+    final eagerIndex = await BookSearchIndex.build(eager);
+    final eagerPayload = eagerIndex.serialize();
+    final eagerReopened = await Unseal.read(bytes);
+    expect(
+      BookSearchIndex.deserialize(eagerPayload, book: eagerReopened).query('needle').hits,
+      hasLength(22),
+    );
+
+    final source = await BookSession.open(bytes);
+    final target = await BookSession.open(bytes);
+    addTearDown(source.dispose);
+    addTearDown(target.dispose);
+    final sessionBook = source.book as PdfBook;
+    expect(sessionBook.canonicalTextProfile!.options['scope'], 'session-sample');
+    expect(sessionBook.canonicalTextProfile!.id, isNot(eager.canonicalTextProfile!.id));
+    expect(await source.loadDocumentText('page_1.html'), documentTextOf(eager.files.html.first));
+
+    await source.buildSearchIndex();
+    final payload = await source.exportSearchIndex();
+    await target.importSearchIndex(payload);
+    expect((await target.searchIndexed('needle')).hits, hasLength(22));
+    await expectLater(
+      target.importSearchIndex(eagerPayload),
+      throwsA(isA<SearchIndexIncompatibleException>()),
+    );
+    expect(
+      () => BookSearchIndex.deserialize(payload, book: eager),
+      throwsA(isA<SearchIndexIncompatibleException>()),
+    );
+    expect((await target.searchIndexed('needle')).hits, hasLength(22));
+  });
 
   test('the indexed search runs inside the real worker', () async {
     final probe = await WorkerClient.instance.sessionOpenInWorker(_corpusEpub());

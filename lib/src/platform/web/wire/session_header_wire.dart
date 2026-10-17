@@ -10,6 +10,7 @@ import '../../../foundation/entities/entities.dart';
 import 'book_components_wire.dart';
 import 'epub_package_wire.dart';
 import 'metadata_wire.dart';
+import 'text_profile_wire.dart';
 
 /// Encodes a session header [book] — an [EpubBook], [ComicBook] or
 /// [PdfBook] carrying complete structure and an empty file set — into
@@ -88,6 +89,8 @@ import 'metadata_wire.dart';
         'metadata': encodeMetadataWireValue(book.metadata, blobs),
         'navigation': encodeNavigationWireValue(book.navigation),
         'pdf': <String, Object?>{
+          if (book.canonicalTextProfile case final profile?)
+            'canonicalTextProfile': encodeTextProfileWire(profile),
           // Page geometry in reading order; the content pages stay on
           // the worker and load through the session ops.
           'pages': <Object?>[
@@ -174,6 +177,7 @@ Book decodeSessionHeaderWire(final Map<String, Object?> json, final List<Object>
       bytes: Uint8List(0),
       metadata: decodeMetadataWireValue(json['metadata'] as Map<String, Object?>, blobs),
       pages: pages,
+      canonicalTextProfile: decodeTextProfileWire(pdf['canonicalTextProfile']),
       pageFiles: <TextFile>[
         for (var i = 1; i <= pages.length; i++)
           TextFile(content: '', name: 'page_$i.html', type: 'html', path: 'page_$i.html'),

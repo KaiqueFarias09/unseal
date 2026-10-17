@@ -208,7 +208,7 @@ Read `lib/unseal.dart` first when reviewing public compatibility. An item export
 | `foundation/metadata/series_index.dart` | Parses plain numeric series positions such as `2`, `2.5`, or `0,5` after trimming and decimal-separator normalization. Decorated values such as `Volume 2` are not accepted. |
 | `foundation/metadata/sort_keys.dart` | Builds stable author sorting values and removes bracketed qualifiers when the policy requires it. |
 | `foundation/metadata/title_sort.dart` | Moves leading articles according to language so titles sort consistently. |
-| `foundation/text/canonical_document_text.dart` | Scans and memoizes HTML into the whitespace-preserving character stream used by search, progression, navigation, locators, and annotations. This file defines where text offsets mean the same thing across capabilities. |
+| `foundation/text/canonical_document_text.dart` | Scans and memoizes HTML into the whitespace-preserving character stream used by search, progression, navigation, locators, and annotations. Its shared `documentTextProfile` identifies that extraction contract. |
 | `foundation/text/publication_revision.dart` | Defines the evidence-qualified publication identity (`PublicationRevision`, `SourceEvidence`) the common text contract binds snapshots to: namespaced opaque ids, `sha256` versus host versus unverified revisions, mutually exclusive by construction. |
 | `foundation/text/section_occurrence.dart` | Defines one reading-order position: zero-based section index, exact parser path (repeats stay distinct), and the reading-order digest. |
 | `foundation/text/text_profile.dart` | Defines the extraction profile (algorithm, options, plan revision) whose digest is the profile id, so two reading modes with different plans never share a text revision by convention. |
@@ -865,7 +865,7 @@ The flow is:
 | `features/search/index/search_text_tokenizer.dart` | Tokenizes canonical text into normalized terms with original UTF-16 ranges. Self-contained fold tables (Latin diacritics to ASCII base, Greek/Cyrillic case, fullwidth forms); soft hyphens, zero-width characters and the listed combining marks are ignorable inside a run, so `colo­rial` indexes as `colorial` with the hyphen inside the range. |
 | `features/search/index/searchable_map.dart` | Radix tree ported from MiniSearch's `SearchableMap`: exact lookup, prefix iteration over the matching subtree, and bounded fuzzy iteration sharing one incremental Levenshtein matrix. Prunes explicitly where the original relied on typed-array out-of-bounds writes. |
 | `features/search/index/index_ranking.dart` | BM25+ scoring (k=1.2, b=0.7, d=0.5) and the prefix/fuzzy expansion weights, ported from MiniSearch at revision `3d239d1c`. |
-| `features/search/index/book_search_index.dart` | The index itself: term postings per section with occurrence ranges, eligibility/pending/failed coverage, batched construction with cooperative cancellation, exact/prefix/fuzzy queries with the deterministic C05 tiebreak, and versioned serialization with pre-allocation import validation. |
+| `features/search/index/book_search_index.dart` | The index itself: term postings per section with occurrence ranges, eligibility/pending/failed coverage, batched construction with cooperative cancellation, exact/prefix/fuzzy queries with the deterministic C05 tiebreak, and versioned serialization with bounded import validation. PDF indexes bind the canonical reflow profile; imported queries require live destination-text verification. |
 | `features/search/index/search_index_identity.dart` | Explicit identity inputs and the C02 digest helpers (SHA-256 over UTF-16LE for text revisions and the compact reading-order JSON). Uses the shared revision digest implementation; fixed vectors live in the search test suites. |
 | `features/search/index/search_index_wire.dart` | JSON-safe codecs for indexed results and coverage, shared by the isolate and worker transports. |
 | `features/search/index/search_index_exceptions.dart` | The typed failure kinds: invalid argument, incompatible revision/profile, exceeded limit, cancellation, disposal, unsupported persistence. |
@@ -903,9 +903,8 @@ The merge code exists for offline-first clients. It produces a deterministic res
 
 ### Durable anchors: selections that survive edition changes
 
-`features/annotations/durable/` is the additive annotation envelope the
-campaign contract added beside the v1 records — it never reinterprets a v1
-payload, and the v1 codecs above never see an anchor. The split:
+`features/annotations/durable/` adds a durable annotation envelope beside the
+v1 records. Each envelope uses its own codec. The split:
 
 | File | What it does and why it exists |
 | --- | --- |

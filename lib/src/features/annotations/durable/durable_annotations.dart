@@ -15,18 +15,6 @@ import 'anchor_limits.dart';
 import 'anchor_resolution.dart';
 import 'annotation_anchor.dart';
 
-/// The extraction profile of the plain canonical section text the
-/// generic capture/resolve helpers mint: the document-text scanner's
-/// output (markup stripped, entities decoded, whitespace kept). PDF
-/// sections use their reading mode's own profile instead — capture
-/// them through `PdfPageStructure` snapshots, whose canonical profile
-/// binds the reflow plan revision.
-final TextProfile documentTextProfile = TextProfile.of(
-  algorithm: 'document-text',
-  options: const <String, String>{},
-  planRevision: RevisionDigest.textRevision('unseal document-text extraction 1'),
-);
-
 /// The durable annotations facade: capture a selection as an anchor
 /// bound to publication identity and revisions, then resolve the
 /// anchor against revised targets — reporting `resolved`, `ambiguous`,
@@ -136,16 +124,29 @@ abstract final class DurableAnnotations {
       );
     }
 
-    final mismatch = _incompatibility(anchor, targets);
+    final migrationTargets = policy == AnchorPolicy.explicitMigration
+        ? targets
+              .where(
+                (final target) => target.identity.publicationId == anchor.identity.publicationId,
+              )
+              .toList(growable: false)
+        : targets;
+    final mismatch = _incompatibility(
+      anchor,
+      migrationTargets.isEmpty ? targets : migrationTargets,
+    );
     final migrationAllowed =
         policy == AnchorPolicy.contextRecovery ||
         (policy == AnchorPolicy.explicitMigration &&
+            anchor.isExportable &&
+            migrationTargets.isNotEmpty &&
+            migrationTargets.every((final target) => target.isExportable) &&
             mismatch.kind == AnchorIncompatibilityKind.revisionMismatch);
     if (!migrationAllowed) {
       return mismatch;
     }
 
-    return _anchorByEvidence(anchor, targets, limits);
+    return _anchorByEvidence(anchor, migrationTargets, limits);
   }
 
   /// Resolves [anchor] against a whole [book] under [identity]:
@@ -250,7 +251,9 @@ abstract final class DurableAnnotations {
 /// publication revision, occurrence, profile and text revision, every
 /// field compared including explicit nulls.
 bool _sameIdentity(final AnnotationAnchor anchor, final CanonicalTextSnapshot target) {
-  return anchor.identity == target.identity &&
+  return anchor.isExportable &&
+      target.isExportable &&
+      anchor.identity == target.identity &&
       anchor.occurrence == target.occurrence &&
       anchor.profile == target.profile &&
       anchor.textRevision == target.textRevision;
@@ -317,10 +320,10 @@ AnchorResolution _anchorByEvidence(
   var budget = limits.maxScanCodeUnits;
 
   final exact = _scanPass(anchor: anchor, targets: targets, limits: limits, budget: budget);
-  if (exact.collector.tieCount > 0) return exact.outcome();
   if (exact.budgetExhausted) {
     return const AnchorUnsupported(reason: AnchorUnsupportedReason.scanWorkExceeded);
   }
+  if (exact.collector.tieCount > 0) return exact.outcome();
   budget = exact.remainingBudget;
 
   final normalized = _normalizedPass(
@@ -329,14 +332,17 @@ AnchorResolution _anchorByEvidence(
     limits: limits,
     budget: budget,
   );
-  if (normalized.collector.tieCount > 0) return normalized.outcome();
   if (normalized.budgetExhausted) {
     return const AnchorUnsupported(reason: AnchorUnsupportedReason.scanWorkExceeded);
   }
+  if (normalized.collector.tieCount > 0) return normalized.outcome();
 
   var fuzzySkipped = anchor.quote.exact.length > limits.maxFuzzyQuoteLength;
   if (!fuzzySkipped) {
     final (outcome, workExhausted) = _fuzzyPass(anchor: anchor, targets: targets, limits: limits);
+    if (workExhausted) {
+      return const AnchorUnsupported(reason: AnchorUnsupportedReason.fuzzyWorkExceeded);
+    }
     if (outcome.collector.tieCount > 0) {
       final candidates = outcome.collector.candidates;
       if (outcome.collector.tieCount == 1) {
@@ -408,7 +414,7 @@ _ScanOutcome _scanPass({
   var remaining = budget;
 
   for (final target in targets) {
-    if (remaining <= 0) {
+    if (target.text.length > remaining) {
       exhausted = true;
       break;
     }
@@ -454,11 +460,14 @@ _ScanOutcome _normalizedPass({
     (final candidate) => -candidate.contextScore,
     AnchorMatchBasis.whitespaceNormalized,
   );
+  if (normalizedQuote.text.isEmpty) {
+    return _ScanOutcome(collector, false, budget);
+  }
   var exhausted = false;
   var remaining = budget;
 
   for (final target in targets) {
-    if (remaining <= 0) {
+    if (target.text.length > remaining) {
       exhausted = true;
       break;
     }
@@ -519,6 +528,10 @@ _ScanOutcome _normalizedPass({
     // gram position; a real match keeps its grams within ±k of s.
     final alignments = <int>[];
     for (final gram in grams) {
+      if (text.length > work) {
+        exhausted = true;
+        break;
+      }
       work -= text.length;
       var from = 0;
       while (true) {
@@ -532,12 +545,16 @@ _ScanOutcome _normalizedPass({
       }
       if (work <= 0 || alignments.length > limits.maxCandidates * 8) break;
     }
+    if (exhausted) break;
     final votesCapped = alignments.length > limits.maxCandidates * 8;
     if (work <= 0 && alignments.isEmpty) {
       exhausted = true;
       break;
     }
-    if (votesCapped) continue;
+    if (votesCapped) {
+      exhausted = true;
+      break;
+    }
 
     alignments.sort();
     _clusterWindows(
@@ -728,16 +745,17 @@ final class _NormalizedText {
     }
 
     var from = 0;
-    while (from < starts.length && ends[from] - starts[from] > 1) {
+    final collapsed = units.toString();
+    while (from < starts.length && collapsed.codeUnitAt(from) == 0x20) {
       // Leading whitespace run (the collapsed space).
       from++;
     }
     var to = starts.length;
-    while (to > from && ends[to - 1] - starts[to - 1] > 1) {
+    while (to > from && collapsed.codeUnitAt(to - 1) == 0x20) {
       // Trailing whitespace run.
       to--;
     }
-    final trimmed = units.toString().substring(from, to);
+    final trimmed = collapsed.substring(from, to);
 
     text = trimmed;
     canonicalStarts = starts.sublist(from, to);

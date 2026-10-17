@@ -190,8 +190,7 @@ final class SessionEngine {
 
   /// The resident search index, built incrementally across
   /// `searchIndexEnsure` calls; null until the first ensure. PDF
-  /// sessions build unpersistable indexes (serialization refuses until
-  /// the P1 mapping acceptance).
+  /// indexes carry the session's sampled extraction profile.
   BookSearchIndex? _searchIndex;
 
   /// The eligible sections the resident index still has to process.
@@ -498,7 +497,7 @@ final class SessionEngine {
     if (index == null) {
       index = BookSearchIndex.empty(
         identity: identity ?? const SearchIndexIdentity(),
-        persistable: _pdf == null,
+        extractionProfile: book is PdfBook ? (book as PdfBook).canonicalTextProfile : null,
       );
       _searchIndexPending = index.beginEligible(book.readingOrder);
       _searchIndex = index;
@@ -552,8 +551,7 @@ final class SessionEngine {
     );
   }
 
-  /// Serializes the resident index; PDF sessions refuse through the
-  /// index's persistability gate.
+  /// Serializes the complete resident index with its extraction profile.
   Map<String, Object?> searchIndexExport() {
     _ensureOpen();
     final index = _searchIndex;
@@ -581,7 +579,9 @@ final class SessionEngine {
     }
     final index = BookSearchIndex.deserialize(
       payload,
+      book: book,
       identity: identity,
+      extractionProfile: book is PdfBook ? (book as PdfBook).canonicalTextProfile : null,
       sectionText: (final sectionIndex, final path) {
         final order = book.readingOrder;
         if (sectionIndex >= order.length || order[sectionIndex].name != path) return null;

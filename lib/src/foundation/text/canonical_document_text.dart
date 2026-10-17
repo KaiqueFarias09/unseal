@@ -10,6 +10,15 @@
 library;
 
 import '../entities/file/text_file.dart';
+import 'revision_digest.dart';
+import 'text_profile.dart';
+
+/// The profile of document text extracted by [DocumentTextScanner].
+final TextProfile documentTextProfile = TextProfile.of(
+  algorithm: 'document-text',
+  options: const <String, String>{},
+  planRevision: RevisionDigest.textRevision('unseal document-text extraction 1'),
+);
 
 const _lessThan = 0x3C;
 const _greaterThan = 0x3E;

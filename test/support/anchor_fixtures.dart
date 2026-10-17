@@ -1,7 +1,6 @@
 import 'package:unseal/src/features/annotations/durable/anchor_limits.dart';
 import 'package:unseal/src/features/annotations/durable/annotation_anchor.dart';
-import 'package:unseal/src/features/annotations/durable/durable_annotations.dart'
-    show documentTextProfile;
+import 'package:unseal/src/foundation/text/canonical_document_text.dart' show documentTextProfile;
 import 'package:unseal/src/foundation/text/canonical_text_range.dart';
 import 'package:unseal/src/foundation/text/canonical_text_snapshot.dart';
 import 'package:unseal/src/foundation/text/publication_revision.dart';

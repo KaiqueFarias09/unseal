@@ -15,6 +15,7 @@ import '../../../foundation/entities/entities.dart';
 import 'book_components_wire.dart';
 import 'epub_package_wire.dart';
 import 'metadata_wire.dart';
+import 'text_profile_wire.dart';
 
 /// Encodes a fully parsed [book] into a structured-clone-friendly
 /// wire payload: a JSON map holding the structure plus the flat blob
@@ -85,6 +86,8 @@ import 'metadata_wire.dart';
     // the receiving side.
     json['pdf'] = <String, Object?>{
       'bytes': pushWireBlob(blobs, book.bytes),
+      if (book.canonicalTextProfile case final profile?)
+        'canonicalTextProfile': encodeTextProfileWire(profile),
       'pages': <Object?>[
         for (final page in book.pages)
           <String, Object?>{
@@ -293,6 +296,7 @@ PdfBook _decodePdfBook(
     metadata: decodeMetadataWireValue(json['metadata'] as Map<String, Object?>, blobs),
     pages: _decodePdfPages(pdf['pages'] as List<Object?>),
     pageTexts: _decodePdfPageTexts(pdf['pageTexts'] as List<Object?>? ?? const <Object?>[]),
+    canonicalTextProfile: decodeTextProfileWire(pdf['canonicalTextProfile']),
     navigation: navigation,
     pageFiles: files.html,
     extractedImages: files.images,

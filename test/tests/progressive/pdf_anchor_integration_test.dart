@@ -59,35 +59,25 @@ void main() {
     quoteSpan = _midPageQuote(pageText);
   });
 
-  /// Feeds [index] with every section's canonical document text.
-  void indexAllSections(final BookSearchIndex index) {
-    final order = book.readingOrder;
-    index.beginEligible(order);
-    for (var section = 0; section < order.length; section++) {
-      index.addSection(
-        sectionIndex: section,
-        path: order[section].name,
-        text: documentTextOf(
-          book.files.html.firstWhere((final file) => file.path == order[section].name),
-        ),
-      );
-    }
-  }
-
   group('PDF anchors across modes and reopenings', () {
-    test('an indexed hit captures as a verified anchor over the same characters', () {
-      final index = BookSearchIndex.empty(
+    test('an indexed hit captures as a verified anchor over the same characters', () async {
+      final index = await BookSearchIndex.build(
+        book,
         identity: SearchIndexIdentity(
           publicationId: identity.publicationId,
           sourceRevision: sourceRevision,
           sourceEvidence: SearchSourceEvidence.sha256,
         ),
       );
-      indexAllSections(index);
+      expect(index.persistable, isTrue);
+      final restoredIndex = BookSearchIndex.deserialize(
+        index.serialize(),
+        book: parsePdfBook(bytes),
+      );
 
       final quote = pageText.substring(quoteSpan.$1, quoteSpan.$2);
       final tokens = quote.split(RegExp(r'\s+')).take(3).toList(growable: false);
-      final results = index.query(tokens.join(' '));
+      final results = restoredIndex.query(tokens.join(' '));
       expect(results.hits, isNotEmpty);
       final hit = results.hits.firstWhere(
         (final candidate) =>
@@ -200,7 +190,7 @@ void main() {
       );
     });
 
-    test('an incompatible revision invalidates the index and migrates the anchor', () {
+    test('an incompatible revision invalidates the index and migrates the anchor', () async {
       // A host claiming a new revision of the same publication: the
       // serialized index refuses to reopen, and the anchor migrates
       // only through the declared policy.
@@ -210,18 +200,14 @@ void main() {
         sourceEvidence: SourceEvidence.host,
       );
 
-      final index = BookSearchIndex.empty(
+      final index = await BookSearchIndex.build(
+        book,
         identity: SearchIndexIdentity(
           publicationId: identity.publicationId,
           sourceRevision: sourceRevision,
           sourceEvidence: SearchSourceEvidence.sha256,
         ),
-        // The PDF persistence gate is A02's integration decision (its
-        // default stays closed); this acceptance exercises the
-        // identity-invalidation contract, so the index opts in.
-        persistable: true,
       );
-      indexAllSections(index);
       final payload = index.serialize();
       expect(
         () => BookSearchIndex.deserialize(

@@ -12,6 +12,7 @@ library;
 
 import '../../../foundation/entities/book/reading_order_item.dart';
 import '../../../foundation/text/revision_digest.dart';
+import 'search_index_exceptions.dart';
 
 /// Where a publication's revision evidence comes from. Free-form host
 /// claims are *allegations*: an import re-checks the content digests it
@@ -71,14 +72,14 @@ final class SearchIndexIdentity {
   static SearchIndexIdentity? fromWire(final Object? wire) {
     if (wire == null) return null;
     if (wire is! Map<String, Object?>) {
-      throw const FormatException('searchIndex identity must be an object.');
+      throw const SearchIndexInvalidArgumentException('searchIndex identity must be an object.');
     }
     final evidenceName = wire['sourceEvidence'];
     final evidence = evidenceName == null
         ? SearchSourceEvidence.unverified
         : SearchSourceEvidence.values.firstWhere(
             (final value) => value.name == evidenceName,
-            orElse: () => throw const FormatException(
+            orElse: () => throw const SearchIndexInvalidArgumentException(
               'searchIndex identity carries an unknown sourceEvidence.',
             ),
           );
@@ -104,7 +105,9 @@ final class SearchIndexIdentity {
 String? _optionalString(final Object? value, final String field) {
   if (value == null) return null;
   if (value is! String) {
-    throw FormatException('searchIndex identity field $field must be a string.');
+    throw SearchIndexInvalidArgumentException(
+      'searchIndex identity field $field must be a string.',
+    );
   }
 
   return value;

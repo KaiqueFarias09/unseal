@@ -72,7 +72,8 @@ final class AnchorLimits {
   final int maxFuzzyEditDistance;
 
   /// Dynamic-programming cells the fuzzy pass may fill per resolution.
-  /// Exhausting the budget skips the pass and says so on the outcome.
+  /// Exhausting the budget reports `unsupported`; an incomplete
+  /// search cannot certify a unique candidate or absence.
   final int maxFuzzyWork;
 
   /// The longest serialized anchor payload an import accepts, in UTF-16

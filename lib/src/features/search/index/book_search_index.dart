@@ -2,6 +2,9 @@ import 'dart:convert' as convert;
 
 import '../../../foundation/entities/entities.dart';
 import '../../../foundation/text/canonical_document_text.dart';
+import '../../../foundation/text/revision_digest.dart';
+import '../../../foundation/text/text_profile.dart';
+import '../../pdf/entities/pdf_book.dart';
 import '../book_search.dart' show searchSnippet;
 import 'index_ranking.dart';
 import 'indexed_query_mode.dart';
@@ -35,14 +38,15 @@ const int _schemaVersion = 1;
 /// schema, profile, identity, order revision and per-section text
 /// revisions before trusting a single posting.
 ///
-/// PDF persistence is withheld until the P1 position-mapping
-/// acceptance: indexes over PDF text build and query in memory, but
-/// [serialize] refuses while `persistable` is false.
+/// PDF indexes bind to the actual reflow plan and its extraction mode.
+/// Persisted postings require verification against live destination
+/// text before querying; structural import alone exposes metadata.
 final class BookSearchIndex {
   BookSearchIndex._({
     required this.identity,
     required SearchIndexLimits limits,
     required this.persistable,
+    required this.extractionProfileId,
   }) : _limits = limits;
 
   /// Creates an empty index for incremental feeding: declare the
@@ -53,11 +57,13 @@ final class BookSearchIndex {
     final SearchIndexIdentity? identity,
     final SearchIndexLimits limits = const SearchIndexLimits(),
     final bool persistable = true,
+    final TextProfile? extractionProfile,
   }) {
     return BookSearchIndex._(
       identity: identity ?? const SearchIndexIdentity(),
       limits: limits,
       persistable: persistable,
+      extractionProfileId: (extractionProfile ?? documentTextProfile).id,
     );
   }
 
@@ -70,8 +76,8 @@ final class BookSearchIndex {
   /// `SearchIndexCancelledException`; finished work stays visible in
   /// the coverage counters of the thrown-from index — no complete
   /// index is produced. [onProgress] fires after every batch.
-  /// [persistable] must stay false for PDF text until the P1
-  /// acceptance (the default derives it from [Book.format]).
+  /// PDF persistence requires the parser's known canonical extraction
+  /// profile. [persistable] can explicitly keep an index in memory.
   static Future<BookSearchIndex> build(
     final Book book, {
     final SearchIndexIdentity? identity,
@@ -84,7 +90,12 @@ final class BookSearchIndex {
     final index = BookSearchIndex._(
       identity: identity ?? const SearchIndexIdentity(),
       limits: limits,
-      persistable: persistable ?? book.format != BookFormat.pdf,
+      persistable:
+          (persistable ?? true) &&
+          (book.format != BookFormat.pdf || (book is PdfBook && book.canonicalTextProfile != null)),
+      extractionProfileId:
+          (book is PdfBook ? book.canonicalTextProfile ?? documentTextProfile : documentTextProfile)
+              .id,
     );
     final order = book.readingOrder;
     final eligible = index.beginEligible(order);
@@ -125,8 +136,12 @@ final class BookSearchIndex {
   final SearchIndexIdentity identity;
   final SearchIndexLimits _limits;
 
-  /// Whether [serialize] may run (false over PDF text until P1).
+  /// Whether [serialize] may run; PDFs require a known extraction plan.
   final bool persistable;
+
+  /// The canonical extraction profile whose UTF-16 text the postings
+  /// address, separate from token normalization.
+  final String extractionProfileId;
 
   final SearchIndexTokenizer _tokenizer = SearchIndexTokenizer();
 
@@ -150,6 +165,7 @@ final class BookSearchIndex {
   bool _disposed = false;
   String? _readingOrderRevision;
   bool _complete = false;
+  bool _contentVerified = true;
 
   /// Section texts the snippets cut from — references to the same
   /// immutable strings the book or session cache already holds, not
@@ -311,6 +327,11 @@ final class BookSearchIndex {
     final int contextChars = 48,
   }) {
     _ensureOpen();
+    if (!_contentVerified) {
+      throw const SearchIndexIncompatibleException(
+        'Imported postings require verification against live destination text before querying.',
+      );
+    }
     final matchCap = maxMatches != null && maxMatches >= 1
         ? maxMatches
         : _limits.effectiveMaxMatches;
@@ -535,7 +556,7 @@ final class BookSearchIndex {
 
   /// Serializes the complete index into a versioned, JSON-safe wire
   /// map. Refuses while the build is incomplete, cancelled or not
-  /// persistable (PDF until P1).
+  /// persistable.
   Map<String, Object?> serialize() {
     _ensureOpen();
     if (!_complete) {
@@ -546,8 +567,8 @@ final class BookSearchIndex {
     }
     if (!persistable) {
       throw const SearchIndexUnsupportedException(
-        'Persisting an index over PDF text awaits the P1 position-mapping '
-        'acceptance; the in-memory index keeps working.',
+        'This index has no persistable canonical extraction profile or '
+        'was explicitly configured for in-memory use.',
       );
     }
 
@@ -557,6 +578,7 @@ final class BookSearchIndex {
         'tokenizer': SearchIndexTokenizer.tokenizerId,
         'normalization': SearchIndexTokenizer.normalizationId,
         'textProfile': SearchIndexTokenizer.textProfileId,
+        'extraction': extractionProfileId,
       },
       'identity': identity.toWire(),
       'readingOrderRevision': _readingOrderRevision,
@@ -594,13 +616,45 @@ final class BookSearchIndex {
   /// text revisions must match, or
   /// `SearchIndexIncompatibleException` names the mismatch — and the
   /// resolved texts feed the snippet cache. Without a text source the
-  /// index loads structurally and serves empty snippets.
+  /// index loads structurally for metadata inspection; querying fails
+  /// until it is imported with a destination text source.
   static BookSearchIndex deserialize(
     final Map<String, Object?> payload, {
     final SearchIndexLimits limits = const SearchIndexLimits(),
     final Book? book,
     final String? Function(int sectionIndex, String path)? sectionText,
     final SearchIndexIdentity? identity,
+    final TextProfile? extractionProfile,
+  }) {
+    try {
+      return _deserialize(
+        payload,
+        limits: limits,
+        book: book,
+        sectionText: sectionText,
+        identity: identity,
+        extractionProfile: extractionProfile,
+      );
+    } on FormatException catch (error) {
+      throw SearchIndexInvalidArgumentException('Malformed search index: ${error.message}');
+    } on ArgumentError catch (error) {
+      throw SearchIndexInvalidArgumentException('Malformed search index: ${error.message}');
+    } on TypeError {
+      throw const SearchIndexInvalidArgumentException('Malformed search index value types.');
+    } on convert.JsonUnsupportedObjectError {
+      throw const SearchIndexInvalidArgumentException(
+        'Search index payload must contain JSON values.',
+      );
+    }
+  }
+
+  static BookSearchIndex _deserialize(
+    final Map<String, Object?> payload, {
+    required final SearchIndexLimits limits,
+    required final Book? book,
+    required final String? Function(int sectionIndex, String path)? sectionText,
+    required final SearchIndexIdentity? identity,
+    required final TextProfile? extractionProfile,
   }) {
     final encodedLength = convert.json.encode(payload).length;
     if (encodedLength > limits.effectiveMaxSerializedBytes) {
@@ -629,6 +683,21 @@ final class BookSearchIndex {
         'normalization profile.',
       );
     }
+    final extractionId = profile['extraction'];
+    if (extractionId is! String || !isSha256Revision(extractionId)) {
+      throw const SearchIndexIncompatibleException(
+        'The serialized index carries no known canonical extraction profile.',
+      );
+    }
+    final targetProfile = book is PdfBook
+        ? book.canonicalTextProfile
+        : extractionProfile ?? (book != null || sectionText != null ? documentTextProfile : null);
+    if ((book is PdfBook && targetProfile == null) ||
+        (targetProfile != null && targetProfile.id != extractionId)) {
+      throw const SearchIndexIncompatibleException(
+        'The canonical extraction profile or PDF reflow mode changed since the index was built.',
+      );
+    }
     final wireIdentity = SearchIndexIdentity.fromWire(payload['identity']);
     if (identity != null &&
         !identity.isCompatibleWith(wireIdentity ?? const SearchIndexIdentity())) {
@@ -638,8 +707,8 @@ final class BookSearchIndex {
       );
     }
     final revision = payload['readingOrderRevision'];
-    if (revision is! String?) {
-      throw const FormatException('searchIndex readingOrderRevision must be a string.');
+    if (revision is! String || !isSha256Revision(revision)) {
+      throw const FormatException('searchIndex readingOrderRevision must be a sha256 digest.');
     }
 
     final sectionsWire = payload['sections'];
@@ -653,8 +722,12 @@ final class BookSearchIndex {
       );
     }
     final sections = <_IndexedSection>[];
+    final sectionOccurrences = <int>{};
     for (final sectionWire in sectionsWire) {
       final section = _parseSection(sectionWire, limits);
+      if (!sectionOccurrences.add(section.sectionIndex)) {
+        throw const FormatException('searchIndex sections repeat a reading-order occurrence.');
+      }
       sections.add(section);
     }
 
@@ -669,11 +742,15 @@ final class BookSearchIndex {
       );
     }
 
-    final index = BookSearchIndex._(
-      identity: identity ?? wireIdentity ?? const SearchIndexIdentity(),
-      limits: limits,
-      persistable: true,
-    ).._readingOrderRevision = revision;
+    final index =
+        BookSearchIndex._(
+            identity: identity ?? wireIdentity ?? const SearchIndexIdentity(),
+            limits: limits,
+            persistable: true,
+            extractionProfileId: extractionId,
+          )
+          .._readingOrderRevision = revision
+          .._contentVerified = false;
     var occurrences = 0;
     for (final termWire in termsWire) {
       if (termWire is! List<Object?> || termWire.length != 2) {
@@ -740,8 +817,12 @@ final class BookSearchIndex {
     index._totalOccurrences = occurrences;
     index._complete = true;
 
-    if (book != null) index._verifyAgainstBook(book);
-    if (sectionText != null) index._verifyAgainstTexts(sectionText);
+    if (book != null) {
+      index._verifyAgainstBook(book, sectionText: sectionText);
+    } else if (sectionText != null) {
+      index._verifyAgainstTexts(sectionText);
+    }
+    index._contentVerified = book != null || sectionText != null;
 
     return index;
   }
@@ -793,11 +874,19 @@ final class BookSearchIndex {
   /// revision, section names and per-section text digests. Every
   /// mismatch refuses the index as a whole — stale postings never
   /// surface as valid.
-  void _verifyAgainstBook(final Book book) {
+  void _verifyAgainstBook(
+    final Book book, {
+    final String? Function(int sectionIndex, String path)? sectionText,
+  }) {
     final order = book.readingOrder;
-    if (_readingOrderRevision != null && readingOrderRevisionOf(order) != _readingOrderRevision) {
+    if (readingOrderRevisionOf(order) != _readingOrderRevision) {
       throw const SearchIndexIncompatibleException(
         'The book reading order changed since the index was built.',
+      );
+    }
+    if (_sections.length != order.where((final item) => item.isHtml).length) {
+      throw const SearchIndexIncompatibleException(
+        'The imported complete index does not cover every eligible section of the destination.',
       );
     }
     final htmlByPath = <String, TextFile>{for (final file in book.files.html) file.path: file};
@@ -817,13 +906,15 @@ final class BookSearchIndex {
         );
       }
       final file = htmlByPath[section.path];
-      if (file == null) {
+      final text = sectionText != null
+          ? sectionText(section.sectionIndex, section.path)
+          : (file == null ? null : documentTextOf(file));
+      if (text == null) {
         throw SearchIndexIncompatibleException(
           'Indexed section ${section.path} has no document text in the '
           'book.',
         );
       }
-      final text = documentTextOf(file);
       if (textRevisionOf(text) != section.textRevision) {
         throw SearchIndexIncompatibleException(
           'The text of section ${section.path} changed since the index '

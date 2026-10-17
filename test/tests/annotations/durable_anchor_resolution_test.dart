@@ -51,6 +51,48 @@ void main() {
   const reordered2 = chapter1;
 
   group('verified reuse (same revision)', () {
+    test('equal unknown source revisions require explicit context recovery', () {
+      final snapshot = AnchorFixtures.snapshot(
+        'the selected text',
+        sectionIndex: 0,
+        identity: AnchorFixtures.unverifiedIdentity,
+      );
+      final anchor = AnnotationAnchor.capture(snapshot: snapshot, start: 4, end: 12);
+
+      for (final policy in [AnchorPolicy.verifiedReuse, AnchorPolicy.explicitMigration]) {
+        expect(
+          DurableAnnotations.resolve(anchor: anchor, targets: [snapshot], policy: policy),
+          isA<AnchorIncompatibleRevision>(),
+        );
+      }
+      final recovered = DurableAnnotations.resolve(
+        anchor: anchor,
+        targets: [snapshot],
+        policy: AnchorPolicy.contextRecovery,
+      );
+      expect(recovered, isA<AnchorResolved>());
+      expect((recovered as AnchorResolved).verified, isFalse);
+    });
+
+    test('equal unknown reading order revisions do not grant verified reuse', () {
+      final snapshot = CanonicalTextSnapshot(
+        identity: AnchorFixtures.verifiedIdentity(),
+        occurrence: SectionOccurrence(
+          sectionIndex: 0,
+          resourcePath: 'chapter.xhtml',
+          readingOrderRevision: null,
+        ),
+        profile: AnchorFixtures.documentProfile,
+        text: 'the selected text',
+      );
+      final anchor = AnnotationAnchor.capture(snapshot: snapshot, start: 4, end: 12);
+
+      expect(
+        DurableAnnotations.resolve(anchor: anchor, targets: [snapshot]),
+        isA<AnchorIncompatibleRevision>(),
+      );
+    });
+
     test('resolves exactly through the identity tuple', () {
       final identity = AnchorFixtures.verifiedIdentity();
       final targets = [
@@ -347,6 +389,31 @@ void main() {
       expect(resolved.range.text, 'um ato e outro ato');
     });
 
+    test('whitespace-only quotes do not produce empty normalized matches', () {
+      for (final whitespace in [' ', '  ', '\t\n']) {
+        final anchor = AnchorFixtures.anchor(
+          whitespace,
+          sectionIndex: 0,
+          start: 0,
+          end: whitespace.length,
+          identity: AnchorFixtures.verifiedIdentity(),
+        );
+        final resolution = DurableAnnotations.resolve(
+          anchor: anchor,
+          targets: [
+            AnchorFixtures.snapshot(
+              'abc',
+              sectionIndex: 0,
+              identity: AnchorFixtures.revisedIdentity(),
+            ),
+          ],
+          policy: AnchorPolicy.explicitMigration,
+        );
+
+        expect(resolution, isA<AnchorMissing>());
+      }
+    });
+
     test('removed target is missing', () {
       final anchor = AnchorFixtures.anchor(
         chapter1,
@@ -420,6 +487,34 @@ void main() {
   });
 
   group('unknown identity', () {
+    test('explicit migration never searches another publication in mixed targets', () {
+      final anchor = AnchorFixtures.anchor(
+        'selected quote',
+        sectionIndex: 0,
+        start: 0,
+        end: 14,
+        identity: AnchorFixtures.verifiedIdentity(),
+      );
+      final resolution = DurableAnnotations.resolve(
+        anchor: anchor,
+        targets: [
+          AnchorFixtures.snapshot(
+            'different text',
+            sectionIndex: 0,
+            identity: AnchorFixtures.revisedIdentity(),
+          ),
+          AnchorFixtures.snapshot(
+            'selected quote',
+            sectionIndex: 1,
+            identity: AnchorFixtures.otherPublicationIdentity(),
+          ),
+        ],
+        policy: AnchorPolicy.explicitMigration,
+      );
+
+      expect(resolution, isA<AnchorMissing>());
+    });
+
     test('another publication never migrates by proximity', () {
       final anchor = AnchorFixtures.anchor(
         chapter1,
@@ -539,6 +634,134 @@ void main() {
   });
 
   group('limits and work', () {
+    test('a partial fuzzy scan cannot certify a unique candidate or absence', () {
+      const original = 'the quick brown fox jumps';
+      const corrected = 'the quick brown fox leaps';
+      final anchor = AnchorFixtures.anchor(
+        original,
+        sectionIndex: 0,
+        start: 0,
+        end: original.length,
+        identity: AnchorFixtures.verifiedIdentity(),
+      );
+      final targets = [
+        for (var sectionIndex = 0; sectionIndex < 2; sectionIndex++)
+          AnchorFixtures.snapshot(
+            corrected,
+            sectionIndex: sectionIndex,
+            identity: AnchorFixtures.revisedIdentity(),
+          ),
+      ];
+      expect(
+        DurableAnnotations.resolve(
+          anchor: anchor,
+          targets: targets,
+          policy: AnchorPolicy.explicitMigration,
+        ),
+        isA<AnchorAmbiguous>(),
+      );
+      for (final work in [1, 1000]) {
+        final resolution = DurableAnnotations.resolve(
+          anchor: anchor,
+          targets: targets,
+          policy: AnchorPolicy.explicitMigration,
+          limits: AnchorLimits(maxFuzzyWork: work),
+        );
+        expect(resolution, isA<AnchorUnsupported>());
+        expect((resolution as AnchorUnsupported).reason, AnchorUnsupportedReason.fuzzyWorkExceeded);
+      }
+    });
+
+    test('a partial exact scan cannot certify a unique match', () {
+      final anchor = AnchorFixtures.anchor(
+        'needle',
+        sectionIndex: 0,
+        start: 0,
+        end: 6,
+        identity: AnchorFixtures.verifiedIdentity(),
+      );
+      final targets = [
+        for (var sectionIndex = 0; sectionIndex < 2; sectionIndex++)
+          AnchorFixtures.snapshot(
+            'needle',
+            sectionIndex: sectionIndex,
+            identity: AnchorFixtures.revisedIdentity(),
+          ),
+      ];
+
+      expect(
+        DurableAnnotations.resolve(
+          anchor: anchor,
+          targets: targets,
+          policy: AnchorPolicy.explicitMigration,
+        ),
+        isA<AnchorAmbiguous>(),
+      );
+      expect(
+        DurableAnnotations.resolve(
+          anchor: anchor,
+          targets: targets,
+          policy: AnchorPolicy.explicitMigration,
+          limits: const AnchorLimits(maxScanCodeUnits: 6),
+        ),
+        isA<AnchorUnsupported>(),
+      );
+    });
+
+    test('a target larger than the remaining scan budget is not scanned', () {
+      final anchor = AnchorFixtures.anchor(
+        'needle',
+        sectionIndex: 0,
+        start: 0,
+        end: 6,
+        identity: AnchorFixtures.verifiedIdentity(),
+      );
+
+      expect(
+        DurableAnnotations.resolve(
+          anchor: anchor,
+          targets: [
+            AnchorFixtures.snapshot(
+              'needle',
+              sectionIndex: 0,
+              identity: AnchorFixtures.revisedIdentity(),
+            ),
+          ],
+          policy: AnchorPolicy.explicitMigration,
+          limits: const AnchorLimits(maxScanCodeUnits: 5),
+        ),
+        isA<AnchorUnsupported>(),
+      );
+    });
+
+    test('a partial normalized scan cannot certify a unique match', () {
+      final anchor = AnchorFixtures.anchor(
+        'needle\npoint',
+        sectionIndex: 0,
+        start: 0,
+        end: 12,
+        identity: AnchorFixtures.verifiedIdentity(),
+      );
+      final targets = [
+        for (var sectionIndex = 0; sectionIndex < 2; sectionIndex++)
+          AnchorFixtures.snapshot(
+            'needle point',
+            sectionIndex: sectionIndex,
+            identity: AnchorFixtures.revisedIdentity(),
+          ),
+      ];
+
+      expect(
+        DurableAnnotations.resolve(
+          anchor: anchor,
+          targets: targets,
+          policy: AnchorPolicy.explicitMigration,
+          limits: const AnchorLimits(maxScanCodeUnits: 36),
+        ),
+        isA<AnchorUnsupported>(),
+      );
+    });
+
     test('an exhausted scan budget reports unsupported, not missing', () {
       final anchor = AnchorFixtures.anchor(
         chapter1,

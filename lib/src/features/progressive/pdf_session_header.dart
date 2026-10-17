@@ -2,10 +2,12 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../../foundation/entities/entities.dart';
+import '../../foundation/text/text_profile.dart';
 import '../pdf/entities/pdf_book.dart';
 import '../pdf/entities/pdf_page_text.dart';
 import '../pdf/exceptions/pdf_exception.dart';
 import '../pdf/header/pdf_document.dart';
+import '../pdf/layout/pdf_page_structure.dart';
 import '../pdf/reader/pdf_byte_source.dart';
 import '../pdf/reader/pdf_content_stream.dart';
 import '../pdf/reader/pdf_metadata.dart';
@@ -102,6 +104,11 @@ PdfSessionHeader buildPdfSessionHeader(
     pages: pages,
     pageFiles: pageFiles,
     navigation: navigation,
+    canonicalTextProfile: TextProfile.of(
+      algorithm: 'pdf.reflow',
+      options: const {'scope': 'session-sample'},
+      planRevision: pdfPlanRevision(plan),
+    ),
   );
 
   return PdfSessionHeader._(book, source, document, extractor, plan, sampledPageTexts);

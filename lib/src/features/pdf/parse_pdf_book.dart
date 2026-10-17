@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../foundation/entities/entities.dart';
+import '../../foundation/text/text_profile.dart';
 import 'entities/entities.dart';
 import 'exceptions/pdf_exception.dart';
 import 'header/pdf_document.dart';
@@ -44,9 +45,9 @@ PdfBook parsePdfBook(final Uint8List bytes, {final String password = ''}) {
   final metadata = PdfMetadataReader.read(document);
   final navigation = PdfOutlineReader.read(document, pages);
   final extracted = _extractPageContent(document, pages);
-  final (pageFiles, canonicalPageTexts) = PdfReflow.apply([
-    for (final layout in extracted.pageLayouts) layout.pageText,
-  ], pages);
+  final sourcePageTexts = [for (final layout in extracted.pageLayouts) layout.pageText];
+  final plan = PdfReflowPlan.scan(sourcePageTexts, pages);
+  final (pageFiles, canonicalPageTexts) = PdfReflow.applyWithPlan(sourcePageTexts, pages, plan);
 
   return PdfBook(
     bytes: bytes,
@@ -54,6 +55,11 @@ PdfBook parsePdfBook(final Uint8List bytes, {final String password = ''}) {
     pages: pages,
     pageTexts: canonicalPageTexts,
     pageLayouts: extracted.pageLayouts,
+    canonicalTextProfile: TextProfile.of(
+      algorithm: 'pdf.reflow',
+      options: const {'scope': 'document'},
+      planRevision: pdfPlanRevision(plan),
+    ),
     extractedImages: extracted.images,
     pageFiles: pageFiles,
     navigation: navigation,
