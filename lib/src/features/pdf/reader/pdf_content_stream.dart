@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../codec/jpeg2000/pdf_jpx.dart';
 import '../codec/pdf_stream_decoder.dart';
 import '../entities/pdf_layout.dart';
 import '../entities/pdf_page.dart';
@@ -1644,6 +1645,7 @@ bool _isRegular(final int byte) {
 (Uint8List, String)? decodePdfImageStream(final PdfDocument document, final PdfStream stream) {
   final lastFilter = pdfLastFilterName(document, stream);
   if (lastFilter == 'DCTDecode') return (stream.bytes, 'jpg');
+  if (lastFilter == 'JPXDecode') return decodePdfJpxImage(document, stream);
   if (lastFilter != 'CCITTFaxDecode' && lastFilter != 'JBIG2Decode') return null;
 
   try {

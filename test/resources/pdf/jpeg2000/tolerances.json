@@ -1,0 +1,43 @@
+{
+  "protocol": "Lossless fixtures compare byte-exact against the pinned Release oracle payload. Lossy ceilings were fixed before any Dart decoder run: observed inter-build OpenJPEG deltas (Release 8314119b vs Debug 8314119b, all zero on this corpus) plus a float-precision allowance of 3 sample levels / RMSE 0.5 for a float64 decoder matching the float32 oracle pipeline, capped by the globals. Loosening them afterwards invalidates acceptance; tightening is always allowed.",
+  "globalMaxAbsError": 4,
+  "globalRmse": 1.0,
+  "fixtures": {
+    "gray97-lossy-lrcp": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "gray97-lossy-rlcp": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "rgb97-lossy-ict": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "rgb97-lossy-nomct-rlcp": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "rgb97-lossy-multitile": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "gray97-lossy-3layers": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "rgb97-lossy-jp2": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "gray97-lossy-256": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "real-gray97-lossy-ffmpeg": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    }
+  }
+}

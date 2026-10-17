@@ -21,6 +21,8 @@ and validation gaps.
 | TIFF and BigTIFF | [TIFF 6.0](https://download.osgeo.org/libtiff/doc/TIFF6.pdf), [BigTIFF](https://libtiff.gitlab.io/libtiff/specification/bigtiff.html), and [libtiff](https://libtiff.gitlab.io/libtiff/) | IFD/offset semantics, strip codecs, and `tiffcp`/`tiffcmp` pixel comparisons. |
 | CBR (RAR 5) | [RAR 5 format technote](https://www.rarlab.com/technote.htm), [rardecode](https://github.com/nwaples/rardecode) at `ad22ba91a2ab`, and [libarchive](https://github.com/libarchive/libarchive) at `87dec938` | Container grammar, the version-0 LZ stream, and the two byte-for-byte extraction oracles (`tool/rar5_compare.dart`). |
 
+| JPEG 2000 | [ISO/IEC 15444-1](https://www.itu.int/rec/T-REC-T.800) and [OpenJPEG](https://github.com/uclouvain/openjpeg) (C, BSD-2-Clause, pinned revision 8314119b) | Codestream/JP2 marker semantics, MQ coder state table, tier-1 passes, 5/3 and 9/7 lifting, and oracle payload comparison. |
+
 Reference implementations are development tools, not mandatory runtime
 executables. Preserve each source's license boundary. Attribution and bundled
 license texts are recorded in [third-party notices](../THIRD_PARTY_NOTICES.md)

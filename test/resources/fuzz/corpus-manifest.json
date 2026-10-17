@@ -1512,6 +1512,590 @@
       "landmarks": 18
     },
     {
+      "path": "test/resources/pdf/jpeg2000/MANIFEST.md",
+      "format": "manifest",
+      "bytes": 11781,
+      "sha256": "1c882d0cd47d4885cd23b942fa5effdcf965ae14ecead5c42dd3647b256b3d38",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray53-lossless-bypass.j2k",
+      "format": "resource",
+      "bytes": 3698,
+      "sha256": "014cb5f0852a5e716ba0389195ae079adf6c7135a69336c62eefb95d95b2852d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray53-lossless-jp2.jp2",
+      "format": "resource",
+      "bytes": 3682,
+      "sha256": "ec1fb646ec795990b8d833f8f74d84e1d0484f8f62876ec6ee3b8e5720013818",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray53-lossless-lrcp.j2k",
+      "format": "resource",
+      "bytes": 3597,
+      "sha256": "468c7056d9e95472d544101941e3f5b3f8ae599e899270a87a7e60db7fdd11bd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray53-lossless-multitile.j2k",
+      "format": "resource",
+      "bytes": 5987,
+      "sha256": "89af892ade331020b0c52ea612d59c83ce319be4942033c86a285d9888930f94",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray53-lossless-precincts.j2k",
+      "format": "resource",
+      "bytes": 3836,
+      "sha256": "f396ebafd86c59eabfafdd2a458c358ee078b3f5343caf5ab08ae61e0efbcad8",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray53-lossless-rlcp.j2k",
+      "format": "resource",
+      "bytes": 3597,
+      "sha256": "be44c9a86ef084f2b4cb1412df056a7d662cd28f1268472e203d07ee54d0be4c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray53-lossless-segmark.j2k",
+      "format": "resource",
+      "bytes": 3637,
+      "sha256": "2a6802fdba3b3a5678c93dd4c1c3d7c1fc02246e0d42b4c536538906fc928aaf",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray53-lossless-sop-eph.j2k",
+      "format": "resource",
+      "bytes": 3637,
+      "sha256": "7d719ce7f7a6723875afd028e34f4d31a39768ffc3402dcc50643267f263076c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray97-lossy-256.j2k",
+      "format": "resource",
+      "bytes": 10475,
+      "sha256": "b8217b5af919e57fa000dbcca42ea8eaecf2dfebc33a48d8b68e2a46cb1ab38b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray97-lossy-3layers.j2k",
+      "format": "resource",
+      "bytes": 5442,
+      "sha256": "9999968b04db4ae62218c974d784d4f15992778a833d4a7ee34b91a4abfb9057",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray97-lossy-lrcp.j2k",
+      "format": "resource",
+      "bytes": 610,
+      "sha256": "1e1725699359e74c15db431424ba7f840e9a7ed6f6288c18b9284739e901ea17",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/gray97-lossy-rlcp.j2k",
+      "format": "resource",
+      "bytes": 610,
+      "sha256": "85aa7e969d1e4677bff3a696f16e103609217afa3f63afa0fbe4f16ef04e6164",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray53-lossless-bypass.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray53-lossless-jp2.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray53-lossless-lrcp.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray53-lossless-multitile.raw",
+      "format": "txt",
+      "bytes": 6700,
+      "sha256": "8fa691d6d477bf17e7e5be68ff462db70dbc9b0b98ec11627d49a6c9fe5acfcd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray53-lossless-precincts.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray53-lossless-rlcp.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray53-lossless-segmark.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray53-lossless-sop-eph.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray97-lossy-256.raw",
+      "format": "txt",
+      "bytes": 65536,
+      "sha256": "da85bcba11b03a887c47fdd4e3dd06ece50f7801e477b3c93e54ad5cbe71db5e",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray97-lossy-3layers.raw",
+      "format": "txt",
+      "bytes": 16384,
+      "sha256": "9ad1f34295f9cce3bdd8dab2d0664147d8a5511fce41e071bba334e42944959d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray97-lossy-lrcp.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "f7cb110083b0e1710c062f09f65582f632351c4adb8096dfdb5ee779ddc1ceb4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/gray97-lossy-rlcp.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "f7cb110083b0e1710c062f09f65582f632351c4adb8096dfdb5ee779ddc1ceb4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/real-gray97-lossy-ffmpeg.raw",
+      "format": "txt",
+      "bytes": 16384,
+      "sha256": "b76eb6f6574b76bbfc84742bdc7076a7c72edf267fcd8838561608d780ac3547",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/real-rgb53-lossless-ffmpeg.raw",
+      "format": "txt",
+      "bytes": 49152,
+      "sha256": "7c36c0a2d64ccac83104e17ae4820c1ce3e35aef09b0b6293c6c65a65ae8c7a2",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/rgb53-lossless-nomct-jp2.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "eb1b6d98c1f1770e712bd7fcdcc4c52da41edad8eff14d913d60b1c3a61ae3d7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/rgb53-lossless-nomct.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "eb1b6d98c1f1770e712bd7fcdcc4c52da41edad8eff14d913d60b1c3a61ae3d7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/rgb53-lossless-rct.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "eb1b6d98c1f1770e712bd7fcdcc4c52da41edad8eff14d913d60b1c3a61ae3d7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/rgb97-lossy-ict.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "3446664f4c3fd0d33288cd9f797ace96afa6f388a39a12ea38a962fdeb1f493f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/rgb97-lossy-jp2.raw",
+      "format": "resource",
+      "bytes": 12288,
+      "sha256": "ee2f653b70328fa3d2ff2fd425308250a5b4225e78a5646892c093cf876d6e31",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/rgb97-lossy-multitile.raw",
+      "format": "txt",
+      "bytes": 20100,
+      "sha256": "19e9c0145e392043286cec17fe27495753f836581854585b8360598ddfccaf2a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle-debug/rgb97-lossy-nomct-rlcp.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "b5e675922927a3fa86f1b754e47885f382e84939bdbae1cf743c7d386128da51",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray53-lossless-bypass.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray53-lossless-jp2.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray53-lossless-lrcp.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray53-lossless-multitile.raw",
+      "format": "txt",
+      "bytes": 6700,
+      "sha256": "8fa691d6d477bf17e7e5be68ff462db70dbc9b0b98ec11627d49a6c9fe5acfcd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray53-lossless-precincts.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray53-lossless-rlcp.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray53-lossless-segmark.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray53-lossless-sop-eph.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "30c24b2fd200224fc6cc194e902d9febf7870eb82468d3d32097bd684a16e49a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray97-lossy-256.raw",
+      "format": "txt",
+      "bytes": 65536,
+      "sha256": "da85bcba11b03a887c47fdd4e3dd06ece50f7801e477b3c93e54ad5cbe71db5e",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray97-lossy-3layers.raw",
+      "format": "txt",
+      "bytes": 16384,
+      "sha256": "9ad1f34295f9cce3bdd8dab2d0664147d8a5511fce41e071bba334e42944959d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray97-lossy-lrcp.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "f7cb110083b0e1710c062f09f65582f632351c4adb8096dfdb5ee779ddc1ceb4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/gray97-lossy-rlcp.raw",
+      "format": "txt",
+      "bytes": 4096,
+      "sha256": "f7cb110083b0e1710c062f09f65582f632351c4adb8096dfdb5ee779ddc1ceb4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/real-gray97-lossy-ffmpeg.raw",
+      "format": "txt",
+      "bytes": 16384,
+      "sha256": "b76eb6f6574b76bbfc84742bdc7076a7c72edf267fcd8838561608d780ac3547",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/real-rgb53-lossless-ffmpeg.raw",
+      "format": "txt",
+      "bytes": 49152,
+      "sha256": "7c36c0a2d64ccac83104e17ae4820c1ce3e35aef09b0b6293c6c65a65ae8c7a2",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/rgb53-lossless-nomct-jp2.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "eb1b6d98c1f1770e712bd7fcdcc4c52da41edad8eff14d913d60b1c3a61ae3d7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/rgb53-lossless-nomct.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "eb1b6d98c1f1770e712bd7fcdcc4c52da41edad8eff14d913d60b1c3a61ae3d7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/rgb53-lossless-rct.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "eb1b6d98c1f1770e712bd7fcdcc4c52da41edad8eff14d913d60b1c3a61ae3d7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/rgb97-lossy-ict.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "3446664f4c3fd0d33288cd9f797ace96afa6f388a39a12ea38a962fdeb1f493f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/rgb97-lossy-jp2.raw",
+      "format": "resource",
+      "bytes": 12288,
+      "sha256": "ee2f653b70328fa3d2ff2fd425308250a5b4225e78a5646892c093cf876d6e31",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/rgb97-lossy-multitile.raw",
+      "format": "txt",
+      "bytes": 20100,
+      "sha256": "19e9c0145e392043286cec17fe27495753f836581854585b8360598ddfccaf2a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/oracle/rgb97-lossy-nomct-rlcp.raw",
+      "format": "txt",
+      "bytes": 12288,
+      "sha256": "b5e675922927a3fa86f1b754e47885f382e84939bdbae1cf743c7d386128da51",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/real-gray97-lossy-ffmpeg.j2k",
+      "format": "resource",
+      "bytes": 12923,
+      "sha256": "cc0fffeb53b3073858cbcf0cce02936c69942f053ec73eb6bc7f044f37ddf1af",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/real-rgb53-lossless-ffmpeg.j2k",
+      "format": "resource",
+      "bytes": 39122,
+      "sha256": "bb7eb1b744b6477bed68fdb15c898fe98f3db7f7b5049e790140129a5f088f61",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/rgb53-lossless-nomct-jp2.jp2",
+      "format": "resource",
+      "bytes": 10703,
+      "sha256": "ddf756f29fdc134673eadf60d6eb07ba47bba3546a7cb649e4e5da77f6b00582",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/rgb53-lossless-nomct.j2k",
+      "format": "resource",
+      "bytes": 10618,
+      "sha256": "18323abe51ac8bb31342d3f52bf11b58f7add541316003a1213c341ca0942383",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/rgb53-lossless-rct.j2k",
+      "format": "resource",
+      "bytes": 10639,
+      "sha256": "2eff874c7badb4645735a1b1d3f8d0be22ee7210341f28f7a8d7f1e24699c85b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/rgb97-lossy-ict.j2k",
+      "format": "resource",
+      "bytes": 2037,
+      "sha256": "7eddac7046a9b4e63ce005039ad6ad2ae1aebaa318e734573441eb67bad4311a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/rgb97-lossy-jp2.jp2",
+      "format": "resource",
+      "bytes": 1983,
+      "sha256": "6b81c8a47a87c47a209a0fb73daab1bd74d14d9f151086cbef497f80afe2fc6d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/rgb97-lossy-multitile.j2k",
+      "format": "resource",
+      "bytes": 3985,
+      "sha256": "196a463958c2ca1b93a8a458dba87fdd7a88d40f6884fceb848dfb72b5d300cd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/rgb97-lossy-nomct-rlcp.j2k",
+      "format": "resource",
+      "bytes": 2034,
+      "sha256": "4d16d58fc8e76ece35147b3f87678486aa78bc4cb73033f848a4b0b4ebbfa99c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/src/c100x67.ppm",
+      "format": "txt",
+      "bytes": 20114,
+      "sha256": "db9a6784af96285e45025143f174fd058d55aa9c679db3ccc4ba9286bc427569",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/src/c64.ppm",
+      "format": "txt",
+      "bytes": 12301,
+      "sha256": "7e0c75aa68a464ea0c854db88c40a5c7be6c9c7b0f1547ace3da7166eddb4fe7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/src/g100x67.pgm",
+      "format": "txt",
+      "bytes": 6714,
+      "sha256": "cff99ac7cc1c98164b37e1a0a55369b11f2a42c2ca000558065ef88f22d3cd6d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/src/g128.pgm",
+      "format": "txt",
+      "bytes": 16399,
+      "sha256": "fecd64d5ad9ecc8d845707a2c30b29ea84fb5ebba09ad374b7e911ab57ae1058",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/src/g256.pgm",
+      "format": "txt",
+      "bytes": 65551,
+      "sha256": "8fe2a44650785c9afcbe40fd9f800bb51f1aed9d4433919d5644bafd6b449502",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/src/g64.pgm",
+      "format": "txt",
+      "bytes": 4109,
+      "sha256": "04cf51fee2cb5146330c6d2b5008b0993d53c339c8d9bd530d2da5fe547cf644",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/src/real-gray128.pgm",
+      "format": "txt",
+      "bytes": 16399,
+      "sha256": "9aefe39a90dcd800f66f601054a1b0840993a0176546d84fdd068eec4901d908",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/src/real-rgb128.ppm",
+      "format": "txt",
+      "bytes": 49167,
+      "sha256": "578a2050f341c8258b3f8b44cbf7369b052e0ebde9616b42e55a8d26186cbfa2",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/pdf/jpeg2000/tolerances.json",
+      "format": "manifest",
+      "bytes": 1245,
+      "sha256": "edff7c79d44bbc4aac36b55eb0af5121fc1b2d2e9ec402a33cb24733b73a1a6c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/pdf/reference/ccitt/MANIFEST.md",
       "format": "manifest",
       "bytes": 1925,
@@ -1929,10 +2513,10 @@
     }
   ],
   "counts": {
-    "total": 235,
-    "totalBytes": 88756075,
+    "total": 308,
+    "totalBytes": 89672403,
     "byFormat": {
-      "manifest": 15,
+      "manifest": 17,
       "chm": 4,
       "cbr": 15,
       "cbz": 3,
@@ -1950,7 +2534,7 @@
       "palmdoc": 1,
       "plucker": 6,
       "htmlz": 1,
-      "txt": 6,
+      "txt": 54,
       "lrf": 2,
       "azw3": 2,
       "mobi": 5,
@@ -1959,7 +2543,7 @@
       "pdf": 31,
       "tiff": 25,
       "txtz": 1,
-      "resource": 17,
+      "resource": 40,
       "xml-sidecar": 7
     }
   }

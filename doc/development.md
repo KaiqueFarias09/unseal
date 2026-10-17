@@ -50,6 +50,11 @@ Fixture bytes are source data. Keep their license, provenance, hashes, and
 expected results together under `test/resources/`. Do not rewrite a fixture
 to hide a parser regression. See [parser references](format-parser-references.md).
 
+The JPEG 2000 fixtures carry their own acceptance tooling: regenerate them
+with `tool/generate_jpx_fixtures.dart` (requires the pinned OpenJPEG builds)
+and re-run the oracle comparison any time with `dart run tool/compare_jpx_oracle.dart`.
+Decoder latency (p50/mean/p95, VM and compiled JS) comes from `dart run tool/measure_jpx.dart`.
+
 ## Measure performance
 
 The benchmark suite measures library operations, not rendered page latency:

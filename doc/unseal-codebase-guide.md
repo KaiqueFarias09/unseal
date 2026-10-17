@@ -684,13 +684,40 @@ These codec files are algorithm modules. Their size comes from the standards, st
 
 This is an implemented subset of JBIG2 rather than full standard parity. It rejects unsupported segment types and combinations such as refinement prediction, Huffman refinement paths, unsupported page/region composition operators, halftone skip, and nonzero halftone combination operators.
 
+### JPEG 2000 images
+
+JPEG 2000 (ISO/IEC 15444-1) appears in scanned and print-originated PDFs as
+`JPXDecode` image streams. The port follows a pinned OpenJPEG revision and is
+accepted against its decoded output, not merely structurally.
+
+| File | What it does and why it exists |
+| --- | --- |
+| `features/pdf/codec/jpeg2000/jpx_codestream.dart` | Parses SOC/SIZ/COD/COC/QCD/QCC/SOT markers and JP2 boxes, enforcing the Part 1 subset and cross-checking wrapper geometry. |
+| `features/pdf/codec/jpeg2000/jpx_tile.dart` | Computes resolution/precinct/code-block geometry, schedules tier-2 packets (LRCP/RLCP), assembles per-code-block segments, and runs dequantization, scatter, level shift, and clip. |
+| `features/pdf/codec/jpeg2000/jpx_tier1.dart` | Decodes significance-propagation, magnitude-refinement, and cleanup passes over MQ segments with per-pass context reset and segmentation symbols. |
+| `features/pdf/codec/jpeg2000/jpx_mq.dart` | The MQ arithmetic decoder with the reference's 32-bit code-register semantics shared by VM and compiled JS. |
+| `features/pdf/codec/jpeg2000/jpx_tagtree.dart` | Inclusion and missing-significance-bits tag trees reusable across quality layers. |
+| `features/pdf/codec/jpeg2000/jpx_dwt.dart` | The exact integer 5/3 lifting (with `toSigned(32)` shift normalization) and the float32 9/7 pipeline. |
+| `features/pdf/codec/jpeg2000/jpx_mct.dart` | Inverse RCT and ICT component transforms. |
+| `features/pdf/codec/jpeg2000/jpx_decoder.dart` | Tile assembly into planar 8-bit images, JP2 colorspace checks, and PNG encoding. |
+| `features/pdf/codec/jpeg2000/jpx_limits.dart` | Every buffer budget (input, raster, tile buffers, components, tiles) checked before allocation. |
+| `features/pdf/codec/jpeg2000/jpx_exception.dart` | `JpxException` (corrupt input) and `JpxUnsupportedException` (out-of-subset feature), both `PdfException`. |
+| `features/pdf/codec/jpeg2000/pdf_jpx.dart` | The `JPXDecode` adapter: filter chaining, PDF colorspace/dimension validation, typed conflicts. |
+
+Acceptance runs every committed fixture against its OpenJPEG oracle payload:
+byte-exact for lossless, inside pre-fixed ceilings for lossy
+(`tool/compare_jpx_oracle.dart` re-runs it). Arithmetic bypass, Part 2
+extensions, palettes, CMYK, and packed packet headers fail typed; the browser
+build must produce pixels identical to the VM (`test/web/jpx_wire_test.dart`
+pins the decoded-pixel hash).
+
 ### Current PDF limits
 
 The PDF feature aims for useful extraction, not full rendering-engine parity:
 
 - it supports the Standard password security handler, not certificate-based public-key handlers;
 - it preserves bytes only for indirect JPEG image XObjects reached by `Do`, and converts supported CCITT or JBIG2 bitmaps to grayscale PNG;
-- inline images, direct image objects, Form XObjects, and image codecs such as JPEG 2000 remain unextracted or geometry-only;
+- inline images, direct image objects, and Form XObjects remain unextracted or geometry-only; JPEG 2000 follows the documented Part 1 subset;
 - a Type0 composite font without `/ToUnicode` produces no recovered text even when glyph geometry is available;
 - metadata strings outside UTF-16 use an approximate byte-for-byte PDFDocEncoding path, so rare high-byte characters can decode incorrectly;
 - extraction stops after bounded numbers of operations, placements, objects, and images;

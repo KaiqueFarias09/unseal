@@ -133,6 +133,20 @@
   with unknown unpacked size. RAR 5 decoding allocates exactly the
   declared output before decompressing.
 
+- JPEG 2000 (ISO/IEC 15444-1) image decoding behind the PDF `JPXDecode`
+  filter: a pure-Dart port of a pinned OpenJPEG revision covering J2K
+  codestreams and JP2 wrappers, unsigned 8-bit grayscale and RGB, the
+  reversible 5/3 and irreversible 9/7 wavelets, LRCP and RLCP progression,
+  single and multiple tiles, RCT/ICT component transforms, SOP/EPH markers,
+  segmentation symbols, custom precincts, and multiple quality layers.
+  Direct `JPXDecode` streams and `/ASCII85Decode /JPXDecode` chains
+  extract as images; every allocation is budgeted before it happens and
+  every unsupported feature (arithmetic coding bypass, CMYK/palettes,
+  `SMaskInData`, geometry conflicts) fails typed. Lossless decodes are
+  byte-exact against the OpenJPEG oracle corpus; lossy decodes stay inside
+  tolerances fixed before the first Dart comparison. VM and compiled
+  browser decodes are byte-identical.
+
 ## 1.2.0 - October 16, 2026
 
 ### Added

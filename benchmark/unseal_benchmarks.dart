@@ -25,6 +25,7 @@ import 'cfi_benchmarks.dart';
 import 'detection_benchmarks.dart';
 import 'document_text_search_benchmarks.dart';
 import 'getters_benchmarks.dart';
+import 'jpx_benchmarks.dart';
 import 'json_report.dart';
 import 'library_corpus_benchmarks.dart';
 import 'metadata_benchmarks.dart';
@@ -63,6 +64,7 @@ Future<void> main(final List<String> arguments) async {
     runUtilityBenchmarks();
     runCfiBenchmarks();
     await runPdfBenchmarks();
+    runJpxBenchmarks();
     runCalibreScaleBenchmarks();
 
     // The real-corpus scan runs last: it is the slowest group and only
