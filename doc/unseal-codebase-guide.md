@@ -146,7 +146,7 @@ The files at the root of `lib/` define what package consumers can import. They d
 | File | What it exposes |
 | --- | --- |
 | `lib/unseal.dart` | The main format-neutral API. It exports every supported parser family, shared book types, detection, reading helpers, search, annotations, locators, CFI, OPDS, Calibre, text policies, and reader facades. |
-| `lib/epub.dart` | EPUB parsing, EPUB entities, metadata updates, media-overlay structure, and shared book entities. |
+| `lib/epub.dart` | EPUB parsing, EPUB entities, structural diagnostics, metadata updates, media-overlay structure, and shared book entities. |
 | `lib/mobi.dart` | MOBI and AZW3 parsing, MOBI entities and exceptions, and shared book entities. |
 | `lib/azw4.dart` | AZW4 extraction and parsing plus the `PdfBook` result type. |
 | `lib/pdf.dart` | PDF parsing, PDF entities and exceptions, and shared book entities. |
@@ -405,6 +405,8 @@ The flow is:
 | `features/epub/entities/book/epub_landmark.dart` | Preserves a landmark's label, destination, and semantic `epub:type` tokens. |
 | `features/epub/entities/entities.dart` | Re-exports the public EPUB entity files. |
 | `features/epub/container/epub_root_file.dart` | Reads `container.xml` to find the OPF path and provides a recovery scan for real books with missing or broken container metadata. |
+| `features/epub/diagnostics/epub_diagnostic.dart` | Defines the diagnostic finding, severity, bounded options, and report types for EPUB structural diagnostics. |
+| `features/epub/diagnostics/diagnose_epub.dart` | Runs the bounded structural diagnosis: mimetype, container and rootfile selection with recovery, manifest, spine, EPUB 2/3 navigation links and fragments, and guide references. It changes no reading outcome. |
 | `features/epub/package/parse_epub_package.dart` | Parses OPF XML into an EPUB 2 or EPUB 3 package model, including metadata, manifest, spine, guide, and refinements. |
 | `features/epub/entities/package/epub_package.dart` | Defines the shared package data: metadata, manifest items, spine references, and guide references. |
 | `features/epub/entities/package/epub_2_package.dart` | Stores EPUB 2 metadata and adapts its older OPF rules to the shared package interface. |

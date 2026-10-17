@@ -50,7 +50,12 @@ void main() {
       final epubFiles = Directory('test/resources')
           .listSync(recursive: true)
           .whereType<File>()
-          .where((final file) => file.path.endsWith('.epub'));
+          .where((final file) => file.path.endsWith('.epub'))
+          // Diagnostics fixtures are invalid by construction and pinned by
+          // their own manifest; their typed failures are asserted by
+          // test/tests/epub/epub_diagnostics_test.dart, so they cannot act
+          // as readable restricted-title carriers here.
+          .where((final file) => !file.path.contains('epub/diagnostics/'));
 
       for (final file in epubFiles) {
         final metadata = Unseal.readMetadataSync(file.readAsBytesSync());

@@ -1036,6 +1036,238 @@
       "landmarks": 103
     },
     {
+      "path": "test/resources/epub/diagnostics/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 1079,
+      "sha256": "b2130876c269b59e86579173a1c597bbd340dc7650a8d264e6f2f0e8c4cf83d4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/epub/diagnostics/container-mimetype-wrong.epub",
+      "format": "epub",
+      "bytes": 1701,
+      "sha256": "5ecda66bc767f6613eeb8a6b9709e8ca05235c5805943db20b9d6cfc663a6df6",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/container-missing.epub",
+      "format": "epub",
+      "bytes": 1411,
+      "sha256": "2f3503410789a16c9567e4cd9cd0f818296294b2a7ef69a3a5cb5108d09b4ab0",
+      "container": "zip",
+      "landmarks": 11
+    },
+    {
+      "path": "test/resources/epub/diagnostics/epub2-valid.epub",
+      "format": "epub",
+      "bytes": 1916,
+      "sha256": "df61f7f4469105b30bef08243da74f912f99d9f3141e0ca87dcbd2ef7f4ef6a1",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/epub3-valid.epub",
+      "format": "epub",
+      "bytes": 1706,
+      "sha256": "acb21e2bab45e380fb4133be336f85310cdc51cfda276b1d0fc5771bf5ee83c1",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/guide-reference-unresolved.epub",
+      "format": "epub",
+      "bytes": 1921,
+      "sha256": "b8f7db9cf5373af40e98ca91df59f84c81b7793ba33717056bb02783ed95ed94",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/manifest-href-duplicate.epub",
+      "format": "epub",
+      "bytes": 1717,
+      "sha256": "b6d12cbe29e8e69989c4d932e576f85906a666269eb979be1bd7501fd011932a",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/manifest-href-fragment.epub",
+      "format": "epub",
+      "bytes": 1714,
+      "sha256": "20df3f980ed91bc480877a0ea3d062210508189501c7719453fccf7dd4bf5e73",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/manifest-id-duplicate.epub",
+      "format": "epub",
+      "bytes": 1717,
+      "sha256": "3e13e6a2bd69c640d38a875df8b3cbfa0aede5c1d8afddef1d4808bf944b76c9",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/manifest-item-incomplete.epub",
+      "format": "epub",
+      "bytes": 1719,
+      "sha256": "66c7439b1d759e52aa88c1947f7ce6ca6d623cdd79926f8693badc37ea39fd56",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/manifest-remote-resource-undeclared.epub",
+      "format": "epub",
+      "bytes": 1737,
+      "sha256": "748a24c90e1c675b2986ac344f2f4b514772bfbe6a9c88e405a64b96fe5d8f76",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/manifest-resource-missing.epub",
+      "format": "epub",
+      "bytes": 1726,
+      "sha256": "f6d7bcb31874d7816b09e4892b2445c9dbf20767a404a8e63643be2dda8a5a8e",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/manifest.json",
+      "format": "manifest",
+      "bytes": 9720,
+      "sha256": "d15aba66b3c04a6fec7167d650817a69f2131ee8103bd66ee66e03e336a0cc6f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/epub/diagnostics/nav-duplicate.epub",
+      "format": "epub",
+      "bytes": 2042,
+      "sha256": "323df505396a497e76a60c5865054f34ed75573a6cd5a2e51083a468b3aac0e3",
+      "container": "zip",
+      "landmarks": 15
+    },
+    {
+      "path": "test/resources/epub/diagnostics/nav-fragment-unresolved.epub",
+      "format": "epub",
+      "bytes": 1712,
+      "sha256": "c0d87eaf64769fa4866446f5bd0ca95b414f64eeb7b1f00c79af79531594ebf7",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/nav-link-unresolved.epub",
+      "format": "epub",
+      "bytes": 1708,
+      "sha256": "99f6721b0e83ea6e5bacb3a517b7550619c69db9786924cf72d9f0ff31780200",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/nav-missing.epub",
+      "format": "epub",
+      "bytes": 1687,
+      "sha256": "ecc2fbcf1b3758e31b431d32929f3ab7de7d14be6b7fc8cee710e0ff0c56ad88",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/nav-toc-section-missing.epub",
+      "format": "epub",
+      "bytes": 1710,
+      "sha256": "9a5e788eb85785ed5d3ca499836210b825c9538429152ed34f20a1a5118b81a2",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/ncx-link-unresolved.epub",
+      "format": "epub",
+      "bytes": 1917,
+      "sha256": "a521f347bf567aa2be4ffbd7a40fa0b59ecd313ecae2084cebe1bc60ff52c224",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/ncx-missing.epub",
+      "format": "epub",
+      "bytes": 1487,
+      "sha256": "13081b86ca665d9c4be9f67da365c16afb20b57e757409f3ddd5150afc6ceedc",
+      "container": "zip",
+      "landmarks": 11
+    },
+    {
+      "path": "test/resources/epub/diagnostics/ncx-toc-attribute-missing.epub",
+      "format": "epub",
+      "bytes": 1908,
+      "sha256": "8e9806f6ba669a6fb2a49c57cb4b5a6f876d92351851bec140a78b6940783ff0",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/package-version-unsupported.epub",
+      "format": "epub",
+      "bytes": 1708,
+      "sha256": "c4ba19fb844afa5f2cad7989dfc32519e817040dcb0b5673fac68196f83b4c1d",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/paths-unicode-percent-valid.epub",
+      "format": "epub",
+      "bytes": 1617,
+      "sha256": "e307e38e0549fe46678108a883a45055c34e34970a8445736257d254f429c4ae",
+      "container": "zip",
+      "landmarks": 11
+    },
+    {
+      "path": "test/resources/epub/diagnostics/rootfile-element-missing.epub",
+      "format": "epub",
+      "bytes": 1647,
+      "sha256": "0072fbfc4fd92890be18b84f952269994f88f0be004eb1d19b45639d9c677fde",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/rootfile-media-type-unsupported.epub",
+      "format": "epub",
+      "bytes": 1691,
+      "sha256": "6ce676beb05568e668896339e53c606e6b42daf9c7b073c2772c6233db8e8ee2",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/rootfile-path-unresolved.epub",
+      "format": "epub",
+      "bytes": 1705,
+      "sha256": "02762a44d493c882d0303d90ec7d529121fe956310a7baff5bf90911a9841caa",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/spine-empty.epub",
+      "format": "epub",
+      "bytes": 1698,
+      "sha256": "6a67fbaaf1017347e47ad09fe2ef4516749d24758d07c09e22303cd21d82ca74",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/spine-reference-duplicate.epub",
+      "format": "epub",
+      "bytes": 1712,
+      "sha256": "9711f00ca2b6378bd9b6b441dc5eef4f9076d472921e62ac0e3f030885194bb2",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
+      "path": "test/resources/epub/diagnostics/spine-reference-invalid.epub",
+      "format": "epub",
+      "bytes": 1717,
+      "sha256": "cbc539853e3789ef47c44d1041d9aafef649a7bed4d97c3eccf413ee96d5b07d",
+      "container": "zip",
+      "landmarks": 13
+    },
+    {
       "path": "test/resources/epub/linear-algebra.epub",
       "format": "epub",
       "bytes": 1747521,
@@ -2513,10 +2745,10 @@
     }
   ],
   "counts": {
-    "total": 308,
-    "totalBytes": 89672403,
+    "total": 337,
+    "totalBytes": 89729853,
     "byFormat": {
-      "manifest": 17,
+      "manifest": 19,
       "chm": 4,
       "cbr": 15,
       "cbz": 3,
@@ -2525,7 +2757,7 @@
       "cb7": 1,
       "djvu": 15,
       "docx": 1,
-      "epub": 41,
+      "epub": 68,
       "fb2": 4,
       "rtf": 2,
       "html": 7,
