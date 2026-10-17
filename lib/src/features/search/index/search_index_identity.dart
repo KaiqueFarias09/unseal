@@ -1,23 +1,17 @@
 /// Identity inputs and content digests of the search index.
 ///
-/// The digest helpers implement the shared campaign contract exactly as
-/// specified (C02): SHA-256 over UTF-16 little-endian code units, no
-/// BOM, no normalization — including any lone surrogates the text
-/// carries. They are **temporary adapters**: the campaign's common
-/// snapshot contract (A01's P0, `lib/src/foundation/text/`) owns the
-/// single implementation of revisions and validation. Once that commit
-/// is reviewed into the integration branch, these helpers and the
-/// identity record are replaced by the shared types, and the fixed
-/// vectors of `test/tests/search/index_identity_test.dart` must still
-/// hold byte-for-byte.
+/// The digest helpers delegate to the shared campaign contract's single
+/// implementation (C02, `lib/src/foundation/text/revision_digest.dart`):
+/// SHA-256 over UTF-16 little-endian code units, no BOM, no
+/// normalization — including any lone surrogates the text carries. The
+/// fixed vectors of `test/tests/search/index_serialization_test.dart`
+/// still hold byte-for-byte. `SearchIndexIdentity` remains the index's
+/// own identity record; its unification with the shared
+/// `PublicationRevision` is the index campaign's integration decision.
 library;
 
-import 'dart:convert' as convert;
-import 'dart:typed_data';
-
-import 'package:pointycastle/export.dart';
-
 import '../../../foundation/entities/book/reading_order_item.dart';
+import '../../../foundation/text/revision_digest.dart';
 
 /// Where a publication's revision evidence comes from. Free-form host
 /// claims are *allegations*: an import re-checks the content digests it
@@ -118,38 +112,16 @@ String? _optionalString(final Object? value, final String field) {
 
 /// The `sha256:`-prefixed digest of [text]'s UTF-16 little-endian code
 /// units (no BOM, no normalization, lone surrogates preserved) — the
-/// `textRevision` of the shared contract. The bytes match the common
-/// text contract's fixed vectors; the swap to the shared
-/// implementation is a pure code replacement.
-String textRevisionOf(final String text) {
-  final units = text.codeUnits;
-  final bytes = Uint8List(units.length * 2);
-  for (var i = 0; i < units.length; i++) {
-    bytes[i * 2] = units[i] & 0xFF;
-    bytes[i * 2 + 1] = (units[i] >> 8) & 0xFF;
-  }
+/// shared contract's `textRevision`, delegated to its single
+/// implementation.
+String textRevisionOf(final String text) => RevisionDigest.textRevision(text);
 
-  return 'sha256:${_sha256Hex(bytes)}';
-}
-
-/// The SHA-256 hex digest of a reading order, per the shared contract:
+/// The SHA-256 digest of a reading order, per the shared contract:
 /// the compact JSON of the ordered `[[resourcePath, isHtml], ...]`
 /// array, hashed as UTF-16LE. Array position identifies the occurrence;
 /// duplicated paths stay distinct entries.
 String readingOrderRevisionOf(final List<ReadingOrderItem> order) {
-  final compact = convert.json.encode(<Object?>[
-    for (final item in order) <Object?>[item.name, item.isHtml],
+  return RevisionDigest.readingOrderRevision([
+    for (final item in order) (item.name, item.isHtml),
   ]);
-
-  return textRevisionOf(compact);
-}
-
-String _sha256Hex(final Uint8List bytes) {
-  final digest = SHA256Digest().process(bytes);
-  final buffer = StringBuffer();
-  for (final byte in digest) {
-    buffer.write(byte.toRadixString(16).padLeft(2, '0'));
-  }
-
-  return buffer.toString();
 }
