@@ -404,7 +404,7 @@ Future<void> main(final List<String> args) async {
   File(outPath).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(report));
   final failures = cases.where((c) => c['verdict'] != 'pass').toList();
   for (final failure in failures) {
-    stderr.writeln('${failure['caseId']}: ${failure['verdict']}');
+    stderr.writeln('${failure['id']}: ${failure['verdict']}');
   }
   exitCode = failures.isEmpty ? 0 : 1;
 }
@@ -415,7 +415,7 @@ Map<String, Object?> _case(
   final String description,
   final Map<String, Object?> detail,
 ) => <String, Object?>{
-  'caseId': id,
+  'id': id,
   'verdict': verdict,
   'description': description,
   'detail': detail,
