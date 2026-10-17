@@ -21,6 +21,8 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:unseal/unseal.dart';
 
+import 'oracle_test_lane.dart';
+
 const _epubFixtures = <String>[
   'test/resources/epub/Alices Adventures in Wonderland.epub',
   'test/resources/books/epub/elements-of-chemistry.epub',
@@ -164,6 +166,35 @@ Future<void> main(final List<String> arguments) async {
     }
   }
 
+  final laneDir = Directory('build/evidence/B02/current-lanes');
+  final lanes = [
+    runOracleDartLane(laneDir, 'public-source-vm', [
+      'test',
+      'test/tests/progressive/byte_source_test.dart',
+    ]),
+    runOracleDartLane(laneDir, 'compile-worker', [
+      'compile',
+      'js',
+      'web/unseal_worker.dart',
+      '-o',
+      'test/web/unseal_worker.js',
+    ]),
+    runOracleDartLane(laneDir, 'public-source-chrome', [
+      'test',
+      '-p',
+      'chrome',
+      'test/web/session_byte_source_worker_test.dart',
+    ]),
+  ];
+  for (final id in ['BS05', 'BS06']) {
+    final index = cases.indexWhere((entry) => entry.id == id);
+    final original = cases[index];
+    cases[index] = _Case(
+      id,
+      original.verdict == 'pass' && lanes.every((lane) => lane['exitCode'] == 0) ? 'pass' : 'fail',
+      {...original.evidence, 'executedLanes': lanes},
+    );
+  }
   final report = <String, Object?>{
     'schemaVersion': 1,
     'mission': 'B02',
