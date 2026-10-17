@@ -864,22 +864,31 @@ final class WorkerClient {
       return;
     }
 
+    final Future<Uint8List> read;
+    try {
+      // Bounds and per-request cap checks throw synchronously; they
+      // must still produce a typed reply, never an escaping error.
+      read = gate.read(offset, count, expectedRevision: revision);
+    } on Object catch (error) {
+      _postByteFailure(worker, sessionId, requestId, error);
+
+      return;
+    }
+
     unawaited(
-      gate
-          .read(offset, count, expectedRevision: revision)
-          .then(
-            (final bytes) {
-              final message = JSObject();
-              message.setProperty(wireKeyId.toJS, requestId.toJS);
-              message.setProperty(wireKeyKind.toJS, wireKindByteSourceReply.toJS);
-              message.setProperty(wireKeySessionId.toJS, sessionId.toJS);
-              message.setProperty(wireKeyBytes.toJS, bytes.toJS);
-              worker.postMessage(message);
-            },
-            onError: (final Object error) {
-              _postByteFailure(worker, sessionId, requestId, error);
-            },
-          ),
+      read.then(
+        (final bytes) {
+          final message = JSObject();
+          message.setProperty(wireKeyId.toJS, requestId.toJS);
+          message.setProperty(wireKeyKind.toJS, wireKindByteSourceReply.toJS);
+          message.setProperty(wireKeySessionId.toJS, sessionId.toJS);
+          message.setProperty(wireKeyBytes.toJS, bytes.toJS);
+          worker.postMessage(message);
+        },
+        onError: (final Object error) {
+          _postByteFailure(worker, sessionId, requestId, error);
+        },
+      ),
     );
   }
 

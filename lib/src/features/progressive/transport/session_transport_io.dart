@@ -577,24 +577,36 @@ final class _IsolateSessionTransport implements SessionTransport {
     final offset = reply[3]! as int;
     final count = reply[4]! as int;
     final revision = reply[5] as String?;
+    final Future<Uint8List> read;
+    try {
+      // Bounds and per-request cap checks throw synchronously; they
+      // must still produce a typed reply, never an escaping error.
+      read = gate.read(offset, count, expectedRevision: revision);
+    } on Object catch (error) {
+      _replyByteError(requestId, error);
+
+      return;
+    }
     unawaited(
-      gate
-          .read(offset, count, expectedRevision: revision)
-          .then(
-            (final bytes) {
-              _byteReplies?.send(<Object?>[byteSourceProtocolVersion, 'reply', requestId, bytes]);
-            },
-            onError: (final Object error) {
-              _byteReplies?.send(<Object?>[
-                byteSourceProtocolVersion,
-                'error',
-                requestId,
-                _errorType(error),
-                _errorMessage(error),
-              ]);
-            },
-          ),
+      read.then(
+        (final bytes) {
+          _byteReplies?.send(<Object?>[byteSourceProtocolVersion, 'reply', requestId, bytes]);
+        },
+        onError: (final Object error) {
+          _replyByteError(requestId, error);
+        },
+      ),
     );
+  }
+
+  void _replyByteError(final int requestId, final Object error) {
+    _byteReplies?.send(<Object?>[
+      byteSourceProtocolVersion,
+      'error',
+      requestId,
+      _errorType(error),
+      _errorMessage(error),
+    ]);
   }
 
   void _bind(final SendPort port, final Book header, final int byteLength) {

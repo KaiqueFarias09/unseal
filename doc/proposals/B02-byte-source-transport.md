@@ -85,9 +85,11 @@ books open without configuration):
   queue on the host (backpressure), they do not fail.
 - `maxRangeBytesInFlight` (default 32 MiB) — cumulative outstanding
   bytes; a request that would exceed the cap waits.
-- `maxRangeRequestBytes` (default 64 MiB) — hard cap per single
-  request; a container entry whose compressed payload exceeds it fails
-  typed instead of silently downloading the file.
+- `maxRangeRequestBytes` (default 64 MiB, floor 96 KiB) — hard cap
+  per single request; a container entry whose compressed payload
+  exceeds it fails typed instead of silently downloading the file.
+  The floor keeps the 65557-byte EOCD tail scan servable under any
+  cap.
 
 The host-side gate is authoritative; the engine-side reader repeats
 the bounds/revision checks so failures are typed at the op. `dispose`

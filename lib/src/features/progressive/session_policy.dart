@@ -70,8 +70,11 @@ final class SessionPolicy {
   final int rangeBytesInFlight;
 
   /// Largest single range request over an external byte source, in
-  /// bytes. Values below 1 MiB clamp to 1 MiB; values above
-  /// [rangeBytesInFlight] clamp to it.
+  /// bytes. Values below 96 KiB clamp to 96 KiB — the open's
+  /// end-of-central-directory tail scan must always fit — and values
+  /// above [rangeBytesInFlight] clamp to it. A strict cap is honored:
+  /// an entry whose compressed payload exceeds it fails typed instead
+  /// of downloading the container.
   final int rangeRequestBytes;
 
   /// The effective cache budget after clamping.
@@ -88,7 +91,9 @@ final class SessionPolicy {
   int get effectiveMaxRangeBytesInFlight =>
       rangeBytesInFlight < 1 << 20 ? 1 << 20 : rangeBytesInFlight;
 
-  /// The effective per-request byte cap after clamping.
+  /// The effective per-request byte cap after clamping. The floor
+  /// keeps the 65557-byte EOCD tail scan and the sniff windows
+  /// servable under any cap.
   int get effectiveMaxRangeRequestBytes =>
-      rangeRequestBytes < 1 << 20 ? 1 << 20 : rangeRequestBytes;
+      rangeRequestBytes < 96 << 10 ? 96 << 10 : rangeRequestBytes;
 }

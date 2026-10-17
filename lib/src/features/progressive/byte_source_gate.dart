@@ -49,6 +49,8 @@ final class ByteSourceGate {
   var _closed = false;
   var _inFlightRequests = 0;
   var _inFlightBytes = 0;
+  var _maxInFlightRequests = 0;
+  var _maxInFlightBytes = 0;
   final List<_QueuedRead> _queue = <_QueuedRead>[];
   final Set<_ActiveRead> _active = <_ActiveRead>{};
   Future<void>? _sourceClosed;
@@ -64,6 +66,13 @@ final class ByteSourceGate {
 
   /// Sum of the counts of the requests currently being served.
   int get inFlightBytes => _inFlightBytes;
+
+  /// Peak of [inFlightRequests] since the gate was created — the
+  /// observable proof that the concurrency cap held.
+  int get maxObservedInFlightRequests => _maxInFlightRequests;
+
+  /// Peak of [inFlightBytes] since the gate was created.
+  int get maxObservedInFlightBytes => _maxInFlightBytes;
 
   /// Requests waiting for an in-flight slot (backpressure queue).
   int get queuedRequests => _queue.length;
@@ -129,6 +138,8 @@ final class ByteSourceGate {
       _queue.removeAt(0);
       _inFlightRequests++;
       _inFlightBytes += next.active.count;
+      if (_inFlightRequests > _maxInFlightRequests) _maxInFlightRequests = _inFlightRequests;
+      if (_inFlightBytes > _maxInFlightBytes) _maxInFlightBytes = _inFlightBytes;
       _active.add(next.active);
       unawaited(_serve(next.active));
     }
