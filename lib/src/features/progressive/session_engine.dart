@@ -113,10 +113,14 @@ final class SessionEngine {
 
         return _openPdfSource(MemoryPdfByteSource(bytes), container, policy, password, counter);
       case DetectedFormat.mobiFamily:
-      case DetectedFormat.azw4:
         final container = MemoryZipByteSource(bytes);
 
         return _openMobiSource(container, counter, policy);
+      case DetectedFormat.azw4:
+        // The AZW4 payload is a PDF; the eager path owns it.
+        throw const SessionUnsupportedFormatException(
+          'AZW4 books wrap a PDF payload; open them with Unseal.read instead.',
+        );
       case DetectedFormat.palmdoc:
       case DetectedFormat.ereader:
       case DetectedFormat.plucker:
@@ -192,13 +196,17 @@ final class SessionEngine {
           rethrow;
         }
       case DetectedFormat.mobiFamily:
-      case DetectedFormat.azw4:
         try {
           return _openMobiSource(source, counter, policy);
         } on Object {
           source.close();
           rethrow;
         }
+      case DetectedFormat.azw4:
+        source.close();
+        throw const SessionUnsupportedFormatException(
+          'AZW4 books wrap a PDF payload; open them with Unseal.readFile instead.',
+        );
       case DetectedFormat.palmdoc:
       case DetectedFormat.ereader:
       case DetectedFormat.plucker:

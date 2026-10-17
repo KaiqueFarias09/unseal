@@ -89,7 +89,7 @@ Uint8List buildCdic() {
 final Uint8List tinyJpeg = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0, 0, 1, 2, 3, 0xFF, 0xD9]);
 
 /// Assembles a PalmDB container holding [records].
-Uint8List buildPdb(final String name, final List<Uint8List> records) {
+Uint8List buildPdb(final String name, final List<Uint8List> records, {final String ident = 'BOOKMOBI'}) {
   final tableLength = records.length * 8;
   var position = 78 + tableLength;
   final table = ByteData(tableLength);
@@ -103,7 +103,7 @@ Uint8List buildPdb(final String name, final List<Uint8List> records) {
   for (var i = 0; i < nameUnits.length && i < 32; i++) {
     head.setUint8(i, nameUnits[i]);
   }
-  head.buffer.asUint8List().setRange(60, 68, 'BOOKMOBI'.codeUnits);
+  head.buffer.asUint8List().setRange(60, 68, ident.codeUnits);
   head.setUint16(76, records.length);
 
   final builder = BytesBuilder(copy: false)

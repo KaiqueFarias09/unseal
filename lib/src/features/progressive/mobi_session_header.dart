@@ -393,6 +393,97 @@ final class MobiSessionContent {
 /// Serves MOBI 6 sections: materializes a section's raw slice with
 /// its share of the global anchor chain, then applies the same markup
 /// conversions the eager parse applies to the whole stream.
+/// Removes `<html…>`, `</html>`, `<body…>`, `</body>` tags and
+/// `<head…>…</head>` regions from a section slice, byte-exact for the
+/// supported codecs.
+Uint8List _stripDocumentWrappers(final Uint8List bytes) {
+  var head = _indexOfTag(bytes, _headOpen, 0);
+  if (head == -1) {
+    final anyWrapper =
+        _indexOfTag(bytes, _htmlOpen, 0) != -1 ||
+        _indexOfTag(bytes, _bodyOpen, 0) != -1 ||
+        _indexOf(bytes, _bodyClose, 0) != -1 ||
+        _indexOf(bytes, _htmlClose, 0) != -1;
+    if (!anyWrapper) return bytes;
+  }
+
+  final builder = BytesBuilder(copy: false);
+  var pos = 0;
+  var i = 0;
+  while (i < bytes.length) {
+    final headStart = _indexOfTag(bytes, _headOpen, i);
+    if (headStart != -1) {
+      final headEnd = _indexOf(bytes, _headClose, headStart);
+      if (headEnd != -1) {
+        builder.add(Uint8List.sublistView(bytes, pos, headStart));
+        i = pos = headEnd + _headClose.length;
+        continue;
+      }
+    }
+
+    final tag = _firstWrapperTag(bytes, i);
+    if (tag == null) break;
+
+    builder.add(Uint8List.sublistView(bytes, pos, tag));
+    final gt = indexOfByte(bytes, 0x3E, tag);
+    if (gt == -1) {
+      i = pos = bytes.length;
+      break;
+    }
+    i = pos = gt + 1;
+  }
+  builder.add(Uint8List.sublistView(bytes, pos));
+
+  return builder.takeBytes();
+}
+
+const List<int> _headOpen = <int>[0x3C, 0x68, 0x65, 0x61, 0x64];
+const List<int> _headClose = <int>[0x3C, 0x2F, 0x68, 0x65, 0x61, 0x64, 0x3E];
+const List<int> _htmlOpen = <int>[0x3C, 0x68, 0x74, 0x6D, 0x6C];
+const List<int> _htmlClose = <int>[0x3C, 0x2F, 0x68, 0x74, 0x6D, 0x6C, 0x3E];
+const List<int> _bodyOpen = <int>[0x3C, 0x62, 0x6F, 0x64, 0x79];
+const List<int> _bodyClose = <int>[0x3C, 0x2F, 0x62, 0x6F, 0x64, 0x79, 0x3E];
+
+int _indexOfTag(final Uint8List data, final List<int> marker, final int from) {
+  // `<tag` must start a tag: the next byte is a markup space or `>`.
+  var i = from;
+  while (true) {
+    final at = _indexOf(data, marker, i);
+    if (at == -1 || at + marker.length >= data.length) return at;
+    final next = data[at + marker.length];
+    if (next == 0x3E || next == 0x20 || (next >= 0x09 && next <= 0x0D)) return at;
+
+    i = at + 1;
+  }
+}
+
+int? _firstWrapperTag(final Uint8List data, final int from) {
+  var best = -1;
+  for (final marker in [_htmlOpen, _bodyOpen]) {
+    final at = _indexOfTag(data, marker, from);
+    if (at != -1 && (best == -1 || at < best)) best = at;
+  }
+  for (final marker in [_bodyClose, _htmlClose]) {
+    final at = _indexOf(data, marker, from);
+    if (at != -1 && (best == -1 || at < best)) best = at;
+  }
+
+  return best == -1 ? null : best;
+}
+
+int _indexOf(final Uint8List data, final List<int> pattern, final int from) {
+  outer:
+  for (var i = from; i <= data.length - pattern.length; i++) {
+    for (var j = 0; j < pattern.length; j++) {
+      if (data[i + j] != pattern[j]) continue outer;
+    }
+
+    return i;
+  }
+
+  return -1;
+}
+
 final class Mobi6ServingPlan {
   /// Creates the serving plan from the section plan and navigation.
   const Mobi6ServingPlan({required this.sectionPlan, required this.navigation});
@@ -416,31 +507,22 @@ final class Mobi6ServingPlan {
   }
 
   TextFile _materialize(final MobiSessionContent content, final Mobi6Section section) {
-    var bytes = content.store.slice(section.start, section.end);
-    // A section that starts at a navigation anchor carries that
-    // anchor as a leading element: the eager parse embeds the anchor
-    // inside the tag preceding the boundary, which belongs to the
-    // previous section's tail. The element adds no canonical text, so
-    // R1 parity is untouched, and every navigation target resolves in
-    // its own section source.
-    final leadingTargets = <int>[
-      for (final entry in sectionPlan.boundaryByTarget.entries)
-        if (entry.value == section.start && section.start != 0) entry.key,
-    ];
-    if (leadingTargets.isNotEmpty) {
-      final builder = BytesBuilder(copy: false);
-      for (final target in leadingTargets) {
-        builder.add(Uint8List.fromList('<a id="filepos$target"></a>'.codeUnits));
-      }
-      builder.add(bytes);
-      bytes = builder.takeBytes();
-    }
-    // Splice this section's share of the global anchor chain: the
-    // chain state is global, so a per-section re-scan would diverge
-    // wherever the eager chain skipped an anchor.
+    // Sections materialize within the document body range: a fragment
+    // without the `</body>` close would otherwise scan the document
+    // head, while the eager whole-document text never sees it. Outside
+    // the range a section's canonical text is empty, matching the
+    // whole-document scan exactly.
+    final from = section.start > sectionPlan.bodyStart ? section.start : sectionPlan.bodyStart;
+    final to = section.end < sectionPlan.bodyEnd ? section.end : sectionPlan.bodyEnd;
+    var bytes = to > from ? content.store.slice(from, to) : Uint8List(0);
+    // Splice this section's share of the global anchor chain first —
+    // the offsets are raw-stream based, so they must apply before any
+    // prefix is prepended. The chain state is global, so a
+    // per-section re-scan would diverge wherever the eager chain
+    // skipped an anchor.
     final splices = <(int, String)>[];
     for (final (at, anchor) in sectionPlan.insertions) {
-      if (at >= section.start && at < section.end) splices.add((at - section.start, anchor));
+      if (at >= from && at < to) splices.add((at - from, anchor));
     }
     if (splices.isNotEmpty) {
       final builder = BytesBuilder(copy: false);
@@ -455,6 +537,30 @@ final class Mobi6ServingPlan {
       builder.add(Uint8List.sublistView(bytes, pos));
       bytes = builder.takeBytes();
     }
+    // A section that starts at a navigation anchor carries that
+    // anchor as a leading element: the eager parse embeds the anchor
+    // inside the tag preceding the boundary, which belongs to the
+    // previous section's tail. The element adds no canonical text, so
+    // R1 parity is untouched, and every navigation target resolves in
+    // its own section source.
+    final leadingTargets = <int>[
+      for (final entry in sectionPlan.boundaryByTarget.entries)
+        if (entry.value == section.start && section.start != 0 && section.start >= from)
+          entry.key,
+    ];
+    if (leadingTargets.isNotEmpty) {
+      final builder = BytesBuilder(copy: false);
+      for (final target in leadingTargets) {
+        builder.add(Uint8List.fromList('<a id="filepos$target"></a>'.codeUnits));
+      }
+      builder.add(bytes);
+      bytes = builder.takeBytes();
+    }
+    // Multi-record streams can repeat document wrappers mid-stream;
+    // inside a section slice they would re-trigger the scanner's body
+    // range and drop the section's own opening content. The wrappers
+    // are pure structure — removing them changes no canonical text.
+    bytes = _stripDocumentWrappers(bytes);
 
     final html = processMobi6Html(decodeBytes(bytes, content.header.codec), content._recindexNames);
 

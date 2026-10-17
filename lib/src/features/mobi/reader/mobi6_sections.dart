@@ -41,6 +41,14 @@ final class Mobi6OpenScan {
   /// Stream positions of `<mbp:pagebreak` openings.
   final List<int> pagebreaks = <int>[];
 
+  /// The document body range: (after the first `<body…>` opening's
+  /// `>`, at the last `</body>`'s `<`). Sections intersect their span
+  /// with this range so a fragment without the closing tag never
+  /// scans the document head. Null ranges mean "absent": the value
+  /// stays at the stream bounds.
+  var bodyStart = -1;
+  var bodyEnd = -1;
+
   Uint8List _buffer = Uint8List(0);
   var _bufferStart = 0;
 
@@ -50,6 +58,8 @@ final class Mobi6OpenScan {
   // duplication.
   var _markerUpTo = 0;
   var _pagebreakUpTo = 0;
+  var _bodyOpenUpTo = 0;
+  var _bodyCloseUpTo = 0;
 
   // TOC matcher state. [_tocSearchAt] is the stream offset where the
   // next `<a` search starts; while a candidate is open it is negative
@@ -118,6 +128,8 @@ final class Mobi6OpenScan {
     }
     _pagebreakUpTo = end > _pagebreakWindow ? end - _pagebreakWindow : start;
 
+    _scanBodyRange(start, end);
+
     // TOC candidates.
     while (true) {
       if (_candidateOpen == -1) {
@@ -176,6 +188,42 @@ final class Mobi6OpenScan {
       _candidateTagEnd = -1;
     }
   }
+
+  void _scanBodyRange(final int start, final int end) {
+    if (bodyStart == -1) {
+      var i = _bodyOpenUpTo > start ? _bodyOpenUpTo - start : 0;
+      final at = _indexOfAsciiIgnoreCase(_buffer, _bodyOpenMarker, i);
+      if (at != -1) {
+        final gt = indexOfByte(_buffer, 0x3E, at + _bodyOpenMarker.length);
+        if (gt != -1) {
+          bodyStart = start + gt + 1;
+        } else {
+          // The opening tag has not closed yet; keep the region and
+          // retry next round.
+          _bodyOpenUpTo = start + at;
+          return;
+        }
+      } else {
+        _bodyOpenUpTo = end > _bodyOpenWindow ? end - _bodyOpenWindow : start;
+      }
+    }
+    if (bodyStart != -1) {
+      var i = _bodyCloseUpTo > start ? _bodyCloseUpTo - start : 0;
+      while (true) {
+        final at = _indexOfAsciiIgnoreCase(_buffer, _bodyCloseMarker, i);
+        if (at == -1) break;
+
+        bodyEnd = start + at;
+        i = at + 1;
+      }
+      _bodyCloseUpTo = end > _bodyCloseWindow ? end - _bodyCloseWindow : start;
+    }
+  }
+
+  static final List<int> _bodyOpenMarker = _asciiList('<body');
+  static final List<int> _bodyCloseMarker = _asciiList('</body>');
+  static final int _bodyOpenWindow = _bodyOpenMarker.length + 8;
+  static final int _bodyCloseWindow = _bodyCloseMarker.length;
 
   static final List<int> _fileposMarker = _asciiList('filepos=');
   static final List<int> _pagebreakMarker = _asciiList('<mbp:pagebreak');
@@ -263,6 +311,8 @@ final class Mobi6SectionPlan {
     required this.sections,
     required this.insertions,
     required this.boundaryByTarget,
+    required this.bodyStart,
+    required this.bodyEnd,
   });
 
   /// The ordered sections over the raw stream.
@@ -274,6 +324,11 @@ final class Mobi6SectionPlan {
 
   /// Navigation target value → its anchor's section boundary.
   final Map<int, int> boundaryByTarget;
+
+  /// The document body range the sections materialize within; the
+  /// stream bounds when the document declares no body pair.
+  final int bodyStart;
+  final int bodyEnd;
 }
 
 /// Computes the MOBI 6 section table from the navigation targets,
@@ -380,6 +435,8 @@ Mobi6SectionPlan computeMobi6Sections(
     sections: sections,
     insertions: insertions,
     boundaryByTarget: Map.unmodifiable(insertionStarts),
+    bodyStart: scan.bodyStart == -1 ? 0 : scan.bodyStart,
+    bodyEnd: scan.bodyEnd == -1 ? store.streamLength : scan.bodyEnd,
   );
 }
 
