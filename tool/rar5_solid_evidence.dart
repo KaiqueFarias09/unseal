@@ -133,14 +133,11 @@ void main(final List<String> arguments) {
     '-j',
     '1',
   ]);
-  verdict(
-    'RS06',
-    vmIsolationRun.exitCode == 0,
-    'VM: two sessions walk opposite directions with isolated dictionaries',
-  );
 
-  // RS06 on a real browser worker. A missing environment fails the
-  // case — SKIP is never a pass.
+  // The browser half runs on a real worker. A missing environment or a
+  // failing run fails the whole case — SKIP is never a pass.
+  var chromeOk = false;
+  var chromeNote = 'Chrome worker run disabled by flag';
   if (runChrome) {
     final chromeRun = _run([
       dart,
@@ -153,15 +150,18 @@ void main(final List<String> arguments) {
       '-j',
       '1',
     ]);
-    verdict(
-      'RS06',
-      chromeRun.exitCode == 0,
-      'Chrome: a real worker session serves forward, reverse and '
-      'interleaved loads through the compiled unseal_worker.js',
-    );
-  } else {
-    verdict('RS06', false, 'Chrome worker run disabled by flag');
+    chromeOk = chromeRun.exitCode == 0;
+    chromeNote = chromeOk
+        ? 'a real worker session serves forward, reverse and interleaved '
+            'loads through the compiled unseal_worker.js'
+        : 'the Chrome worker run failed';
   }
+  verdict(
+    'RS06',
+    vmIsolationRun.exitCode == 0 && chromeOk,
+    'VM: two sessions walk opposite directions with isolated dictionaries; '
+    'Chrome: $chromeNote',
+  );
 
   // RS07: benchmarks, recorded beside the report.
   final benchPath = '$outDir/bench.txt';
