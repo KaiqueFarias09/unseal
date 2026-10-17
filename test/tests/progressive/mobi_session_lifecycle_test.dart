@@ -18,7 +18,8 @@ Uint8List _small() {
   final thirdText = chapter('Tres');
   final prefix = '<html><body><h1>Um</h1><p>${List.filled(40, 'palavra').join(' ')}</p>';
   final zeros = '0' * 10;
-  final linkedText = '$prefix'
+  final linkedText =
+      '$prefix'
       '<a filepos="$zeros">b</a>'
       '<a filepos="$zeros">c</a>'
       '</body></html>';
@@ -71,10 +72,7 @@ void main() {
         // Loading in A does not warm B.
         expect((await b.metrics()).contentBytesMaterialized, aMetrics.contentBytesMaterialized);
         await a.loadDocumentText(a.book.readingOrder.first.name);
-        expect(
-          (await b.metrics()).contentBytesMaterialized,
-          aMetrics.contentBytesMaterialized,
-        );
+        expect((await b.metrics()).contentBytesMaterialized, aMetrics.contentBytesMaterialized);
       } finally {
         a.dispose();
         b.dispose();
@@ -122,10 +120,7 @@ void main() {
       final name = session.book.readingOrder.first.name;
       session.dispose();
 
-      await expectLater(
-        session.loadDocumentText(name),
-        throwsA(isA<SessionClosedException>()),
-      );
+      await expectLater(session.loadDocumentText(name), throwsA(isA<SessionClosedException>()));
       await expectLater(session.metrics(), throwsA(isA<SessionClosedException>()));
     });
 

@@ -37,9 +37,7 @@ void main() {
     test('section texts concatenate to the eager document text', () async {
       final bytes = _fixture('alice-old-pg.mobi');
       final eager = Unseal.parse(bytes) as MobiBook;
-      final eagerText = eager.files.html
-          .map(documentTextOf)
-          .join();
+      final eagerText = eager.files.html.map(documentTextOf).join();
 
       final session = await BookSession.open(bytes);
       try {
@@ -135,9 +133,7 @@ void main() {
       try {
         final sessionNav = (session.book as MobiBook).navigation;
         final eagerNav = eager.navigation;
-        String labelsOf(final Navigation nav) => nav.navPoints
-            .map((final p) => p.label)
-            .join('|');
+        String labelsOf(final Navigation nav) => nav.navPoints.map((final p) => p.label).join('|');
         expect(labelsOf(sessionNav), labelsOf(eagerNav));
         expect(sessionNav.navPoints, isNotEmpty);
       } finally {

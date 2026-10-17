@@ -1,4 +1,3 @@
-import 'dart:convert' as convert;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -26,10 +25,7 @@ void main() {
         // text equals the eager match's matched text, in order.
         final eagerText = eager.files.html.map(documentTextOf).join();
         final sectionTexts = <String, String>{};
-        String sectionOf(final String name) => sectionTexts.putIfAbsent(
-          name,
-          () => '',
-        );
+        String sectionOf(final String name) => sectionTexts.putIfAbsent(name, () => '');
         expect(sessionResults.matches, isNotEmpty);
         for (var i = 0; i < sessionResults.matches.length; i++) {
           final sessionMatch = sessionResults.matches[i];
@@ -38,10 +34,9 @@ void main() {
             sectionTexts[sessionMatch.sectionName] =
                 (await session.loadDocumentText(sessionMatch.sectionName)) ?? '';
           }
-          final matchedText = sectionOf(sessionMatch.sectionName).substring(
-            sessionMatch.start,
-            sessionMatch.end,
-          );
+          final matchedText = sectionOf(
+            sessionMatch.sectionName,
+          ).substring(sessionMatch.start, sessionMatch.end);
           expect(matchedText, eagerText.substring(eagerMatch.start, eagerMatch.end));
         }
       } finally {
@@ -151,10 +146,7 @@ void main() {
         // covers.
         expect(sessionProgression.fractionOf(sectionIndex: 0), 0.0);
         final last = session.book.readingOrder.length - 1;
-        expect(
-          sessionProgression.fractionOf(sectionIndex: last),
-          inInclusiveRange(0.0, 1.0),
-        );
+        expect(sessionProgression.fractionOf(sectionIndex: last), inInclusiveRange(0.0, 1.0));
         expect(eager.readingOrder, isNotEmpty);
       } finally {
         session.dispose();

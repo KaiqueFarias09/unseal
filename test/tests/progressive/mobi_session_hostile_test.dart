@@ -15,7 +15,7 @@ Uint8List _alice() => File('test/resources/books/mobi/alice-old-pg.mobi').readAs
 Uint8List _pdbWithCount(final int count, final List<Uint8List> records) {
   final full = buildPdb('Hostile', records);
   // Rewrite the declared record count at offset 76.
-  final view = ByteData.sublistView(full, 76, 78)..setUint16(0, count);
+  ByteData.sublistView(full, 76, 78).setUint16(0, count);
 
   return full;
 }
@@ -41,12 +41,9 @@ void main() {
 
     test('a zero record count fails typed', () async {
       final bytes = _pdbWithCount(0, [Uint8List(60)]);
-      final corrupted = ByteData.sublistView(bytes)..setUint16(76, 0);
+      ByteData.sublistView(bytes).setUint16(76, 0);
 
-      await expectLater(
-        BookSession.open(Uint8List.sublistView(corrupted)),
-        throwsA(isA<InvalidBookException>()),
-      );
+      await expectLater(BookSession.open(bytes), throwsA(isA<InvalidBookException>()));
     });
 
     test('record offsets outside the container fail typed', () async {
@@ -97,14 +94,11 @@ void main() {
     });
 
     test('an exth-declared KF8 boundary outside the file fails typed or falls back', () async {
-      final exth = buildExth([(ExthIds.kf8Header, Uint8List(4)..buffer.asByteData().setUint32(0, 5000))]);
+      final exth = buildExth([
+        (ExthIds.kf8Header, Uint8List(4)..buffer.asByteData().setUint32(0, 5000)),
+      ]);
       final book = buildPdb('BadKf8Boundary', [
-        buildMobiRecord0(
-          compressionType: 1,
-          textRecordCount: 1,
-          title: 'X',
-          exth: exth,
-        ),
+        buildMobiRecord0(compressionType: 1, textRecordCount: 1, title: 'X', exth: exth),
         Uint8List.fromList(convert.utf8.encode('<html><body><p>x</p></body></html>')),
       ]);
 

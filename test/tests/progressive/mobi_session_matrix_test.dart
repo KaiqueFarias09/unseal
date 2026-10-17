@@ -62,7 +62,7 @@ void main() {
     });
 
     test('stored MOBI 6 session equals eager text across records', () async {
-      final chapter = (final String title, final int fill) =>
+      String chapter(final String title, final int fill) =>
           '<html><body><h1>$title</h1>'
           '<p>${List.filled(fill, 'palavra').join(' ')}</p>'
           '</body></html>';
@@ -73,8 +73,11 @@ void main() {
           firstImageIndex: 4,
           title: 'Stored Session',
         ),
-        ...[chapter('Capítulo 1', 300), chapter('Capítulo 2', 300), chapter('Capítulo 3', 300)]
-            .map((final text) => Uint8List.fromList(convert.utf8.encode(text))),
+        ...[
+          chapter('Capítulo 1', 300),
+          chapter('Capítulo 2', 300),
+          chapter('Capítulo 3', 300),
+        ].map((final text) => Uint8List.fromList(convert.utf8.encode(text))),
         tinyPng,
       ];
       final book = buildPdb('SyntheticStoredSession', records);
@@ -125,10 +128,7 @@ void main() {
       ];
       final book = buildPdb('PlainPalmdoc', records, ident: 'TEXTREAD');
 
-      await expectLater(
-        BookSession.open(book),
-        throwsA(isA<SessionUnsupportedFormatException>()),
-      );
+      await expectLater(BookSession.open(book), throwsA(isA<SessionUnsupportedFormatException>()));
     });
   });
 

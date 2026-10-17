@@ -11,7 +11,7 @@ import 'package:unseal/unseal.dart';
 import '../tests/mobi/mobi_fixture_builder.dart';
 
 Uint8List _mobiBook(final String title) {
-  final chapter = (final String name) => convert.utf8.encode(
+  List<int> chapter(final String name) => convert.utf8.encode(
     '<html><body><h1>$name</h1>'
     '<p>${List.filled(30, 'palavra').join(' ')}</p></body></html>',
   );
@@ -19,7 +19,8 @@ Uint8List _mobiBook(final String title) {
   final thirdText = convert.utf8.decode(chapter('Tres'));
   final prefix = '<html><body><h1>Um</h1><p>${List.filled(30, 'palavra').join(' ')}</p>';
   const zeros = '0000000000';
-  final linkedText = '$prefix'
+  final linkedText =
+      '$prefix'
       '<a filepos="$zeros">b</a>'
       '<a filepos="$zeros">c</a>'
       '</body></html>';

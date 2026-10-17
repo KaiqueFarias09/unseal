@@ -13,14 +13,6 @@ import '../mobi/mobi_fixture_builder.dart';
 typedef _MetricBook = (Uint8List book, List<int> recordLengths);
 
 _MetricBook _buildBook() {
-  Uint8List chapterHtml(final String title, final int words) =>
-      Uint8List.fromList(
-        convert.utf8.encode(
-          '<html><body><h1>$title</h1>'
-          '<p>${List.filled(words, 'palavra').join(' ')}</p></body></html>',
-        ),
-      );
-
   String chapterText(final String title, final int words) =>
       '<html><body><h1>$title</h1>'
       '<p>${List.filled(words, 'palavra').join(' ')}</p></body></html>';
@@ -31,9 +23,11 @@ _MetricBook _buildBook() {
   // raw stream. Both targets sit in text right before those tags, so
   // the insertion is attribute-mode and the section boundary lands
   // just after the tag's `>`.
-  final linkPrefix = '<html><body><h1>Capítulo 1</h1><p>${List.filled(20, 'palavra').join(' ')}</p>';
+  final linkPrefix =
+      '<html><body><h1>Capítulo 1</h1><p>${List.filled(20, 'palavra').join(' ')}</p>';
   const zeros = '0000000000';
-  final linkedText = '$linkPrefix'
+  final linkedText =
+      '$linkPrefix'
       '<a filepos="$zeros">dois</a>'
       '<a filepos="$zeros">tres</a>'
       '</body></html>';
@@ -53,7 +47,6 @@ _MetricBook _buildBook() {
       }),
     ),
   );
-  final first = Uint8List.fromList(convert.utf8.encode(linkedText));
   final second = Uint8List.fromList(convert.utf8.encode(secondText));
   final third = Uint8List.fromList(convert.utf8.encode(thirdText));
 
@@ -153,7 +146,10 @@ void main() {
 
     test('the cache budget bounds the resident weight', () async {
       final (book, _) = _buildBook();
-      final session = await BookSession.open(book, policy: const SessionPolicy(cacheBytes: 1 << 20));
+      final session = await BookSession.open(
+        book,
+        policy: const SessionPolicy(cacheBytes: 1 << 20),
+      );
       try {
         for (final item in session.book.readingOrder) {
           await session.loadDocumentText(item.name);
