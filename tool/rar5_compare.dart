@@ -134,12 +134,17 @@ void main(final List<String> arguments) {
             libarchiveEntries?[entryName],
           );
       var rardecode = rardecodeEntries?[entryName];
-      rardecode ??= _pairByDigest(rardecodeEntries!.values, unseal, null);
+      if (useRardecode) {
+        rardecode ??= _pairByDigest(rardecodeEntries!.values, unseal, null);
+      }
       var libarchive = libarchiveEntries?[entryName];
-      libarchive ??= _pairByDigest(libarchiveEntries!.values, unseal, null);
+      if (useLibarchive) {
+        libarchive ??= _pairByDigest(libarchiveEntries!.values, unseal, null);
+      }
 
       if (unseal == null) {
         if (allowReject) {
+          compared--;
           stdout.writeln(
             'reject $name/$entryName (Unseal is outside its subset; '
             'the oracle produced it)',
