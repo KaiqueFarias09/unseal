@@ -70,8 +70,8 @@
     {
       "path": "test/resources/books/comic/rar5/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 3675,
-      "sha256": "0c903ec140422904872cbbb02a73ab376cc8a8c5c2f15055b5461441605259fb",
+      "bytes": 5286,
+      "sha256": "54742e177f3794f1a35464e45acb22f3432b59454d997ab8becca9807320cb19",
       "container": "unknown",
       "landmarks": 0
     },
@@ -142,8 +142,8 @@
     {
       "path": "test/resources/books/comic/rar5/manifest.json",
       "format": "manifest",
-      "bytes": 6271,
-      "sha256": "27e63e20afcf0230a0985c6b39db81d40e332b82fc22a9eab3323a04e1f34b9d",
+      "bytes": 11175,
+      "sha256": "d6b04669c541e5d405b0388bbca3c2d97c3088a1a2e33cbec4e5d8448e8cbc62",
       "container": "unknown",
       "landmarks": 0
     },
@@ -248,6 +248,46 @@
       "format": "cbr",
       "bytes": 7102,
       "sha256": "16ab2cea9a0c44b897797abda227444f5d90accfac3b09867ca1d961cf55b64f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-solid-chain.cbr",
+      "format": "cbr",
+      "bytes": 2880,
+      "sha256": "ee0f643252eeb74b0a2b398ed143827134a012721f0ec60f508eeb92975a95ab",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-solid-comic.cbr",
+      "format": "cbr",
+      "bytes": 6946,
+      "sha256": "af51635f7e4940f92b4a0a832617125e3d5a4febff9564722400d5ba0f959090",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-solid-dict-grow.cbr",
+      "format": "cbr",
+      "bytes": 3100,
+      "sha256": "67b4a32eb3a7eaf5807d39bcc36c2e16f87a2556637f8e64228f964d608b3989",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-solid-filter-e8.cbr",
+      "format": "cbr",
+      "bytes": 8499,
+      "sha256": "2e5a22306cb45d47981fc386e19832f9dcda4eb07e41fa8bd8fd3267749f0884",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-solid-mixed.cbr",
+      "format": "cbr",
+      "bytes": 10566,
+      "sha256": "1c0809832718babc8159654fb545abc22033f01a64f90ee64d523e6e1eda342d",
       "container": "unknown",
       "landmarks": 0
     },
@@ -2513,12 +2553,12 @@
     }
   ],
   "counts": {
-    "total": 308,
-    "totalBytes": 89672403,
+    "total": 313,
+    "totalBytes": 89710909,
     "byFormat": {
       "manifest": 17,
       "chm": 4,
-      "cbr": 15,
+      "cbr": 20,
       "cbz": 3,
       "comic": 8,
       "cbc": 1,
