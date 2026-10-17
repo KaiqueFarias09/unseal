@@ -7,7 +7,6 @@
 
 import 'dart:io';
 
-import 'package:unseal/alto.dart';
 import 'package:unseal/unseal.dart';
 
 import 'benchmark_harness.dart';

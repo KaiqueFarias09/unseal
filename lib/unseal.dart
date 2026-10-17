@@ -1,6 +1,7 @@
 /// Public, format-agnostic Unseal API.
 library;
 
+export 'alto.dart';
 export 'azw4.dart';
 export 'chm.dart';
 export 'comic.dart';

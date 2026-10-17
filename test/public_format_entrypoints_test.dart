@@ -16,6 +16,13 @@ import 'package:unseal/txt.dart' as txt;
 import 'package:unseal/unseal.dart' as unseal;
 
 void main() {
+  test('main entrypoint exposes OCR parsing and snapshot binding', () {
+    final unseal.AltoDocument Function(Uint8List) parseAlto = unseal.parseAltoDocument;
+    expect(parseAlto, isNotNull);
+    expect(unseal.bindAltoToSnapshot, isNotNull);
+    expect(() => parseAlto(Uint8List(0)), throwsA(isA<unseal.AltoException>()));
+  });
+
   test('public reading facade uses the package identity as its namespace', () {
     final Future<unseal.Book> Function(Uint8List, {String password}) read = unseal.Unseal.read;
     final Future<unseal.Book> Function(String, {String password}) readFile = unseal.Unseal.readFile;

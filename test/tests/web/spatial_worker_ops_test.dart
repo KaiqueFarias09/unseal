@@ -11,7 +11,6 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:test/test.dart';
-import 'package:unseal/alto.dart';
 import 'package:unseal/src/platform/web/book_wire.dart';
 import 'package:unseal/src/platform/web/wire/spatial_wire.dart';
 import 'package:unseal/src/platform/web/worker_ops.dart';
