@@ -109,6 +109,36 @@ licensed corpus covers PalmDOC only; stored and HUFF/CDIC coverage
 comes from the generated fixtures, which the protocol explicitly
 allows as declared-origin complements to real files.
 
+## Delivered behavior
+
+The session reads PalmDB records through a random-access record table and
+builds its reading index with one decompression pass over the text records
+at open — decompressed sizes are undeclared in the format, so lengths are
+only learnable by decoding; the bytes flow through observers and only the
+record → stream-span table stays. MOBI 6 sections tile the stream at the
+table-of-contents anchors, splice their share of the globally computed
+anchor insertion chain, and clamp to the document body range so fragment
+scans never see the head the whole-document text never sees. KF8 parts
+assemble one at a time over on-demand record slices; positions resolve over
+bounded built-byte windows (1 MiB backward budget), and the linked-aid set
+resolves fully at open so any part finalizes in any order with the eager
+markup outcome. Resources enumerate lazily via head-only record sniffs;
+fonts and covers keep eager names. DRM fails typed before any content work.
+
+Measured on the licensed corpus (same machine, same run, one warmed eager
+pass; `tool/mobi_session_bench.dart`):
+
+| Input | Eager open | Session open | First section | Session open materialized |
+| --- | --- | --- | --- | --- |
+| `alice-old-pg.mobi` (MOBI 6) | 10.7 ms | 25.0 ms (includes isolate spawn) | 2.2 ms | 0 bytes |
+| `alice-kf8-pg.azw3` (KF8) | 14.3 ms | 25.3 ms (includes isolate spawn) | 4.9 ms | 0 bytes |
+
+The session's open pass reads and decodes the whole stream for the index
+(measured: ~456 KB decoded for the 241 KB MOBI 6), which is the declared
+index-build cost; nothing is materialized for consumers until a section or
+resource is requested. Whole-book walks traverse every section like any
+whole-book operation.
+
 ## Gate wiring
 
 `oracle_gate.py` runs three stages from the mission manifest:
