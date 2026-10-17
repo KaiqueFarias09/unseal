@@ -2,18 +2,16 @@
 // page's words and their bounding boxes, for
 // `tool/pdf_layout_compare.dart`.
 //
-// Pinned to the revision the parallel plan ports from:
+// Validated against the pinned revision the parallel plan ports from:
 //   PdfPig 3452b9fb52440202fa30b8dd8bf57c5186f8de29 (Apache-2.0)
-//
-// Build once with:
-//   dotnet new console -o . (then replace Program.cs and csproj)
-//   dotnet add package UglyToad.PdfPig --version 0.1.11-daily-2025*-*
-// (resolve to the commit above; see README.md)
+// (built from source; see README.md — the NuGet `PdfPig` 0.1.16 package
+// is the nearest published release).
 //
 // Usage: dotnet run -- <pdf> > dump.json
 
 using System.Text.Json;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.DocumentLayoutAnalysis;
 
 if (args.Length != 1)
 {

@@ -37,7 +37,23 @@
   carries the cropped, rotated page space and the invertible affine back
   to PDF user space. Ported from PdfPig `3452b9fb` (Apache-2.0) and
   tabula-java `2cdf3b4f` (MIT) at the pinned revisions; the PdfPig dump
-  oracle and comparator live in `tool/pdf_layout_compare.dart`.
+  oracle and comparator live in `tool/pdf_layout_compare.dart`,
+  validated against the pinned revision: both real Gutenberg books
+  score 1.0 on every page (86/86 pages PASS, mean IoU 0.93–0.96).
+
+### Fixed
+
+- PDF text extraction composed the text matrix and CTM in the inverted
+  order (`Tm ∘ CTM` instead of the PDF-specified `CTM ∘ Tm`), inflating
+  x positions and advance widths by the Tm scale on every document that
+  translates with `cm` before `BT` (cupsfilter does on every page, so
+  the whole real-book corpus was affected). Coordinates now match
+  PdfPig exactly on those books; the `Ts` rise composes in text space
+  as the specification orders it. Canonical text is untouched — only
+  geometry moves, and only where it was wrong.
+- The whitespace-aligned table fallback no longer reports dozens of
+  columns on dense prose: candidate column edges beyond the cap reject
+  the page instead of fabricating a grid.
 
 ## 1.2.0 - October 16, 2026
 

@@ -45,6 +45,10 @@ abstract final class PdfTableDetector {
   /// aligned column edges.
   static const _minGutterFraction = 0.03;
 
+  /// The column cap the aligned fallback inherits from the reading
+  /// order's own cap.
+  static const maxColumns = 8;
+
   /// Detection input caps (the interpreter already caps rules at 4096;
   /// segmentation caps words at 5000).
   static const _maxRules = 2048;
@@ -355,6 +359,9 @@ abstract final class PdfTableDetector {
       if (edge - gutters.last >= _minGutterFraction * pageWidth) gutters.add(edge);
     }
     if (gutters.length < _minColumns + 1) return null;
+    // A text grid has a handful of columns; prose yields dozens of
+    // repeated word starts and fails the cap.
+    if (gutters.length - 1 > maxColumns) return null;
 
     // The last column's right edge is where its words actually end.
     var gridRight = gutters.last;
