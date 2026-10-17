@@ -89,6 +89,9 @@ Future<void> main(final List<String> arguments) async {
     exit(1);
   }
   stdout.writeln('comparison OK: ${cases.length} case rows -> $outPath');
+  // Explicit: spawned browser-test processes can leave handles that
+  // would otherwise keep this VM's event loop alive past main.
+  exit(0);
 }
 
 // ---------------------------------------------------------------------------
@@ -571,6 +574,8 @@ Future<void> _runAcceptance(final List<String> arguments) async {
     exit(1);
   }
   stdout.writeln('acceptance OK: ${cases.length} cases -> $outPath');
+  // Explicit, for the same reason as the comparison path above.
+  exit(0);
 }
 
 /// The same VM this tool runs under, so the acceptance sweep needs no
