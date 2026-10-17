@@ -9,6 +9,7 @@ import '../../../platform/io/zip_byte_source_io.dart';
 import '../../cfi/epub_cfi_resolver.dart';
 import '../../comic/exceptions/comic_exception.dart';
 import '../../epub/exceptions/exceptions.dart';
+import '../../mobi/exceptions/mobi_exception.dart';
 import '../../pdf/entities/pdf_page_text.dart';
 import '../../pdf/exceptions/pdf_exception.dart';
 import '../../pdf/layout/pdf_page_structure.dart';
@@ -168,6 +169,7 @@ void _dispatch(final SessionEngine engine, final SendPort replyPort, final List<
       _opSearchIndexDrop => _dropSearchIndex(engine),
       _opProgression => engine.computeProgression(),
       _opStatistics => engine.computeStatistics(),
+      _opMetrics => engine.metrics(),
       _opCfiResolve => engine.resolveCfi(message[2]! as String),
       _opCfiBuild => engine.buildCfi(
         contentIndex: message[2]! as int,
@@ -203,6 +205,7 @@ Object? _dropSearchIndex(final SessionEngine engine) {
   return null;
 }
 
+const _opMetrics = 'metrics';
 const _opProgression = 'progression';
 const _opStatistics = 'statistics';
 const _opCfiResolve = 'cfiResolve';
@@ -217,6 +220,8 @@ Object rebuildSessionError(final String type, final String message) {
     'SessionCancelledException' => const SessionCancelledException(),
     'SessionUnsupportedFormatException' => SessionUnsupportedFormatException(message),
     'EmptyBytesException' => EmptyBytesException(),
+    'MobiException' => MobiException(message),
+    'DrmProtectedException' => DrmProtectedException(message),
     'InvalidBookException' => InvalidBookException(message),
     'EpubException' => EpubException(message),
     'ComicException' => ComicException(message),
@@ -469,6 +474,11 @@ final class _IsolateSessionTransport implements SessionTransport {
   @override
   Future<BookStatistics> computeStatistics() async {
     return await _request([_opStatistics]) as BookStatistics;
+  }
+
+  @override
+  Future<Map<String, Object?>> metrics() async {
+    return await _request([_opMetrics]) as Map<String, Object?>;
   }
 
   @override

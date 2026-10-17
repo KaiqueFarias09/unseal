@@ -67,7 +67,8 @@ The main operations are:
 - `Unseal.readFile` and `Unseal.readMetadataFile` on filesystem platforms;
 - `UnsealWorker` for optional browser-worker execution;
 - `BookSession.open` and `BookSession.openFile` for progressive EPUB, CBZ,
-  CBR, and PDF reads with a structure-only header and requested content.
+  CBR, PDF, and MOBI/AZW3 reads with a structure-only header and requested
+  content.
 
 CB7 and CBC remain asynchronous because their 7-Zip reader is asynchronous.
 
@@ -119,9 +120,10 @@ stay ambiguous with bounded candidate lists. Unseal does not run OCR.
 
 ## Progressive session flow
 
-`BookSession` returns an `EpubBook`, `ComicBook`, or `PdfBook` header whose
-`files` contains no content. A resident `SessionEngine` owns the source and
-loads resources or PDF pages on request under `SessionPolicy` cache limits.
+`BookSession` returns an `EpubBook`, `ComicBook`, `PdfBook`, or `MobiBook`
+header whose `files` contains no content. A resident `SessionEngine` owns
+the source and loads resources or PDF pages on request under `SessionPolicy`
+cache limits.
 The VM transport uses a long-lived isolate; the browser transport uses a
 configured worker, with inline execution when the worker is unavailable.
 Browser sessions have separate identifiers and engines so opening or disposing
@@ -132,10 +134,21 @@ whose compressed entries decode while the session header sniffs page types
 at opening. Solid RAR chains decode sequentially through a dictionary
 owned by the session alone; backward access replays from bounded
 checkpoints under a cumulative replay budget, so two sessions never
-share mutable dictionary state. PDF uses a random-access byte source and a reflow plan to
-extract requested pages. Whole-book search, statistics, and progression can
+share mutable dictionary state.
+PDF uses a random-access byte source and a reflow plan to
+extract requested pages. MOBI/AZW3 sessions read PalmDB records through a
+random-access record table and build their reading index with one
+decompression pass over the text records at open — the bytes flow through
+and only the record → stream-span table stays. MOBI 6 sections tile the
+document at the table-of-contents anchors and intersect the document body
+range; KF8 parts assemble per part over on-demand record slices, resolve
+positions over bounded built-byte windows, and keep their linked-aid set
+complete from open so any part finalizes in any order with the eager
+markup outcome. Whole-book search, statistics, and progression can
 still traverse all content. The optional search index builds through bounded
-batches with coverage accounting.
+batches with coverage accounting. `BookSession.metrics` reports container
+reads, decode work, and materialized content, which is how progressive
+delivery stays a measured property instead of an assertion.
 Comic pages have no searchable text, and sessions do not perform OCR.
 
 Cancellation fails pending requests while keeping the session usable.

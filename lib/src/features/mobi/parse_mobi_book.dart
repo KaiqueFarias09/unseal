@@ -1,38 +1,22 @@
 import 'dart:typed_data';
 
 import '../../foundation/entities/entities.dart';
-import '../../foundation/images/image_type_sniffer.dart';
 import 'codec/mobi_text_codec.dart';
 import 'entities/entities.dart';
 import 'header/mobi_header.dart';
+import 'header/mobi_layout.dart';
 import 'header/pdb_header.dart';
 import 'metadata/mobi_metadata.dart';
 import 'reader/mobi6_markup.dart';
 import 'reader/mobi8_reader.dart';
 import 'reader/mobi_text.dart';
 
-class _MobiLayout {
-  const _MobiLayout(
-    this.isKf8,
-    this.header,
-    this.textOffset,
-    this.resourceOffsets,
-    this.huffOffsetOverride,
-  );
-
-  final bool isKf8;
-  final MobiHeader header;
-  final int textOffset;
-  final List<(int, int)> resourceOffsets;
-  final int? huffOffsetOverride;
-}
-
 /// Parses a MOBI / AZW3 book from raw [bytes] into a [MobiBook].
 MobiBook parseMobiBook(final Uint8List bytes) {
   final pdb = PdbHeader.parse(bytes);
   var header = MobiHeader.parse(pdb.record(0), pdb.ident);
   assertNotDrm(header, pdb.name);
-  final layout = _resolveLayout(pdb, header);
+  final layout = resolveMobiLayout(pdb, header);
   header = layout.header;
   if (layout.isKf8) return _parseKf8(pdb, header, layout);
 
@@ -43,68 +27,13 @@ MobiBook parseMobiBook(final Uint8List bytes) {
 BookMetadata readMobiMetadata(final Uint8List bytes) {
   final pdb = PdbHeader.parse(bytes);
   final header = MobiHeader.parse(pdb.record(0), pdb.ident);
-  final format = _detectFormat(pdb, header);
-  final cover = _readCoverRecord(pdb, header.firstImageIndex, header.exth?.coverOffset);
+  final format = detectMobiFormat(pdb, header);
+  final cover = readMobiCoverRecord(pdb, header.firstImageIndex, header.exth?.coverOffset);
 
   return mobiBookMetadata(header, pdbName: pdb.name, coverFile: cover, formatOverride: format);
 }
 
-BookFormat _detectFormat(final PdbHeader pdb, final MobiHeader header) {
-  if (header.mobiVersion == 8 && header.skelIndex != nullIndex) return BookFormat.azw3;
-
-  final k8i = header.exth?.kf8HeaderIndex;
-  if (k8i != null && k8i >= 1 && k8i - 1 < pdb.count) {
-    if (_hasBoundary(pdb.record(k8i - 1))) return BookFormat.azw3;
-  }
-
-  return BookFormat.mobi;
-}
-
-bool _hasBoundary(final Uint8List record) {
-  return record.length >= 8 && String.fromCharCodes(record.sublist(0, 8)) == 'BOUNDARY';
-}
-
-_MobiLayout _resolveLayout(final PdbHeader pdb, final MobiHeader header) {
-  if (header.mobiVersion == 8 && header.skelIndex != nullIndex) {
-    // Standalone KF8 (AZW3).
-    return _MobiLayout(true, header, 1, [
-      (_firstResourceIndex(header.firstImageIndex, header.textRecordCount, 1), pdb.count),
-    ], null);
-  }
-
-  final k8i = header.exth?.kf8HeaderIndex;
-  if (k8i != null && k8i >= 1 && k8i - 1 < pdb.count) {
-    if (_hasBoundary(pdb.record(k8i - 1))) {
-      // Joint MOBI 6 + KF8 file: parse the KF8 half.
-      final kf8Header = MobiHeader.parse(pdb.record(k8i), pdb.ident);
-      final kf8FirstImage = kf8Header.firstImageIndex + k8i;
-      final textOffset = k8i + 1;
-
-      return _MobiLayout(true, kf8Header, textOffset, [
-        (_firstResourceIndex(header.firstImageIndex, header.textRecordCount, 1), k8i - 1),
-        (_firstResourceIndex(kf8FirstImage, kf8Header.textRecordCount, textOffset), pdb.count),
-      ], kf8Header.huffOffset + k8i);
-    }
-  }
-
-  // Plain MOBI 6.
-
-  return _MobiLayout(false, header, 1, [
-    (_firstResourceIndex(header.firstImageIndex, header.textRecordCount, 1), pdb.count),
-  ], null);
-}
-
-int _firstResourceIndex(
-  final int firstImageIndex,
-  final int textRecordCount,
-  final int firstTextRecord,
-) {
-  return firstImageIndex != -1 && firstImageIndex != nullIndex
-      ? firstImageIndex
-      : textRecordCount + firstTextRecord;
-}
-
-MobiBook _parseKf8(final PdbHeader pdb, final MobiHeader header, final _MobiLayout layout) {
+MobiBook _parseKf8(final PdbHeader pdb, final MobiHeader header, final MobiLayout layout) {
   final reader = Mobi8Reader(
     pdb: pdb,
     header: header,
@@ -199,20 +128,4 @@ BinaryFile? _readCoverRecord(
   final PdbHeader pdb,
   final int firstImageIndex,
   final int? coverOffset,
-) {
-  final base = firstImageIndex > 0 ? firstImageIndex : 1;
-  final candidates = <int>[if (coverOffset != null) base + coverOffset, base];
-  for (final index in candidates) {
-    if (index < 0 || index >= pdb.count) continue;
-
-    final data = pdb.record(index);
-    final type = sniffImageType(data);
-    if (type == null) continue;
-
-    final name = 'cover.${type.fileExtension}';
-
-    return BinaryFile(content: data, name: name, type: type.fileExtension, path: name);
-  }
-
-  return null;
-}
+) => readMobiCoverRecord(pdb, firstImageIndex, coverOffset);

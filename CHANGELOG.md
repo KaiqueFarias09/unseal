@@ -60,6 +60,19 @@
   poisons forward continuation until a checkpoint restore, and
   reopening resets the budgets. Session CRC verification, including
   declared zeros, is unchanged.
+- Progressive MOBI and AZW3/KF8 sessions. `BookSession.open` and
+  `BookSession.openFile` now cover MOBI 6, AZW3/KF8 and joint files with the
+  same structure-first contract as EPUB, comic and PDF sessions: complete
+  navigation, metadata, bounded cover, and an explicit reading order while
+  content materializes per section or part on demand. MOBI 6 sections tile
+  the single HTML stream at the table-of-contents anchors (pagebreak split
+  when no TOC exists) and reproduce the eager document's canonical text
+  exactly; KF8 parts assemble one at a time through the shared per-part
+  builder and resolve `kindle:pos:fid` links over bounded windows.
+- A session metrics channel (`BookSession.metrics`, the `sessionMetrics`
+  transport op) reporting container reads, decode work, and materialized
+  content, so progressive delivery is measurable rather than asserted.
+  Session headers cross the browser wire as structure plus record 0.
 
 ## 1.3.0 - October 17, 2026
 

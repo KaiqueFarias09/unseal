@@ -496,6 +496,18 @@ final class WorkerClient {
     await _request(workerOpSessionSearchIndexDrop, payload: _sessionPayload(sessionId));
   }
 
+  /// The resident session's instrumentation counters. Throws
+  /// [SessionClosedException] when no live session is resident.
+  Future<Map<String, Object?>> sessionMetricsInWorker(final int sessionId) async {
+    _ensureResidentSession(sessionId);
+
+    return _requireLive(
+      sessionId,
+      await _request(workerOpSessionMetrics, payload: _sessionPayload(sessionId))
+          as Map<String, Object?>?,
+    );
+  }
+
   /// Whole-book statistics inside the resident session. Throws
   /// [SessionClosedException] when no live session is resident.
   Future<BookStatistics> sessionStatisticsInWorker(final int sessionId) async {
@@ -753,6 +765,8 @@ final class WorkerClient {
               (reply[wireKeySectionLengths] as List<Object?>).cast<int>(),
             ),
           );
+        case wireReplySessionMetrics:
+          completer.complete(decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart));
         case wireReplySessionStatistics:
           final reply = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           completer.complete(

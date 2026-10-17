@@ -188,14 +188,16 @@ session.cancelPending(); // fail in-flight requests with SessionCancelledExcepti
 session.dispose(); // end the session; later requests fail with SessionClosedException
 ```
 
-`session.book` is a real `EpubBook`, `ComicBook` or `PdfBook` whose structure
-is complete (spine, rendition data, navigation, container inventory, the
-cover when it fits `SessionPolicy.coverMaxBytes`, page geometry for PDFs)
-while `files` carries no content — spine-driven consumers such as
-fixed-layout readers work unchanged, and `loadResource(path)` serves any
-container entry on demand. EPUB, CBZ, CBR and PDF open progressively today;
-other formats throw `SessionUnsupportedFormatException` and should use
-`Unseal.read` instead. PDF sessions materialize pages on demand
+`session.book` is a real `EpubBook`, `ComicBook`, `PdfBook` or `MobiBook`
+whose structure is complete (spine, rendition data, navigation, container
+inventory, the cover when it fits `SessionPolicy.coverMaxBytes`, page
+geometry for PDFs, MOBI navigation with section-qualified targets) while
+`files` carries no content — spine-driven consumers such as fixed-layout
+readers work unchanged, and `loadResource(path)` serves any container entry
+on demand. EPUB, CBZ, CBR, PDF, MOBI 6 and AZW3/KF8 open progressively
+today; DRM-protected MOBI fails with the typed DRM error, and other formats
+throw `SessionUnsupportedFormatException` and should use `Unseal.read`
+instead. AZW4 books (PDF wrappers) also stay on the eager path. PDF sessions materialize pages on demand
 (`loadDocumentSource('page_<i>.html')`, `loadPdfPageLines(i)` for the
 facsimile text-layer geometry) and serve byte ranges of the original
 document via `loadBytesRange`. Compressed CBR entries inflate while the

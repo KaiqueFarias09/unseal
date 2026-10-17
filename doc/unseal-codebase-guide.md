@@ -543,7 +543,8 @@ The flow is:
 
 | File | What it does and why it exists |
 | --- | --- |
-| `features/mobi/parse_mobi_book.dart` | Coordinates the entire format family. It parses headers, rejects DRM, finds standalone or joint KF8 layouts, chooses the MOBI 6 or KF8 reader, and builds metadata and `MobiBook`. |
+| `features/mobi/parse_mobi_book.dart` | Coordinates the entire format family. It parses headers, rejects DRM, resolves the payload layout, chooses the MOBI 6 or KF8 reader, and builds metadata and `MobiBook`. |
+| `features/mobi/header/mobi_layout.dart` | Resolves the payload layout shared by the eager parse and sessions: standalone KF8, a joint file's BOUNDARY-marked KF8 half, or plain MOBI 6, plus the record-level cover lookup. |
 | `features/mobi/entities/mobi_book.dart` | Defines the MOBI result, chapter representation, resources, navigation, and reading order. |
 | `features/mobi/entities/entities.dart` | Re-exports the public MOBI entity types. |
 | `features/mobi/header/pdb_header.dart` | Parses the Palm Database header and record table for MOBI, PalmDOC, eReader, and Plucker, then provides bounded access to numbered records. |
@@ -564,6 +565,9 @@ The flow is:
 | `features/mobi/index/ncx_reader.dart` | Converts the Kindle NCX index into common navigation entries. |
 | `features/mobi/reader/mobi_container.dart` | Decodes KF8 `CONT` and `CRES` image-container records, recognizes image metadata, removes the container prefix, and validates the remaining image bytes. |
 | `features/mobi/reader/mobi_text.dart` | Reads text records, removes record trailers, applies the chosen decompressor, and concatenates the logical text stream. |
+| `features/mobi/reader/mobi_text_store.dart` | The session-side record source: a random-access PalmDB over a byte source, and the decompressed text stream addressed by record spans. The open pass decompresses every text record once to build the record → stream-span index (decompressed sizes are undeclared), scanning bytes through an observer without retaining them; slices decompress only the covering records under a small LRU. |
+| `features/mobi/reader/mobi6_sections.dart` | The MOBI 6 open-pass scanner and section planner: byte-level `filepos` targets, TOC anchor candidates, pagebreak fallbacks, and the document body range, then the section table with its global anchor insertion chain and target boundaries. |
+| `features/mobi/reader/mobi8_session_scan.dart` | The KF8 open-pass scanner: flow classification flags (SVG/CDATA decisions mirroring the eager classifier) and quoted `kindle:pos:fid` reference discovery. |
 | `features/mobi/reader/mobi_trailing_data.dart` | Removes variable trailing entries and multibyte overlap bytes described by MOBI record flags. |
 
 ### MOBI 6 and KF8 reconstruction
@@ -572,8 +576,8 @@ The flow is:
 | --- | --- |
 | `features/mobi/reader/mobi6_markup.dart` | Repairs legacy markup, adds anchors for file-position links, extracts image resources, and derives basic navigation when needed. |
 | `features/mobi/reader/mobi8_reader.dart` | Coordinates the KF8-specific indexes, text, structure, markup assembly, resources, fonts, and navigation. |
-| `features/mobi/reader/mobi8_structure.dart` | Reads FDST, skeleton, fragment, and location indexes; inserts fragments into templates; resolves Kindle positions and IDs; translates page breaks; and maps NCX positions to rebuilt parts. |
-| `features/mobi/reader/mobi8_markup.dart` | Receives rebuilt parts, classifies secondary flows as CSS or SVG, rewrites `kindle:flow` and `kindle:embed` references, normalizes markup, and packages the resulting HTML, resources, cover, and navigation. |
+| `features/mobi/reader/mobi8_structure.dart` | Reads FDST, skeleton, fragment, and location indexes (`Mobi8Indexes`, record-only); inserts fragments into templates (`assembleMobi8Part`, shared with sessions); resolves Kindle positions and IDs; translates page breaks; and maps NCX positions to rebuilt parts. |
+| `features/mobi/reader/mobi8_markup.dart` | Classifies secondary flows as CSS or SVG, and finalizes rebuilt parts through `Mobi8MarkupFinalizer` — pos:fid links, aid stripping, flow/embed rewrites, head normalization — the one implementation both the eager assembler and sessions route every part through. |
 | `features/mobi/reader/mobi8_resources.dart` | Extracts images and fonts and builds the one-based Kindle embed-index map used while rewriting markup. |
 | `features/mobi/reader/mobi_font.dart` | Decodes embedded Kindle font records, including supported obfuscation and compression. |
 | `features/mobi/metadata/mobi_metadata.dart` | Maps MOBI and EXTH values, cover resources, and detected version into `BookMetadata`. |
@@ -1053,15 +1057,19 @@ The wire protocol is internal transport, not a saved-file format. Structure trav
 ## Progressive reading: keep content in a session
 
 `BookSession`, exported by `package:unseal/unseal.dart`, opens EPUB, CBZ,
-CBR, and PDF. Its `book` is a concrete format-specific header with no content
-in `files`; callers request resources, document source, or canonical text.
-PDF adds requested page geometry and original byte ranges. Other formats
-throw `SessionUnsupportedFormatException`.
+CBR, PDF, and MOBI/AZW3. Its `book` is a concrete format-specific header
+with no content in `files`; callers request resources, document source, or
+canonical text. PDF adds requested page geometry and original byte ranges;
+MOBI sessions serve sections and parts by name and images, fonts, CSS and
+SVG flows as resources. DRM-protected MOBI fails typed; AZW4 and non-MOBI
+Palm databases throw `SessionUnsupportedFormatException`.
 
 | File | What it does and why it exists |
 | --- | --- |
 | `features/progressive/book_session.dart` | Defines opening, resource/text requests, search, statistics, progression, CFI, cancellation, and disposal. |
 | `features/progressive/session_policy.dart` | Defines cache, cover, and byte-range limits plus session lifecycle errors. |
+| `features/progressive/mobi_session_header.dart` | Builds MOBI/AZW3 session headers and their serving state: the open pass over records, MOBI 6 section materialization (anchor-chain splices, body-range clamping, wrapper stripping), KF8 per-part assembly with bounded position resolution, and the lazy resource walk. |
+| `features/progressive/session_metrics.dart` | The shared session counter (source reads, decoded units and bytes, materialized content), the counting byte source, and the `SessionMetrics` snapshot behind `BookSession.metrics`. |
 | `features/progressive/session_engine.dart` | Owns the resident source, format-specific opening, header, cache, and requested operations. |
 | `features/progressive/transport/session_transport.dart` | Defines the transport contract and inline execution. |
 | `features/progressive/transport/session_transport_io.dart` | Keeps a session in a long-lived VM isolate and reads file sources there. |

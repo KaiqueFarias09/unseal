@@ -3,10 +3,14 @@ import 'dart:typed_data';
 import '../../../features/comic/entities/comic_book.dart';
 import '../../../features/comic/entities/comic_page_info.dart';
 import '../../../features/epub/entities/book/book.dart';
+import '../../../features/mobi/entities/mobi_book.dart';
+import '../../../features/mobi/header/mobi_header.dart';
 import '../../../features/pdf/entities/pdf_book.dart';
 import '../../../features/pdf/entities/pdf_page.dart';
 import '../../../features/pdf/entities/pdf_page_text.dart';
+import '../../../features/progressive/mobi_session_header.dart';
 import '../../../foundation/entities/entities.dart';
+
 import 'book_components_wire.dart';
 import 'epub_package_wire.dart';
 import 'metadata_wire.dart';
@@ -24,8 +28,33 @@ import 'text_profile_wire.dart';
 /// travel as path/name/type placeholders without a blob each, PDF
 /// pages as geometry rows whose content pages stay on the worker. The
 /// cover is real content and keeps its blob.
-(Map<String, Object?>, List<Object>) encodeSessionHeaderWire(final Book book) {
+(Map<String, Object?>, List<Object>) encodeSessionHeaderWire(
+  final Book book, {
+  final MobiSessionContent? mobiContent,
+}) {
   final blobs = <Object>[];
+
+  if (book is MobiBook) {
+    if (mobiContent == null) {
+      throw ArgumentError('MOBI session headers need the session content for record 0');
+    }
+
+    return (
+      <String, Object?>{
+        'format': book.format.name,
+        'navigation': encodeNavigationWireValue(book.navigation),
+        'cover': encodeBinaryFileWireValue(book.cover, blobs),
+        'archiveEntries': const <Map<String, Object?>>[],
+        'metadata': encodeMetadataWireValue(book.metadata, blobs),
+        'mobi': <String, Object?>{
+          'ident': mobiContent.pdb.ident,
+          'record0': pushWireBlob(blobs, mobiContent.pdb.record(0)),
+          'readingOrderPaths': book.readingOrderPaths,
+        },
+      },
+      blobs,
+    );
+  }
 
   if (book is EpubBook) {
     return (
@@ -139,6 +168,18 @@ Book decodeSessionHeaderWire(final Map<String, Object?> json, final List<Object>
           (epub['nonLinearSpinePaths'] as List<Object?>?)?.cast<String>().toSet() ??
           const <String>{},
       archiveEntries: archiveEntries,
+    );
+  }
+
+  final mobi = json['mobi'] as Map<String, Object?>?;
+  if (mobi != null) {
+    return MobiBook(
+      navigation: decodeNavigationWireValue(json['navigation'] as Map<String, Object?>),
+      files: Files.empty(),
+      cover: cover,
+      header: MobiHeader.parse(blobs[mobi['record0'] as int] as Uint8List, mobi['ident'] as String),
+      format: format,
+      readingOrderPaths: (mobi['readingOrderPaths'] as List<Object?>?)?.cast<String>(),
     );
   }
 

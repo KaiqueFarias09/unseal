@@ -11,6 +11,7 @@ import '../search/index/book_search_index.dart';
 import '../search/index/indexed_query_mode.dart';
 import '../search/index/indexed_search_results.dart';
 import '../search/index/search_index_identity.dart';
+import 'session_metrics.dart';
 import 'session_policy.dart';
 import 'transport/session_transport.dart';
 import 'transport/session_transport_io.dart'
@@ -256,6 +257,13 @@ final class BookSession {
   /// the inline resolver's contract.
   Future<String> buildCfi({required final int contentIndex, required final int offsetInText}) {
     return _transport.buildCfi(contentIndex: contentIndex, offsetInText: offsetInText);
+  }
+
+  /// What this session has touched so far: raw source reads, decode
+  /// work, and the content bytes consumers actually received. The
+  /// evidence channel behind the progressivity claims.
+  Future<SessionMetrics> metrics() async {
+    return SessionMetrics.fromWire(await _transport.metrics());
   }
 
   /// Completes every in-flight request with

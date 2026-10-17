@@ -41,6 +41,7 @@ class PdbHeader implements PdbRecordAccess {
   }
 
   /// The type and creator identifier at offset 60.
+  @override
   late final String ident;
 
   late final Uint8List _bytes;
@@ -70,6 +71,15 @@ class PdbHeader implements PdbRecordAccess {
     return Uint8List.sublistView(_bytes, start, start + recordLength(index));
   }
 
+  /// Reads at most [bytes] of record [index].
+  @override
+  Uint8List recordHead(final int index, final int bytes) {
+    final data = record(index);
+    if (bytes >= data.length) return data;
+
+    return Uint8List.sublistView(data, 0, bytes);
+  }
+
   /// Computes the length of record [index].
   int recordLength(final int index) {
     if (index == recordCount - 1) return _bytes.length - offsets[index];
@@ -88,9 +98,16 @@ class PdbHeader implements PdbRecordAccess {
 
 /// Random access to Palm Database records.
 abstract class PdbRecordAccess {
+  /// The type and creator identifier at offset 60 (upper-cased), like
+  /// `BOOKMOBI`.
+  String get ident;
+
   /// Number of available records.
   int get count;
 
   /// Returns record [index].
   Uint8List record(final int index);
+
+  /// Reads at most [bytes] of record [index].
+  Uint8List recordHead(final int index, final int bytes) => record(index);
 }

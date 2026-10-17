@@ -369,8 +369,14 @@ final class _Records implements PdbRecordAccess {
   final List<Uint8List> records;
 
   @override
+  String get ident => 'BOOKMOBI';
+
+  @override
   int get count => records.length;
 
   @override
   Uint8List record(final int index) => records[index];
+
+  @override
+  Uint8List recordHead(final int index, final int bytes) => record(index);
 }
