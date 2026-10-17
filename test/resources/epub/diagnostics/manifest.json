@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "generator": "tool/generate_epub_diagnostics_fixtures.dart",
+  "regenerate": "dart run tool/generate_epub_diagnostics_fixtures.dart",
+  "provenance": "Synthetic deterministic fixtures generated locally for the B03 diagnostics mission; no third-party bytes. See PROVENANCE.md.",
+  "rules_ref": "doc/epub-diagnostics.md",
+  "cases": [
+    {
+      "id": "epub3-valid",
+      "file": "epub3-valid.epub",
+      "bytes": 1706,
+      "sha256": "acb21e2bab45e380fb4133be336f85310cdc51cfda276b1d0fc5771bf5ee83c1",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": []
+    },
+    {
+      "id": "epub2-valid",
+      "file": "epub2-valid.epub",
+      "bytes": 1916,
+      "sha256": "df61f7f4469105b30bef08243da74f912f99d9f3141e0ca87dcbd2ef7f4ef6a1",
+      "epub_family": "epub2",
+      "expected_readability": "readable",
+      "expected_rules": []
+    },
+    {
+      "id": "paths-unicode-percent-valid",
+      "file": "paths-unicode-percent-valid.epub",
+      "bytes": 1617,
+      "sha256": "e307e38e0549fe46678108a883a45055c34e34970a8445736257d254f429c4ae",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": []
+    },
+    {
+      "id": "container-missing",
+      "file": "container-missing.epub",
+      "bytes": 1411,
+      "sha256": "2f3503410789a16c9567e4cd9cd0f818296294b2a7ef69a3a5cb5108d09b4ab0",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.container.missing"
+      ]
+    },
+    {
+      "id": "container-mimetype-wrong",
+      "file": "container-mimetype-wrong.epub",
+      "bytes": 1701,
+      "sha256": "5ecda66bc767f6613eeb8a6b9709e8ca05235c5805943db20b9d6cfc663a6df6",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.container.mimetype-invalid"
+      ]
+    },
+    {
+      "id": "rootfile-element-missing",
+      "file": "rootfile-element-missing.epub",
+      "bytes": 1647,
+      "sha256": "0072fbfc4fd92890be18b84f952269994f88f0be004eb1d19b45639d9c677fde",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.container.rootfile.missing"
+      ]
+    },
+    {
+      "id": "rootfile-path-unresolved",
+      "file": "rootfile-path-unresolved.epub",
+      "bytes": 1705,
+      "sha256": "02762a44d493c882d0303d90ec7d529121fe956310a7baff5bf90911a9841caa",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.container.rootfile.path-unresolved"
+      ]
+    },
+    {
+      "id": "rootfile-media-type-unsupported",
+      "file": "rootfile-media-type-unsupported.epub",
+      "bytes": 1691,
+      "sha256": "6ce676beb05568e668896339e53c606e6b42daf9c7b073c2772c6233db8e8ee2",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.container.rootfile.media-type-unsupported"
+      ]
+    },
+    {
+      "id": "package-version-unsupported",
+      "file": "package-version-unsupported.epub",
+      "bytes": 1708,
+      "sha256": "c4ba19fb844afa5f2cad7989dfc32519e817040dcb0b5673fac68196f83b4c1d",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.package.version-unsupported"
+      ]
+    },
+    {
+      "id": "manifest-item-incomplete",
+      "file": "manifest-item-incomplete.epub",
+      "bytes": 1719,
+      "sha256": "66c7439b1d759e52aa88c1947f7ce6ca6d623cdd79926f8693badc37ea39fd56",
+      "epub_family": "epub3",
+      "expected_readability": "typed-failure",
+      "expected_rules": [
+        "epub.manifest.item.incomplete",
+        "epub.manifest.resource-missing"
+      ]
+    },
+    {
+      "id": "manifest-resource-missing",
+      "file": "manifest-resource-missing.epub",
+      "bytes": 1726,
+      "sha256": "f6d7bcb31874d7816b09e4892b2445c9dbf20767a404a8e63643be2dda8a5a8e",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.manifest.resource-missing"
+      ]
+    },
+    {
+      "id": "manifest-id-duplicate",
+      "file": "manifest-id-duplicate.epub",
+      "bytes": 1717,
+      "sha256": "3e13e6a2bd69c640d38a875df8b3cbfa0aede5c1d8afddef1d4808bf944b76c9",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.manifest.id-duplicate",
+        "epub.manifest.resource-missing"
+      ]
+    },
+    {
+      "id": "manifest-href-duplicate",
+      "file": "manifest-href-duplicate.epub",
+      "bytes": 1717,
+      "sha256": "b6d12cbe29e8e69989c4d932e576f85906a666269eb979be1bd7501fd011932a",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.manifest.href-duplicate"
+      ]
+    },
+    {
+      "id": "manifest-remote-resource-undeclared",
+      "file": "manifest-remote-resource-undeclared.epub",
+      "bytes": 1737,
+      "sha256": "748a24c90e1c675b2986ac344f2f4b514772bfbe6a9c88e405a64b96fe5d8f76",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.manifest.remote-resource-undeclared"
+      ]
+    },
+    {
+      "id": "manifest-href-fragment",
+      "file": "manifest-href-fragment.epub",
+      "bytes": 1714,
+      "sha256": "20df3f980ed91bc480877a0ea3d062210508189501c7719453fccf7dd4bf5e73",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.manifest.href-fragment"
+      ]
+    },
+    {
+      "id": "spine-reference-invalid",
+      "file": "spine-reference-invalid.epub",
+      "bytes": 1717,
+      "sha256": "cbc539853e3789ef47c44d1041d9aafef649a7bed4d97c3eccf413ee96d5b07d",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.spine.reference-invalid"
+      ]
+    },
+    {
+      "id": "spine-empty",
+      "file": "spine-empty.epub",
+      "bytes": 1698,
+      "sha256": "6a67fbaaf1017347e47ad09fe2ef4516749d24758d07c09e22303cd21d82ca74",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.spine.empty"
+      ]
+    },
+    {
+      "id": "spine-reference-duplicate",
+      "file": "spine-reference-duplicate.epub",
+      "bytes": 1712,
+      "sha256": "9711f00ca2b6378bd9b6b441dc5eef4f9076d472921e62ac0e3f030885194bb2",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.spine.reference-duplicate"
+      ]
+    },
+    {
+      "id": "nav-missing",
+      "file": "nav-missing.epub",
+      "bytes": 1687,
+      "sha256": "ecc2fbcf1b3758e31b431d32929f3ab7de7d14be6b7fc8cee710e0ff0c56ad88",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.navigation.nav-missing"
+      ]
+    },
+    {
+      "id": "nav-duplicate",
+      "file": "nav-duplicate.epub",
+      "bytes": 2042,
+      "sha256": "323df505396a497e76a60c5865054f34ed75573a6cd5a2e51083a468b3aac0e3",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.navigation.nav-duplicate"
+      ]
+    },
+    {
+      "id": "nav-toc-section-missing",
+      "file": "nav-toc-section-missing.epub",
+      "bytes": 1710,
+      "sha256": "9a5e788eb85785ed5d3ca499836210b825c9538429152ed34f20a1a5118b81a2",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.navigation.toc-missing"
+      ]
+    },
+    {
+      "id": "nav-link-unresolved",
+      "file": "nav-link-unresolved.epub",
+      "bytes": 1708,
+      "sha256": "99f6721b0e83ea6e5bacb3a517b7550619c69db9786924cf72d9f0ff31780200",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.navigation.link-unresolved"
+      ]
+    },
+    {
+      "id": "nav-fragment-unresolved",
+      "file": "nav-fragment-unresolved.epub",
+      "bytes": 1712,
+      "sha256": "c0d87eaf64769fa4866446f5bd0ca95b414f64eeb7b1f00c79af79531594ebf7",
+      "epub_family": "epub3",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.navigation.fragment-unresolved"
+      ]
+    },
+    {
+      "id": "ncx-missing",
+      "file": "ncx-missing.epub",
+      "bytes": 1487,
+      "sha256": "13081b86ca665d9c4be9f67da365c16afb20b57e757409f3ddd5150afc6ceedc",
+      "epub_family": "epub2",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.manifest.resource-missing",
+        "epub.navigation.toc-missing"
+      ]
+    },
+    {
+      "id": "ncx-toc-attribute-missing",
+      "file": "ncx-toc-attribute-missing.epub",
+      "bytes": 1908,
+      "sha256": "8e9806f6ba669a6fb2a49c57cb4b5a6f876d92351851bec140a78b6940783ff0",
+      "epub_family": "epub2",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.navigation.toc-reference-missing"
+      ]
+    },
+    {
+      "id": "ncx-link-unresolved",
+      "file": "ncx-link-unresolved.epub",
+      "bytes": 1917,
+      "sha256": "a521f347bf567aa2be4ffbd7a40fa0b59ecd313ecae2084cebe1bc60ff52c224",
+      "epub_family": "epub2",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.navigation.link-unresolved"
+      ]
+    },
+    {
+      "id": "guide-reference-unresolved",
+      "file": "guide-reference-unresolved.epub",
+      "bytes": 1921,
+      "sha256": "b8f7db9cf5373af40e98ca91df59f84c81b7793ba33717056bb02783ed95ed94",
+      "epub_family": "epub2",
+      "expected_readability": "readable",
+      "expected_rules": [
+        "epub.guide.reference-unresolved"
+      ]
+    }
+  ]
+}
