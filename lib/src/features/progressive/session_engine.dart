@@ -35,10 +35,14 @@ import '../search/index/indexed_query_mode.dart';
 import '../search/index/search_index_exceptions.dart';
 import '../search/index/search_index_identity.dart';
 import '../search/index/search_index_wire.dart';
+import '../mobi/reader/mobi_text_store.dart';
 import '../search/query_compiler.dart';
 import 'comic_session_header.dart';
+import 'mobi_session_header.dart';
 import 'epub_session_header.dart';
+import 'mobi_session_header.dart' as mobi_header;
 import 'pdf_session_header.dart';
+import 'session_metrics.dart';
 import 'session_policy.dart';
 
 const _sessionFormatProbeBytes = 1024;
@@ -60,8 +64,15 @@ final RegExp _pdfImagePathPattern = RegExp(r'^images/pdf-image-(\d+)\.(\w+)$');
 /// Transports turn its results into small messages; the parsed book
 /// never crosses a boundary whole.
 final class SessionEngine {
-  SessionEngine._(this.book, this._source, this._bytes, this._byteLength, this._policy)
-    : _htmlPathSpace = book is EpubBook;
+  SessionEngine._(
+    this.book,
+    this._source,
+    this._bytes,
+    this._byteLength,
+    this._policy, {
+    required SessionMetricsCounter counter,
+  }) : _counter = counter,
+       _htmlPathSpace = book is EpubBook;
 
   /// Opens [bytes], inflating only the container's structural
   /// documents.
@@ -76,24 +87,43 @@ final class SessionEngine {
   }) {
     if (bytes.isEmpty) throw EmptyBytesException();
 
+    final counter = SessionMetricsCounter();
     final detected = detectFormat(bytes);
     switch (detected) {
       case DetectedFormat.epub:
         // Zip containers are refined by inventory: EPUB or CBZ.
         final container = MemoryZipByteSource(bytes);
 
-        return _openZipSource(ZipRandomAccess.open(container), container, detected, policy);
+        return _openZipSource(
+          ZipRandomAccess.open(container),
+          container,
+          detected,
+          policy,
+          counter,
+        );
       case DetectedFormat.comic:
         // The comic detection signature is the RAR marker.
         final container = MemoryZipByteSource(bytes);
 
-        return _openComicSource(RarRandomAccess.open(container), container, policy);
+        return _openComicSource(RarRandomAccess.open(container), container, policy, counter);
       case DetectedFormat.pdf:
         // The document parser keeps the bytes as views; the raw
         // source stays addressable for the range op.
+        final container = CountingZipByteSource(MemoryZipByteSource(bytes), counter);
+
+        return _openPdfSource(MemoryPdfByteSource(bytes), container, policy, password, counter);
+      case DetectedFormat.mobiFamily:
+      case DetectedFormat.azw4:
         final container = MemoryZipByteSource(bytes);
 
-        return _openPdfSource(MemoryPdfByteSource(bytes), container, policy, password);
+        return _openMobiSource(container, counter, policy);
+      case DetectedFormat.palmdoc:
+      case DetectedFormat.ereader:
+      case DetectedFormat.plucker:
+        throw const SessionUnsupportedFormatException(
+          'This Palm database format has no progressive session support; '
+          'open it with Unseal.read instead.',
+        );
       default:
         throw SessionUnsupportedFormatException(
           'The ${detected.name} format has no progressive session support; '
@@ -117,6 +147,7 @@ final class SessionEngine {
       throw EmptyBytesException();
     }
 
+    final counter = SessionMetricsCounter();
     final prefixLength = source.length < _sessionFormatProbeBytes
         ? source.length
         : _sessionFormatProbeBytes;
@@ -136,14 +167,14 @@ final class SessionEngine {
     switch (detected) {
       case DetectedFormat.comic:
         try {
-          return _openComicSource(RarRandomAccess.open(source), source, policy);
+          return _openComicSource(RarRandomAccess.open(source), source, policy, counter);
         } on Object {
           source.close();
           rethrow;
         }
       case DetectedFormat.epub:
         try {
-          return _openZipSource(ZipRandomAccess.open(source), source, detected, policy);
+          return _openZipSource(ZipRandomAccess.open(source), source, detected, policy, counter);
         } on Object {
           source.close();
           rethrow;
@@ -151,13 +182,31 @@ final class SessionEngine {
       case DetectedFormat.pdf:
         // One file handle serves both the document parser and the
         // range op: the PdfByteSource is a view over the same
-        // ZipByteSource, so no second file descriptor opens.
+        // (counted) ZipByteSource, so no second descriptor opens.
         try {
-          return _openPdfSource(_PdfSourceOverZip(source), source, policy, password);
+          final counted = CountingZipByteSource(source, counter);
+
+          return _openPdfSource(_PdfSourceOverZip(counted), counted, policy, password, counter);
         } on Object {
           source.close();
           rethrow;
         }
+      case DetectedFormat.mobiFamily:
+      case DetectedFormat.azw4:
+        try {
+          return _openMobiSource(source, counter, policy);
+        } on Object {
+          source.close();
+          rethrow;
+        }
+      case DetectedFormat.palmdoc:
+      case DetectedFormat.ereader:
+      case DetectedFormat.plucker:
+        source.close();
+        throw const SessionUnsupportedFormatException(
+          'This Palm database format has no progressive session support; '
+          'open it with Unseal.readFile instead.',
+        );
       default:
         source.close();
         throw SessionUnsupportedFormatException(
@@ -199,6 +248,16 @@ final class SessionEngine {
   /// The PDF content state; null for the zip/RAR branches.
   PdfSessionContent? _pdf;
 
+  /// The MOBI content state; null for every other format.
+  MobiSessionContent? _mobi;
+
+  /// The MOBI content, exposed for the worker's header wire encode.
+  MobiSessionContent? get mobiContent => _mobi;
+
+  /// The session's instrumentation counter; the wrapped byte source
+  /// and the MOBI store increment it.
+  final SessionMetricsCounter _counter;
+
   /// LRU of inflated entries keyed by container path: text entries keep
   /// their [TextFile] (the document-text memo hangs off the instance),
   /// binary entries keep raw bytes. Map literals are insertion-ordered,
@@ -218,6 +277,20 @@ final class SessionEngine {
   Uint8List? resource(final String path) {
     _ensureOpen();
     if (_pdf != null) return _pdfResource(path);
+    final mobi = _mobi;
+    if (mobi != null) {
+      final cached = _cache[path];
+      if (cached != null && cached.bytes != null) {
+        _touch(path);
+
+        return cached.bytes;
+      }
+
+      final bytes = mobi.resource(path);
+      if (bytes != null) _store(path, _CacheEntry(bytes: bytes));
+
+      return bytes;
+    }
 
     final source = _source!;
     final record = source.find(path);
@@ -249,6 +322,8 @@ final class SessionEngine {
 
       return cached?.bytes?.length;
     }
+    final mobi = _mobi;
+    if (mobi != null) return mobi.resourceLength(path);
 
     final record = _source!.find(path);
 
@@ -275,6 +350,20 @@ final class SessionEngine {
   TextFile? textFile(final String path) {
     _ensureOpen();
     if (_pdf != null) return _pdfTextFile(path);
+    final mobi = _mobi;
+    if (mobi != null) {
+      final cached = _cache[path];
+      if (cached != null && cached.text != null) {
+        _touch(path);
+
+        return cached.text;
+      }
+
+      final file = mobi.textFile(path);
+      if (file != null) _store(path, _CacheEntry(text: file));
+
+      return file;
+    }
 
     final source = _source!;
     final record = source.find(path);
@@ -480,6 +569,15 @@ final class SessionEngine {
     }
 
     return _projection().buildEpubCfi(contentIndex: contentIndex, offsetInText: offsetInText);
+  }
+
+  /// What the session has touched so far: source reads, decode work,
+  /// and materialized content, as the metrics wire map. The
+  /// progressivity evidence channel.
+  Map<String, Object?> metrics() {
+    _ensureOpen();
+
+    return <String, Object?>{..._counter.toWire(), 'cacheBytesResident': _cacheWeight()};
   }
 
   /// Advances the resident search index by at most [maxSections]
@@ -691,6 +789,15 @@ final class SessionEngine {
     if (entry != null) _cache[key] = entry;
   }
 
+  int _cacheWeight() {
+    var budget = 0;
+    for (final entry in _cache.values) {
+      budget += entry.weightBytes;
+    }
+
+    return budget;
+  }
+
   void _evictOverBudget() {
     var budget = 0;
     for (final entry in _cache.values) {
@@ -713,9 +820,10 @@ final class SessionEngine {
     final ZipByteSource bytes,
     final SessionPolicy policy,
     final String password,
+    final SessionMetricsCounter counter,
   ) {
     final header = buildPdfSessionHeader(pdfSource, password: password, policy: policy);
-    final engine = SessionEngine._(header.book, null, bytes, bytes.length, policy)
+    final engine = SessionEngine._(header.book, null, bytes, bytes.length, policy, counter: counter)
       .._pdf = PdfSessionContent(
         book: header.book,
         source: pdfSource,
@@ -845,6 +953,7 @@ final class SessionEngine {
     final ZipByteSource bytes,
     final DetectedFormat? detected,
     final SessionPolicy policy,
+    final SessionMetricsCounter counter,
   ) {
     SessionUnsupportedFormatException unsupported(final String family) {
       return SessionUnsupportedFormatException(
@@ -882,7 +991,7 @@ final class SessionEngine {
       if (epubCandidate && looksLikeEpub) {
         final book = buildEpubSessionHeader(source, policy: policy);
 
-        return SessionEngine._(book, source, bytes, bytes.length, policy);
+        return SessionEngine._(book, source, bytes, bytes.length, policy, counter: counter);
       }
 
       var hasImages = false;
@@ -897,12 +1006,47 @@ final class SessionEngine {
       if (!hasImages) throw unsupported(detected?.name ?? '');
       final book = buildComicSessionHeader(source, format: BookFormat.cbz, policy: policy);
 
-      return SessionEngine._(book, source, bytes, bytes.length, policy);
+      return SessionEngine._(book, source, bytes, bytes.length, policy, counter: counter);
     } on SessionUnsupportedFormatException {
       source.close();
       rethrow;
     } on UnsealException {
       source.close();
+      rethrow;
+    }
+  }
+
+  /// MOBI/AZW3 session over a random-access source. The header build
+  /// rejects DRM and non-MOBI PDB payloads typed; the open pass
+  /// decompresses text records once for the reading index without
+  /// keeping the bytes.
+  static SessionEngine _openMobiSource(
+    final ZipByteSource bytes,
+    final SessionMetricsCounter counter,
+    final SessionPolicy policy,
+  ) {
+    final counting = CountingZipByteSource(bytes, counter);
+    PdbRandomAccess? pdb;
+    try {
+      pdb = PdbRandomAccess.open(counting);
+      final header = mobi_header.buildMobiSessionHeader(pdb: pdb, policy: policy, counter: counter);
+      final engine = SessionEngine._(
+        header.book,
+        null,
+        counting,
+        counting.length,
+        policy,
+        counter: counter,
+      ).._mobi = header.content;
+
+      return engine;
+    } on SessionUnsupportedFormatException {
+      pdb?.close();
+      counting.close();
+      rethrow;
+    } on Object {
+      pdb?.close();
+      counting.close();
       rethrow;
     }
   }
@@ -915,11 +1059,12 @@ final class SessionEngine {
     final RarRandomAccess source,
     final ZipByteSource bytes,
     final SessionPolicy policy,
+    final SessionMetricsCounter counter,
   ) {
     try {
       final book = buildComicSessionHeader(source, format: BookFormat.cbr, policy: policy);
 
-      return SessionEngine._(book, source, bytes, bytes.length, policy);
+      return SessionEngine._(book, source, bytes, bytes.length, policy, counter: counter);
     } on UnsealException {
       source.close();
       rethrow;

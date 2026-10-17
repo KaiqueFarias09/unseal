@@ -176,7 +176,7 @@ Mobi6Resources extractMobi6Resources({
       continue;
     }
 
-    if (_isKnownNonImageRecord(data)) continue;
+    if (isMobi6NonImageRecord(data)) continue;
 
     final type = sniffImageType(data);
     if (type == null) continue;
@@ -249,7 +249,10 @@ String _stripTags(final String raw) => raw.replaceAll(_anyTagPattern, '');
 
 String _padded(final int value) => value.toString().padLeft(5, '0');
 
-bool _isKnownNonImageRecord(final Uint8List data) {
+/// Whether a record head marks a known non-image control record
+/// (`FLIS`, `FCIS`, … or the Mobipocket unknown marker). Shared with
+/// the session's resource walk.
+bool isMobi6NonImageRecord(final Uint8List data) {
   const nonImageMagics = <String>[
     'FLIS',
     'FCIS',

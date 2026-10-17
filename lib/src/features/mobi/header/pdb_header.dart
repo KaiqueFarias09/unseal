@@ -71,6 +71,15 @@ class PdbHeader implements PdbRecordAccess {
     return Uint8List.sublistView(_bytes, start, start + recordLength(index));
   }
 
+  /// Reads at most [bytes] of record [index].
+  @override
+  Uint8List recordHead(final int index, final int bytes) {
+    final data = record(index);
+    if (bytes >= data.length) return data;
+
+    return Uint8List.sublistView(data, 0, bytes);
+  }
+
   /// Computes the length of record [index].
   int recordLength(final int index) {
     if (index == recordCount - 1) return _bytes.length - offsets[index];
@@ -98,4 +107,7 @@ abstract class PdbRecordAccess {
 
   /// Returns record [index].
   Uint8List record(final int index);
+
+  /// Reads at most [bytes] of record [index].
+  Uint8List recordHead(final int index, final int bytes) => record(index);
 }

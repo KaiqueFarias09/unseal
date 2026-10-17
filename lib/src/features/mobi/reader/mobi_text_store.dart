@@ -2,81 +2,13 @@ import 'dart:typed_data';
 
 import '../../../foundation/archive/zip_byte_source.dart';
 import '../../../foundation/exceptions/unseal_exception.dart';
+import '../../progressive/session_metrics.dart';
 import '../compression/huff_cdic.dart';
 import '../compression/palmdoc.dart';
 import '../exceptions/mobi_exception.dart';
 import '../header/mobi_header.dart';
 import '../header/pdb_header.dart';
 import 'mobi_trailing_data.dart';
-
-/// A byte-budgeted counter the session engine shares with its sources.
-///
-/// The counters answer "what did this session actually touch": raw
-/// source reads, container units decoded (PDB records, ZIP entries),
-/// decompressed bytes, and content bytes handed to consumers. Tests
-/// verify them against analytically derived expectations, which is
-/// what makes the progressivity claims checkable rather than asserted.
-final class SessionMetricsCounter {
-  int _containerReads = 0;
-  int _sourceBytesRead = 0;
-  int _unitsDecoded = 0;
-  int _bytesDecoded = 0;
-  int _contentBytesMaterialized = 0;
-
-  /// One raw read served by the container byte source.
-  void addContainerRead(final int bytes) {
-    _containerReads++;
-    _sourceBytesRead += bytes;
-  }
-
-  /// One container unit decoded (a decompressed record, an inflated
-  /// entry) producing [bytes].
-  void addDecoded(final int bytes) {
-    _unitsDecoded++;
-    _bytesDecoded += bytes;
-  }
-
-  /// Content bytes handed to a consumer (text code units or resource
-  /// bytes).
-  void addMaterialized(final int bytes) {
-    _contentBytesMaterialized += bytes;
-  }
-
-  /// The wire-ready snapshot; integer values only, structured-clone
-  /// safe.
-  Map<String, int> toWire() => <String, int>{
-    'containerReads': _containerReads,
-    'sourceBytesRead': _sourceBytesRead,
-    'unitsDecoded': _unitsDecoded,
-    'bytesDecoded': _bytesDecoded,
-    'contentBytesMaterialized': _contentBytesMaterialized,
-  };
-}
-
-/// A [ZipByteSource] that counts every read for session metrics.
-final class CountingZipByteSource implements ZipByteSource {
-  /// Wraps [source] and increments [counter].
-  CountingZipByteSource(this.source, this.counter);
-
-  /// The wrapped source; `close` forwards here.
-  final ZipByteSource source;
-
-  /// The shared session counter.
-  final SessionMetricsCounter counter;
-
-  @override
-  int get length => source.length;
-
-  @override
-  Uint8List read(final int offset, final int count) {
-    counter.addContainerRead(count);
-
-    return source.read(offset, count);
-  }
-
-  @override
-  void close() => source.close();
-}
 
 /// Random-access Palm Database records over a bounded byte source.
 ///
@@ -150,6 +82,20 @@ final class PdbRandomAccess implements PdbRecordAccess {
     final start = offsets[index];
 
     return _source.read(start, recordLength(index));
+  }
+
+  /// Reads at most [bytes] of record [index] — the bounded head the
+  /// resource classification sniffs.
+  @override
+  Uint8List recordHead(final int index, final int bytes) {
+    if (index < 0 || index >= recordCount) {
+      throw InvalidBookException('Record $index out of range.');
+    }
+
+    final length = recordLength(index);
+    final bounded = length < bytes ? length : bytes;
+
+    return _source.read(offsets[index], bounded);
   }
 
   /// Computes the length of record [index], with the same

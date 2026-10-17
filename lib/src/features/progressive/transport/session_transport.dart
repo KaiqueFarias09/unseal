@@ -101,6 +101,9 @@ abstract interface class SessionTransport {
   /// Book-level CFI construction from a reading position.
   Future<String> buildCfi({required final int contentIndex, required final int offsetInText});
 
+  /// What the engine has touched so far, as the metrics wire map.
+  Future<Map<String, Object?>> metrics();
+
   /// Fails every in-flight request with
   /// `SessionCancelledException`.
   void cancelPending();
@@ -224,6 +227,9 @@ final class InlineSessionTransport implements SessionTransport {
       _engine.buildCfi(contentIndex: contentIndex, offsetInText: offsetInText),
     );
   }
+
+  @override
+  Future<Map<String, Object?>> metrics() async => _engine.metrics();
 
   @override
   void cancelPending() {

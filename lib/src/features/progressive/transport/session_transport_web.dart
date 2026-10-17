@@ -218,6 +218,10 @@ final class _WorkerSessionTransport implements SessionTransport {
   }
 
   @override
+  Future<Map<String, Object?>> metrics() =>
+      _dispatch(() => _client.sessionMetricsInWorker(_sessionId));
+
+  @override
   void cancelPending() => _drain(const SessionCancelledException());
 
   @override

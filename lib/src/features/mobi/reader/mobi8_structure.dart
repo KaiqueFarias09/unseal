@@ -21,9 +21,15 @@ final RegExp mobi8PageBreakPattern = RegExp(
   r'''(<[^>]*?)\sdata-AmznPageBreak\s*=\s*['"]([^'"]*)['"]([^>]*>)''',
   caseSensitive: false,
 );
-final RegExp _idAttrPattern = RegExp(r'''\sid\s*=\s*['"]([^'"]+)['"]''');
-final RegExp _nameAttrPattern = RegExp(r'''\sname\s*=\s*['"]([^'"]+)['"]''');
-final RegExp _aidAttrPattern = RegExp(r'''\said\s*=\s*['"]([^'"]+)['"]''');
+
+/// The `id="…"` attribute form the KF8 position walk matches.
+final RegExp mobi8IdAttrPattern = RegExp(r'''\sid\s*=\s*['"]([^'"]+)['"]''');
+
+/// The `name="…"` attribute form the KF8 position walk matches.
+final RegExp mobi8NameAttrPattern = RegExp(r'''\sname\s*=\s*['"]([^'"]+)['"]''');
+
+/// The `aid="…"` attribute form the KF8 position walk matches.
+final RegExp mobi8AidAttrPattern = RegExp(r'''\said\s*=\s*['"]([^'"]+)['"]''');
 
 /// KF8 index facts read from records alone: the FDST flow table, the
 /// skeleton parts with their raw spans, and the division (fragment)
@@ -304,7 +310,7 @@ final class Mobi8Structure {
         elements: indexes.elements,
         elementOffset: elementCursor,
         divCount: divCount,
-        text: text,
+        readSlice: (final start, final end) => Uint8List.sublistView(text, start, end),
       );
       elementCursor += divCount;
       part.end = _partEndAfterBuild(part, elementCursor - divCount, divCount);
@@ -356,13 +362,13 @@ final class Mobi8Structure {
         if (plt == -1) break;
 
         final tag = String.fromCharCodes(block.sublist(plt, pgt + 1));
-        final id = _idAttrPattern.firstMatch(tag);
+        final id = mobi8IdAttrPattern.firstMatch(tag);
         if (id != null) return id.group(1)!;
 
-        final name = _nameAttrPattern.firstMatch(tag);
+        final name = mobi8NameAttrPattern.firstMatch(tag);
         if (name != null) return name.group(1)!;
 
-        final aid = _aidAttrPattern.firstMatch(tag);
+        final aid = mobi8AidAttrPattern.firstMatch(tag);
         if (aid != null) {
           _linkedAids.add(aid.group(1)!);
 
@@ -431,21 +437,23 @@ int? _locateTagByAid(final Uint8List block, final String aid) {
 /// bytes inserted at their positions, including the kindlegen
 /// tag-relocation repair. Shared by the eager whole-stream build and
 /// the session's per-part build, so both produce identical bytes.
+/// [readSlice] fetches a flow-zero span; the eager parse hands a
+/// subview of the raw text, the session decompresses on demand.
 Uint8List assembleMobi8Part({
   required final Mobi8Part part,
   required final List<Mobi8DivElement> elements,
   required final int elementOffset,
   required final int divCount,
-  required final Uint8List text,
+  required final Uint8List Function(int start, int end) readSlice,
 }) {
   var basePtr = part.end;
-  var skeleton = Uint8List.sublistView(text, part.start, basePtr);
+  var skeleton = readSlice(part.start, basePtr);
   var divPointer = elementOffset;
   for (var i = 0; i < divCount && divPointer < elements.length; i++) {
     final element = elements[divPointer];
     var insertPos = element.insertPos - part.start;
     final divEnd = basePtr + element.length;
-    final div = Uint8List.sublistView(text, basePtr, divEnd);
+    final div = readSlice(basePtr, divEnd);
 
     final headEnd = insertPos < skeleton.length ? insertPos : skeleton.length;
     final head = Uint8List.sublistView(skeleton, 0, headEnd);

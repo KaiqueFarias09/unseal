@@ -9,12 +9,18 @@ final RegExp _anyTagPattern = RegExp('<[^>]*>');
 /// A parsed MOBI 6 / KF8 (AZW3) book.
 class MobiBook extends Book {
   /// Creates a [MobiBook] from already parsed parts.
+  ///
+  /// [readingOrderPaths] overrides the derived reading order; the
+  /// eager parse leaves it null and orders `files.html`, while a
+  /// progressive session header lists its on-demand sections and parts
+  /// explicitly (the file set stays empty there).
   MobiBook({
     required this.navigation,
     required this.files,
     required this.cover,
     required this.header,
     required super.format,
+    this.readingOrderPaths,
   });
 
   /// The navigation (table of contents) of the book.
@@ -31,6 +37,10 @@ class MobiBook extends Book {
   /// The MOBI header the book was parsed from.
   final MobiHeader header;
 
+  /// Explicit reading-order paths for session headers; null on the
+  /// eager path.
+  final List<String>? readingOrderPaths;
+
   /// The book chapters.
   ///
   /// MOBI 6 stores the whole book as one HTML stream; this splits it
@@ -44,6 +54,14 @@ class MobiBook extends Book {
   /// The format-agnostic metadata of this book.
   @override
   late final BookMetadata metadata = mobiBookMetadata(header, coverFile: cover);
+
+  @override
+  List<ReadingOrderItem> get readingOrder {
+    final paths = readingOrderPaths;
+    if (paths == null) return super.readingOrder;
+
+    return <ReadingOrderItem>[for (final path in paths) ReadingOrderItem(name: path)];
+  }
 
   MobiChapter _chapter(final int index, final String title, final String html) {
     final name = 'chapter${index.toString().padLeft(5, '0')}.html';

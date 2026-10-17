@@ -27,7 +27,9 @@ final RegExp _kindleFlowCssPattern = RegExp(
   caseSensitive: false,
 );
 final RegExp _anyTagPattern = RegExp('(<[^>]*>)');
-final RegExp _flowRefPattern = RegExp(
+
+/// The quoted `kindle:flow:N?mime=...` reference form.
+final RegExp mobi8FlowRefPattern = RegExp(
   r'''['"]kindle:flow:([0-9A-V]+)\?mime=([^'"]+)['"]''',
   caseSensitive: false,
 );
@@ -329,14 +331,14 @@ final class Mobi8MarkupFinalizer {
 
     return part.replaceAllMapped(_anyTagPattern, (final tagMatch) {
       final tag = tagMatch.group(1)!;
-      final match = _flowRefPattern.firstMatch(tag);
+      final match = mobi8FlowRefPattern.firstMatch(tag);
       if (match == null) return tag;
 
       final target = _flowByNumber(parseBase32(match.group(1)!));
       if (target == null) return tag;
       if (target.filename == null) return target.content;
 
-      return tag.replaceFirst(_flowRefPattern, '"${target.filename}"');
+      return tag.replaceFirst(mobi8FlowRefPattern, '"${target.filename}"');
     });
   }
 

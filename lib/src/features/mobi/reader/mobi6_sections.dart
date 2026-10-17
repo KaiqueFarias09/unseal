@@ -251,6 +251,23 @@ Navigation deriveMobi6NavigationBytes(
   return Navigation(title: title, navPoints: points);
 }
 
+/// The MOBI 6 section plan: the section table plus the anchor
+/// insertion chain. Sections splice their own chain entries at
+/// materialization time, which reproduces the eager
+/// `addFileposAnchors` output exactly — including anchors the global
+/// chain skipped.
+final class Mobi6SectionPlan {
+  /// Creates a plan from its sections and insertions.
+  const Mobi6SectionPlan({required this.sections, required this.insertions});
+
+  /// The ordered sections over the raw stream.
+  final List<Mobi6Section> sections;
+
+  /// The global anchor insertion chain: (raw offset, anchor text) in
+  /// insertion order.
+  final List<(int, String)> insertions;
+}
+
 /// Computes the MOBI 6 section table from the navigation targets,
 /// replicating the eager `addFileposAnchors` insertion chain: anchors
 /// insert in sorted target order, skipping anchors whose insertion
@@ -259,7 +276,7 @@ Navigation deriveMobi6NavigationBytes(
 /// sources tile the eager processed markup: each section's slice
 /// processes identically to the eager whole-document processing, so
 /// canonical text concatenates to the eager text.
-List<Mobi6Section> computeMobi6Sections(
+Mobi6SectionPlan computeMobi6Sections(
   final Mobi6OpenScan scan,
   final MobiTextStore store,
   final Navigation navigation,
@@ -268,6 +285,7 @@ List<Mobi6Section> computeMobi6Sections(
 
   var chainPos = 0;
   final insertionStarts = <int, int>{};
+  final insertions = <(int, String)>[];
   for (final target in sortedTargets) {
     if (target == 0 || target >= store.streamLength) continue;
 
@@ -276,6 +294,7 @@ List<Mobi6Section> computeMobi6Sections(
     final gt = _indexOfByteBounded(store, 0x3E, end);
     var anchorEnd = end;
     var insertion = end;
+    var anchorText = '<a id="filepos$target"></a>';
     if (gt > -1 && (gt < lt || lt == end || lt == -1)) {
       final p = _lastIndexOfByteBounded(store, 0x3C, 0, end + 1);
       final isEndTag = p > -1 && store.slice(p + 1, p + 2)[0] == 0x2F;
@@ -285,6 +304,7 @@ List<Mobi6Section> computeMobi6Sections(
         // `>`; the section boundary sits at the insertion start.
         anchorEnd = gt;
         insertion = gt;
+        anchorText = ' filepos-id="filepos$target"';
       } else {
         anchorEnd = gt + 1;
         insertion = anchorEnd;
@@ -294,6 +314,7 @@ List<Mobi6Section> computeMobi6Sections(
     if (anchorEnd <= chainPos) continue;
 
     insertionStarts[target] = insertion;
+    insertions.add((insertion, anchorText));
     chainPos = anchorEnd;
   }
 
@@ -342,7 +363,7 @@ List<Mobi6Section> computeMobi6Sections(
     sections.add(Mobi6Section(_sectionName(0), 0, store.streamLength));
   }
 
-  return sections;
+  return Mobi6SectionPlan(sections: sections, insertions: insertions);
 }
 
 String _sectionName(final int index) => 'chapter${(index + 1).toString().padLeft(5, '0')}.html';

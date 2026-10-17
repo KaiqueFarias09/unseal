@@ -172,6 +172,12 @@ const String wireReplySessionProgression = 'sessionProgression';
 /// Wire protocol reply kind: encoded session statistics.
 const String wireReplySessionStatistics = 'sessionStatistics';
 
+/// Wire protocol op: the resident session's instrumentation counters.
+const String workerOpSessionMetrics = 'sessionMetrics';
+
+/// Wire protocol reply kind: the session's metrics wire map.
+const String wireReplySessionMetrics = 'sessionMetrics';
+
 /// Wire protocol reply kind: an encoded EPUB CFI location resolved in
 /// the session (JSON null when the CFI resolves nowhere).
 const String wireReplySessionCfiLocation = 'sessionCfiLocation';

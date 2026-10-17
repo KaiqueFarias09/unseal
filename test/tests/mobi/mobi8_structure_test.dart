@@ -53,4 +53,7 @@ final class _Records implements PdbRecordAccess {
 
   @override
   Uint8List record(final int index) => records[index];
+
+  @override
+  Uint8List recordHead(final int index, final int bytes) => record(index);
 }

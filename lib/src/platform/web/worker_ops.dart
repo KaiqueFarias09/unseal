@@ -103,6 +103,8 @@ import 'wire/pdf_structure_wire.dart';
       return _sessionProgression(residentSession);
     case workerOpSessionStatistics:
       return _sessionStatistics(residentSession);
+    case workerOpSessionMetrics:
+      return _sessionMetrics(residentSession);
     case workerOpSessionCfiResolve:
       return _sessionCfiResolve(payload!, residentSession);
     case workerOpSessionCfiBuild:
@@ -196,7 +198,7 @@ import 'wire/pdf_structure_wire.dart';
   // from destroying the session that was still serving.
   residentSession?.close();
 
-  final (json, blobs) = encodeSessionHeaderWire(session.book);
+  final (json, blobs) = encodeSessionHeaderWire(session.book, mobiContent: session.mobiContent);
   json[wireKeyProgressive] = true;
   json[wireKeyByteLength] = session.byteLength;
 
@@ -414,6 +416,16 @@ _sessionProgression(final SessionEngine? residentSession) {
       wireKeySectionLengths: progression.sectionLengths,
       wireKeyTotalCharacters: progression.totalCharacters,
     },
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
+_sessionMetrics(final SessionEngine? residentSession) {
+  return (
+    kind: wireReplySessionMetrics,
+    json: _sessionFor(residentSession).metrics(),
     blobs: const <Object>[],
     session: null,
   );
