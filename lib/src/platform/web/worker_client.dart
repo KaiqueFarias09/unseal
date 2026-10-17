@@ -138,9 +138,11 @@ final class WorkerClient {
   Future<DjvuPageStructure?> spatialDjvuPageInWorker(final int pageIndex) async {
     if (!_residentBook) return null;
 
-    return await _request(workerOpSpatialDjvuPage, payload: <String, Object?>{
-      wireKeyPageIndex: pageIndex,
-    }) as DjvuPageStructure?;
+    return await _request(
+          workerOpSpatialDjvuPage,
+          payload: <String, Object?>{wireKeyPageIndex: pageIndex},
+        )
+        as DjvuPageStructure?;
   }
 
   /// Parses [altoBytes] and binds it onto the resident DjVu page's
@@ -671,7 +673,10 @@ final class WorkerClient {
         case wireReplySpatialDjvuPage:
           final json = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);
           completer.complete(
-            decodeDjvuPageStructureWire(json[wireKeyStructure] as Map<String, Object?>?, _blobsOf(data)),
+            decodeDjvuPageStructureWire(
+              json[wireKeyStructure] as Map<String, Object?>?,
+              _blobsOf(data),
+            ),
           );
         case wireReplySpatialAltoBind:
           final json = decodeJson((data.getProperty(wireKeyJson.toJS) as JSString).toDart);

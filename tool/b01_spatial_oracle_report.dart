@@ -67,7 +67,7 @@ Future<void> main(final List<String> args) async {
       'SP01',
       djvuVerdict,
       'DjVu hierarchy, text and coordinates vs djvused 3.5.29 over five real '
-      'fixtures (multi-page, nested and out-of-order type nesting)',
+          'fixtures (multi-page, nested and out-of-order type nesting)',
       <String, Object?>{'comparisons': djvuReports},
     ),
   );
@@ -98,16 +98,14 @@ Future<void> main(final List<String> args) async {
   }
   try {
     parseAltoDocument(
-      Uint8List.fromList(
-        utf8.encode(
-          utf8.decode(altoXml).replaceFirst('ns-v3#', 'ns-v9#'),
-        ),
-      ),
+      Uint8List.fromList(utf8.encode(utf8.decode(altoXml).replaceFirst('ns-v3#', 'ns-v9#'))),
     );
     altoVerdict = 'fail';
     altoReports.add(<String, Object?>{'unrejected': 'unknown namespace accepted'});
   } on AltoUnsupportedFeatureException {
-    altoReports.add(<String, Object?>{'rejected': 'unknown namespace -> AltoUnsupportedFeatureException'});
+    altoReports.add(<String, Object?>{
+      'rejected': 'unknown namespace -> AltoUnsupportedFeatureException',
+    });
   }
   if (AltoScale.fromUnit(SpatialUnit.millimeter10, dpi: null) != null) {
     altoVerdict = 'fail';
@@ -120,7 +118,7 @@ Future<void> main(final List<String> args) async {
       'SP02',
       altoVerdict,
       'ALTO parses vs stdlib reference, pinned-schema validations, '
-      'namespace rejection, and the unit-conversion refusal',
+          'namespace rejection, and the unit-conversion refusal',
       <String, Object?>{'comparisons': altoReports},
     ),
   );
@@ -141,7 +139,13 @@ Future<void> main(final List<String> args) async {
     _rawText(
       astralText,
       zones: <int>[
-        ..._zone(type: djvuZoneTypePage, w: 0x8000 + 100, h: 0x8000 + 100, textLength: 8, children: 2),
+        ..._zone(
+          type: djvuZoneTypePage,
+          w: 0x8000 + 100,
+          h: 0x8000 + 100,
+          textLength: 8,
+          children: 2,
+        ),
         ..._zone(type: djvuZoneTypeWord, w: 0x8000 + 8, h: 0x8000 + 8, textLength: 3),
         ..._zone(type: djvuZoneTypeWord, w: 0x8000 + 8, h: 0x8000 + 8, textLength: 5),
       ],
@@ -159,7 +163,8 @@ Future<void> main(final List<String> args) async {
     sp03['astral'] = 'diacritic and astral zones land on UTF-16 boundaries';
   }
   final goodyStructure = parseDjvuBook(goodyBytes).pageStructureAt(0)!;
-  sp03['rotation'] = 'page rotation ${goodyStructure.rotation} carried as metadata; '
+  sp03['rotation'] =
+      'page rotation ${goodyStructure.rotation} carried as metadata; '
       'zone coordinates follow the reference tools\' stored convention';
   final repeated = DjvuPageStructure(
     pageIndex: 0,
@@ -179,17 +184,28 @@ Future<void> main(final List<String> args) async {
   final repeatResolution = DurableAnnotations.resolve(
     anchor: repeatAnchor,
     targets: <CanonicalTextSnapshot>[
-      repeated.snapshot(identity: PublicationRevision(publicationId: 'r:1', editionId: 'v2')),
+      repeated.snapshot(
+        identity: PublicationRevision(publicationId: 'r:1', editionId: 'v2'),
+      ),
     ],
     policy: AnchorPolicy.contextRecovery,
   );
-  if (repeatResolution is AnchorResolved && !repeatResolution.verified && repeatResolution.range.start == 5) {
+  if (repeatResolution is AnchorResolved &&
+      !repeatResolution.verified &&
+      repeatResolution.range.start == 5) {
     sp03['repeatedQuotes'] = 'repeated quote resolves to its own occurrence, unverified';
   } else {
     sp03Verdict = 'fail';
     sp03['repeatedQuotes'] = 'unexpected outcome $repeatResolution';
   }
-  cases.add(_case('SP03', sp03Verdict, 'UTF-8 to UTF-16 mapping, astral, diacritics, rotation, repeats', sp03));
+  cases.add(
+    _case(
+      'SP03',
+      sp03Verdict,
+      'UTF-8 to UTF-16 mapping, astral, diacritics, rotation, repeats',
+      sp03,
+    ),
+  );
 
   // --- SP04: index + zones + anchors on one space; identity/profile swap ---
   final sp04 = <String, Object?>{};
@@ -201,7 +217,9 @@ Future<void> main(final List<String> args) async {
     sourceEvidence: SourceEvidence.sha256,
   );
   final index = await BookSearchIndex.build(book, identity: SearchIndexIdentity());
-  final hits = index.query('COLLECTION', mode: IndexedQueryMode.exact).hits
+  final hits = index
+      .query('COLLECTION', mode: IndexedQueryMode.exact)
+      .hits
       .where((h) => h.sectionIndex == 1)
       .toList();
   if (hits.isEmpty) {
@@ -211,7 +229,8 @@ Future<void> main(final List<String> args) async {
     final hit = hits.first;
     final structure = book.pageStructureAt(hit.sectionIndex)!;
     final word = structure.lookup!.wordAt(hit.start);
-    final contained = word != null &&
+    final contained =
+        word != null &&
         hit.start >= word.textStart &&
         hit.end <= word.textEnd &&
         structure.canonicalText.substring(hit.start, hit.end) == 'COLLECTION';
@@ -258,7 +277,8 @@ Future<void> main(final List<String> args) async {
     document: altoDocument,
     target: parseDjvuBook(goodyBytes).pageStructureAt(1)!.snapshot(identity: identity),
   );
-  sp04['ocr'] = 'binding preserves origin ${binding.pages.single.provenance.origin.name}, '
+  sp04['ocr'] =
+      'binding preserves origin ${binding.pages.single.provenance.origin.name}, '
       'software ${binding.pages.single.provenance.softwareName} '
       '${binding.pages.single.provenance.softwareVersion}, '
       'confidence ${binding.pages.single.provenance.hasConfidence}; '
@@ -297,9 +317,7 @@ Future<void> main(final List<String> args) async {
   );
   expectTyped(
     'zone type 8',
-    () => decodeDjvuTextChunkRaw(
-      _rawText('ab', zones: <int>[..._zone(type: 8, textLength: 2)]),
-    ),
+    () => decodeDjvuTextChunkRaw(_rawText('ab', zones: <int>[..._zone(type: 8, textLength: 2)])),
     DjvuException,
   );
   expectTyped(
@@ -320,7 +338,11 @@ Future<void> main(final List<String> args) async {
     ),
     DjvuException,
   );
-  expectTyped('malformed ALTO', () => parseAltoDocument(Uint8List.fromList(utf8.encode('not xml'))), AltoException);
+  expectTyped(
+    'malformed ALTO',
+    () => parseAltoDocument(Uint8List.fromList(utf8.encode('not xml'))),
+    AltoException,
+  );
   expectTyped(
     'ALTO unknown unit',
     () => parseAltoDocument(
@@ -344,7 +366,9 @@ Future<void> main(final List<String> args) async {
     ),
     AltoException,
   );
-  cases.add(_case('SP05', sp05Verdict, 'typed rejections for hostile zone records, ALTO and budgets', sp05));
+  cases.add(
+    _case('SP05', sp05Verdict, 'typed rejections for hostile zone records, ALTO and budgets', sp05),
+  );
 
   // --- SP06: recorded test matrix ---
   final matrixFile = File('${oracleDir.path}/matrix/test-matrix.json');
@@ -362,7 +386,7 @@ Future<void> main(final List<String> args) async {
         'SP06',
         allGreen ? 'pass' : 'fail',
         'analysis, VM suite, Chrome worker suite, fuzz campaign, corpus '
-        'manifest, and publish dry-run recorded green by the matrix run',
+            'manifest, and publish dry-run recorded green by the matrix run',
         matrix,
       ),
     );
@@ -371,7 +395,8 @@ Future<void> main(final List<String> args) async {
   final report = <String, Object?>{
     'tool': 'b01_spatial_oracle_report',
     'generatedAt': DateTime.now().toUtc().toIso8601String(),
-    'referencePin': 'DjVuLibre/djvused 3.5.29; xmllint libxml 2.9.13; '
+    'referencePin':
+        'DjVuLibre/djvused 3.5.29; xmllint libxml 2.9.13; '
         'ALTO schemas 2.1/3.1/4.4 from the altoxml/schema mirror; '
         'Tesseract 5.5.3; Python stdlib xml.etree',
     'cases': cases,
@@ -411,19 +436,12 @@ const String _sampleAlto = '''<?xml version="1.0" encoding="UTF-8"?>
 </alto>
 ''';
 
-Uint8List _int24(final int value) => Uint8List.fromList(<int>[
-  (value >> 16) & 255,
-  (value >> 8) & 255,
-  value & 255,
-]);
+Uint8List _int24(final int value) =>
+    Uint8List.fromList(<int>[(value >> 16) & 255, (value >> 8) & 255, value & 255]);
 
-Uint8List _rawText(final String text, {final List<int> zones = const []}) =>
-    Uint8List.fromList(<int>[
-      ..._int24(utf8.encode(text).length),
-      ...utf8.encode(text),
-      1,
-      ...zones,
-    ]);
+Uint8List _rawText(final String text, {final List<int> zones = const []}) => Uint8List.fromList(
+  <int>[..._int24(utf8.encode(text).length), ...utf8.encode(text), 1, ...zones],
+);
 
 List<int> _zone({
   required final int type,

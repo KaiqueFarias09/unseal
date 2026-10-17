@@ -17,9 +17,10 @@ final class SpatialZoneLookup {
     : _zones = UnmodifiableListView(List<SpatialTextZone>.of(page.zones)),
       _byKind = <SpatialZoneKind, List<SpatialTextZone>>{
         for (final kind in SpatialZoneKind.values)
-          kind: _sortedByStart(
-            <SpatialTextZone>[for (final zone in page.zones) if (zone.kind == kind) zone],
-          ),
+          kind: _sortedByStart(<SpatialTextZone>[
+            for (final zone in page.zones)
+              if (zone.kind == kind) zone,
+          ]),
       };
 
   final UnmodifiableListView<SpatialTextZone> _zones;
@@ -100,13 +101,12 @@ final class SpatialZoneLookup {
   }
 
   static List<SpatialTextZone> _sortedByStart(final List<SpatialTextZone> zones) {
-    return List<SpatialTextZone>.of(zones)
-      ..sort((final a, final b) {
-        final byStart = a.textStart.compareTo(b.textStart);
-        if (byStart != 0) return byStart;
+    return List<SpatialTextZone>.of(zones)..sort((final a, final b) {
+      final byStart = a.textStart.compareTo(b.textStart);
+      if (byStart != 0) return byStart;
 
-        return a.textEnd.compareTo(b.textEnd);
-      });
+      return a.textEnd.compareTo(b.textEnd);
+    });
   }
 
   /// The first zone of [_sortedZones] whose textStart is >= [offset].

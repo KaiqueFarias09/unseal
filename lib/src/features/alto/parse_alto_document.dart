@@ -277,7 +277,12 @@ List<AltoString> _parseStrings(final XmlElement line, final int page) {
   return strings;
 }
 
-SpatialRect _rectOf(final XmlElement node, final int page, final String what, {final SpatialRect? fallback}) {
+SpatialRect _rectOf(
+  final XmlElement node,
+  final int page,
+  final String what, {
+  final SpatialRect? fallback,
+}) {
   final x = _floatAttribute(node, 'HPOS');
   final y = _floatAttribute(node, 'VPOS');
   final width = _floatAttribute(node, 'WIDTH');

@@ -181,7 +181,11 @@ final class BookSearchIndex {
         final (sectionIndex, path) = eligible[position];
         position++;
         final structure = structures[sectionIndex];
-        index.addSection(sectionIndex: sectionIndex, path: path, text: structure?.canonicalText ?? '');
+        index.addSection(
+          sectionIndex: sectionIndex,
+          path: path,
+          text: structure?.canonicalText ?? '',
+        );
         batch--;
       }
       onProgress?.call(index.coverage);

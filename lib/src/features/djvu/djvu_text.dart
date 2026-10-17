@@ -46,11 +46,7 @@ const int _coordinateBias = 0x8000;
 
 /// One TXTz hidden-text chunk: the page text plus its decoded zone tree.
 final class DjvuTextChunk {
-  const DjvuTextChunk._({
-    required this.text,
-    required this.zoneCount,
-    required this.root,
-  });
+  const DjvuTextChunk._({required this.text, required this.zoneCount, required this.root});
 
   /// Page text in reading order, with the zone separators rendered the way
   /// positional text extraction renders them: a page-zone NUL separator
@@ -69,23 +65,23 @@ final class DjvuTextChunk {
   /// ranges use.
   int get utf16Length => text.length;
 
-/// Rebuilds a chunk from already-decoded parts — the wire decoder's
-/// path. Validates the same invariants the grammar decoder enforces;
-/// [ArgumentError] reports a payload that disagrees with itself.
-factory DjvuTextChunk.restore({
-  required final String text,
-  required final int zoneCount,
-  required final DjvuTextZone? root,
-}) {
-  if (zoneCount < 0 || zoneCount > _maxTextZones) {
-    throw ArgumentError.value(zoneCount, 'zoneCount', 'Outside the zone-count bounds');
-  }
-  if (root != null && root.recordCount() != zoneCount) {
-    throw ArgumentError.value(zoneCount, 'zoneCount', 'Disagrees with the tree');
-  }
+  /// Rebuilds a chunk from already-decoded parts — the wire decoder's
+  /// path. Validates the same invariants the grammar decoder enforces;
+  /// [ArgumentError] reports a payload that disagrees with itself.
+  factory DjvuTextChunk.restore({
+    required final String text,
+    required final int zoneCount,
+    required final DjvuTextZone? root,
+  }) {
+    if (zoneCount < 0 || zoneCount > _maxTextZones) {
+      throw ArgumentError.value(zoneCount, 'zoneCount', 'Outside the zone-count bounds');
+    }
+    if (root != null && root.recordCount() != zoneCount) {
+      throw ArgumentError.value(zoneCount, 'zoneCount', 'Disagrees with the tree');
+    }
 
-  return DjvuTextChunk._(text: text, zoneCount: zoneCount, root: root);
-}
+    return DjvuTextChunk._(text: text, zoneCount: zoneCount, root: root);
+  }
 }
 
 /// One node of the TXTz zone tree, decoded to absolute values.

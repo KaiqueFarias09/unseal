@@ -7,7 +7,7 @@ enum SpatialTextOrigin {
   native,
 
   /// Text imported from an external OCR document (ALTO).
-  importedOcr;
+  importedOcr,
 }
 
 /// The provenance of a spatial text page: its [origin], the OCR software

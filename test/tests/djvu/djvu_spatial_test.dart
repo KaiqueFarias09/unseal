@@ -17,18 +17,11 @@ import 'package:unseal/src/foundation/text/canonical_text_snapshot.dart';
 import 'package:unseal/src/foundation/text/publication_revision.dart';
 import 'package:unseal/src/foundation/text/text_profile.dart';
 
-Uint8List _int24(final int value) => Uint8List.fromList(<int>[
-  (value >> 16) & 255,
-  (value >> 8) & 255,
-  value & 255,
-]);
+Uint8List _int24(final int value) =>
+    Uint8List.fromList(<int>[(value >> 16) & 255, (value >> 8) & 255, value & 255]);
 
-Uint8List _rawText(final String text, {final List<int> zones = const []}) => Uint8List.fromList([
-  ..._int24(utf8.encode(text).length),
-  ...utf8.encode(text),
-  1,
-  ...zones,
-]);
+Uint8List _rawText(final String text, {final List<int> zones = const []}) =>
+    Uint8List.fromList([..._int24(utf8.encode(text).length), ...utf8.encode(text), 1, ...zones]);
 
 /// One 17-byte zone record; coordinates are stored bias-encoded and the
 /// text start is the delta the reference decoder accumulates.
@@ -41,26 +34,25 @@ List<int> _zone({
   final int textStart = 0x8000,
   final int textLength = 0,
   final int children = 0,
-}) =>
-    [
-      type,
-      (x >> 8) & 255,
-      x & 255,
-      (y >> 8) & 255,
-      y & 255,
-      (w >> 8) & 255,
-      w & 255,
-      (h >> 8) & 255,
-      h & 255,
-      (textStart >> 8) & 255,
-      textStart & 255,
-      (textLength >> 16) & 255,
-      (textLength >> 8) & 255,
-      textLength & 255,
-      (children >> 16) & 255,
-      (children >> 8) & 255,
-      children & 255,
-    ];
+}) => [
+  type,
+  (x >> 8) & 255,
+  x & 255,
+  (y >> 8) & 255,
+  y & 255,
+  (w >> 8) & 255,
+  w & 255,
+  (h >> 8) & 255,
+  h & 255,
+  (textStart >> 8) & 255,
+  textStart & 255,
+  (textLength >> 16) & 255,
+  (textLength >> 8) & 255,
+  textLength & 255,
+  (children >> 16) & 255,
+  (children >> 8) & 255,
+  children & 255,
+];
 
 PublicationRevision _identity(final Uint8List bytes) => PublicationRevision(
   publicationId: 'test:spatial-djvu',
@@ -135,18 +127,14 @@ void main() {
       // Empty rectangle.
       expect(
         () => decodeDjvuTextChunkRaw(
-          _rawText(
-            'ab',
-            zones: <int>[..._zone(type: djvuZoneTypePage, w: 0x8000, textLength: 2)],
-          ),
+          _rawText('ab', zones: <int>[..._zone(type: djvuZoneTypePage, w: 0x8000, textLength: 2)]),
         ),
         throwsA(isA<DjvuException>()),
       );
       // Zone type outside 1..7.
       expect(
-        () => decodeDjvuTextChunkRaw(
-          _rawText('ab', zones: <int>[..._zone(type: 8, textLength: 2)]),
-        ),
+        () =>
+            decodeDjvuTextChunkRaw(_rawText('ab', zones: <int>[..._zone(type: 8, textLength: 2)])),
         throwsA(isA<DjvuException>()),
       );
       // Text range beyond the page text.
@@ -218,7 +206,10 @@ void main() {
       expect(lookup.regionAt(word.textStart)?.kind, SpatialZoneKind.region);
       // The region ancestor of the word is the same region the offset
       // lands in.
-      expect(SpatialTextPage.ancestorOf(page.zones, page.zones.indexOf(word), SpatialZoneKind.region), lookup.regionAt(word.textStart));
+      expect(
+        SpatialTextPage.ancestorOf(page.zones, page.zones.indexOf(word), SpatialZoneKind.region),
+        lookup.regionAt(word.textStart),
+      );
       // Offsets outside every word have no word zone.
       expect(lookup.wordAt(structure.canonicalText.length - 1), isNot(equals(word)));
     });

@@ -266,9 +266,7 @@ Book decodeBookWire(final Map<String, Object?> json, final List<Object> blobs) {
               image: files.images[index],
               textChunk: encoded == null
                   ? null
-                  : (compressed
-                        ? decodeDjvuTextChunk(encoded)
-                        : decodeDjvuTextChunkRaw(encoded)),
+                  : (compressed ? decodeDjvuTextChunk(encoded) : decodeDjvuTextChunkRaw(encoded)),
               encodedTextChunk: encoded,
               encodedTextChunkCompressed: compressed,
             );

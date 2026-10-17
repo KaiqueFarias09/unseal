@@ -24,8 +24,7 @@ Map<String, Object?> compareAltoDocument({
   required final String referencePath,
 }) {
   final document = parseAltoDocument(File(altoPath).readAsBytesSync());
-  final reference =
-      jsonDecode(File(referencePath).readAsStringSync()) as Map<String, Object?>;
+  final reference = jsonDecode(File(referencePath).readAsStringSync()) as Map<String, Object?>;
   final mismatches = <String>[];
 
   void expect(final Object? actual, final Object? expected, final String what) {
@@ -45,7 +44,11 @@ Map<String, Object?> compareAltoDocument({
 
   var stringsCompared = 0;
   final pages = reference['pages'] as List<Object?>;
-  for (var pageIndex = 0; pageIndex < pages.length && pageIndex < document.pages.length; pageIndex++) {
+  for (
+    var pageIndex = 0;
+    pageIndex < pages.length && pageIndex < document.pages.length;
+    pageIndex++
+  ) {
     final page = pages[pageIndex] as Map<String, Object?>;
     final parsed = document.pages[pageIndex];
     expect(parsed.width, page['width'], 'page ${pageIndex + 1} width');
@@ -125,9 +128,7 @@ void main(final List<String> args) {
   final report = compareAltoDocument(altoPath: args[0], referencePath: args[1]);
   final jsonIndex = args.indexOf('--json');
   if (jsonIndex >= 0) {
-    File(args[jsonIndex + 1]).writeAsStringSync(
-      const JsonEncoder.withIndent('  ').convert(report),
-    );
+    File(args[jsonIndex + 1]).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(report));
   }
   final mismatches = report['mismatches']! as List<String>;
   if (mismatches.isNotEmpty) {

@@ -7,12 +7,7 @@
 /// their exact values because doubles represent them exactly.
 final class SpatialRect {
   /// Creates a rectangle; [ArgumentError] reports a negative size.
-  SpatialRect({
-    required this.x,
-    required this.y,
-    required this.width,
-    required this.height,
-  }) {
+  SpatialRect({required this.x, required this.y, required this.width, required this.height}) {
     if (width < 0) {
       throw ArgumentError.value(width, 'width', 'Must be non-negative');
     }

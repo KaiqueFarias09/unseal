@@ -49,12 +49,8 @@ void main() {
     final inline = inlineBook.pageStructureAt(0)!;
     expect(structure!.canonicalText, inline.canonicalText);
     expect(structure.nativeRoot!.recordCount(), inline.nativeRoot!.recordCount());
-    final wireWord = structure.spatialPage!.zones.lastWhere(
-      (z) => z.kind == SpatialZoneKind.word,
-    );
-    final inlineWord = inline.spatialPage!.zones.lastWhere(
-      (z) => z.kind == SpatialZoneKind.word,
-    );
+    final wireWord = structure.spatialPage!.zones.lastWhere((z) => z.kind == SpatialZoneKind.word);
+    final inlineWord = inline.spatialPage!.zones.lastWhere((z) => z.kind == SpatialZoneKind.word);
     expect(wireWord.textStart, inlineWord.textStart);
     expect(wireWord.textEnd, inlineWord.textEnd);
     expect(wireWord.rect, inlineWord.rect);
@@ -81,7 +77,10 @@ void main() {
       reply.json[wireKeyStructure] as Map<String, Object?>?,
       reply.blobs,
     );
-    expect(structure, inlineBook.pages[pageIndexWithoutChunk].textChunk == null ? isNull : isNotNull);
+    expect(
+      structure,
+      inlineBook.pages[pageIndexWithoutChunk].textChunk == null ? isNull : isNotNull,
+    );
   });
 
   test('spatial.altoBind matches the inline binding', () {
@@ -112,10 +111,8 @@ void main() {
 
   test('spatial ops fail typed without a resident DjVu book', () {
     expect(
-      () => runWorkerOp(
-        op: workerOpSpatialDjvuPage,
-        payload: <String, Object?>{wireKeyPageIndex: 0},
-      ),
+      () =>
+          runWorkerOp(op: workerOpSpatialDjvuPage, payload: <String, Object?>{wireKeyPageIndex: 0}),
       throwsA(isA<UnsealException>()),
     );
     expect(
@@ -159,9 +156,7 @@ void main() {
       throwsA(isA<AltoException>()),
     );
     // A page without a hidden-text chunk cannot serve a binding.
-    final withoutChunk = inlineBook.pages
-        .toList()
-        .indexWhere((page) => page.textChunk == null);
+    final withoutChunk = inlineBook.pages.toList().indexWhere((page) => page.textChunk == null);
     if (withoutChunk >= 0) {
       expect(
         () => runWorkerOp(

@@ -115,9 +115,7 @@ Future<void> main(final List<String> args) async {
   final report = await compareDjvuBook(bookPath: args[0], referenceDir: args[1]);
   final jsonIndex = args.indexOf('--json');
   if (jsonIndex >= 0) {
-    File(args[jsonIndex + 1]).writeAsStringSync(
-      const JsonEncoder.withIndent('  ').convert(report),
-    );
+    File(args[jsonIndex + 1]).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(report));
   }
   final mismatches = report['mismatches']! as List<String>;
   if (mismatches.isNotEmpty) {
@@ -170,7 +168,8 @@ void _compareZone(
     mismatches.add('$where: kind ${oracle.kind} != type ${zone.type}');
   }
   if (oracle.coords.length >= 4) {
-    final matches = oracle.coords[0] == zone.xmin &&
+    final matches =
+        oracle.coords[0] == zone.xmin &&
         oracle.coords[1] == zone.ymin &&
         oracle.coords[2] == zone.xmax &&
         oracle.coords[3] == zone.ymax;
@@ -191,9 +190,7 @@ void _compareZone(
     final expected = oracle.text!;
     final actual = chunk.text.substring(zone.utf16Start, zone.utf16End);
     if (_trimTrailingWhitespace(actual) != _trimTrailingWhitespace(expected)) {
-      mismatches.add(
-        '$where ${oracle.kind}: text ${_escape(actual)} != ${_escape(expected)}',
-      );
+      mismatches.add('$where ${oracle.kind}: text ${_escape(actual)} != ${_escape(expected)}');
     }
   }
   final limit = zone.children.length < oracle.children.length

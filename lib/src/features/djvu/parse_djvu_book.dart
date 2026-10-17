@@ -1,4 +1,3 @@
-
 import 'dart:typed_data';
 
 import '../../foundation/entities/entities.dart';

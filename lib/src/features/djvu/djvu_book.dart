@@ -138,8 +138,7 @@ class DjvuBook extends Book {
   /// order.
   List<DjvuPageStructure> get pageStructures => <DjvuPageStructure>[
     for (var i = 0; i < pages.length; i++)
-      if (pages[i].textChunk != null)
-        pageStructureAt(i)!,
+      if (pages[i].textChunk != null) pageStructureAt(i)!,
   ];
 
   /// The reading-order paths of this book's HTML page files, paired with

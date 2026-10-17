@@ -37,10 +37,7 @@ void main() {
     // Cyrillic zone text maps onto UTF-16 ranges of the same canonical
     // text.
     final word = words.first;
-    expect(
-      structure.canonicalText.substring(word.textStart, word.textEnd),
-      isNotEmpty,
-    );
+    expect(structure.canonicalText.substring(word.textStart, word.textEnd), isNotEmpty);
   });
 
   test('worker binds ALTO onto the resident page snapshot', () async {
@@ -57,7 +54,8 @@ void main() {
         .split(' ')
         .firstWhere((w) => w.trim().isNotEmpty)
         .trim();
-    final alto = '''<?xml version="1.0" encoding="UTF-8"?>
+    final alto =
+        '''<?xml version="1.0" encoding="UTF-8"?>
 <alto xmlns="http://www.loc.gov/standards/alto/ns-v3#">
   <Description><MeasurementUnit>pixel</MeasurementUnit>
     <OCRProcessing ID="I"><ocrProcessingStep><processingSoftware>
@@ -88,10 +86,7 @@ void main() {
       (zone) => zone.kind == SpatialZoneKind.word,
     );
     expect(wordZone.confidence, 0.9);
-    expect(
-      bound.pages.single.provenance.softwareName,
-      'BrowserOCR',
-    );
+    expect(bound.pages.single.provenance.softwareName, 'BrowserOCR');
   });
 
   test('worker spatial op fails typed for a non-DjVu resident book', () async {

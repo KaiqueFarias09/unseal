@@ -196,8 +196,7 @@ _spatialDjvuPage(final Map<String, Object?> payload, final Book? residentBook) {
   return (
     kind: wireReplySpatialDjvuPage,
     json: <String, Object?>{
-      wireKeyStructure:
-          structure == null ? null : encodeDjvuPageStructureWire(structure, blobs),
+      wireKeyStructure: structure == null ? null : encodeDjvuPageStructureWire(structure, blobs),
     },
     blobs: blobs,
     session: null,
@@ -205,7 +204,11 @@ _spatialDjvuPage(final Map<String, Object?> payload, final Book? residentBook) {
 }
 
 ({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session})
-_spatialAltoBind(final Uint8List altoBytes, final Map<String, Object?> payload, final Book? residentBook) {
+_spatialAltoBind(
+  final Uint8List altoBytes,
+  final Map<String, Object?> payload,
+  final Book? residentBook,
+) {
   final book = _residentFor(residentBook);
   if (book is! DjvuBook) {
     throw UnsealException('spatial ops need a resident DjVu book, got ${book.format.name}.');
@@ -217,7 +220,10 @@ _spatialAltoBind(final Uint8List altoBytes, final Map<String, Object?> payload, 
     throw UnsealException('DjVu page ${pageIndex + 1} has no hidden-text chunk to bind.');
   }
   final document = parseAltoDocument(altoBytes);
-  final binding = bindAltoToSnapshot(document: document, target: structure.snapshot(identity: identity));
+  final binding = bindAltoToSnapshot(
+    document: document,
+    target: structure.snapshot(identity: identity),
+  );
 
   return (
     kind: wireReplySpatialAltoBind,

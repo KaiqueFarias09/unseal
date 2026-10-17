@@ -115,7 +115,9 @@ void main() {
       );
       // Missing MeasurementUnit.
       expect(
-        () => parseAltoDocument(_bytes(_v3Doc.replaceFirst('<MeasurementUnit>pixel</MeasurementUnit>', ''))),
+        () => parseAltoDocument(
+          _bytes(_v3Doc.replaceFirst('<MeasurementUnit>pixel</MeasurementUnit>', '')),
+        ),
         throwsA(isA<AltoException>()),
       );
       // Unknown unit.
@@ -131,7 +133,9 @@ void main() {
       // Page without usable dimensions.
       expect(
         () => parseAltoDocument(
-          _bytes(_v3Doc.replaceFirst('WIDTH="200" HEIGHT="100" PHYSICAL_IMG_NR', 'PHYSICAL_IMG_NR')),
+          _bytes(
+            _v3Doc.replaceFirst('WIDTH="200" HEIGHT="100" PHYSICAL_IMG_NR', 'PHYSICAL_IMG_NR'),
+          ),
         ),
         throwsA(isA<AltoException>()),
       );
@@ -143,23 +147,33 @@ void main() {
     });
 
     test('bounds composed-block nesting and per-line strings', () {
-      final deep = List.generate(6, (i) => '').join('<ComposedBlock HPOS="0" VPOS="0" WIDTH="10" HEIGHT="10">');
+      final deep = List.generate(
+        6,
+        (i) => '',
+      ).join('<ComposedBlock HPOS="0" VPOS="0" WIDTH="10" HEIGHT="10">');
       final deepClose = List.generate(6, (i) => '</ComposedBlock>').join();
       expect(
         () => parseAltoDocument(
           _bytes(
-            _v3Doc.replaceFirst(
-              '<TextBlock ID="B1"',
-              '$deep<TextBlock ID="B1"',
-            ).replaceFirst('</TextBlock>', '</TextBlock>$deepClose'),
+            _v3Doc
+                .replaceFirst('<TextBlock ID="B1"', '$deep<TextBlock ID="B1"')
+                .replaceFirst('</TextBlock>', '</TextBlock>$deepClose'),
           ),
         ),
         throwsA(isA<AltoException>()),
       );
-      final strings = List.generate(4097, (i) => '<String HPOS="$i" VPOS="0" WIDTH="1" HEIGHT="1" CONTENT="a"/>').join();
+      final strings = List.generate(
+        4097,
+        (i) => '<String HPOS="$i" VPOS="0" WIDTH="1" HEIGHT="1" CONTENT="a"/>',
+      ).join();
       expect(
         () => parseAltoDocument(
-          _bytes(_v3Doc.replaceFirst('<String ID="S1" HPOS="10" VPOS="20" WIDTH="40" HEIGHT="10" CONTENT="café" WC="0.7"/>', strings)),
+          _bytes(
+            _v3Doc.replaceFirst(
+              '<String ID="S1" HPOS="10" VPOS="20" WIDTH="40" HEIGHT="10" CONTENT="café" WC="0.7"/>',
+              strings,
+            ),
+          ),
         ),
         throwsA(isA<AltoException>()),
       );
@@ -235,7 +249,9 @@ void main() {
     test('repeated quotes stay ambiguous with their candidate lists', () {
       final document = parseAltoDocument(
         _bytes(
-          _v3Doc.replaceFirst('CONTENT="café"', 'CONTENT="ab"').replaceFirst('CONTENT="𝄞"', 'CONTENT="ab"'),
+          _v3Doc
+              .replaceFirst('CONTENT="café"', 'CONTENT="ab"')
+              .replaceFirst('CONTENT="𝄞"', 'CONTENT="ab"'),
         ),
       );
       final target = _snapshot('x ab y ab');

@@ -142,8 +142,9 @@ final class AltoSnapshotBinding {
   final List<AltoAmbiguousWord> ambiguousWords;
 
   /// Range queries over the bound pages, one per page in order.
-  List<SpatialZoneLookup> get lookups =>
-      <SpatialZoneLookup>[for (final page in pages) SpatialZoneLookup(page)];
+  List<SpatialZoneLookup> get lookups => <SpatialZoneLookup>[
+    for (final page in pages) SpatialZoneLookup(page),
+  ];
 
   /// The transport view of this binding.
   AltoBoundSpatialText get boundText => AltoBoundSpatialText.fromBinding(this);
@@ -284,7 +285,9 @@ AltoSnapshotBinding bindAltoToSnapshot({
         if (outcome.zone.textEnd > outcome.zone.textStart) {
           // A block's lines need not map in monotonic target order, so
           // the aggregate span covers its words with min and max.
-          lineStart = lineStart < 0 ? outcome.zone.textStart : math.min(lineStart, outcome.zone.textStart);
+          lineStart = lineStart < 0
+              ? outcome.zone.textStart
+              : math.min(lineStart, outcome.zone.textStart);
           lineEnd = lineEnd < 0 ? outcome.zone.textEnd : math.max(lineEnd, outcome.zone.textEnd);
         }
         wordZones.add(outcome.zone);

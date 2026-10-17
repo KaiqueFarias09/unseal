@@ -53,12 +53,9 @@ Map<String, Object?> encodeDjvuPageStructureWire(
     'dpi': structure.dpi,
     'rotation': structure.rotation,
     'paths': <Object?>[
-      for (final (path, isHtml) in structure.readingOrderPaths)
-        <Object?>[path, isHtml],
+      for (final (path, isHtml) in structure.readingOrderPaths) <Object?>[path, isHtml],
     ],
-    'text': structure.canonicalText.isEmpty
-        ? null
-        : pushWireBlob(blobs, structure.canonicalText),
+    'text': structure.canonicalText.isEmpty ? null : pushWireBlob(blobs, structure.canonicalText),
     'zones': zones,
   };
 }
@@ -74,7 +71,11 @@ DjvuPageStructure? decodeDjvuPageStructureWire(
   final text = textBlob == null ? '' : blobs[textBlob] as String;
   final flat = (json['zones'] as List<Object?>).cast<int>();
   final root = _restoreZoneTree(flat);
-  final chunk = DjvuTextChunk.restore(text: text, zoneCount: root == null ? 0 : root.recordCount(), root: root);
+  final chunk = DjvuTextChunk.restore(
+    text: text,
+    zoneCount: root == null ? 0 : root.recordCount(),
+    root: root,
+  );
 
   return DjvuPageStructure.restore(
     pageIndex: json['pageIndex'] as int,
@@ -166,9 +167,7 @@ PublicationRevision decodePublicationRevisionWire(final Object? wire) {
 /// The wire map of one bound ALTO spatial text.
 Map<String, Object?> encodeAltoBoundTextWire(final AltoBoundSpatialText bound) {
   return <String, Object?>{
-    'pages': <Object?>[
-      for (final page in bound.pages) _encodeSpatialPage(page),
-    ],
+    'pages': <Object?>[for (final page in bound.pages) _encodeSpatialPage(page)],
     'resolved': bound.wordsResolved,
     'ambiguous': bound.wordsAmbiguous,
     'missing': bound.wordsMissing,
@@ -202,7 +201,8 @@ Map<String, Object?> encodeAltoBoundTextWire(final AltoBoundSpatialText bound) {
 AltoBoundSpatialText decodeAltoBoundTextWire(final Map<String, Object?> json) {
   return AltoBoundSpatialText(
     pages: <SpatialTextPage>[
-      for (final page in (json['pages'] as List<Object?>)) _decodeSpatialPage(page as Map<String, Object?>),
+      for (final page in (json['pages'] as List<Object?>))
+        _decodeSpatialPage(page as Map<String, Object?>),
     ],
     wordsResolved: json['resolved'] as int,
     wordsAmbiguous: json['ambiguous'] as int,
@@ -219,14 +219,18 @@ AltoBoundSpatialText decodeAltoBoundTextWire(final Map<String, Object?> json) {
             for (final pair in (word['cands'] as List<Object?>).cast<List<Object?>>())
               (pair[0] as int, pair[1] as int),
           ],
-          chosen: ((word['chosen'] as List<Object?>)[0] as int, (word['chosen'] as List<Object?>)[1] as int),
+          chosen: (
+            (word['chosen'] as List<Object?>)[0] as int,
+            (word['chosen'] as List<Object?>)[1] as int,
+          ),
         ),
     ],
     targetIdentity: decodePublicationRevisionWire(json['identity']),
     targetOccurrence: SectionOccurrence(
       sectionIndex: (json['occurrence'] as Map<String, Object?>)['sectionIndex'] as int,
       resourcePath: (json['occurrence'] as Map<String, Object?>)['resourcePath'] as String,
-      readingOrderRevision: (json['occurrence'] as Map<String, Object?>)['readingOrderRevision'] as String?,
+      readingOrderRevision:
+          (json['occurrence'] as Map<String, Object?>)['readingOrderRevision'] as String?,
     ),
     targetProfile: _decodeProfileWire(json['profile'] as Map<String, Object?>),
     targetTextRevision: json['textRevision'] as String,

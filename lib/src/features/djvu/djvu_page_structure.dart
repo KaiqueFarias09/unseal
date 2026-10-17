@@ -190,30 +190,46 @@ final class DjvuPageStructure {
   SpatialTextPage _buildSpatialPage() {
     final zones = <SpatialTextZone>[];
     // The shared projection keeps strictly nested region>line>word
-    // shapes. Files that skip a level (a region's words without lines)
-    // keep those shapes on the native tree; the projection drops them
-    // instead of failing a parse the reference tools accept.
+    // shapes. Files that skip a level — real encoders hang lines straight
+    // off the page, or words off a line — project the nearest ancestor
+    // (page, column, paragraph) as the missing region or line level so
+    // the shared contract stays strict without dropping text the
+    // reference tools accept. Shapes the projection cannot represent
+    // remain on the native tree.
     var regionOpen = false;
     var lineOpen = false;
-    void project(final DjvuTextZone zone) {
+    void project(final DjvuTextZone zone, final DjvuTextZone? parent) {
       switch (zone.type) {
         case djvuZoneTypeRegion:
           _addZone(zones, zone, SpatialZoneKind.region);
           regionOpen = true;
           lineOpen = false;
+        case djvuZoneTypeLine when !regionOpen && parent != null:
+          _addZone(zones, parent, SpatialZoneKind.region);
+          regionOpen = true;
+          lineOpen = false;
+          continue lineCase;
+        lineCase:
         case djvuZoneTypeLine when regionOpen:
           _addZone(zones, zone, SpatialZoneKind.line);
           lineOpen = true;
+        case djvuZoneTypeWord when !lineOpen && parent != null:
+          _addZone(zones, parent, SpatialZoneKind.region);
+          regionOpen = true;
+          _addZone(zones, parent, SpatialZoneKind.line);
+          lineOpen = true;
+          continue wordCase;
+        wordCase:
         case djvuZoneTypeWord when lineOpen:
           _addZone(zones, zone, SpatialZoneKind.word);
       }
       for (final child in zone.children) {
-        project(child);
+        project(child, zone);
       }
     }
 
     final root = chunk.root!;
-    project(root);
+    project(root, null);
     if (zones.isEmpty) {
       // A tree without any region/line/word record has no shared
       // projection; its shapes remain visible on the native tree.
@@ -234,7 +250,11 @@ final class DjvuPageStructure {
     );
   }
 
-  void _addZone(final List<SpatialTextZone> zones, final DjvuTextZone zone, final SpatialZoneKind kind) {
+  void _addZone(
+    final List<SpatialTextZone> zones,
+    final DjvuTextZone zone,
+    final SpatialZoneKind kind,
+  ) {
     zones.add(
       SpatialTextZone(
         kind: kind,
