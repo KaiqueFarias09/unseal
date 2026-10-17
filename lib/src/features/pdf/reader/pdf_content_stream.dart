@@ -204,9 +204,14 @@ class PdfTextExtractor {
         advanceEm * gstate.fontSize +
         codeCount * gstate.charSpacing +
         spaceCount * gstate.wordSpacing;
+    // Device = CTM ∘ Tm applied to the text-space point: the CTM maps
+    // the text matrix's result to device space, so the CTM composes on
+    // the outside. The inverted order inflates positions and widths by
+    // the Tm scale on every producer that translates with `cm` before
+    // `BT` (cupsfilter does on every page).
     final effective = _Mat.multiply(
-      _Mat.translation(0, gstate.rise),
-      _Mat.multiply(textMatrix, gstate.ctm),
+      gstate.ctm,
+      _Mat.multiply(textMatrix, _Mat.translation(0, gstate.rise)),
     );
     final startX = effective.e;
     final startY = effective.f;

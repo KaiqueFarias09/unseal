@@ -97,6 +97,20 @@
   reference, and the W3C Web Annotation Data Model as the selector contract.
   The v1 annotation/locator codecs and `relocateTextLocator` are unchanged.
 
+### Fixed
+
+- PDF text extraction composed the text matrix and CTM in the inverted
+  order (`Tm ∘ CTM` instead of the PDF-specified `CTM ∘ Tm`), inflating
+  x positions and advance widths by the Tm scale on every document that
+  translates with `cm` before `BT` (cupsfilter does on every page, so
+  the whole real-book corpus was affected). Coordinates now match
+  PdfPig exactly on those books; the `Ts` rise composes in text space
+  as the specification orders it. Canonical text is untouched — only
+  geometry moves, and only where it was wrong.
+- The whitespace-aligned table fallback no longer reports dozens of
+  columns on dense prose: candidate column edges beyond the cap reject
+  the page instead of fabricating a grid.
+
 ## 1.2.0 - October 16, 2026
 
 ### Added
