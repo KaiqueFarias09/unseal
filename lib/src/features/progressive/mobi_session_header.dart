@@ -397,7 +397,7 @@ final class MobiSessionContent {
 /// `<head…>…</head>` regions from a section slice, byte-exact for the
 /// supported codecs.
 Uint8List _stripDocumentWrappers(final Uint8List bytes) {
-  var head = _indexOfTag(bytes, _headOpen, 0);
+  final head = _indexOfTag(bytes, _headOpen, 0);
   if (head == -1) {
     final anyWrapper =
         _indexOfTag(bytes, _htmlOpen, 0) != -1 ||
@@ -484,6 +484,9 @@ int _indexOf(final Uint8List data, final List<int> pattern, final int from) {
   return -1;
 }
 
+/// Serves MOBI 6 sections: materializes a section's raw slice with
+/// its share of the global anchor chain, then applies the same markup
+/// conversions the eager parse applies to the whole stream.
 final class Mobi6ServingPlan {
   /// Creates the serving plan from the section plan and navigation.
   const Mobi6ServingPlan({required this.sectionPlan, required this.navigation});
@@ -545,8 +548,7 @@ final class Mobi6ServingPlan {
     // its own section source.
     final leadingTargets = <int>[
       for (final entry in sectionPlan.boundaryByTarget.entries)
-        if (entry.value == section.start && section.start != 0 && section.start >= from)
-          entry.key,
+        if (entry.value == section.start && section.start != 0 && section.start >= from) entry.key,
     ];
     if (leadingTargets.isNotEmpty) {
       final builder = BytesBuilder(copy: false);

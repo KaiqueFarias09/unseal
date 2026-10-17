@@ -41,14 +41,19 @@ final class Mobi6OpenScan {
   /// Stream positions of `<mbp:pagebreak` openings.
   final List<int> pagebreaks = <int>[];
 
-  /// The document body range: (after the first `<body…>` opening's
+  /// The document body range: (just past the first `<body…>` opening's
   /// `>`, at the last `</body>`'s `<`). Sections intersect their span
   /// with this range so a fragment without the closing tag never
-  /// scans the document head. Null ranges mean "absent": the value
-  /// stays at the stream bounds.
+  /// scans the document head. The value stays at the stream bounds
+  /// The stream offset just past the document body's opening tag; -1
+  /// while the opening marker stays unfound.
   var bodyStart = -1;
+
+  /// The stream offset of the document body's closing tag; -1 while
+  /// the closing marker stays unfound.
   var bodyEnd = -1;
 
+  /// The working buffer the marker scans re-scan between records.
   Uint8List _buffer = Uint8List(0);
   var _bufferStart = 0;
 
@@ -191,7 +196,7 @@ final class Mobi6OpenScan {
 
   void _scanBodyRange(final int start, final int end) {
     if (bodyStart == -1) {
-      var i = _bodyOpenUpTo > start ? _bodyOpenUpTo - start : 0;
+      final i = _bodyOpenUpTo > start ? _bodyOpenUpTo - start : 0;
       final at = _indexOfAsciiIgnoreCase(_buffer, _bodyOpenMarker, i);
       if (at != -1) {
         final gt = indexOfByte(_buffer, 0x3E, at + _bodyOpenMarker.length);
@@ -325,9 +330,12 @@ final class Mobi6SectionPlan {
   /// Navigation target value → its anchor's section boundary.
   final Map<int, int> boundaryByTarget;
 
-  /// The document body range the sections materialize within; the
-  /// stream bounds when the document declares no body pair.
+  /// The stream offset just past the document body's opening tag; the
+  /// stream start when the document declares no body pair.
   final int bodyStart;
+
+  /// The stream offset of the document body's closing tag; the stream
+  /// end when the document declares no body pair.
   final int bodyEnd;
 }
 
