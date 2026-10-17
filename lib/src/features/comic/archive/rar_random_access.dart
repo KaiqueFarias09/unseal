@@ -477,13 +477,31 @@ final class RarRandomAccess implements ArchiveRandomAccess {
   // Decodes the compressed entry at [record]'s position, advancing the
   // cursor and checkpointing the boundary. Returns the entry's output.
   Uint8List _decodeChainEntry(final RarEntryRecord record) {
-    final solid = _solid!;
-    final decoded = solid.decodeEntry(
-      packed: _source.read(record.dataStart, record.packedSize),
-      uncompressedSize: record.uncompressedSize,
-      windowSize: record.rar5DictSize,
-      solid: record.solid,
-    );
+    if (!record.isFile) {
+      _cursor = record.recordIndex + 1;
+      return Uint8List(0);
+    }
+    final mode = _modeOf(record);
+    if (mode != _PayloadMode.rar5) {
+      // Stored records do not participate in the compressed dictionary.
+      // Dispatch through the normal path to retain their checks and CRC.
+      final decoded = inflate(record);
+      _cursor = record.recordIndex + 1;
+      return decoded;
+    }
+    final Uint8List decoded;
+    try {
+      decoded = _solid!.decodeEntry(
+        packed: _source.read(record.dataStart, record.packedSize),
+        uncompressedSize: record.uncompressedSize,
+        windowSize: record.rar5DictSize,
+        solid: record.solid,
+      );
+      _verifyCrc(record, decoded);
+    } on Object {
+      _poisoned = true;
+      rethrow;
+    }
     _cursor = record.recordIndex + 1;
     _rememberCheckpoint(record.recordIndex + 1);
 
@@ -515,9 +533,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
     for (var i = from; i < index; i++) {
       final record = _records[i];
-      if (record.uncompressedSize > 0) {
-        _decodeChainEntry(record);
-      }
+      _decodeChainEntry(record);
     }
 
     return _decodeChainEntry(entry);
@@ -545,8 +561,9 @@ final class RarRandomAccess implements ArchiveRandomAccess {
   // declared dictionary above the checkpoint budget) disable
   // checkpointing for the session; replay stays available.
   void _rememberCheckpoint(final int index) {
-    final state = _solid!.captureState();
-    final weight = state.weightBytes;
+    final weight = _solid!.windowBytes;
+    final replaced = _checkpoints.remove(index);
+    if (replaced != null) _checkpointBytes -= replaced.state.weightBytes;
     if (weight > maxRar5SolidCheckpointBytes) return;
     while (_checkpointBytes + weight > maxRar5SolidCheckpointBytes ||
         _checkpoints.length >= maxRar5SolidCheckpoints) {
@@ -554,7 +571,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
       final oldestKey = _checkpoints.keys.first;
       _checkpointBytes -= _checkpoints.remove(oldestKey)!.state.weightBytes;
     }
-    _checkpoints[index] = _SolidCheckpoint(state, index);
+    _checkpoints[index] = _SolidCheckpoint(_solid!.captureState(), index);
     _checkpointBytes += weight;
   }
 

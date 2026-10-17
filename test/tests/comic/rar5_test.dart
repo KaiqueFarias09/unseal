@@ -101,6 +101,42 @@ Uint8List _forgeDataCrc(final Uint8List bytes, final int dataStart, final int wr
 }
 
 void main() {
+  test('random solid access skips stored records and directories in both directions', () {
+    final expected = _decodeEntries('rar5-solid-mixed.cbr');
+    final rar = RarRandomAccess.open(MemoryZipByteSource(_bytes('rar5-solid-mixed.cbr')));
+    addTearDown(rar.close);
+    final files = rar.entries.where((record) => record.isFile).toList();
+    for (final record in [...files.reversed, ...files]) {
+      expect(rar.inflate(record), expected[record.name], reason: record.name);
+    }
+  });
+
+  test('random solid access verifies intermediate CRC before serving later pages', () {
+    final bytes = _bytes('rar5-solid-comic.cbr');
+    final container = readRar5Structure(MemoryZipByteSource(bytes));
+    final corrupted = _forgeDataCrc(bytes, container.entries[1].dataStart, 0xDEADBEEF);
+    final rar = RarRandomAccess.open(MemoryZipByteSource(corrupted));
+    addTearDown(rar.close);
+    expect(
+      () => rar.inflate(rar.entries.last),
+      throwsA(
+        isA<ComicException>().having((e) => e.message, 'message', contains('invalid checksum')),
+      ),
+    );
+    expect(() => rar.inflate(rar.entries.last), throwsA(isA<ComicException>()));
+  });
+
+  test('replacing the same solid checkpoint does not accumulate its weight', () {
+    final rar = RarRandomAccess.open(MemoryZipByteSource(_bytes('rar5-solid-comic.cbr')));
+    addTearDown(rar.close);
+    rar.inflate(rar.entries.first);
+    final bytes = rar.solidCheckpointBytes;
+    for (var i = 0; i < 20; i++) {
+      rar.inflate(rar.entries.first);
+      expect(rar.solidCheckpointBytes, bytes);
+    }
+  });
+
   group('RAR 5 fixture corpus decodes to the pinned digests (RAR02)', () {
     final manifest =
         (convert.json.decode(

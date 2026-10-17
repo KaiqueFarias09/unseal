@@ -26,11 +26,11 @@ final class AltoBindLimits {
   /// binding cannot serve. Public entry points call this before
   /// relying on the values.
   void requireValid() {
-    if (maxCandidateOccurrences < 1) {
+    if (maxCandidateOccurrences < 2) {
       throw ArgumentError.value(
         maxCandidateOccurrences,
         'maxCandidateOccurrences',
-        'Must be positive',
+        'Must be at least two to detect ambiguity',
       );
     }
     if (maxProjectionWork < 1) {
@@ -38,7 +38,7 @@ final class AltoBindLimits {
     }
   }
 
-  /// How many occurrences of one word's content the mapping records as
+  /// How many occurrences (at least two) of one word's content the mapping records as
   /// ambiguity candidates before it stops counting.
   final int maxCandidateOccurrences;
 

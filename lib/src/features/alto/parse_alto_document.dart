@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:xml/xml.dart';
+import 'package:xml/xml_events.dart';
 
 import '../../foundation/spatial/spatial_rect.dart';
 import '../../foundation/spatial/spatial_unit.dart';
@@ -45,11 +46,16 @@ AltoDocument parseAltoDocument(final Uint8List bytes) {
   }
   final XmlDocument document;
   try {
-    document = XmlDocument.parse(decodeXmlText(bytes));
+    final text = decodeXmlText(bytes);
+    _validateXmlBounds(text);
+    document = XmlDocument.parse(text);
   } on XmlException {
     throw const AltoException('ALTO input is not well-formed XML.');
   }
   final root = document.rootElement;
+  if (root.name.local != 'alto') {
+    throw const AltoException('ALTO document must have an alto root element.');
+  }
   final version = _supportedNamespaces[root.name.namespaceUri];
   if (version == null) {
     throw AltoUnsupportedFeatureException(
@@ -89,6 +95,35 @@ AltoDocument parseAltoDocument(final Uint8List bytes) {
     sourceImageName: sourceImageName,
     pages: pages,
   );
+}
+
+void _validateXmlBounds(final String text) {
+  var depth = 0;
+  var elements = 0;
+  var pageDepth = -1;
+  var pageElements = 0;
+  for (final event in parseEvents(text)) {
+    if (event is XmlStartElementEvent) {
+      if (++elements > 1048576 || depth >= 128) {
+        throw const AltoException('ALTO XML exceeds its element or depth limit.');
+      }
+      if (event.name.split(':').last == 'Page' && pageDepth < 0) {
+        pageDepth = depth;
+        pageElements = 0;
+      }
+      if (pageDepth >= 0 && ++pageElements > _maxElementsPerPage) {
+        throw const AltoException('ALTO page exceeds the element budget.');
+      }
+      if (!event.isSelfClosing) {
+        depth++;
+      } else if (pageDepth == depth) {
+        pageDepth = -1;
+      }
+    } else if (event is XmlEndElementEvent) {
+      depth--;
+      if (depth == pageDepth) pageDepth = -1;
+    }
+  }
 }
 
 XmlElement? _child(final XmlElement parent, final String local) {
@@ -292,6 +327,9 @@ SpatialRect _rectOf(
     throw AltoException('ALTO page $page holds a $what without complete coordinates.');
   }
 
+  if (width < 0 || height < 0) {
+    throw AltoException('ALTO page $page holds a $what with negative dimensions.');
+  }
   return SpatialRect(x: x, y: y, width: width, height: height);
 }
 
@@ -308,7 +346,7 @@ double? _floatAttribute(final XmlElement node, final String name) {
   final raw = node.getAttribute(name);
   if (raw == null) return null;
   final value = double.tryParse(raw);
-  if (value == null) {
+  if (value == null || !value.isFinite) {
     throw AltoException('ALTO attribute $name="$raw" is not a number.');
   }
 

@@ -4,12 +4,45 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:collection/collection.dart';
 import 'package:xml/xml.dart';
+import 'package:xml/xml_events.dart';
 
 import '../../../foundation/archive/archive_access.dart';
 import '../codec/epub_xml.dart';
 import '../exceptions/exceptions.dart';
 import '../package/parse_epub_package.dart';
 import 'epub_diagnostic.dart';
+
+// Diagnostics parse XML independently of reading. Bound the tree before
+// building it, including ignored extension nodes and resource ID scans.
+void _validateDiagnosticXml(final List<int> bytes) {
+  if (bytes.length > 16 * 1024 * 1024) {
+    throw const _DiagnosticSafetyException('EPUB diagnostic XML exceeds the 16 MiB limit.');
+  }
+  var depth = 0;
+  var elements = 0;
+  for (final event in parseEvents(decodeEpubText(bytes))) {
+    if (event is XmlStartElementEvent) {
+      if (++elements > 1048576 || depth >= 128) {
+        throw const _DiagnosticSafetyException(
+          'EPUB diagnostic XML exceeds its element or depth limit.',
+        );
+      }
+      if (!event.isSelfClosing) depth++;
+    } else if (event is XmlEndElementEvent) {
+      depth--;
+    }
+  }
+}
+
+XmlDocument _parseDiagnosticXml(final List<int> bytes) {
+  _validateDiagnosticXml(bytes);
+  return parseEpubXml(bytes);
+}
+
+final class _DiagnosticSafetyException implements Exception {
+  const _DiagnosticSafetyException(this.message);
+  final String message;
+}
 
 const _containerFilepath = 'META-INF/container.xml';
 const _packageMediaType = 'application/oebps-package+xml';
@@ -34,21 +67,25 @@ EpubDiagnosticsReport diagnoseEpubArchive(
   final Archive archive, {
   final EpubDiagnosticsOptions options = const EpubDiagnosticsOptions(),
 }) {
-  final collector = _Collector(options);
-  final entries = _EntryIndex(archive);
-  _diagnoseMimetype(archive, collector);
-  final context = _selectPackage(archive, entries, collector);
+  try {
+    final collector = _Collector(options);
+    final entries = _EntryIndex(archive);
+    _diagnoseMimetype(archive, collector);
+    final context = _selectPackage(archive, entries, collector);
 
-  if (context != null) {
-    _diagnosePackage(context, collector, entries);
+    if (context != null) {
+      _diagnosePackage(context, collector, entries);
+    }
+
+    return EpubDiagnosticsReport(
+      findings: List.unmodifiable(collector.findings),
+      rootFilePath: context?.rootFilePath,
+      packageVersion: context?.declaredVersion,
+      truncated: collector.truncated,
+    );
+  } on _DiagnosticSafetyException catch (error) {
+    throw EpubException(error.message);
   }
-
-  return EpubDiagnosticsReport(
-    findings: List.unmodifiable(collector.findings),
-    rootFilePath: context?.rootFilePath,
-    packageVersion: context?.declaredVersion,
-    truncated: collector.truncated,
-  );
 }
 
 /// The OCF requires `mimetype` as the first entry with the media type
@@ -128,7 +165,9 @@ _Selection _selectFromContainer(
 ) {
   final XmlDocument document;
   try {
-    document = parseEpubXml(contentBytes(containerEntry));
+    document = _parseDiagnosticXml(contentBytes(containerEntry));
+  } on _DiagnosticSafetyException {
+    rethrow;
   } on Exception {
     collector.add(
       const EpubDiagnostic(
@@ -227,9 +266,12 @@ _Selection _selectUsablePackage(final List<String> candidates, final _EntryIndex
   var malformed = false;
   for (final path in candidates) {
     try {
+      _validateDiagnosticXml(contentBytes(entries.at(path)!));
       parsePackageBytes(contentBytes(entries.at(path)!));
 
       return _Selection(path: path);
+    } on _DiagnosticSafetyException {
+      rethrow;
     } on Exception {
       // Mirrors reading: keep looking when one candidate is unusable.
       if (!_isWellFormedPackage(entries, path)) malformed = true;
@@ -250,7 +292,9 @@ bool _isWellFormedPackage(final _EntryIndex entries, final String path) {
   if (entry == null) return false;
 
   try {
-    return parseEpubXml(contentBytes(entry)).rootElement.name.local == 'package';
+    return _parseDiagnosticXml(contentBytes(entry)).rootElement.name.local == 'package';
+  } on _DiagnosticSafetyException {
+    rethrow;
   } on Exception {
     return false;
   }
@@ -284,7 +328,9 @@ _PackageContext? _contextFor(
 
   final XmlDocument document;
   try {
-    document = parseEpubXml(contentBytes(entry));
+    document = _parseDiagnosticXml(contentBytes(entry));
+  } on _DiagnosticSafetyException {
+    rethrow;
   } on Exception {
     // A malformed package document keeps the typed failure of the reading
     // path; it cannot produce honest structural findings.
@@ -716,7 +762,9 @@ void _diagnoseLink({
   if (!collector.spendLink()) return;
 
   final fragmentIndex = href.indexOf('#');
-  final fragment = fragmentIndex < 0 ? null : href.substring(fragmentIndex + 1);
+  final fragment = fragmentIndex < 0
+      ? null
+      : _decodePercentEscapes(href.substring(fragmentIndex + 1));
   final target = fragmentIndex == 0
       ? basePath
       : _resolveAgainst(
@@ -823,7 +871,7 @@ String _decodePercentEscapes(final String value) {
         : -1;
     final low = high < 0 ? -1 : _hexValue(value, index + 2);
     if (high >= 0 && low >= 0) {
-      bytes.addAll(value.codeUnits.sublist(plainStart, index));
+      bytes.addAll(utf8.encode(value.substring(plainStart, index)));
       bytes.add(high * 16 + low);
       index += 3;
       plainStart = index;
@@ -833,7 +881,7 @@ String _decodePercentEscapes(final String value) {
   }
   if (bytes.isEmpty) return value;
 
-  bytes.addAll(value.codeUnits.sublist(plainStart));
+  bytes.addAll(utf8.encode(value.substring(plainStart)));
 
   return utf8.decode(bytes, allowMalformed: true);
 }
@@ -859,7 +907,9 @@ XmlDocument? _parseResource(final _EntryIndex entries, final String? path) {
   if (entry == null) return null;
 
   try {
-    return parseEpubXml(contentBytes(entry));
+    return _parseDiagnosticXml(contentBytes(entry));
+  } on _DiagnosticSafetyException {
+    rethrow;
   } on Exception {
     // A malformed navigation resource stays out of the structural subset;
     // absence of a usable toc is reported by the toc rules instead.
@@ -876,7 +926,9 @@ Set<String>? _resourceIds(final _EntryIndex entries, final String path, final in
 
   final XmlDocument document;
   try {
-    document = parseEpubXml(contentBytes(entry));
+    document = _parseDiagnosticXml(contentBytes(entry));
+  } on _DiagnosticSafetyException {
+    rethrow;
   } on Exception {
     return const <String>{};
   }

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
-import 'package:unseal/alto.dart';
 import 'package:unseal/unseal.dart';
 
 Uint8List _bytes(final String xml) => Uint8List.fromList(utf8.encode(xml));
@@ -48,6 +47,45 @@ CanonicalTextSnapshot _snapshot(final String text) => CanonicalTextSnapshot(
 );
 
 void main() {
+  test('ALTO numeric corruption fails typed, including non-finite values', () {
+    for (final value in ['-1', 'NaN', 'Infinity', '-Infinity']) {
+      expect(
+        () => parseAltoDocument(_bytes(_v3Doc.replaceFirst('WIDTH="150"', 'WIDTH="$value"'))),
+        throwsA(isA<AltoException>()),
+        reason: value,
+      );
+    }
+    expect(
+      () => parseAltoDocument(_bytes(_v3Doc.replaceFirst('WC="0.7"', 'WC="NaN"'))),
+      throwsA(isA<AltoException>()),
+    );
+  });
+
+  test('ignored XML extensions respect depth and page element budgets', () {
+    final deep = '${'<extension>' * 129}${'</extension>' * 129}';
+    final wide = '<extension/>' * 65537;
+    for (final payload in [deep, wide]) {
+      expect(
+        () => parseAltoDocument(
+          _bytes(_v3Doc.replaceFirst('</PrintSpace>', '$payload</PrintSpace>')),
+        ),
+        throwsA(isA<AltoException>()),
+      );
+    }
+  });
+
+  test('ambiguity cannot be disabled by a one-candidate scan', () {
+    final document = parseAltoDocument(_bytes(_v3Doc));
+    expect(
+      () => bindAltoToSnapshot(
+        document: document,
+        target: _snapshot('café café'),
+        limits: const AltoBindLimits(maxCandidateOccurrences: 1),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   group('parseAltoDocument', () {
     test('reads the real Tesseract fixture with its provenance', () {
       final document = parseAltoDocument(

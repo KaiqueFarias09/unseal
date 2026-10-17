@@ -9,6 +9,51 @@ import 'package:unseal/epub.dart';
 const _fixturesDirectory = 'test/resources/epub/diagnostics';
 
 void main() {
+  test('mixed Unicode and percent escapes resolve paths and fragments', () {
+    for (final stem in ['café', '東京', '📚']) {
+      final report = diagnoseEpub(
+        _zip({
+          'mimetype': 'application/epub+zip',
+          'META-INF/container.xml': _containerXml,
+          'OEBPS/content.opf': _opf(
+            manifest:
+                '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>'
+                '<item id="ch1" href="$stem%20part.xhtml" media-type="application/xhtml+xml"/>',
+            spine: '<itemref idref="ch1"/>',
+          ),
+          'OEBPS/nav.xhtml': _navXhtml.replaceAll('ch1.xhtml', '$stem%20part.xhtml#caf%C3%A9'),
+          'OEBPS/$stem part.xhtml': _ch1Xhtml.replaceAll('id="intro"', 'id="café"'),
+        }),
+      );
+      expect(report.findings, isEmpty, reason: stem);
+    }
+  });
+
+  test('deep diagnostic XML fails typed before recovery or resource scans', () {
+    final nested = '${'<x>' * 129}${'</x>' * 129}';
+    for (final target in [
+      'META-INF/container.xml',
+      'OEBPS/content.opf',
+      'OEBPS/nav.xhtml',
+      'OEBPS/ch1.xhtml',
+    ]) {
+      final files = {
+        'mimetype': 'application/epub+zip',
+        'META-INF/container.xml': _containerXml,
+        'OEBPS/content.opf': _opf(
+          manifest:
+              '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>'
+              '<item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>',
+          spine: '<itemref idref="ch1"/>',
+        ),
+        'OEBPS/nav.xhtml': _navXhtml.replaceAll('ch1.xhtml', 'ch1.xhtml#intro'),
+        'OEBPS/ch1.xhtml': _ch1Xhtml,
+      };
+      files[target] = files[target]!.replaceFirst('>', '>$nested');
+      expect(() => diagnoseEpub(_zip(files)), throwsA(isA<EpubException>()), reason: target);
+    }
+  });
+
   group('EPUB diagnostics corpus', () {
     final manifest =
         jsonDecode(File('$_fixturesDirectory/manifest.json').readAsStringSync())
