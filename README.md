@@ -453,6 +453,73 @@ for (var i = 0; i < pdf.pageTexts.length; i++) {
 }
 ```
 
+## Durable annotations and W3C exchange
+
+Highlights survive edition changes through durable anchors: an additive
+envelope that stores a selection's publication identity, source revision,
+section occurrence, extraction profile, text revision, UTF-16 bounds and the
+quote/context evidence — never the section text itself. The v1 annotation and
+locator codecs are untouched; anchors are a separate schema an application
+persists beside them.
+
+```dart
+final snapshot = DurableAnnotations.sectionSnapshot(
+  book,
+  sectionIndex: 3,
+  identity: identity, // PublicationRevision: namespaced id + verified source revision
+);
+final anchor = DurableAnnotations.capture(snapshot: snapshot, start: 120, end: 260);
+final payload = encodeAnchor(anchor); // versioned, structured-clone-safe map
+```
+
+Resolution answers exactly one of `resolved`, `ambiguous`, `missing`,
+`incompatibleRevision` or `unsupported`. The full identity tuple decides
+verified reuse first; anything else needs an explicit policy:
+
+```dart
+final outcome = DurableAnnotations.resolve(
+  anchor: anchor,
+  targets: DurableAnnotations.sectionSnapshots(revisedBook, identity: revisedIdentity),
+  policy: AnchorPolicy.explicitMigration, // same publication, new revision
+);
+switch (outcome) {
+  case AnchorResolved(:final range, :final verified):
+    print('${range.text} (verified: $verified)');
+  case AnchorAmbiguous(:final candidates):
+    print('${candidates.length} indistinguishable candidates');
+  case AnchorMissing():
+  case AnchorIncompatibleRevision(:final differingFields):
+  case AnchorUnsupported():
+}
+```
+
+The migration ladder re-finds the selection by exact text, then by
+whitespace-normalized text (re-wrapped editions), then by a bounded fuzzy
+match (corrected editions carry their measured edit distance). Indistinguishable
+ties stay ambiguous with the candidate list, even when one candidate appears
+earlier in the book — nothing attaches to a passage by picking the first hit.
+A removed target is `missing`; another publication id never migrates under any
+policy; `AnchorPolicy.contextRecovery` re-finds unverified positions for
+anchors whose identity cannot be confirmed, and says so on the outcome. PDF
+anchors bind to the page structures' canonical snapshots (one profile per
+reading mode), so a selection captured in the session survives the switch to
+the full document through migration.
+
+For interchange, the W3C adapter implements a declared subset of the Web
+Annotation Data Model: `TextQuoteSelector` (exact/prefix/suffix) and
+`TextPositionSelector`. Selector positions count Unicode code points over
+normalized text; the conversions project both ways against UTF-16, count astral
+characters once and combining marks individually, and refuse a bound inside a
+surrogate pair as unrepresentable instead of shifting the target. Context
+truncation is reported as a loss; unknown selector types are named by the
+support report, never silently dropped. Unknown identity, unverified anchors
+and hostile payloads stay bounded: `AnchorLimits` caps quote and context
+lengths, candidate counts, scan work and payload sizes, and imports fail typed
+(`AnchorCodecException`, `W3cAdapterException`). Anchors without a verified
+source revision or a known reading order work in memory and refuse export
+instead of inventing identity. There is no annotation UI, sync, storage or
+conflict resolution here — applications own those.
+
 ## The common book model
 
 Every parser exposes the parts a reading application usually needs:
@@ -726,6 +793,16 @@ Compatibility work draws on:
   7-Zip implementation used by CB7 and CBC.
 - PDF.js and Poppler as independent references for PDF extraction and image
   behavior.
+- The [Hypothesis client](https://github.com/hypothesis/client/tree/a7b7400d0d706d4357ec37c2a3610b25dcca89d5)
+  anchoring (BSD-2-Clause) as the behavioral starting point for durable
+  annotation re-anchoring, with deliberately stricter ambiguity handling, and
+  [Readium Kotlin](https://github.com/readium/kotlin-toolkit/tree/89b96c20c447d0aec17db57a06456b7decffde4c)
+  (BSD-3-Clause) as the identity/locator layering reference. Neither is a
+  runtime or source dependency; nothing here claims Readium or full W3C
+  conformance.
+- The [W3C Web Annotation Data Model](https://www.w3.org/TR/annotation-model/)
+  as the external contract for the TextQuoteSelector/TextPositionSelector
+  subset of the exchange adapter.
 - The [DjVu 3 specification](https://www.epapyrus.jp/docs/techinfo/DjVu3Spec.pdf)
   for IFF structure, JB2 records, ZP coding, and the BZZ byte stream (BWT,
   modified MTF-4, and the 262-context decision tree). JB2 ZP state-table

@@ -71,6 +71,31 @@
   the deterministic C05 tiebreak (score desc, occurrence asc, start asc, end
   asc), and preserve scores bit-identically through serialization round
   trips. `Book.search` and its suite are unchanged.
+- Durable annotations with W3C exchange (`DurableAnnotations`,
+  `AnnotationAnchor`): an additive envelope storing publication identity,
+  source revision, section occurrence, extraction profile, text revision,
+  UTF-16 bounds and bounded quote/context evidence for a selection — never
+  the section text. Capture, a versioned structured-clone-safe codec
+  (`encodeAnchor`/`decodeAnchor` with typed hostile-input failures and
+  explicit refusal to export in-memory-only identities), and resolution
+  answering exactly one of `resolved`/`ambiguous`/`missing`/
+  `incompatibleRevision`/`unsupported`: the full identity tuple decides
+  verified reuse; `AnchorPolicy.explicitMigration` re-finds the selection
+  through exact, whitespace-normalized and bounded fuzzy passes (corrected
+  editions carry their measured edit distance); indistinguishable ties stay
+  ambiguous with capped candidates; another publication never migrates;
+  `contextRecovery` re-finds unverified positions and says so. The W3C
+  adapter (`W3cAnnotationAdapter`) implements the declared
+  TextQuoteSelector/TextPositionSelector subset with code point ↔ UTF-16
+  conversions (astral once, combining marks individually, mid-surrogate
+  bounds refused as unrepresentable), loss-reported context truncation and
+  explicit unknown-selector reporting. PDF pages join through their reading
+  mode's canonical snapshots: an anchor captured over an indexed hit
+  survives reopenings and full ↔ session mode switches on the long-document
+  corpus. Ported from Hypothesis `a7b7400d` (BSD-2-Clause) with stricter
+  ambiguity, Readium Kotlin `89b96c20` (BSD-3-Clause) as identity-layering
+  reference, and the W3C Web Annotation Data Model as the selector contract.
+  The v1 annotation/locator codecs and `relocateTextLocator` are unchanged.
 
 ## 1.2.0 - October 16, 2026
 

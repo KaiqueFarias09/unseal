@@ -7,7 +7,11 @@ The [README](../README.md#supported-formats) defines support available today.
 
 The [five-agent implementation plan](parallel-implementation.md) defines the
 contracts and execution of structured PDF, indexed search, compressed RAR5,
-JPEG2000, and durable annotations. It does not mark those items implemented.
+JPEG2000, and durable annotations. Structured PDF, indexed search, and
+durable annotations are delivered on their campaign branches
+(`codex/unseal-pdf-structure`, `codex/unseal-indexed-search`,
+`codex/unseal-durable-annotations`); the plan remains the record of their
+acceptance criteria.
 
 EPUB fixed-layout data, progressive EPUB/CBZ/CBR/PDF sessions, concurrent
 browser sessions, DjVu shared dictionaries, TXTz/NAVM, indirect file opening,
@@ -19,10 +23,11 @@ R1 is delivered: PDF pages expose source anchors (`PdfSourceRange`) whose
 mapping into any canonical text survives reopenings and full ↔ session mode
 switches, while canonical snapshots bind the reflow plan revision and refuse
 cross-mode reuse a destination cannot confirm. See the structured-layout
-section of the README and `PdfPageStructure.mapSourceRange`. What remains
-for positions is migration between *editions* (different files), which
-belongs to the durable-annotations campaign, not to same-file mode
-switching.
+section of the README and `PdfPageStructure.mapSourceRange`. Migration
+between *editions* (different files) is also delivered as durable anchors
+(`DurableAnnotations.resolve` with `AnchorPolicy.explicitMigration`); what
+remains for positions is presentation-level work in Grimoire, not parser
+contracts.
 
 ### R2. Define progression for non-linear EPUB items
 
@@ -108,8 +113,8 @@ cache, queued messages, and resources in transit.
 | Proposal | Existing contract | Work still needed |
 | --- | --- | --- |
 | OPDS 2 JSON | `OpdsFeed.parse` reads OPDS Atom XML. | Define JSON publication/navigation mapping, links, pagination, and malformed-input behavior. Unseal parses catalogs; applications fetch them. |
-| Readium locators and position lists | Native text, page, and CFI locators exist. | Define supported mappings, source identity, progression, and position-list generation. Do not imply that a native locator already conforms to Readium. |
-| W3C annotation exchange | Native bookmark/highlight codecs exist. | Add an explicit adapter with source edition, selectors, context, text revision, and deterministic round trips. Preserve ambiguous and missing reanchoring outcomes. |
+| Readium locators and position lists | Native text, page, and CFI locators exist; durable anchors layer identity/occurrence/range like Readium's model. | Define supported mappings to Readium locator JSON, progression, and position-list generation. Do not imply that a native locator conforms to Readium. |
+| W3C annotation exchange | Native bookmark/highlight codecs exist; `W3cAnnotationAdapter` ships the TextQuoteSelector/TextPositionSelector subset with code point/UTF-16 conversions and explicit unsupported-selector reporting. | Broader selector coverage (Range, SVG, data position, fragments), annotation-body serialization, and a consumer-driven decision on preserving versus rejecting unknown fields per direction. |
 
 Choose the adapter boundary and public API from a concrete consumer use case.
 Do not replace the existing contracts solely to match an external schema.
@@ -236,7 +241,7 @@ claims about any AI model's performance.
 | Indexed search: Unseal R10, then Grimoire presentation | MiniSearch (TypeScript, MIT); Tantivy (Rust, MIT) | One-publication index, ranked/prefix/fuzzy queries, serialization, and exact source ranges. | Differential exact-match cases; expected relevance cases; real VM/browser latency and memory measurements, including index construction. |
 | Compressed RAR5: Unseal R7 | [rardecode](https://github.com/nwaples/rardecode) (Go, BSD-2-Clause); libarchive as a second decoder | Non-solid compressed entries and filters first; bounded solid-block reuse separately. | Byte-identical extraction against independent decoders; CRC failures, malformed blocks, dictionary limits, cancellation, and browser execution. |
 | JPEG2000: Unseal R7 | [OpenJPEG](https://github.com/uclouvain/openjpeg) (C, BSD-2-Clause) | A documented decoder subset, then PDF `JPXDecode` integration. Encoding is outside the first delivery. | Exact samples for supported lossless cases; specified tolerances for lossy/color conversions; oversized dimensions, malformed markers, tiles, and bounded allocation. |
-| Durable annotations: Unseal R6 contracts, Grimoire relocation/UI | [Hypothesis anchoring](https://github.com/hypothesis/client/blob/a7b7400d0d706d4357ec37c2a3610b25dcca89d5/src/annotator/anchoring/html.ts) (TypeScript, BSD-2-Clause with separately licensed subcomponents); [Readium](https://github.com/readium/kotlin-toolkit) (Kotlin, BSD-3-Clause) | Text quote/context and position selectors, revision-aware relocation, W3C exchange, and explicit ambiguous/missing outcomes. Build on existing highlights, CFI, and fuzzy relocation. | Repeated passages, changed markup, corrected editions, Unicode normalization, and reopen/import/export cases. Never silently attach to another matching passage. |
+| Durable annotations: Unseal R6 contracts, Grimoire relocation/UI | [Hypothesis anchoring](https://github.com/hypothesis/client/blob/a7b7400d0d706d4357ec37c2a3610b25dcca89d5/src/annotator/anchoring/html.ts) (TypeScript, BSD-2-Clause with separately licensed subcomponents); [Readium](https://github.com/readium/kotlin-toolkit) (Kotlin, BSD-3-Clause) | DELIVERED in Unseal (durable anchor envelope with identity/revisions/quote/context, verified reuse, explicit migration ladder with bounded fuzzy, ambiguous/missing/incompatible/unsupported outcomes, W3C TextQuote/TextPosition subset, PDF mode-switch acceptance). Remaining: Grimoire relocation/UI on top, broader selector coverage, and a consumer-driven exchange shape. | Repeated passages stay ambiguous with candidates (`durable_anchor_resolution_test.dart`), corrected editions resolve with edit distance, reordering and removal resolve or miss, W3C conversions refuse mid-surrogate bounds on the VM and in Chrome, and `pdf_anchor_integration_test.dart` covers index → anchor → reopen/mode switch over the long-document corpus. |
 | Native EPUB layout: Grimoire | litehtml (C++, BSD-3-Clause); WeasyPrint (Python, BSD-3-Clause) | An optional native renderer for a declared HTML/CSS subset; begin with paragraphs, inline spans, images, lists, and page breaks. | Identical-book comparisons with the existing renderer, golden pages, RTL/shaping, links, canonical-range selection, accessibility, and measured memory/page-turn behavior. |
 
 ### Source revisions and licensing

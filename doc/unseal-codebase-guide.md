@@ -872,6 +872,27 @@ Annotations are portable records. The Viewer can render them, but unseal owns th
 
 The merge code exists for offline-first clients. It produces a deterministic result for one call whose local and incoming sides are defined. Equal timestamps deliberately keep the local record, so two devices that each call their own copy "local" are not automatically guaranteed to converge without a higher-level synchronization policy.
 
+### Durable anchors: selections that survive edition changes
+
+`features/annotations/durable/` is the additive annotation envelope the
+campaign contract added beside the v1 records — it never reinterprets a v1
+payload, and the v1 codecs above never see an anchor. The split:
+
+| File | What it does and why it exists |
+| --- | --- |
+| `features/annotations/durable/anchor_limits.dart` | Declares the finite work and size bounds (quote, context, candidates, scan budget, fuzzy budget, payload, selector lengths); public entry points validate before relying on them. |
+| `features/annotations/durable/annotation_anchor.dart` | The `AnnotationAnchor` envelope: publication identity, section occurrence, extraction profile, text revision, UTF-16 bounds and the bounded quote/context evidence — never the section text. `capture` cuts the evidence from a `CanonicalTextSnapshot`. |
+| `features/annotations/durable/anchor_codec.dart` | The versioned anchor wire: structured-clone-safe maps, digest and profile revalidation, limit enforcement, typed hostile-input failures, and explicit refusal to export in-memory-only identities. |
+| `features/annotations/durable/anchor_resolution.dart` | The outcome union (`resolved`/`ambiguous`/`missing`/`incompatibleRevision`/`unsupported`), the `AnchorPolicy` values, and what each outcome carries. |
+| `features/annotations/durable/durable_annotations.dart` | The facade (`capture`, `resolve`, book-level snapshot helpers) and the evidence ladder: identity reuse first, then exact scan, whitespace-normalized scan, and the gram-seeded bounded fuzzy pass. Ties stay ambiguous; budgets report `unsupported`. |
+| `features/annotations/durable/w3c_annotation_adapter.dart` | The declared W3C subset (TextQuote/TextPosition selectors), code point ↔ UTF-16 conversions with mid-surrogate refusals, loss-reported truncation, and explicit unknown-selector reporting. |
+
+Resolution is a pure function over target snapshots, so the same code answers
+EPUB section moves and PDF mode switches — PDF pages enter through their
+`PdfPageStructure` canonical snapshots (one profile per reading mode). The
+fuzzy pass ports Hypothesis's anchoring approach with declared bounds; see
+`THIRD_PARTY_NOTICES.md` for what is deliberately stricter than the oracle.
+
 ## CFI: address a position inside EPUB structure
 
 EPUB CFI is a compact path language. It can point through the EPUB package document and into an HTML content document, then optionally to a character offset. Assertions help verify that the path still names the expected node.

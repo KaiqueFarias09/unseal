@@ -79,7 +79,7 @@ CB7 and CBC remain asynchronous because their 7-Zip reader is asynchronous.
 | Shared safety and decoding | `lib/src/foundation/archive/`, `images/`, `text/` | Archive access, path normalization, image inspection, plain text, XML decoding, and the common text-identity contract (snapshots, revisions, ranges, digests) that format features bind positions to. |
 | Detection and dispatch | `lib/src/features/detection/`, `reading/`, `lib/src/platform/unseal_reader.dart` | Detect the format, refine ambiguous MOBI input, select the parser, and normalize public errors. |
 | Format features | `lib/src/features/<format>/` | Parse one container or document family and build the common model. |
-| Reading services | `lib/src/features/search/`, `locators/`, `cfi/`, `annotations/`, `opds/` | Search (scan and optional inverted index), portable locations, EPUB CFI, annotation serialization, and OPDS parsing. |
+| Reading services | `lib/src/features/search/`, `locators/`, `cfi/`, `annotations/`, `opds/` | Search (scan and optional inverted index), portable locations, EPUB CFI, annotation serialization plus the durable anchor envelope and its W3C selector adapter, and OPDS parsing. |
 | Progressive reading | `lib/src/features/progressive/` | Session headers, requested resources, bounded caches, session operations, and VM/browser transports. |
 | Platform execution | `lib/src/platform/io/`, `web/`, `web/unseal_worker.dart` | Filesystem reads, isolate work, browser workers, and structured-clone wire codecs. |
 | Heuristics | `lib/src/heuristics/` | Small format-neutral text and chapter heuristics. |
