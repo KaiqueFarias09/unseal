@@ -121,7 +121,5 @@ String textRevisionOf(final String text) => RevisionDigest.textRevision(text);
 /// array, hashed as UTF-16LE. Array position identifies the occurrence;
 /// duplicated paths stay distinct entries.
 String readingOrderRevisionOf(final List<ReadingOrderItem> order) {
-  return RevisionDigest.readingOrderRevision([
-    for (final item in order) (item.name, item.isHtml),
-  ]);
+  return RevisionDigest.readingOrderRevision([for (final item in order) (item.name, item.isHtml)]);
 }

@@ -9,7 +9,9 @@ void main() {
     expect(find.text('unseal example'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
     await tester.pump();
 
     expect(find.byType(CircularProgressIndicator), findsNothing);

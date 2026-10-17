@@ -255,9 +255,7 @@ class PdfTextExtractor {
                   effective,
                   horizontal: horizontal,
                   fontSizeDevice: runFontSize,
-                  advanceScale: math.sqrt(
-                    effective.a * effective.a + effective.b * effective.b,
-                  ),
+                  advanceScale: math.sqrt(effective.a * effective.a + effective.b * effective.b),
                 )
               : const <_GlyphCell>[],
         ),
