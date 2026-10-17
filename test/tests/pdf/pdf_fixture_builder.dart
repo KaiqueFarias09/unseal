@@ -300,6 +300,86 @@ PdfFixtureBuilder imagePageFixture(final List<int> jpegBytes) {
     );
 }
 
+/// A one-page fixture drawing one JPXDecode image through an /XObject,
+/// mirroring [imagePageFixture]: extraction and the session's on-demand
+/// image path both see a drawable `images/pdf-image-<n>.png`. [width]/
+/// [height] must match the codestream's geometry (JPXDecode carries
+/// its own authoritative dimensions); [components] selects the default
+/// PDF family (DeviceGray/DeviceRGB), [ascii85] wraps the codestream
+/// in an `/ASCII85Decode /JPXDecode` chain and [indirectColorSpace]
+/// moves the colorspace to an indirect object.
+PdfFixtureBuilder jpxImagePageFixture(
+  final List<int> jpxBytes, {
+  required final int width,
+  required final int height,
+  final int components = 1,
+  final bool ascii85 = false,
+  final bool indirectColorSpace = false,
+}) {
+  final pdfColorSpace = components == 3 ? 'DeviceRGB' : 'DeviceGray';
+  final filter = ascii85 ? '[/ASCII85Decode /JPXDecode]' : '/JPXDecode';
+  final colorspaceEntry = indirectColorSpace
+      ? ' /ColorSpace 10 0 R'
+      : ' /ColorSpace /$pdfColorSpace';
+  return PdfFixtureBuilder()
+    ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
+    ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
+    ..addObject(
+      5,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R '
+      '/Resources << /Font << /F1 9 0 R >> /XObject << /Im0 8 0 R >> >> >>',
+    )
+    ..addStreamObject(
+      7,
+      '',
+      'BT /F1 12 Tf 72 720 Td (A page with one drawn image) Tj ET\n'
+              'q 200 0 0 150 72 500 cm /Im0 Do Q\n'
+          .codeUnits,
+    )
+    ..addStreamObject(
+      8,
+      ' /Subtype /Image /Width $width /Height $height /BitsPerComponent 8'
+      '$colorspaceEntry /Filter $filter',
+      ascii85 ? ascii85Encode(jpxBytes) : jpxBytes,
+    )
+    ..addObject(
+      9,
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    )
+    ..addObject(
+      10,
+      indirectColorSpace
+          ? '/$pdfColorSpace'
+          : '<< /Type /Metadata /Subtype /XML >>',
+    );
+}
+
+/// Adobe-style ASCII85 (no whitespace, `<~` header omitted, `~>`
+/// terminator), matching the reader's ASCII85Decode expectations.
+Uint8List ascii85Encode(final List<int> bytes) {
+  final out = BytesBuilder(copy: false);
+  var index = 0;
+  while (index < bytes.length) {
+    final remaining = bytes.length - index;
+    var value = 0;
+    for (var i = 0; i < 4; i++) {
+      value = (value << 8) | (index + i < bytes.length ? bytes[index + i] : 0);
+    }
+    final digits = List<int>.filled(5, 0);
+    for (var i = 4; i >= 0; i--) {
+      digits[i] = value % 85;
+      value ~/= 85;
+    }
+    final emit = remaining == 1 ? 2 : (remaining == 2 ? 3 : (remaining == 3 ? 4 : 5));
+    for (var i = 0; i < emit; i++) {
+      out.add([digits[i] + 0x21]);
+    }
+    index += 4;
+  }
+  out.add([0x7E, 0x3E]); // ~>
+  return out.toBytes();
+}
+
 const String _toUnicodeCMap =
     '/CIDInit /ProcSet findresource begin\n'
     '12 dict begin\n'

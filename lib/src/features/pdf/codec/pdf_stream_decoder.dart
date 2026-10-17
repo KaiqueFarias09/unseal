@@ -70,6 +70,74 @@ Uint8List decodePdfStream(
   return data;
 }
 
+/// Applies every filter of a stream's `/Filter` chain except the
+/// final image codec named by [stopBefore], returning that codec's
+/// input bytes. [stopBefore] must be the innermost filter; a chain
+/// that applies it earlier is a [PdfException].
+///
+/// The JPX adapter uses this so `/ASCII85Decode /JPXDecode` reuses the
+/// exact filter implementations of the shared chain instead of a
+/// parallel copy.
+Uint8List decodePdfStreamBeforeImageCodec(
+  final PdfStream stream,
+  final PdfObject? Function(PdfObject object) resolve,
+  final String stopBefore,
+) {
+  var data = stream.bytes;
+  final filterObject = resolve(stream.dictionary['Filter'] ?? const PdfNull());
+  final parmsObject = resolve(
+    stream.dictionary['DecodeParms'] ?? stream.dictionary['DP'] ?? const PdfNull(),
+  );
+  if (filterObject is PdfNull || filterObject == null) return data;
+
+  final names = filterObject is PdfName
+      ? <PdfObject>[filterObject]
+      : filterObject is PdfArray
+      ? filterObject.items
+      : const <PdfObject>[];
+  final parms = parmsObject is PdfDictionary
+      ? <PdfObject?>[parmsObject]
+      : parmsObject is PdfArray
+      ? parmsObject.items
+      : <PdfObject?>[const PdfNull()];
+  var seenStop = false;
+  for (var index = 0; index < names.length; index++) {
+    final name = names[index];
+    if (name is! PdfName) continue;
+    if (seenStop) {
+      throw PdfException('PDF stream applies /$stopBefore before another filter.');
+    }
+    if (name.value == stopBefore) {
+      seenStop = true;
+      continue;
+    }
+
+    final parm = parms.length > index ? parms[index] : const PdfNull();
+
+    switch (name.value) {
+      case 'FlateDecode':
+        data = _inflate(data);
+        data = _unpredict(data, parm, resolve);
+      case 'LZWDecode':
+        data = _lzwDecode(data, parm, resolve);
+        data = _unpredict(data, parm, resolve);
+      case 'ASCIIHexDecode':
+        data = _asciiHexDecode(data);
+      case 'ASCII85Decode':
+        data = _ascii85Decode(data);
+      case 'RunLengthDecode':
+        data = _runLengthDecode(data);
+      default:
+        throw PdfException(
+          'PDF stream filter /${name.value} is not supported before '
+          '/$stopBefore.',
+        );
+    }
+  }
+
+  return data;
+}
+
 /// Resolves the `/JBIG2Globals` reference in the decode parameters
 /// to the referenced stream's bytes (null when absent).
 Uint8List? _jbig2Globals(
