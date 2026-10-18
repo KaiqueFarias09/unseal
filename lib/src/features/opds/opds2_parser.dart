@@ -99,29 +99,95 @@ Object? _decodeDocument(
       pointer: pointer,
     );
   }
+  _Preflight(limits).check(source);
   final Object? document;
   try {
     document = jsonDecode(source);
   } on FormatException catch (error) {
     throw Opds2MalformedException('OPDS 2.0 input is not valid JSON: ${error.message}');
   }
-  _Preflight(limits).check(document);
-
   return document;
 }
 
-/// Depth, node, and string-length bounds over the decoded document,
-/// checked before any model allocation.
+/// Counts structure and decoded string lengths before JSON allocates its
+/// object tree. JSON syntax and value types remain the decoder/mapper's
+/// responsibility; this scanner only enforces resource limits.
 final class _Preflight {
   _Preflight(this.limits);
 
   final Opds2Limits limits;
-
   int _nodes = 0;
 
-  void check(final Object? value) => _visit(value, 1);
+  void check(final String source) {
+    var bytes = 0;
+    for (var index = 0; index < source.length; index++) {
+      final unit = source.codeUnitAt(index);
+      if (unit <= 0x7f) {
+        bytes++;
+      } else if (unit <= 0x7ff) {
+        bytes += 2;
+      } else if (unit >= 0xd800 &&
+          unit <= 0xdbff &&
+          index + 1 < source.length &&
+          source.codeUnitAt(index + 1) >= 0xdc00 &&
+          source.codeUnitAt(index + 1) <= 0xdfff) {
+        bytes += 4;
+        index++;
+      } else {
+        bytes += 3;
+      }
+      if (bytes > limits.maxBytes) {
+        throw Opds2LimitExceededException(
+          'OPDS 2.0 input exceeds the ${limits.maxBytes}-byte limit.',
+        );
+      }
+    }
 
-  void _visit(final Object? value, final int depth) {
+    var depth = 0;
+    var index = 0;
+    while (index < source.length) {
+      final unit = source.codeUnitAt(index);
+      if (unit == 0x7b || unit == 0x5b) {
+        _countValue(depth + 1);
+        depth++;
+        index++;
+      } else if (unit == 0x7d || unit == 0x5d) {
+        if (depth > 0) depth--;
+        index++;
+      } else if (unit == 0x22) {
+        _countValue(depth + 1);
+        index = _skipString(source, index + 1);
+      } else if (_isSeparator(unit)) {
+        index++;
+      } else {
+        _countValue(depth + 1);
+        do {
+          index++;
+        } while (index < source.length && !_isBoundary(source.codeUnitAt(index)));
+      }
+    }
+  }
+
+  int _skipString(final String source, int index) {
+    var length = 0;
+    while (index < source.length) {
+      final unit = source.codeUnitAt(index++);
+      if (unit == 0x22) return index;
+      if (unit == 0x5c && index < source.length) {
+        // Every JSON escape decodes to one UTF-16 code unit. A Unicode
+        // surrogate pair consists of two such escapes and counts twice.
+        if (source.codeUnitAt(index++) == 0x75) index += 4;
+      }
+      if (++length > limits.maxStringLength) {
+        throw Opds2LimitExceededException(
+          'OPDS 2.0 input has a string above the ${limits.maxStringLength}-character limit.',
+        );
+      }
+    }
+    return index;
+  }
+
+  void _countValue(final int depth) {
     if (depth > limits.maxDepth) {
       throw Opds2LimitExceededException(
         'OPDS 2.0 input nests deeper than the ${limits.maxDepth}-level limit.',
@@ -132,32 +198,18 @@ final class _Preflight {
         'OPDS 2.0 input has more than the ${limits.maxNodes}-value limit.',
       );
     }
-    if (value is String) {
-      if (value.length > limits.maxStringLength) {
-        throw Opds2LimitExceededException(
-          'OPDS 2.0 input has a string above the ${limits.maxStringLength}-character limit.',
-        );
-      }
-
-      return;
-    }
-    if (value is List) {
-      for (final item in value) {
-        _visit(item, depth + 1);
-      }
-
-      return;
-    }
-    if (value is Map) {
-      for (final key in value.keys) {
-        if (key is! String) {
-          throw Opds2MalformedException('OPDS 2.0 input has a non-string object key.');
-        }
-        _visit(key, depth + 1);
-        _visit(value[key], depth + 1);
-      }
-    }
   }
+
+  bool _isSeparator(final int unit) =>
+      unit == 0x20 || unit == 0x09 || unit == 0x0a || unit == 0x0d || unit == 0x2c || unit == 0x3a;
+
+  bool _isBoundary(final int unit) =>
+      _isSeparator(unit) ||
+      unit == 0x22 ||
+      unit == 0x7b ||
+      unit == 0x7d ||
+      unit == 0x5b ||
+      unit == 0x5d;
 }
 
 /// Builds the public model from a preflighted document, reporting JSON
@@ -628,7 +680,7 @@ final class _FeedMapper {
   Opds2Price _mapPrice(final Object? value, {required final String pointer}) {
     final object = _requireObject(value, 'price', pointer: pointer);
     final priceValue = object['value'];
-    if (priceValue is! num) {
+    if (priceValue is! num || !priceValue.isFinite) {
       throw Opds2MalformedException('price must carry a numeric value.', pointer: '$pointer/value');
     }
     final currency = object['currency'];
@@ -1040,7 +1092,7 @@ final class _FeedMapper {
     required final String pointer,
   }) {
     if (value == null) return null;
-    if (value is num) return value;
+    if (value is num && value.isFinite) return value;
     throw Opds2MalformedException('"$name" must be a number.', pointer: '$pointer/$name');
   }
 
@@ -1080,11 +1132,31 @@ final class _FeedMapper {
         pointer: pointer,
       );
     }
-    final parsed = DateTime.tryParse(value);
-    if (parsed == null || !(value.contains('T') || value.contains('t') || value.contains(' '))) {
+    final match = _rfc3339.firstMatch(value);
+    if (match == null) {
       throw Opds2MalformedException('"$value" is not an RFC 3339 date-time.', pointer: pointer);
     }
-
+    final year = int.parse(match[1]!);
+    final month = int.parse(match[2]!);
+    final day = int.parse(match[3]!);
+    final hour = int.parse(match[4]!);
+    final minute = int.parse(match[5]!);
+    final second = int.parse(match[6]!);
+    final date = DateTime.utc(year, month, day);
+    final offsetHour = int.parse(match[9] ?? '0');
+    final offsetMinute = int.parse(match[10] ?? '0');
+    final parsed = DateTime.tryParse(value.toUpperCase());
+    if (date.year != year ||
+        date.month != month ||
+        date.day != day ||
+        hour > 23 ||
+        minute > 59 ||
+        second > 59 ||
+        offsetHour > 23 ||
+        offsetMinute > 59 ||
+        parsed == null) {
+      throw Opds2MalformedException('"$value" is not an RFC 3339 date-time.', pointer: pointer);
+    }
     return parsed;
   }
 
@@ -1092,23 +1164,31 @@ final class _FeedMapper {
   /// parameter named "query" (normative text the official schema does not
   /// enforce). Simple `{...}` and form-style `{?...}` expressions count.
   bool _templateCarriesQuery(final String href) {
-    final open = href.indexOf('{');
-    if (open < 0) return false;
-    final close = href.indexOf('}', open);
-    if (close < 0) return false;
-    var expression = href.substring(open + 1, close);
-    if (expression.isNotEmpty && _templateOperators.contains(expression[0])) {
-      expression = expression.substring(1);
+    var start = 0;
+    while (start < href.length) {
+      final open = href.indexOf('{', start);
+      if (open < 0) return false;
+      final close = href.indexOf('}', open);
+      if (close < 0) return false;
+      var expression = href.substring(open + 1, close);
+      if (expression.isNotEmpty && _templateOperators.contains(expression[0])) {
+        expression = expression.substring(1);
+      }
+      for (final name in expression.split(',')) {
+        if (name.trim() == 'query') return true;
+      }
+      start = close + 1;
     }
-    for (final name in expression.split(',')) {
-      if (name.trim() == 'query') return true;
-    }
-
     return false;
   }
 
   String _escapeToken(final String token) => token.replaceAll('~', '~0').replaceAll('/', '~1');
 }
+
+final RegExp _rfc3339 = RegExp(
+  r'^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(\.\d+)?(?:[Zz]|([+-])(\d{2}):(\d{2}))'
+  r'$',
+);
 
 /// Operators with special RFC 6570 meaning; anything else starts a simple
 /// expansion.

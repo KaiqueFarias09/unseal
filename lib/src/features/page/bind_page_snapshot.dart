@@ -65,7 +65,8 @@ final class PageXmlWordPlace {
 }
 
 /// One ambiguous mapped unit: its place in the imported document and
-/// every candidate range the target text offers.
+/// the bounded candidate ranges the target text offers. Distinct OCR
+/// readings can make a unit ambiguous even with one target candidate.
 final class PageXmlAmbiguousWord {
   /// Creates the ambiguity record.
   const PageXmlAmbiguousWord({
@@ -142,7 +143,7 @@ final class PageXmlSnapshotBinding {
   /// one target range.
   final int wordsResolved;
 
-  /// Units whose content occurs more than once in the target text.
+  /// Units with repeated target content or distinct OCR readings.
   final int wordsAmbiguous;
 
   /// Units whose content does not occur in the target text.
@@ -196,7 +197,7 @@ final class PageXmlBoundSpatialText {
   /// Units that mapped to exactly one target range.
   final int wordsResolved;
 
-  /// Units whose content occurs more than once in the target text.
+  /// Units with repeated target content or distinct OCR readings.
   final int wordsAmbiguous;
 
   /// Units whose content does not occur in the target text.
@@ -269,24 +270,32 @@ PageXmlSnapshotBinding bindPageToSnapshot({
   };
   int cursor = 0;
 
+  int find(final String content, final int from) {
+    final scanWork = text.length - from;
+    if (scanWork > limits.maxProjectionWork - work) {
+      throw const PageXmlException('PAGE binding exceeds the projection work budget.');
+    }
+    work += scanWork;
+    return text.indexOf(content, from);
+  }
+
+  bool hasAlternatives(final PageXmlTextContent? content) =>
+      content != null && content.alternatives.map((final item) => item.unicode).toSet().length > 1;
+
   // Maps one unit's content after the cursor; records every outcome.
   _UnitOutcome mapUnit({
     required final String content,
-    required final double? confidence,
+    required final bool hasAlternativeReadings,
     required final PageXmlWordPlace place,
   }) {
     if (content.isEmpty) {
       return _UnitOutcome(cursor, cursor, cursor);
     }
     var from = cursor <= text.length ? cursor : text.length;
-    var found = text.indexOf(content, from);
+    var found = find(content, from);
     if (found < 0 && from > 0) {
       from = 0;
-      found = text.indexOf(content);
-    }
-    work += text.length - from;
-    if (work > limits.maxProjectionWork) {
-      throw const PageXmlException('PAGE binding exceeds the projection work budget.');
+      found = find(content, 0);
     }
     if (found < 0) {
       wordsMissing++;
@@ -296,13 +305,13 @@ PageXmlSnapshotBinding bindPageToSnapshot({
     final candidates = <(int, int)>[];
     var scan = 0;
     while (true) {
-      final at = text.indexOf(content, scan);
+      final at = find(content, scan);
       if (at < 0) break;
       candidates.add((at, at + content.length));
       if (candidates.length >= limits.maxCandidateOccurrences) break;
       scan = at + 1;
     }
-    if (candidates.length > 1) {
+    if (candidates.length > 1 || hasAlternativeReadings) {
       wordsAmbiguous++;
       ambiguousWords.add(
         PageXmlAmbiguousWord(
@@ -342,6 +351,7 @@ PageXmlSnapshotBinding bindPageToSnapshot({
     if (region.kind != PageXmlRegionKind.text) continue;
     final regionIndex = storedIndex[region.id]!;
     final regionConfidence = region.text?.confidence;
+    final regionAlternatives = hasAlternatives(region.text);
     if (regionConfidence != null) hasConfidence = true;
     var regionStart = -1;
     var regionEnd = -1;
@@ -353,6 +363,7 @@ PageXmlSnapshotBinding bindPageToSnapshot({
     for (var lineIndex = 0; lineIndex < region.lines.length; lineIndex++) {
       final line = region.lines[lineIndex];
       final lineConfidence = line.text?.confidence;
+      final lineAlternatives = regionAlternatives || hasAlternatives(line.text);
       if (lineConfidence != null) hasConfidence = true;
       if (line.baseline?.confidence != null) hasConfidence = true;
       var lineStart = -1;
@@ -371,7 +382,7 @@ PageXmlSnapshotBinding bindPageToSnapshot({
         if (word.text == null || content.isEmpty) continue;
         final outcome = mapUnit(
           content: content,
-          confidence: wordConfidence,
+          hasAlternativeReadings: lineAlternatives || hasAlternatives(word.text),
           place: PageXmlWordPlace(
             regionIndex: regionIndex,
             lineIndex: lineIndex,
@@ -390,7 +401,7 @@ PageXmlSnapshotBinding bindPageToSnapshot({
         // the finest declared granularity.
         final outcome = mapUnit(
           content: line.text!.text,
-          confidence: lineConfidence,
+          hasAlternativeReadings: lineAlternatives,
           place: PageXmlWordPlace(regionIndex: regionIndex, lineIndex: lineIndex),
         );
         lineMapped = true;
@@ -413,7 +424,7 @@ PageXmlSnapshotBinding bindPageToSnapshot({
       // the coarsest granularity real sidecars declare.
       final outcome = mapUnit(
         content: region.text!.text,
-        confidence: regionConfidence,
+        hasAlternativeReadings: regionAlternatives,
         place: PageXmlWordPlace(regionIndex: regionIndex),
       );
       regionStart = outcome.textStart;

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../foundation/images/bmp_encoder.dart';
 import '../../foundation/images/image_dimensions.dart';
+import 'tiff_ccitt_decoder.dart' show tiffCcittRunBufferBytes;
 import 'tiff_codec.dart';
 import 'tiff_container.dart';
 import 'tiff_exception.dart';
@@ -46,6 +47,55 @@ final class TiffPageImage {
   final Uint8List? jpeg;
 }
 
+/// One decoded strip or tile before display projection. Development tools
+/// can observe native samples through [decodeTiffPage] without duplicating
+/// the production codec or predictor. This type is internal to the package.
+final class TiffDecodedSegment {
+  /// Creates the read-only observation of a decoded segment.
+  const TiffDecodedSegment({
+    required this.bytes,
+    required this.rowStart,
+    required this.columnStart,
+    required this.width,
+    required this.height,
+    required this.rowBytes,
+    required this.bits,
+    required this.samplesPerPixel,
+    required this.photometric,
+    required this.endian,
+  });
+
+  /// Read-only samples after the production predictor, in file byte order.
+  final Uint8List bytes;
+
+  /// Native image origin of the visible portion.
+  final int rowStart;
+
+  /// Native horizontal origin of the visible portion.
+  final int columnStart;
+
+  /// Visible dimensions; padding is excluded, but remains in [bytes].
+  final int width;
+
+  /// Visible height, excluding bottom padding.
+  final int height;
+
+  /// Full decoded segment row stride, including tile padding.
+  final int rowBytes;
+
+  /// Native sample layout and photometric interpretation.
+  final int bits;
+
+  /// Number of interleaved native samples per pixel.
+  final int samplesPerPixel;
+
+  /// TIFF photometric interpretation before display conversion.
+  final int photometric;
+
+  /// Byte order of each multi-byte native sample.
+  final Endian endian;
+}
+
 /// The compression ids whose segments decode to a byte-aligned raster.
 const _rasterCompressions = <int>{
   tiffCompressionNone,
@@ -66,11 +116,15 @@ const _rasterizableBits = <int>{1, 2, 4, 8, 16};
 /// Every declared byte range is validated against the file bounds and
 /// every output size against the budget BEFORE the corresponding
 /// allocation, and unsupported codecs or layouts fail with
-/// [TiffUnsupportedCodecException] naming the codec.
+/// [TiffUnsupportedCodecException] naming the codec. [onDecodedSegment]
+/// observes each raster segment synchronously after the predictor and before
+/// quantization or orientation; the read-only view must not be retained by
+/// observers that need the decoder's own memory bound.
 TiffPageImage decodeTiffPage(
   final TiffContainer container,
   final TiffIfd ifd, {
   required final TiffDecodeBudget budget,
+  final void Function(TiffDecodedSegment segment)? onDecodedSegment,
 }) {
   final width = _requiredUint(container, ifd, 256, 'ImageWidth');
   final height = _requiredUint(container, ifd, 257, 'ImageLength');
@@ -163,6 +217,7 @@ TiffPageImage decodeTiffPage(
     orientation: orientation,
     dpi: dpi,
     budget: budget,
+    onDecodedSegment: onDecodedSegment,
   );
 }
 
@@ -385,6 +440,7 @@ TiffPageImage _rasterizePage(
   required final int orientation,
   required final int dpi,
   required final TiffDecodeBudget budget,
+  required final void Function(TiffDecodedSegment segment)? onDecodedSegment,
 }) {
   final isTiled = ifd[322] != null || ifd[323] != null;
   final sampleBytes = samplesPerPixel * (bits ~/ 8);
@@ -464,20 +520,23 @@ TiffPageImage _rasterizePage(
   final rgbBytes = width * height * 3;
   final bmpBytes = bmpHeaderBytes + bmpRowStride(width) * height;
   budget.reserve(pixels: width * height, rasterBytes: bmpBytes);
+  final isCcitt =
+      compression == tiffCompressionCcittModifiedHuffman ||
+      compression == tiffCompressionCcittG3 ||
+      compression == tiffCompressionCcittG4;
   final scratchCopies = switch (compression) {
     tiffCompressionNone => predictor == 2 ? 1 : 0,
     tiffCompressionLzw || tiffCompressionPackbits => 2,
     _ => 1,
   };
-  final scratchBytes = rgbBytes + segmentBytes * scratchCopies;
+  final scratchBytes =
+      rgbBytes +
+      segmentBytes * scratchCopies +
+      (isCcitt ? tiffCcittRunBufferBytes(segmentWidth) : 0);
   budget.reserveScratch(scratchBytes);
   budget.reserveWork(isTiled ? segmentCount * segmentBytes : rowBytes * height);
 
   final rgb = Uint8List(rgbBytes);
-  final isCcitt =
-      compression == tiffCompressionCcittModifiedHuffman ||
-      compression == tiffCompressionCcittG3 ||
-      compression == tiffCompressionCcittG4;
   final ccittPlan = isCcitt
       ? tiffCcittPlan(
           compression: compression,
@@ -520,6 +579,20 @@ TiffPageImage _rasterizePage(
     }
     final visibleRows = rows < height - rowStart ? rows : height - rowStart;
     final visibleColumns = segmentWidth < width - columnStart ? segmentWidth : width - columnStart;
+    onDecodedSegment?.call(
+      TiffDecodedSegment(
+        bytes: decoded.asUnmodifiableView(),
+        rowStart: rowStart,
+        columnStart: columnStart,
+        width: visibleColumns,
+        height: visibleRows,
+        rowBytes: segmentRowBytes,
+        bits: bits,
+        samplesPerPixel: samplesPerPixel,
+        photometric: photometric,
+        endian: container.endian,
+      ),
+    );
     for (var row = 0; row < visibleRows; row++) {
       _unpackSamples(
         decoded,
@@ -627,14 +700,12 @@ void _applyOrientation(
         swapPixels(index, total - 1 - index);
       }
     case 4:
-      final rowBytes = width * 3;
-      final line = Uint8List(rowBytes);
       for (var y = 0; y < height ~/ 2; y++) {
-        final top = y * rowBytes;
-        final bottom = (height - 1 - y) * rowBytes;
-        line.setRange(0, rowBytes, rgb, top);
-        rgb.setRange(top, top + rowBytes, rgb, bottom);
-        rgb.setRange(bottom, bottom + rowBytes, line);
+        final top = y * width;
+        final bottom = (height - 1 - y) * width;
+        for (var x = 0; x < width; x++) {
+          swapPixels(top + x, bottom + x);
+        }
       }
   }
 }

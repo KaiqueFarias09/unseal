@@ -72,6 +72,15 @@ PageXmlDocument parsePageXmlDocument(final Uint8List bytes) {
     );
   }
 
+  for (final element in root.descendants.whereType<XmlElement>()) {
+    if (element.name.namespaceUri != pageXmlNamespace) {
+      throw PageXmlUnsupportedFeatureException(
+        'PAGE element ${element.name.local} uses an unsupported namespace '
+        '${element.name.namespaceUri ?? '(none)'}.',
+      );
+    }
+  }
+
   final metadata = _child(root, 'Metadata');
   if (metadata == null) {
     throw const PageXmlException('PAGE document declares no Metadata.');
@@ -621,7 +630,7 @@ int? _intAttribute(final XmlElement node, final String name) {
   final raw = node.getAttribute(name);
   if (raw == null) return null;
 
-  return int.tryParse(raw);
+  return _requiredIntAttribute(node, name, node.name.local);
 }
 
 double? _doubleAttribute(final XmlElement node, final String name) {

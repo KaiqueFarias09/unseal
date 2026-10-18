@@ -35,6 +35,47 @@ class TiffCcittMode {
   final bool is2dCapable;
 }
 
+// A 2D iteration emits at most two runs. The existing row work guard
+// allows 8*columns+512 iterations; one further slot holds the terminator.
+int _runCapacity(final int columns) => 2 * (8 * columns + 512) + 1;
+
+/// Exact typed-array storage for both the current and reference row.
+int tiffCcittRunBufferBytes(final int columns) => 2 * _runCapacity(columns) * 4;
+
+final class _CcittRuns {
+  _CcittRuns(final int capacity) : _values = Int32List(capacity);
+
+  final Int32List _values;
+  int length = 0;
+
+  int operator [](final int index) => _values[index];
+
+  void add(final int value) {
+    if (value < 0 || value > 0x7fffffff) {
+      throw const TiffException('TIFF CCITT row has an out-of-range run length.');
+    }
+    if (length == _values.length) {
+      throw const TiffException('TIFF CCITT row exceeds its run buffer limit.');
+    }
+    _values[length++] = value;
+  }
+}
+
+/// Reusable strip output and two fixed run buffers. A Group 3 fallback
+/// reuses these same arrays instead of allocating a second workspace.
+final class TiffCcittScratch {
+  /// Allocates after the page has reserved output plus run-buffer bytes.
+  TiffCcittScratch({required final int columns, required final int rows})
+    : output = Uint8List(((columns + 7) ~/ 8) * rows),
+      _first = _CcittRuns(_runCapacity(columns)),
+      _second = _CcittRuns(_runCapacity(columns));
+
+  /// Packed decoded rows, cleared and reused for a fallback attempt.
+  final Uint8List output;
+  final _CcittRuns _first;
+  final _CcittRuns _second;
+}
+
 /// Decodes one CCITT strip to packed ink rows.
 ///
 /// [byteAlignedRows] starts every row on a byte boundary (TIFF
@@ -51,6 +92,7 @@ Uint8List decodeTiffCcittStrip(
   required final int rows,
   required final bool byteAlignedRows,
   required final bool endOfLine,
+  final TiffCcittScratch? scratch,
 }) {
   final reader = _CcittBitReader(encoded);
   if (mode == TiffCcittMode.g4) {
@@ -60,11 +102,16 @@ Uint8List decodeTiffCcittStrip(
     }
   }
   final rowBytes = (columns + 7) ~/ 8;
-  final out = Uint8List(rowBytes * rows);
+  final buffers = scratch ?? TiffCcittScratch(columns: columns, rows: rows);
+  final out = buffers.output;
+  out.fillRange(0, out.length, 0);
   // The reference line: the previous row's run lengths, white first.
   // The initial reference is libtiff's imaginary all-white line
   // (a full-width white run, then the zero terminator).
-  var refRuns = <int>[columns, 0];
+  var refRuns = buffers._first..length = 0;
+  refRuns.add(columns);
+  refRuns.add(0);
+  var runs = buffers._second;
   for (var row = 0; row < rows; row++) {
     if (endOfLine) {
       _consumeEndOfLine(reader, row);
@@ -76,11 +123,17 @@ Uint8List decodeTiffCcittStrip(
       line2D = reader.lookBits(1) == 0;
       reader.eatBits(1);
     }
-    final runs = line2D
-        ? _decode2dRow(reader, columns, row, refRuns)
-        : _decode1dRow(reader, columns, row);
+    runs.length = 0;
+    if (line2D) {
+      _decode2dRow(reader, columns, row, refRuns, runs);
+    } else {
+      _decode1dRow(reader, columns, row, runs);
+    }
     _emitInkRuns(out, row * rowBytes, runs, columns);
-    refRuns = runs..add(0);
+    runs.add(0);
+    final previous = refRuns;
+    refRuns = runs;
+    runs = previous;
   }
   return out;
 }
@@ -101,8 +154,12 @@ void _consumeEndOfLine(final _CcittBitReader reader, final int row) {
 
 /// One-dimensional coding: alternating white and black runs, the first
 /// white. Returns the row's run lengths.
-List<int> _decode1dRow(final _CcittBitReader reader, final int columns, final int row) {
-  final runs = <int>[];
+void _decode1dRow(
+  final _CcittBitReader reader,
+  final int columns,
+  final int row,
+  final _CcittRuns runs,
+) {
   var position = 0;
   var isBlack = false;
   var guard = 8 * columns + 512;
@@ -116,7 +173,6 @@ List<int> _decode1dRow(final _CcittBitReader reader, final int columns, final in
     runs.add(run);
     isBlack = !isBlack;
   }
-  return runs;
 }
 
 /// Two-dimensional coding (T.6, and T.4 2D with the line tag already
@@ -128,18 +184,18 @@ List<int> _decode1dRow(final _CcittBitReader reader, final int columns, final in
 /// index of the reference run following b1) exactly as libtiff's
 /// EXPAND2D does — including the backward `pb` step a negative
 /// vertical mode requires.
-List<int> _decode2dRow(
+void _decode2dRow(
   final _CcittBitReader reader,
   final int columns,
   final int row,
-  final List<int> refRuns,
+  final _CcittRuns refRuns,
+  final _CcittRuns runs,
 ) {
-  final runs = <int>[];
   var runsEmitted = 0;
   var runLength = 0;
   var a0 = 0;
   var pbIndex = 0;
-  var b1 = refRuns.isEmpty ? columns : refRuns[0];
+  var b1 = refRuns.length == 0 ? columns : refRuns[0];
   if (pbIndex < refRuns.length) pbIndex = 1;
   var guard = 8 * columns + 512;
 
@@ -227,17 +283,21 @@ List<int> _decode2dRow(
         }
     }
   }
-  return runs;
 }
 
 /// The reference run length at [index]; past the list, zero (the
 /// imaginary trailing run libtiff appends).
-int _refRun(final List<int> refRuns, final int index) =>
+int _refRun(final _CcittRuns refRuns, final int index) =>
     index < refRuns.length ? refRuns[index] : 0;
 
 /// Paints the ink runs of one row from its run lengths (white, black,
 /// white, ...).
-void _emitInkRuns(final Uint8List out, final int rowBase, final List<int> runs, final int columns) {
+void _emitInkRuns(
+  final Uint8List out,
+  final int rowBase,
+  final _CcittRuns runs,
+  final int columns,
+) {
   var position = 0;
   for (var index = 0; index < runs.length && position < columns; index++) {
     final end = (position + runs[index]).clamp(0, columns);

@@ -246,6 +246,7 @@ Uint8List _decodeTiffCcitt(
   required final int columns,
   required final int rowBytes,
 }) {
+  final scratch = TiffCcittScratch(columns: columns, rows: expectedBytes ~/ rowBytes);
   Uint8List attempt(final TiffCcittPlan attemptPlan) {
     final decoded = decodeTiffCcittStrip(
       encoded,
@@ -254,6 +255,7 @@ Uint8List _decodeTiffCcitt(
       rows: expectedBytes ~/ rowBytes,
       byteAlignedRows: attemptPlan.byteAlignedRows,
       endOfLine: attemptPlan.endOfLine,
+      scratch: scratch,
     );
     if (decoded.length < expectedBytes) {
       throw TiffException(

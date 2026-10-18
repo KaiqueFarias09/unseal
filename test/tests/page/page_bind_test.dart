@@ -213,7 +213,8 @@ void main() {
       document: document,
       target: pageSnapshot('Erster Absatz mit Worten zweite Region'),
     );
-    expect(binding.wordsResolved, 2);
+    expect(binding.wordsResolved, 1);
+    expect(binding.wordsAmbiguous, 1, reason: 'the first region declares distinct OCR readings');
     final zones = binding.pages.single.zones;
     expect(zones.where((zone) => zone.kind == SpatialZoneKind.line), isEmpty);
     final regionZones = zones.where((zone) => zone.kind == SpatialZoneKind.region).toList();
