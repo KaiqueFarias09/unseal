@@ -103,6 +103,7 @@ void main() {
 
     expect(built.cancelled, isFalse);
     expect(coverage.last.isComplete, isTrue);
+    expect(coverage.last.positionsEmitted, built.list.total);
     expect(
       readiumPositionListToJsonString(built.list),
       readiumPositionListToJsonString(eager.list),
@@ -127,6 +128,8 @@ void main() {
     expect(locator.href, 'chapter.xhtml');
     expect(locator.locations.fragments.single, startsWith('epubcfi('));
 
+    final foreignOccurrence = await session.toBookLocator(locator, occurrenceHint: 1);
+    expect(foreignOccurrence, isA<ReadiumUnsupported<BookLocator>>());
     final back = await session.toBookLocator(locator);
     expect(back, isA<ReadiumExact<BookLocator>>());
     expect(((back as ReadiumExact<BookLocator>).locator as TextLocator).start, offset);
