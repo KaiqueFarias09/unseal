@@ -6,6 +6,8 @@ import '../../features/cfi/epub_cfi.dart';
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/djvu/djvu_book.dart';
 import '../../features/epub/entities/book/book.dart';
+import '../../features/hocr/bind_hocr_snapshot.dart';
+import '../../features/hocr/parse_hocr_document.dart';
 import '../../features/mobi/header/pdb_header.dart';
 import '../../features/page/bind_page_snapshot.dart';
 import '../../features/page/parse_page_document.dart';
@@ -84,6 +86,8 @@ runWorkerOp({
       return _spatialAltoBind(bytes!, payload!, residentBook);
     case workerOpPageXmlBind:
       return _pageXmlBind(bytes!, payload!, residentBook);
+    case workerOpHocrBind:
+      return _hocrBind(bytes!, payload!, residentBook);
     case workerOpCfiBuild:
       return _cfiBuild(payload!, residentBook);
     case workerOpSessionOpen:
@@ -274,6 +278,35 @@ _spatialAltoBind(
   return (
     kind: wireReplyPageXmlBind,
     json: <String, Object?>{wireKeyBound: encodePageXmlBoundTextWire(binding.boundText)},
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session}) _hocrBind(
+  final Uint8List hocrBytes,
+  final Map<String, Object?> payload,
+  final Book? residentBook,
+) {
+  final book = _residentFor(residentBook);
+  if (book is! DjvuBook) {
+    throw UnsealException('spatial ops need a resident DjVu book, got ${book.format.name}.');
+  }
+  final identity = decodePublicationRevisionWire(payload[wireKeyIdentity]);
+  final pageIndex = payload[wireKeyPageIndex] as int;
+  final structure = book.pageStructureAt(pageIndex);
+  if (structure == null) {
+    throw UnsealException('DjVu page ${pageIndex + 1} has no hidden-text chunk to bind.');
+  }
+  final document = parseHocrDocument(hocrBytes);
+  final binding = bindHocrToSnapshot(
+    document: document,
+    target: structure.snapshot(identity: identity),
+  );
+
+  return (
+    kind: wireReplyHocrBind,
+    json: <String, Object?>{wireKeyBound: encodeHocrBoundTextWire(binding.boundText)},
     blobs: const <Object>[],
     session: null,
   );

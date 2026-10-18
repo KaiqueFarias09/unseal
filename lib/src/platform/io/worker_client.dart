@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../features/alto/bind_alto_snapshot.dart';
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/djvu/djvu_page_structure.dart';
+import '../../features/hocr/bind_hocr_snapshot.dart';
 import '../../features/page/bind_page_snapshot.dart';
 import '../../features/search/entities/search_mode.dart';
 import '../../features/search/entities/search_results.dart';
@@ -73,6 +74,14 @@ final class WorkerClient {
     required final int pageIndex,
     required final PublicationRevision identity,
   }) => Future<PageXmlBoundSpatialText?>.value();
+
+  /// Always `null`: hOCR binding keeps running on the calling thread —
+  /// see [searchInWorker].
+  Future<HocrBoundSpatialText?> bindHocrInWorker({
+    required final Uint8List hocrBytes,
+    required final int pageIndex,
+    required final PublicationRevision identity,
+  }) => Future<HocrBoundSpatialText?>.value();
 
   /// Always `null`: CFI building keeps running on the calling thread —
   /// see [searchInWorker].

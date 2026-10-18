@@ -1,6 +1,7 @@
 import '../../../features/alto/bind_alto_snapshot.dart';
 import '../../../features/djvu/djvu_page_structure.dart';
 import '../../../features/djvu/djvu_text.dart';
+import '../../../features/hocr/bind_hocr_snapshot.dart';
 import '../../../features/page/bind_page_snapshot.dart';
 import '../../../foundation/spatial/spatial_rect.dart';
 import '../../../foundation/spatial/spatial_text_page.dart';
@@ -367,6 +368,84 @@ PageXmlBoundSpatialText decodePageXmlBoundTextWire(final Map<String, Object?> js
           place: PageXmlWordPlace(
             regionIndex: unit['r'] as int,
             lineIndex: unit['l'] as int?,
+            wordIndex: unit['w'] as int?,
+          ),
+          content: unit['content'] as String,
+          candidates: <(int, int)>[
+            for (final pair in (unit['cands'] as List<Object?>).cast<List<Object?>>())
+              (pair[0] as int, pair[1] as int),
+          ],
+          chosen: (
+            (unit['chosen'] as List<Object?>)[0] as int,
+            (unit['chosen'] as List<Object?>)[1] as int,
+          ),
+        ),
+    ],
+    targetIdentity: decodePublicationRevisionWire(json['identity']),
+    targetOccurrence: SectionOccurrence(
+      sectionIndex: (json['occurrence'] as Map<String, Object?>)['sectionIndex'] as int,
+      resourcePath: (json['occurrence'] as Map<String, Object?>)['resourcePath'] as String,
+      readingOrderRevision:
+          (json['occurrence'] as Map<String, Object?>)['readingOrderRevision'] as String?,
+    ),
+    targetProfile: _decodeProfileWire(json['profile'] as Map<String, Object?>),
+    targetTextRevision: json['textRevision'] as String,
+  );
+}
+
+/// The wire map of one bound hOCR spatial text. Shares the spatial-page
+/// encoding with ALTO and PAGE; `pageIndexes` names the document page of
+/// each spatial page, and ambiguous units address the parsed document by
+/// page/line/word indexes.
+Map<String, Object?> encodeHocrBoundTextWire(final HocrBoundSpatialText bound) {
+  return <String, Object?>{
+    'pages': <Object?>[for (final page in bound.pages) _encodeSpatialPage(page)],
+    'pageIndexes': <Object?>[...bound.pageIndexes],
+    'resolved': bound.wordsResolved,
+    'ambiguous': bound.wordsAmbiguous,
+    'missing': bound.wordsMissing,
+    'amb': <Object?>[
+      for (final unit in bound.ambiguousUnits)
+        <String, Object?>{
+          'p': unit.place.pageIndex,
+          'l': unit.place.lineIndex,
+          'w': unit.place.wordIndex,
+          'content': unit.content,
+          'cands': <Object?>[
+            for (final (start, end) in unit.candidates) <Object?>[start, end],
+          ],
+          'chosen': <Object?>[unit.chosen.$1, unit.chosen.$2],
+        },
+    ],
+    'identity': encodePublicationRevisionWire(bound.targetIdentity),
+    'occurrence': <String, Object?>{
+      'sectionIndex': bound.targetOccurrence.sectionIndex,
+      'resourcePath': bound.targetOccurrence.resourcePath,
+      'readingOrderRevision': bound.targetOccurrence.readingOrderRevision,
+    },
+    'profile': _encodeProfileWire(bound.targetProfile),
+    'textRevision': bound.targetTextRevision,
+  };
+}
+
+/// Rebuilds the bound hOCR spatial text an [encodeHocrBoundTextWire]
+/// payload carries.
+HocrBoundSpatialText decodeHocrBoundTextWire(final Map<String, Object?> json) {
+  return HocrBoundSpatialText(
+    pages: <SpatialTextPage>[
+      for (final page in (json['pages'] as List<Object?>))
+        _decodeSpatialPage(page as Map<String, Object?>),
+    ],
+    pageIndexes: (json['pageIndexes'] as List<Object?>).cast<int>(),
+    wordsResolved: json['resolved'] as int,
+    wordsAmbiguous: json['ambiguous'] as int,
+    wordsMissing: json['missing'] as int,
+    ambiguousUnits: <HocrAmbiguousUnit>[
+      for (final unit in (json['amb'] as List<Object?>).cast<Map<String, Object?>>())
+        HocrAmbiguousUnit(
+          place: HocrUnitPlace(
+            pageIndex: unit['p'] as int,
+            lineIndex: unit['l'] as int,
             wordIndex: unit['w'] as int?,
           ),
           content: unit['content'] as String,
