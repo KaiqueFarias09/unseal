@@ -985,8 +985,22 @@ OPDS is a publication-discovery format built on Atom XML. A feed contains catalo
 | File | What it does and why it exists |
 | --- | --- |
 | `features/opds/opds_feed.dart` | Parses OPDS 1.x Atom XML into `OpdsFeed`, `OpdsEntry`, `OpdsAuthor`, and `OpdsLink`, then exposes acquisition, navigation, search, next-page, cover, and thumbnail relationships. |
+| `features/opds/opds2_parser.dart` | Parses OPDS 2.0 JSON feeds and standalone publications into the `Opds2*` model under `Opds2Limits`, with JSON pointers on every typed failure. |
+| `features/opds/opds2_model.dart` | The OPDS 2.0 model: feeds, groups, facets, subcollections, publications, links with string-or-list relations, metadata with language maps and contributor roles, and acquisition properties. |
+| `features/opds/opds2_limits.dart` | The bounds (bytes, depth, values, strings, per-collection counts) checked before allocation. |
+| `features/opds/opds2_uri.dart` | Resolution against an explicitly supplied base and the RFC 6570 expansion subset; never fetches. |
+| `features/opds/opds2_exception.dart` | `Opds2MalformedException` and `Opds2LimitExceededException` under the OPDS 2.0 failure base. |
 
 This feature does not make network requests and does not parse the downloaded EPUB or PDF. A client fetches the feed, chooses an acquisition link, downloads its bytes, and passes those bytes to `Unseal`.
+
+OPDS 2.0 is the JSON side of the same contract (`doc/opds2.md` documents
+the subset, extension policy, limits, and the schema-versus-normative
+table). The corpus in `test/resources/opds` pins real Feedbooks catalogs,
+canonical specification examples, and declared synthetic fixtures by
+SHA-256; the Python oracle in `tool/opds2_schema_oracle.py` executes the
+pinned official schemas and generates the expectations the Dart tests
+compare against, so the parser and the reference stay independently
+checked.
 
 The convenience getter for acquisition links currently recognizes only the exact base relation `http://opds-spec.org/acquisition`. Specialized acquisition relations for cases such as borrowing, buying, or open access are not included by that getter.
 

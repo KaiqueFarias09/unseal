@@ -1,0 +1,51 @@
+{
+  "metadata": {
+    "title": {
+      "und": "Example for navigation"
+    },
+    "identifier": null,
+    "modified": null,
+    "description": null,
+    "numberOfItems": null,
+    "itemsPerPage": null,
+    "currentPage": null
+  },
+  "self": {
+    "href": "http://example.com/opds",
+    "type": "application/opds+json"
+  },
+  "links": [
+    {
+      "rels": [
+        "self"
+      ],
+      "href": "http://example.com/opds",
+      "type": "application/opds+json",
+      "templated": false
+    }
+  ],
+  "navigation": [
+    {
+      "title": {
+        "und": "New Publications"
+      },
+      "href": "/new",
+      "rels": [],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "Popular Publications"
+      },
+      "href": "/popular",
+      "rels": [],
+      "type": "application/opds+json"
+    }
+  ],
+  "facets": [],
+  "groups": [],
+  "publications": [],
+  "subcollections": [],
+  "feed": "spec-navigation-feed.json",
+  "acquisitionRels": []
+}

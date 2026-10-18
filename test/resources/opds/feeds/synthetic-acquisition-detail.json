@@ -1,0 +1,191 @@
+{
+  "metadata": {
+    "title": "Acquisition details catalog",
+    "identifier": "https://shop.example/opds",
+    "modified": "2026-10-18T08:00:00Z"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://shop.example/opds",
+      "type": "application/opds+json"
+    }
+  ],
+  "publications": [
+    {
+      "metadata": {
+        "@type": "http://schema.org/Book",
+        "title": "A navalha de Occam e outros contos",
+        "sortAs": "navalha de Occam, A",
+        "subtitle": "Coletânea",
+        "identifier": "urn:uuid:8f14e45f-ceea-467f-abf5-eec7d5f5e1e0",
+        "altIdentifier": [
+          "urn:isbn:8500000000",
+          {
+            "value": "10.5555/12345678",
+            "scheme": "https://doi.org/"
+          }
+        ],
+        "author": [
+          "Ana Terra",
+          {
+            "name": "Bruno Camelo",
+            "identifier": "https://shop.example/authors/bruno",
+            "sortAs": "Camelo, Bruno",
+            "role": "aut",
+            "links": [
+              {
+                "rel": "alternate",
+                "href": "https://shop.example/authors/bruno.json",
+                "type": "application/opds+json"
+              }
+            ]
+          }
+        ],
+        "translator": "Helena Costa",
+        "publisher": {
+          "name": "Edições Unseal",
+          "identifier": "https://shop.example/publishers/unseal"
+        },
+        "contributor": {
+          "name": "Olavo Revisor",
+          "role": ["rev", "edt"]
+        },
+        "subject": [
+          "Contos",
+          {
+            "name": "Ficção brasileira",
+            "sortAs": "ficcao-brasileira",
+            "code": "FIC019000",
+            "scheme": "https://bisg.org/bisac",
+            "links": [
+              {
+                "rel": "related",
+                "href": "https://shop.example/subjects/ficcao",
+                "type": "text/html"
+              }
+            ]
+          }
+        ],
+        "language": "pt",
+        "published": "2026-03-14",
+        "modified": "2026-10-01T12:00:00Z",
+        "description": "Nove contos sobre navalhas, parceiros e outras ferramentas.",
+        "duration": 18400,
+        "numberOfPages": 240,
+        "layout": "reflowable",
+        "readingProgression": "ltr",
+        "accessibility": {
+          "conformsTo": "http://www.idpf.org/epub/a11y/accessibility-20241022.html#wcag-aa",
+          "accessMode": ["textual", "visual"],
+          "accessModeSufficient": ["textual"],
+          "feature": ["tableOfContents", "printPageNumbers"],
+          "certification": {
+            "name": "Unseal Accessibility Certified",
+            "credential": "https://shop.example/cert/123",
+            "reportedBy": "https://shop.example"
+          }
+        }
+      },
+      "links": [
+        {
+          "rel": "self",
+          "href": "https://shop.example/publications/navalha.json",
+          "type": "application/opds-publication+json"
+        },
+        {
+          "rel": ["buy", "http://opds-spec.org/acquisition/buy"],
+          "href": "https://shop.example/purchase/navalha",
+          "type": "text/html",
+          "properties": {
+            "price": {
+              "value": 19.9,
+              "currency": "BRL"
+            },
+            "indirectAcquisition": [
+              {
+                "type": "application/epub+zip",
+                "child": [
+                  {
+                    "type": "application/pdf"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "rel": "http://opds-spec.org/acquisition/sample",
+          "href": "https://shop.example/samples/navalha.epub",
+          "type": "application/epub+zip",
+          "size": 262144,
+          "properties": {
+            "numberOfItems": 1
+          }
+        },
+        {
+          "rel": "preview",
+          "href": "https://shop.example/previews/navalha.html",
+          "type": "text/html"
+        }
+      ],
+      "images": [
+        {
+          "href": "https://covers.example/navalha-full.jpg",
+          "type": "image/jpeg",
+          "width": 1200,
+          "height": 1800
+        },
+        {
+          "href": "https://covers.example/navalha-thumb.webp",
+          "type": "image/webp",
+          "width": 300,
+          "height": 450
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "title": "Winter loans",
+        "author": "Library of Frost",
+        "identifier": "https://library.example/book/winter-loans",
+        "language": "en"
+      },
+      "links": [
+        {
+          "rel": "http://opds-spec.org/acquisition/borrow",
+          "href": "https://library.example/loans/winter-loans",
+          "type": "application/epub+zip",
+          "properties": {
+            "holds": {
+              "total": 4,
+              "position": 2
+            },
+            "copies": {
+              "total": 3,
+              "available": 0
+            },
+            "availability": {
+              "state": "reserved",
+              "since": "2026-10-17T00:00:00Z",
+              "until": "2026-10-24T00:00:00Z"
+            },
+            "indirectAcquisition": [
+              {
+                "type": "application/vnd.amazon.ebook"
+              }
+            ]
+          }
+        }
+      ],
+      "images": [
+        {
+          "href": "https://covers.example/winter-loans.avif",
+          "type": "image/avif",
+          "width": 500,
+          "height": 750
+        }
+      ]
+    }
+  ]
+}

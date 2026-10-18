@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "description": "OPDS 2.0 corpus: real independent catalogs, canonical spec examples, declared synthetic fixtures. kind=positive validates against the pinned schemas; kind=negative is rejected by the pinned schemas; kind=normative-only passes the pinned schemas but violates the normative text, so the Dart parser rejects it. kind=link-positive is a Link Object fragment validated against link.schema.json.",
+  "feeds": [
+    {
+      "name": "feedbooks-home.json",
+      "sha256": "d4df97e03391a75d6a263a7157ae9de0244a8b48df89c4850ae1d2b104491270",
+      "kind": "positive",
+      "note": "real independent catalog (Feedbooks OPDS 2.0 test catalog, gh-pages d04db71)"
+    },
+    {
+      "name": "feedbooks-navigation.json",
+      "sha256": "5f458ea80ce060ed9cb5507e9145b4887a6d6d33e359640e057b234a04ecd0a6",
+      "kind": "positive",
+      "note": "real independent catalog (Feedbooks OPDS 2.0 test catalog, gh-pages d04db71)"
+    },
+    {
+      "name": "feedbooks-publications.json",
+      "sha256": "0a7ef35f5370f50110b47e50b71067b0e98f470ba679c1c0fdfc69adf461f8dd",
+      "kind": "positive",
+      "note": "real independent catalog (Feedbooks OPDS 2.0 test catalog, gh-pages d04db71)"
+    },
+    {
+      "name": "negative-images-without-raster.json",
+      "sha256": "5d8ba2bbf527fdf37a73db464c9466987931451f2c66e822be70f03c83a623a0",
+      "kind": "negative",
+      "note": "images array without jpeg/webp/avif/png/jxl/gif (schema: contains)"
+    },
+    {
+      "name": "negative-missing-self.json",
+      "sha256": "d34998bfb496f347e9cdfe38205ea57bb295bdab6066b183ab2ca67665fbe117",
+      "kind": "negative",
+      "note": "feed without a self link (schema: links must contain self)"
+    },
+    {
+      "name": "negative-missing-title.json",
+      "sha256": "b63a2e63f2521c6c73574c0882ed4eb52942bd876ccd0c2fba96b64f248cac88",
+      "kind": "negative",
+      "note": "metadata without title (schema: required)"
+    },
+    {
+      "name": "negative-no-collection.json",
+      "sha256": "2ded6178ea38910a6ebfc20391aacd7c97e8c538430b62bc919ec8739bd9c10f",
+      "kind": "negative",
+      "note": "feed with metadata+links but no navigation/publications/groups (schema: anyOf)"
+    },
+    {
+      "name": "negative-publication-without-acquisition.json",
+      "sha256": "64ffda34dbd74593d41c0c59c946cb5af72fcb90e34a745359ab43b928e2988b",
+      "kind": "negative",
+      "note": "publication links without any acquisition relation (schema: contains)"
+    },
+    {
+      "name": "negative-publication-without-title.json",
+      "sha256": "4f32c434554c0ab5fbece226db472a07f206b92194103dd986be4c345d9ba4f8",
+      "kind": "negative",
+      "note": "publication metadata without title (schema: required)"
+    },
+    {
+      "name": "negative-truncated.json",
+      "sha256": "e45ca3ca46383442c36146077b07b97e440753ba9e17fa4a90fcda574c29a67f",
+      "kind": "negative",
+      "note": "truncated JSON (fails to parse before schema validation)"
+    },
+    {
+      "name": "negative-wrong-type.json",
+      "sha256": "514ab34a637b09b4cee653052e87494481ed089dee86cdf4756ac6cb2b98ad31",
+      "kind": "negative",
+      "note": "links as object and navigation as string (schema: type mismatch)"
+    },
+    {
+      "name": "normative-facet-without-title.json",
+      "sha256": "530c9a04f18a1dd502d0e0f2994e2061e5cb1164cd0144ea827e462920f5555c",
+      "kind": "normative-only",
+      "note": "schema-valid apart from nothing: facet metadata is optional and the feed carries a navigation collection, so only the normative facet-title rule is unenforced by the schema"
+    },
+    {
+      "name": "normative-search-without-query.json",
+      "sha256": "faac4217888e16592aa00d4bc6df984f9a87ce4719d01c976c673f3847cac2d5",
+      "kind": "normative-only",
+      "note": "schema-valid: search template shape not enforced; normative text requires {?query}"
+    },
+    {
+      "name": "spec-facets-fragment.json",
+      "sha256": "9cf8eccf029922923b1eb96d6c4904ee3fae720927c851fe33deb1dd1fe58f05",
+      "kind": "negative",
+      "note": "canonical spec fragment: not a complete feed (spec shows collection syntax only)"
+    },
+    {
+      "name": "spec-groups-featured-feed.json",
+      "sha256": "bb81ae20dd02df627c607abef4251f57b0b3663507bb632972669c0321d1730c",
+      "kind": "negative",
+      "note": "canonical spec example whose nested featured publication carries only rel=self/download; the official publication.schema.json requires an acquisition relation, and the normative text (5.1) does too"
+    },
+    {
+      "name": "spec-groups-feed.json",
+      "sha256": "fa9c4cd9479aba985be6b8618f5e434c7f6bd0b5ca5e28748770c59943cb1f35",
+      "kind": "positive",
+      "note": "canonical example extracted from the OPDS 2.0 specification"
+    },
+    {
+      "name": "spec-navigation-feed.json",
+      "sha256": "b6dbd0c7197bcfadd48e8f063c3b6cbb88a72b84d879b8322f3d7b1cea4a27eb",
+      "kind": "positive",
+      "note": "canonical example extracted from the OPDS 2.0 specification"
+    },
+    {
+      "name": "spec-paginated-feed.json",
+      "sha256": "931dcd34d155c93e1c0060400b3460d05eda478034c044ee8eafbcac638bdf7c",
+      "kind": "negative",
+      "note": "canonical spec pagination fragment: metadata+links only, no navigation/publications/groups; both the schema (anyOf) and the normative text (1.1) require at least one collection role"
+    },
+    {
+      "name": "spec-publications-feed.json",
+      "sha256": "e7c606c4cf61f79e630080fb33fb51a9fcb8b1f750e0e9456a4d5f5c842a3d26",
+      "kind": "negative",
+      "note": "canonical spec example that violates the official schema: links carry only rel=download, no acquisition relation"
+    },
+    {
+      "name": "spec-search-link-basic.json",
+      "sha256": "05719b3ad4231db7a879d668e7337c8499bef5630ec2f8887478a6ef6ae98341",
+      "kind": "link-positive",
+      "note": "canonical spec Link Object fragment; validated against the pinned link.schema.json, used as template data"
+    },
+    {
+      "name": "spec-search-link-query.json",
+      "sha256": "e33d600d4c390a421fef44819142c55c94d053d0116885d3b263627ba70001ab",
+      "kind": "link-positive",
+      "note": "canonical spec Link Object fragment; validated against the pinned link.schema.json, used as template data"
+    },
+    {
+      "name": "synthetic-acquisition-detail.json",
+      "sha256": "fdaa65582305d54da8a54f8111a51034b317e4f74302c0eeddd99852123ac147",
+      "kind": "positive",
+      "note": "authored synthetic fixture, declared in PROVENANCE.md"
+    },
+    {
+      "name": "synthetic-facets-groups.json",
+      "sha256": "d940abe3fad28aac081a54e8c89529656950853fda5a2e19a315265e3bf529c7",
+      "kind": "positive",
+      "note": "authored synthetic fixture, declared in PROVENANCE.md"
+    },
+    {
+      "name": "synthetic-unicode-escapes.json",
+      "sha256": "a7391e5a313833580d79d3867b87804be3c86bdd10a3a88834ba5f170a4de9ac",
+      "kind": "positive",
+      "note": "authored synthetic fixture, declared in PROVENANCE.md"
+    }
+  ]
+}

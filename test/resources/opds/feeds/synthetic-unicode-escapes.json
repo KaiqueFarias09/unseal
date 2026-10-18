@@ -1,0 +1,72 @@
+{
+  "metadata": {
+    "title": "Catálogo \u4e16\u754c — Bibliothèque globale",
+    "identifier": "https://catalog.example/opds",
+    "modified": "2026-10-18T09:30:00Z",
+    "description": "Escapes \u00e9\u00e0\u51ac and literal текст, العربية, 📚"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://catalog.example/opds/%C3%ADndice?lang=pt#top",
+      "type": "application/opds+json"
+    },
+    {
+      "rel": "search",
+      "href": "https://catalog.example/search{?query}",
+      "type": "application/opds+json",
+      "templated": true
+    },
+    {
+      "rel": "next",
+      "href": "/opds/page/2?cursor=%E5%86%AC&order=desc#results",
+      "type": "application/opds+json"
+    }
+  ],
+  "navigation": [
+    {
+      "href": "%E6%9C%AC/collection?sort=%E6%96%B0#shelf",
+      "title": "冬の本 (Winter books)",
+      "type": "application/opds+json"
+    },
+    {
+      "href": "https://catalog.example/كتب?filter=جديد#list",
+      "title": "كتب عربية",
+      "type": "application/opds+json"
+    }
+  ],
+  "publications": [
+    {
+      "metadata": {
+        "@type": "http://schema.org/Book",
+        "title": {
+          "en": "The Winter Palace",
+          "ja": "冬の宮殿",
+          "ru": "Зимний дворец"
+        },
+        "author": {
+          "name": "Иван Тургенев",
+          "sort_as": "Тургенев, Иван"
+        },
+        "identifier": "urn:isbn:978-4-00-000000-0",
+        "language": ["ja", "ru"],
+        "modified": "2026-05-01T00:00:00Z"
+      },
+      "links": [
+        {
+          "rel": "http://opds-spec.org/acquisition/open-access",
+          "href": "https://files.example/%E5%86%AC/winter-palace.epub?dl=1#page=1",
+          "type": "application/epub+zip"
+        }
+      ],
+      "images": [
+        {
+          "href": "https://covers.example/%E5%86%AC/winter-palace.png?w=600",
+          "type": "image/png",
+          "width": 600,
+          "height": 900
+        }
+      ]
+    }
+  ]
+}

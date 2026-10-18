@@ -1,0 +1,528 @@
+{
+  "metadata": {
+    "title": {
+      "und": "OPDS 2.0 Test Catalog"
+    },
+    "identifier": null,
+    "modified": null,
+    "description": null,
+    "numberOfItems": null,
+    "itemsPerPage": null,
+    "currentPage": null
+  },
+  "self": {
+    "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json",
+    "type": "application/opds+json"
+  },
+  "links": [
+    {
+      "rels": [
+        "self"
+      ],
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json",
+      "type": "application/opds+json",
+      "templated": false
+    }
+  ],
+  "navigation": [
+    {
+      "title": {
+        "und": "Best Selling (Absolute URI)"
+      },
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json",
+      "rels": [
+        "http://opds-spec.org/sort/popular"
+      ],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "New Releases (Relative URI)"
+      },
+      "href": "home.json",
+      "rels": [
+        "http://opds-spec.org/sort/new"
+      ],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "Staff Picks (Also Relative)"
+      },
+      "href": "/opds-test-catalog/opds-2/home.json",
+      "rels": [],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "Categories (404)"
+      },
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/404.json",
+      "rels": [],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "Explore (Navigation Feed)"
+      },
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/navigation.json",
+      "rels": [],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "French Books (Publications Feed)"
+      },
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/publications.json",
+      "rels": [],
+      "type": "application/opds+json"
+    }
+  ],
+  "facets": [],
+  "groups": [
+    {
+      "title": {
+        "und": "French Classics"
+      },
+      "self": "https://feedbooks.github.io/opds-test-catalog/opds-2/publications.json",
+      "navigation": [],
+      "publications": [
+        {
+          "title": {
+            "und": "Voyage au centre de la Terre"
+          },
+          "sortAs": null,
+          "subtitle": null,
+          "identifier": "http://fr.feedbooks.com/book/1474/voyage-au-centre-de-la-terre",
+          "languages": [
+            "fr"
+          ],
+          "authors": [
+            "Jules Verne"
+          ],
+          "published": "1864",
+          "modified": "2018-04-23T22:15:00.000Z",
+          "links": [
+            {
+              "rels": [
+                "http://opds-spec.org/acquisition/open-access"
+              ],
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/file.epub",
+              "type": "application/epub+zip",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/small.jpg",
+              "type": "image/jpeg",
+              "width": 146,
+              "height": 110
+            },
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/normal.jpg",
+              "type": "image/jpeg",
+              "width": 260,
+              "height": 346
+            }
+          ]
+        },
+        {
+          "title": {
+            "und": "Le Rouge et le Noir"
+          },
+          "sortAs": null,
+          "subtitle": {
+            "und": "Chronique du XIXe siècle"
+          },
+          "identifier": "http://fr.feedbooks.com/book/220/le-rouge-et-le-noir",
+          "languages": [
+            "fr"
+          ],
+          "authors": [
+            "Stendhal"
+          ],
+          "published": "1834",
+          "modified": "2018-04-23T22:25:00.000Z",
+          "links": [
+            {
+              "rels": [
+                "http://opds-spec.org/acquisition/open-access"
+              ],
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/rougenoir/file.epub",
+              "type": "application/epub+zip",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/rougenoir/small.jpg",
+              "type": "image/jpeg",
+              "width": null,
+              "height": null
+            },
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/rougenoir/normal.jpg",
+              "type": "image/jpeg",
+              "width": null,
+              "height": null
+            }
+          ]
+        },
+        {
+          "title": {
+            "und": "Le Mystère de la chambre jaune"
+          },
+          "sortAs": null,
+          "subtitle": null,
+          "identifier": "http://fr.feedbooks.com/book/588/le-myst%C3%A8re-de-la-chambre-jaune",
+          "languages": [
+            "fr"
+          ],
+          "authors": [
+            "Gaston Leroux"
+          ],
+          "published": "1907",
+          "modified": "2018-04-23T22:32:00.000Z",
+          "links": [
+            {
+              "rels": [
+                "http://opds-spec.org/acquisition/open-access"
+              ],
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/chambrejaune/file.epub",
+              "type": "application/epub+zip",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/chambrejaune/small.jpg",
+              "type": "image/jpeg",
+              "width": 110,
+              "height": 169
+            },
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/chambrejaune/normal.jpg",
+              "type": "image/jpeg",
+              "width": 260,
+              "height": 400
+            }
+          ]
+        },
+        {
+          "title": {
+            "und": "Madame Bovary"
+          },
+          "sortAs": null,
+          "subtitle": null,
+          "identifier": "http://fr.feedbooks.com/book/386/madame-bovary",
+          "languages": [
+            "fr"
+          ],
+          "authors": [
+            "Gustave Flaubert"
+          ],
+          "published": "1857",
+          "modified": "2018-04-23T22:53:00.000Z",
+          "links": [
+            {
+              "rels": [
+                "http://opds-spec.org/acquisition/open-access"
+              ],
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/bovary/file.epub",
+              "type": "application/epub+zip",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/bovary/small.jpg",
+              "type": "image/jpeg",
+              "width": 110,
+              "height": 169
+            },
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/bovary/normal.jpg",
+              "type": "image/jpeg",
+              "width": 260,
+              "height": 400
+            }
+          ]
+        },
+        {
+          "title": {
+            "und": "Du côté de chez Swann"
+          },
+          "sortAs": null,
+          "subtitle": null,
+          "identifier": "http://fr.feedbooks.com/book/4/du-c%C3%B4t%C3%A9-de-chez-swann",
+          "languages": [
+            "fr"
+          ],
+          "authors": [
+            "Marcel Proust"
+          ],
+          "published": "1913",
+          "modified": "2018-04-23T22:56:00.000Z",
+          "links": [
+            {
+              "rels": [
+                "http://opds-spec.org/acquisition/open-access"
+              ],
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/swann/file.epub",
+              "type": "application/epub+zip",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/swann/small.jpg",
+              "type": "image/jpeg",
+              "width": 110,
+              "height": 169
+            },
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/swann/normal.jpg",
+              "type": "image/jpeg",
+              "width": 260,
+              "height": 400
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": {
+        "und": "More Navigation"
+      },
+      "self": null,
+      "navigation": [
+        {
+          "title": "French Books",
+          "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json"
+        },
+        {
+          "title": "English Books",
+          "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json"
+        }
+      ],
+      "publications": []
+    },
+    {
+      "title": {
+        "und": "English Classics"
+      },
+      "self": null,
+      "navigation": [],
+      "publications": [
+        {
+          "title": {
+            "und": "Moby-Dick"
+          },
+          "sortAs": null,
+          "subtitle": null,
+          "identifier": "http://www.feedbooks.com/book/54/moby-dick",
+          "languages": [
+            "en"
+          ],
+          "authors": [
+            "Herman Melville"
+          ],
+          "published": "1851",
+          "modified": "2018-04-23T23:18:00.000Z",
+          "links": [
+            {
+              "rels": [
+                "http://opds-spec.org/acquisition/open-access"
+              ],
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/moby/file.epub",
+              "type": "application/webpub+json",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/moby/small.jpg",
+              "type": "image/jpeg",
+              "width": 110,
+              "height": 169
+            },
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/moby/normal.jpg",
+              "type": "image/jpeg",
+              "width": 260,
+              "height": 400
+            }
+          ]
+        },
+        {
+          "title": {
+            "und": "Romeo and Juliet"
+          },
+          "sortAs": null,
+          "subtitle": null,
+          "identifier": "http://www.feedbooks.com/book/2936/romeo-and-juliet",
+          "languages": [
+            "en"
+          ],
+          "authors": [
+            "William Shakespeare"
+          ],
+          "published": "1597",
+          "modified": "2018-05-04T19:28:00.000Z",
+          "links": [
+            {
+              "rels": [
+                "http://opds-spec.org/acquisition/open-access"
+              ],
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/romeo/file.epub",
+              "type": "application/webpub+json",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/romeo/small.jpg",
+              "type": "image/jpeg",
+              "width": 110,
+              "height": 169
+            },
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/romeo/normal.jpg",
+              "type": "image/jpeg",
+              "width": 260,
+              "height": 400
+            }
+          ]
+        },
+        {
+          "title": {
+            "und": "Jane Eyre"
+          },
+          "sortAs": null,
+          "subtitle": null,
+          "identifier": "http://www.feedbooks.com/book/144/jane-eyre",
+          "languages": [
+            "en"
+          ],
+          "authors": [
+            "Charlotte Brontë"
+          ],
+          "published": "1847",
+          "modified": "2018-05-04T19:32:00.000Z",
+          "links": [
+            {
+              "rels": [
+                "http://opds-spec.org/acquisition/open-access"
+              ],
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/eyre/file.epub",
+              "type": "application/webpub+json",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/eyre/small.jpg",
+              "type": "image/jpeg",
+              "width": 110,
+              "height": 169
+            },
+            {
+              "href": "https://feedbooks.github.io/opds-test-catalog/assets/eyre/normal.jpg",
+              "type": "image/jpeg",
+              "width": 260,
+              "height": 400
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "publications": [
+    {
+      "title": {
+        "und": "Moby-Dick"
+      },
+      "sortAs": null,
+      "subtitle": null,
+      "identifier": "http://www.feedbooks.com/book/54/moby-dick",
+      "languages": [
+        "en"
+      ],
+      "authors": [
+        "Herman Melville"
+      ],
+      "published": "1851",
+      "modified": "2018-04-23T23:18:00.000Z",
+      "links": [
+        {
+          "rels": [
+            "http://opds-spec.org/acquisition/open-access"
+          ],
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/moby/file.epub",
+          "type": "application/webpub+json",
+          "templated": false
+        }
+      ],
+      "images": [
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/moby/small.jpg",
+          "type": "image/jpeg",
+          "width": 110,
+          "height": 169
+        },
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/moby/normal.jpg",
+          "type": "image/jpeg",
+          "width": 260,
+          "height": 400
+        }
+      ]
+    },
+    {
+      "title": {
+        "und": "Le Mystère de la chambre jaune"
+      },
+      "sortAs": null,
+      "subtitle": null,
+      "identifier": "http://fr.feedbooks.com/book/588/le-myst%C3%A8re-de-la-chambre-jaune",
+      "languages": [
+        "fr"
+      ],
+      "authors": [
+        "Gaston Leroux"
+      ],
+      "published": "1907",
+      "modified": "2018-04-23T22:32:00.000Z",
+      "links": [
+        {
+          "rels": [
+            "http://opds-spec.org/acquisition/open-access"
+          ],
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/chambrejaune/file.epub",
+          "type": "application/epub+zip",
+          "templated": false
+        }
+      ],
+      "images": [
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/chambrejaune/small.jpg",
+          "type": "image/jpeg",
+          "width": 110,
+          "height": 169
+        },
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/chambrejaune/normal.jpg",
+          "type": "image/jpeg",
+          "width": 260,
+          "height": 400
+        }
+      ]
+    }
+  ],
+  "subcollections": [],
+  "feed": "feedbooks-home.json",
+  "acquisitionRels": [
+    "http://opds-spec.org/acquisition/open-access"
+  ]
+}

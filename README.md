@@ -405,6 +405,30 @@ for (final entry in catalog.books) {
 The Calibre records describe available formats and library-relative paths;
 opening a listed book remains the application's responsibility.
 
+### OPDS 2.0 catalogs
+
+`parseOpds2Feed` reads OPDS 2.0 JSON catalogs into a neutral model with
+navigation, publications, nested groups, facets, acquisition links with
+their properties, and pagination metadata. The existing OPDS 1.x Atom
+parser stays unchanged. Both live behind the main entry point and the
+narrow `package:unseal/opds.dart`:
+
+```dart
+final feed = parseOpds2Feed(feedBytes);
+final resolved = resolveOpds2Href(
+  feed.nextLink!.href,
+  baseUrl: Uri.parse(feedUrl),
+);
+```
+
+Parsing never fetches: relative links resolve only against a base URL the
+caller passes, `borrow`/`buy` relations and prices stay data, and
+authentication, purchase, loan, and DRM flows belong to the application.
+Bounded input caps (bytes, depth, values, per-collection counts) apply
+before allocation and the failures are typed with JSON pointers. The
+supported subset, extension policy, and the schema-versus-normative rules
+are documented in `doc/opds2.md`.
+
 ### EPUB structural diagnostics
 
 `diagnoseEpub` reports structural and reference findings for an EPUB with
@@ -639,7 +663,7 @@ The library also provides reusable reading services:
 - Locator serialization and text-locator relocation after content changes.
 - Bookmark and highlight codecs for application-owned persistence.
 - EPUB CFI resolution and construction.
-- OPDS feed parsing. Networking and authentication remain the caller's job.
+- OPDS feed parsing: OPDS 1.x Atom and OPDS 2.0 JSON catalogs. Networking and authentication remain the caller's job.
 - Bounded format detection before parsing.
 
 ## Platform behavior

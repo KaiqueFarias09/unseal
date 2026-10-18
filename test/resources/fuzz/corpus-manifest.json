@@ -1632,6 +1632,286 @@
       "landmarks": 84
     },
     {
+      "path": "test/resources/opds/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 3525,
+      "sha256": "ab8003e9387ca51f5c52302796639919a2c098078d2303f9d25e46190e661227",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/corpus-manifest.json",
+      "format": "manifest",
+      "bytes": 6973,
+      "sha256": "03fc8f19b4829f66f789364144b7abff3d895978c86e63b10c4d016767511c87",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/expected/feedbooks-home.json.expected.json",
+      "format": "manifest",
+      "bytes": 15108,
+      "sha256": "1e66964a72e7deeae59c05da8fe60a4b0a968c39b4facaf55f11220a46b8fa90",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/expected/feedbooks-navigation.json.expected.json",
+      "format": "manifest",
+      "bytes": 1865,
+      "sha256": "3d5db2e21a4b76be6ada4116aeb2f416f11428ba39255df75137ee4b7e071545",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/expected/feedbooks-publications.json.expected.json",
+      "format": "manifest",
+      "bytes": 4289,
+      "sha256": "f89e348516fb3f9ffeab407ce378a8a7f33ceba85c32c58c764f3d384163eb7e",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/expected/resolution.json",
+      "format": "manifest",
+      "bytes": 2635,
+      "sha256": "f3b3f75579bfff550d46b646383ccc6180f8b542467964c5adcbdc521588ad44",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/expected/spec-groups-feed.json.expected.json",
+      "format": "manifest",
+      "bytes": 1283,
+      "sha256": "5f0827bf7500658bc20fada75ffca8f144cd7e68596b8fe16e40605f57870fbb",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/expected/spec-navigation-feed.json.expected.json",
+      "format": "manifest",
+      "bytes": 973,
+      "sha256": "2be92222047b458a61d320620f94e935b4d4e3dce174ba36da285cd783211e55",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/expected/synthetic-acquisition-detail.json.expected.json",
+      "format": "manifest",
+      "bytes": 3437,
+      "sha256": "a7894bf7cb9c7e08695f37693dadc9b910ab780f964323bdff343be8346a3682",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/expected/synthetic-facets-groups.json.expected.json",
+      "format": "manifest",
+      "bytes": 4139,
+      "sha256": "095345e9f174d55464cb2e5e7ec90fe66aa3e425ce13a5e4eb3013d6735d41c2",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/expected/synthetic-unicode-escapes.json.expected.json",
+      "format": "manifest",
+      "bytes": 2590,
+      "sha256": "8c3f7c66b0d80a4f17db05d080e42c33675a39e3d13760e59a862822d79b944d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/feedbooks-home.json",
+      "format": "manifest",
+      "bytes": 17853,
+      "sha256": "d4df97e03391a75d6a263a7157ae9de0244a8b48df89c4850ae1d2b104491270",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/feedbooks-navigation.json",
+      "format": "manifest",
+      "bytes": 1147,
+      "sha256": "5f458ea80ce060ed9cb5507e9145b4887a6d6d33e359640e057b234a04ecd0a6",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/feedbooks-publications.json",
+      "format": "manifest",
+      "bytes": 5961,
+      "sha256": "0a7ef35f5370f50110b47e50b71067b0e98f470ba679c1c0fdfc69adf461f8dd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/negative-images-without-raster.json",
+      "format": "manifest",
+      "bytes": 625,
+      "sha256": "5d8ba2bbf527fdf37a73db464c9466987931451f2c66e822be70f03c83a623a0",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/negative-missing-self.json",
+      "format": "manifest",
+      "bytes": 312,
+      "sha256": "d34998bfb496f347e9cdfe38205ea57bb295bdab6066b183ab2ca67665fbe117",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/negative-missing-title.json",
+      "format": "manifest",
+      "bytes": 326,
+      "sha256": "b63a2e63f2521c6c73574c0882ed4eb52942bd876ccd0c2fba96b64f248cac88",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/negative-no-collection.json",
+      "format": "manifest",
+      "bytes": 192,
+      "sha256": "2ded6178ea38910a6ebfc20391aacd7c97e8c538430b62bc919ec8739bd9c10f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/negative-publication-without-acquisition.json",
+      "format": "manifest",
+      "bytes": 506,
+      "sha256": "64ffda34dbd74593d41c0c59c946cb5af72fcb90e34a745359ab43b928e2988b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/negative-publication-without-title.json",
+      "format": "manifest",
+      "bytes": 466,
+      "sha256": "4f32c434554c0ab5fbece226db472a07f206b92194103dd986be4c345d9ba4f8",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/negative-truncated.json",
+      "format": "manifest",
+      "bytes": 66,
+      "sha256": "e45ca3ca46383442c36146077b07b97e440753ba9e17fa4a90fcda574c29a67f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/negative-wrong-type.json",
+      "format": "manifest",
+      "bytes": 157,
+      "sha256": "514ab34a637b09b4cee653052e87494481ed089dee86cdf4756ac6cb2b98ad31",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/normative-facet-without-title.json",
+      "format": "manifest",
+      "bytes": 657,
+      "sha256": "530c9a04f18a1dd502d0e0f2994e2061e5cb1164cd0144ea827e462920f5555c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/normative-search-without-query.json",
+      "format": "manifest",
+      "bytes": 445,
+      "sha256": "faac4217888e16592aa00d4bc6df984f9a87ce4719d01c976c673f3847cac2d5",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/spec-facets-fragment.json",
+      "format": "manifest",
+      "bytes": 679,
+      "sha256": "9cf8eccf029922923b1eb96d6c4904ee3fae720927c851fe33deb1dd1fe58f05",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/spec-groups-featured-feed.json",
+      "format": "manifest",
+      "bytes": 1942,
+      "sha256": "bb81ae20dd02df627c607abef4251f57b0b3663507bb632972669c0321d1730c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/spec-groups-feed.json",
+      "format": "manifest",
+      "bytes": 921,
+      "sha256": "fa9c4cd9479aba985be6b8618f5e434c7f6bd0b5ca5e28748770c59943cb1f35",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/spec-navigation-feed.json",
+      "format": "manifest",
+      "bytes": 438,
+      "sha256": "b6dbd0c7197bcfadd48e8f063c3b6cbb88a72b84d879b8322f3d7b1cea4a27eb",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/spec-paginated-feed.json",
+      "format": "manifest",
+      "bytes": 653,
+      "sha256": "931dcd34d155c93e1c0060400b3460d05eda478034c044ee8eafbcac638bdf7c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/spec-publications-feed.json",
+      "format": "manifest",
+      "bytes": 1147,
+      "sha256": "e7c606c4cf61f79e630080fb33fb51a9fcb8b1f750e0e9456a4d5f5c842a3d26",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/spec-search-link-basic.json",
+      "format": "manifest",
+      "bytes": 106,
+      "sha256": "05719b3ad4231db7a879d668e7337c8499bef5630ec2f8887478a6ef6ae98341",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/spec-search-link-query.json",
+      "format": "manifest",
+      "bytes": 119,
+      "sha256": "e33d600d4c390a421fef44819142c55c94d053d0116885d3b263627ba70001ab",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/synthetic-acquisition-detail.json",
+      "format": "manifest",
+      "bytes": 5454,
+      "sha256": "fdaa65582305d54da8a54f8111a51034b317e4f74302c0eeddd99852123ac147",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/synthetic-facets-groups.json",
+      "format": "manifest",
+      "bytes": 3787,
+      "sha256": "d940abe3fad28aac081a54e8c89529656950853fda5a2e19a315265e3bf529c7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/opds/feeds/synthetic-unicode-escapes.json",
+      "format": "manifest",
+      "bytes": 2003,
+      "sha256": "a7391e5a313833580d79d3867b87804be3c86bdd10a3a88834ba5f170a4de9ac",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/pdf/dickens-sample.pdf",
       "format": "pdf",
       "bytes": 14946,
@@ -2809,10 +3089,10 @@
     }
   ],
   "counts": {
-    "total": 345,
-    "totalBytes": 89823748,
+    "total": 380,
+    "totalBytes": 89916527,
     "byFormat": {
-      "manifest": 20,
+      "manifest": 55,
       "xml-sidecar": 9,
       "chm": 4,
       "cbr": 20,

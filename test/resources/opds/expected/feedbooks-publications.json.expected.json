@@ -1,0 +1,161 @@
+{
+  "metadata": {
+    "title": {
+      "und": "OPDS 2.0 Test Publications"
+    },
+    "identifier": null,
+    "modified": null,
+    "description": null,
+    "numberOfItems": 5,
+    "itemsPerPage": null,
+    "currentPage": null
+  },
+  "self": {
+    "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/publications.json",
+    "type": "application/opds+json"
+  },
+  "links": [
+    {
+      "rels": [
+        "self"
+      ],
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/publications.json",
+      "type": "application/opds+json",
+      "templated": false
+    }
+  ],
+  "navigation": [],
+  "facets": [],
+  "groups": [],
+  "publications": [
+    {
+      "title": {
+        "und": "Voyage au centre de la Terre"
+      },
+      "sortAs": null,
+      "subtitle": {
+        "und": "Un super sous-titre"
+      },
+      "identifier": "http://fr.feedbooks.com/book/1474/voyage-au-centre-de-la-terre",
+      "languages": [
+        "fr"
+      ],
+      "authors": [
+        "Jules Verne"
+      ],
+      "published": "1864-01-01",
+      "modified": "2018-04-23T22:15:00.000Z",
+      "links": [
+        {
+          "rels": [
+            "http://opds-spec.org/acquisition/open-access"
+          ],
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/file.epub",
+          "type": "application/epub+zip",
+          "templated": false
+        }
+      ],
+      "images": [
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/small.jpg",
+          "type": "image/jpeg",
+          "width": 146,
+          "height": 110
+        },
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/normal.jpg",
+          "type": "image/jpeg",
+          "width": 260,
+          "height": 346
+        }
+      ]
+    },
+    {
+      "title": {
+        "en": "Title in multiple languages",
+        "fr": "Titre en plusieurs langues"
+      },
+      "sortAs": null,
+      "subtitle": null,
+      "identifier": "http://fr.feedbooks.com/book/1474/voyage-au-centre-de-la-terre",
+      "languages": [
+        "fr"
+      ],
+      "authors": [
+        "Jules Verne"
+      ],
+      "published": "1864-01-01",
+      "modified": "2018-04-23T22:15:00.000Z",
+      "links": [
+        {
+          "rels": [
+            "http://opds-spec.org/acquisition/open-access"
+          ],
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/file.epub",
+          "type": "application/epub+zip",
+          "templated": false
+        }
+      ],
+      "images": [
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/small.jpg",
+          "type": "image/jpeg",
+          "width": 146,
+          "height": 110
+        },
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/normal.jpg",
+          "type": "image/jpeg",
+          "width": 260,
+          "height": 346
+        }
+      ]
+    },
+    {
+      "title": {
+        "und": "Multiple Authors"
+      },
+      "sortAs": null,
+      "subtitle": null,
+      "identifier": "http://fr.feedbooks.com/book/1474/voyage-au-centre-de-la-terre",
+      "languages": [
+        "fr"
+      ],
+      "authors": [
+        "Jules Verne",
+        "Second Author"
+      ],
+      "published": "1864-01-01",
+      "modified": "2018-04-23T22:15:00.000Z",
+      "links": [
+        {
+          "rels": [
+            "http://opds-spec.org/acquisition/open-access"
+          ],
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/file.epub",
+          "type": "application/epub+zip",
+          "templated": false
+        }
+      ],
+      "images": [
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/small.jpg",
+          "type": "image/jpeg",
+          "width": 146,
+          "height": 110
+        },
+        {
+          "href": "https://feedbooks.github.io/opds-test-catalog/assets/centredelaterre/normal.jpg",
+          "type": "image/jpeg",
+          "width": 260,
+          "height": 346
+        }
+      ]
+    }
+  ],
+  "subcollections": [],
+  "feed": "feedbooks-publications.json",
+  "acquisitionRels": [
+    "http://opds-spec.org/acquisition/open-access"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "rel": "search",
+  "href": "search{?query,title,author}",
+  "type": "application/opds+json",
+  "templated": true
+}

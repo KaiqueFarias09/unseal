@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "title": {
+      "und": "OPDS 2.0 Test Navigation"
+    },
+    "identifier": null,
+    "modified": null,
+    "description": null,
+    "numberOfItems": null,
+    "itemsPerPage": null,
+    "currentPage": null
+  },
+  "self": {
+    "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/navigation.json",
+    "type": "application/opds+json"
+  },
+  "links": [
+    {
+      "rels": [
+        "self"
+      ],
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/navigation.json",
+      "type": "application/opds+json",
+      "templated": false
+    }
+  ],
+  "navigation": [
+    {
+      "title": {
+        "und": "Best Selling (Absolute URI)"
+      },
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json",
+      "rels": [
+        "http://opds-spec.org/sort/popular"
+      ],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "New Releases (Relative URI)"
+      },
+      "href": "home.json",
+      "rels": [
+        "http://opds-spec.org/sort/new"
+      ],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "Staff Picks (Also Relative)"
+      },
+      "href": "/opds-test-catalog/opds-2/home.json",
+      "rels": [],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "Categories (404)"
+      },
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/404.json",
+      "rels": [],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "Explore (Navigation Feed)"
+      },
+      "href": "https://feedbooks.github.io/opds-test-catalog/opds-2/navigation.json",
+      "rels": [],
+      "type": "application/opds+json"
+    }
+  ],
+  "facets": [],
+  "groups": [],
+  "publications": [],
+  "subcollections": [],
+  "feed": "feedbooks-navigation.json",
+  "acquisitionRels": []
+}

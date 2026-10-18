@@ -1,0 +1,10 @@
+{
+  "metadata": {
+    "title": "Wrong types"
+  },
+  "links": {
+    "rel": "self",
+    "href": "https://x.example/feed"
+  },
+  "navigation": "not-an-array"
+}

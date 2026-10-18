@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "title": "Example for navigation"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "http://example.com/opds",
+      "type": "application/opds+json"
+    }
+  ],
+  "navigation": [
+    {
+      "href": "/new",
+      "title": "New Publications",
+      "type": "application/opds+json"
+    },
+    {
+      "href": "/popular",
+      "title": "Popular Publications",
+      "type": "application/opds+json"
+    }
+  ]
+}

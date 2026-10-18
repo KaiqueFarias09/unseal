@@ -82,7 +82,7 @@ CB7 and CBC remain asynchronous because their 7-Zip reader is asynchronous.
 | Shared safety and decoding | `lib/src/foundation/archive/`, `images/`, `text/`, `spatial/` | Archive access, path normalization, image inspection, plain text, XML decoding, the common text-identity contract (snapshots, revisions, ranges, digests) that format features bind positions to, and the minimal spatial contract (top-left rectangles, ALTO unit vocabulary, region/line/word zones with UTF-16 ranges, provenance, range lookups) that positioned-text features project onto. |
 | Detection and dispatch | `lib/src/features/detection/`, `reading/`, `lib/src/platform/unseal_reader.dart` | Detect the format, refine ambiguous MOBI input, select the parser, and normalize public errors. |
 | Format features | `lib/src/features/<format>/` | Parse one container or document family and build the common model. |
-| Reading services | `lib/src/features/search/`, `locators/`, `cfi/`, `annotations/`, `opds/` | Search (scan and optional inverted index), portable locations, EPUB CFI, annotation serialization plus the durable anchor envelope and its W3C selector adapter, and OPDS parsing. |
+| Reading services | `lib/src/features/search/`, `locators/`, `cfi/`, `annotations/`, `opds/` | Search (scan and optional inverted index), portable locations, EPUB CFI, annotation serialization plus the durable anchor envelope and its W3C selector adapter, and OPDS catalog parsing (OPDS 1.x Atom and OPDS 2.0 JSON, bounded and network-free). |
 | Progressive reading | `lib/src/features/progressive/` | Session headers, requested resources, bounded caches, session operations, and VM/browser transports. |
 | Platform execution | `lib/src/platform/io/`, `web/`, `web/unseal_worker.dart` | Filesystem reads, isolate work, browser workers, and structured-clone wire codecs. |
 | Heuristics | `lib/src/heuristics/` | Small format-neutral text and chapter heuristics. |
@@ -208,7 +208,9 @@ Input is untrusted. The following rules are architectural, not parser details:
 - Bound XML depth and convert malformed or excessive structures to typed
   failures. EPUB diagnostics preflight XML at 16 MiB, 128 nesting levels,
   and one million elements. ALTO preflights nesting and element counts before
-  allocating a DOM and rejects non-finite geometry.
+  allocating a DOM and rejects non-finite geometry. OPDS 2.0 preflights
+  bytes, JSON depth, value count, string length, and per-collection counts
+  before mapping and reports failures with JSON pointers.
 - Preserve HTML as data. A consuming renderer must sanitize or isolate it.
 - Reject unsupported DRM. Do not attempt to bypass access controls.
 

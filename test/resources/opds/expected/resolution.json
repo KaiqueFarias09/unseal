@@ -1,0 +1,74 @@
+{
+  "cases": [
+    {
+      "base": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json",
+      "relative": "home.json",
+      "expected": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json"
+    },
+    {
+      "base": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json",
+      "relative": "/opds-test-catalog/opds-2/home.json",
+      "expected": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json"
+    },
+    {
+      "base": "https://feedbooks.github.io/opds-test-catalog/opds-2/navigation.json",
+      "relative": "home.json",
+      "expected": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json"
+    },
+    {
+      "base": "https://feedbooks.github.io/opds-test-catalog/opds-2/navigation.json",
+      "relative": "/opds-test-catalog/opds-2/home.json",
+      "expected": "https://feedbooks.github.io/opds-test-catalog/opds-2/home.json"
+    },
+    {
+      "base": "http://example.com/opds",
+      "relative": "/new",
+      "expected": "http://example.com/new"
+    },
+    {
+      "base": "http://example.com/opds",
+      "relative": "/popular",
+      "expected": "http://example.com/popular"
+    },
+    {
+      "base": "https://catalog.example/opds/%C3%ADndice?lang=pt#top",
+      "relative": "%E6%9C%AC/collection?sort=%E6%96%B0#shelf",
+      "expected": "https://catalog.example/opds/%E6%9C%AC/collection?sort=%E6%96%B0#shelf"
+    },
+    {
+      "base": "https://catalog.example/opds/%C3%ADndice?lang=pt#top",
+      "relative": "/opds/page/2?cursor=%E5%86%AC&order=desc#results",
+      "expected": "https://catalog.example/opds/page/2?cursor=%E5%86%AC&order=desc#results"
+    },
+    {
+      "base": "https://catalog.example/opds/%C3%ADndice?lang=pt#top",
+      "relative": "#shelf",
+      "expected": "https://catalog.example/opds/%C3%ADndice?lang=pt#shelf"
+    },
+    {
+      "base": "https://catalog.example/opds/%C3%ADndice?lang=pt#top",
+      "relative": "?x=1",
+      "expected": "https://catalog.example/opds/%C3%ADndice?x=1"
+    },
+    {
+      "base": "https://catalog.example/opds/a/b/c",
+      "relative": "s%20p/../d",
+      "expected": "https://catalog.example/opds/a/b/d"
+    },
+    {
+      "base": "https://catalog.example/opds/root",
+      "relative": "//other.example/p",
+      "expected": "https://other.example/p"
+    },
+    {
+      "base": "https://catalog.example/opds/root",
+      "relative": "mailto:catalog@example.org",
+      "expected": "mailto:catalog@example.org"
+    },
+    {
+      "base": "https://catalog.example/opds/root",
+      "relative": "http://absolute.example/p?q=1#f",
+      "expected": "http://absolute.example/p?q=1#f"
+    }
+  ]
+}

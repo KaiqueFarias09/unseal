@@ -1,0 +1,12 @@
+{
+  "metadata": {
+    "title": "Only metadata and links"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://x.example/feed",
+      "type": "application/opds+json"
+    }
+  ]
+}

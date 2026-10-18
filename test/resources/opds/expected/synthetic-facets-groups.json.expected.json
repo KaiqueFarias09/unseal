@@ -1,0 +1,179 @@
+{
+  "metadata": {
+    "title": {
+      "und": "Grouped catalog with facets and subcollections"
+    },
+    "identifier": "https://catalog.example/opds/grouped",
+    "modified": "2026-10-18T10:00:00.000Z",
+    "description": null,
+    "numberOfItems": 120,
+    "itemsPerPage": 20,
+    "currentPage": 1
+  },
+  "self": {
+    "href": "https://catalog.example/opds/grouped",
+    "type": "application/opds+json"
+  },
+  "links": [
+    {
+      "rels": [
+        "self"
+      ],
+      "href": "https://catalog.example/opds/grouped",
+      "type": "application/opds+json",
+      "templated": false
+    },
+    {
+      "rels": [
+        "next"
+      ],
+      "href": "https://catalog.example/opds/grouped?page=2",
+      "type": "application/opds+json",
+      "templated": false
+    }
+  ],
+  "navigation": [],
+  "facets": [
+    {
+      "title": {
+        "und": "Sort by"
+      },
+      "links": [
+        {
+          "rels": [],
+          "href": "https://catalog.example/opds/grouped?sort=title",
+          "type": "application/opds+json",
+          "templated": false
+        },
+        {
+          "rels": [],
+          "href": "https://catalog.example/opds/grouped?sort=author",
+          "type": "application/opds+json",
+          "templated": false
+        }
+      ]
+    },
+    {
+      "title": {
+        "und": "Format"
+      },
+      "links": [
+        {
+          "rels": [],
+          "href": "https://catalog.example/opds/grouped?format=epub",
+          "type": "application/opds+json",
+          "templated": false
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "title": {
+        "und": "Featured"
+      },
+      "self": "https://catalog.example/opds/featured",
+      "navigation": [],
+      "publications": [
+        {
+          "title": {
+            "und": "Dom Casmurro"
+          },
+          "sortAs": null,
+          "subtitle": null,
+          "identifier": "https://catalog.example/book/dom-casmurro",
+          "languages": [
+            "pt-BR"
+          ],
+          "authors": [
+            "Machado de Assis"
+          ],
+          "published": "1899",
+          "modified": null,
+          "links": [
+            {
+              "rels": [
+                "http://opds-spec.org/acquisition"
+              ],
+              "href": "https://files.example/dom-casmurro.epub",
+              "type": "application/epub+zip",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://covers.example/dom-casmurro.jpg",
+              "type": "image/jpeg",
+              "width": 400,
+              "height": 600
+            }
+          ]
+        },
+        {
+          "title": {
+            "und": "O Cortiço"
+          },
+          "sortAs": null,
+          "subtitle": null,
+          "identifier": "https://catalog.example/book/o-cortico",
+          "languages": [
+            "pt-BR"
+          ],
+          "authors": [
+            "Aluísio Azevedo"
+          ],
+          "published": null,
+          "modified": null,
+          "links": [
+            {
+              "rels": [
+                "borrow"
+              ],
+              "href": "https://library.example/loans/o-cortico",
+              "type": "text/html",
+              "templated": false
+            }
+          ],
+          "images": [
+            {
+              "href": "https://covers.example/o-cortico.gif",
+              "type": "image/gif",
+              "width": 300,
+              "height": 450
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": {
+        "und": "Browse"
+      },
+      "self": null,
+      "navigation": [
+        {
+          "title": "By title",
+          "href": "https://catalog.example/opds/by-title"
+        },
+        {
+          "title": "By author",
+          "href": "https://catalog.example/opds/by-author"
+        }
+      ],
+      "publications": []
+    }
+  ],
+  "publications": [],
+  "subcollections": [
+    {
+      "key": "latest",
+      "title": "Latest additions",
+      "linksCount": 1
+    }
+  ],
+  "feed": "synthetic-facets-groups.json",
+  "acquisitionRels": [
+    "borrow",
+    "http://opds-spec.org/acquisition"
+  ]
+}
