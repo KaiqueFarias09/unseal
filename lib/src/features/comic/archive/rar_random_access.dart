@@ -33,6 +33,7 @@ final class RarEntryRecord implements ArchiveEntry {
     this.isSplit = false,
     this.dictExp = 0,
     this.unpackedSizeUnknown = false,
+    this.blake2spDigest,
     this.rar5Header,
   });
 
@@ -94,6 +95,11 @@ final class RarEntryRecord implements ArchiveEntry {
 
   /// RAR 5 only: whether the header declares the unpacked size unknown.
   final bool unpackedSizeUnknown;
+
+  /// RAR 5 only: the declared BLAKE2sp data digest, or null when the
+  /// entry carries no hash record. Verified with the CRC-32 (both when
+  /// both are declared) before any payload is published.
+  final Uint8List? blake2spDigest;
 
   /// Whether the payload is kept verbatim (RAR 4 `0x30`, RAR 5 `0`).
   bool get isStored => isRar5 ? method == 0 : method == 0x30;
@@ -287,7 +293,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
         final bounded = BoundedOutputStream(math.min(limit, entry.uncompressedSize));
         bounded.writeBytes(_source.read(entry.dataStart, entry.packedSize));
         final content = Uint8List.fromList(bounded.subset(0, bounded.length));
-        _verifyCrc(entry, content);
+        _verifyPayload(entry, content);
 
         return content;
       case _PayloadMode.method29:
@@ -320,7 +326,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
           );
         }
         if (entry.uncompressedSize == 0) {
-          _verifyCrc(entry, Uint8List(0));
+          _verifyPayload(entry, Uint8List(0));
 
           return Uint8List(0);
         }
@@ -445,21 +451,27 @@ final class RarRandomAccess implements ArchiveRandomAccess {
       }
       final Uint8List decoded;
       if (index >= _cursor) {
-        // Forward walk: intermediate entries build the dictionary.
-        // Anything the session has decoded before is a re-decode and
-        // charges the replay budget first, so alternating jumps across
-        // a decoded region stay bounded like backward replays.
+        // Forward walk: intermediate entries build the dictionary and
+        // verify their declared checksums before their bytes stand as
+        // dependencies. Anything the session has decoded before is a
+        // re-decode and charges the replay budget first, so alternating
+        // jumps across a decoded region stay bounded like backward
+        // replays.
         _chargeReplay(_cursor, index);
         for (var i = _cursor; i < index; i++) {
-          _decodeChainEntry(_records[i]);
+          _decodeChainEntry(_records[i], verify: true);
         }
         _chargeReplay(index, index + 1);
-        decoded = _decodeChainEntry(entry);
+        decoded = _decodeChainEntry(entry, verify: false);
       } else {
         decoded = _replayTo(entry);
       }
       if (index > _highWater) _highWater = index;
-      _verifyCrc(entry, decoded);
+      // Stored and method-29 targets verified inside inflate; the
+      // compressed target verifies here, once, on the published bytes.
+      if (_modeOf(entry) == _PayloadMode.rar5) {
+        _verifyPayload(entry, decoded);
+      }
 
       return decoded;
     } on UnsealException {
@@ -476,7 +488,11 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
   // Decodes the compressed entry at [record]'s position, advancing the
   // cursor and checkpointing the boundary. Returns the entry's output.
-  Uint8List _decodeChainEntry(final RarEntryRecord record) {
+  // [verify] checks the declared CRC-32 and BLAKE2sp digest of the
+  // decoded output inside the poisoned-on-failure window: chain
+  // dependencies verify before their bytes stand as dependencies, while
+  // the served target verifies once in the caller.
+  Uint8List _decodeChainEntry(final RarEntryRecord record, {required final bool verify}) {
     if (!record.isFile) {
       _cursor = record.recordIndex + 1;
       return Uint8List(0);
@@ -484,7 +500,8 @@ final class RarRandomAccess implements ArchiveRandomAccess {
     final mode = _modeOf(record);
     if (mode != _PayloadMode.rar5) {
       // Stored records do not participate in the compressed dictionary.
-      // Dispatch through the normal path to retain their checks and CRC.
+      // Dispatch through the normal path to retain their checks (CRC
+      // and a declared hash verify inside inflate).
       final decoded = inflate(record);
       _cursor = record.recordIndex + 1;
       return decoded;
@@ -497,7 +514,9 @@ final class RarRandomAccess implements ArchiveRandomAccess {
         windowSize: record.rar5DictSize,
         solid: record.solid,
       );
-      _verifyCrc(record, decoded);
+      if (verify) {
+        _verifyPayload(record, decoded);
+      }
     } on Object {
       _poisoned = true;
       rethrow;
@@ -533,10 +552,10 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
     for (var i = from; i < index; i++) {
       final record = _records[i];
-      _decodeChainEntry(record);
+      _decodeChainEntry(record, verify: true);
     }
 
-    return _decodeChainEntry(entry);
+    return _decodeChainEntry(entry, verify: false);
   }
 
   // Charges the cumulative budget for re-decoding the compressed
@@ -580,6 +599,17 @@ final class RarRandomAccess implements ArchiveRandomAccess {
   void _verifyCrc(final RarEntryRecord entry, final Uint8List content) {
     if (entry.verifiesCrc && getCrc32(content) != entry.crc32) {
       throw ComicException('RAR entry "${entry.name}" has an invalid checksum.');
+    }
+  }
+
+  /// Session payload verification: the declared CRC-32 and, when the
+  /// header carries a hash record, the declared BLAKE2sp digest. Both
+  /// are mandatory when both are present; each failure names its cause.
+  void _verifyPayload(final RarEntryRecord entry, final Uint8List content) {
+    _verifyCrc(entry, content);
+    final digest = entry.blake2spDigest;
+    if (digest != null) {
+      verifyRar5Blake2sp(name: entry.name, content: content, digest: digest);
     }
   }
 
@@ -744,6 +774,7 @@ List<RarEntryRecord> _indexRar5(final ZipByteSource source) {
         isSplit: header.isSplit,
         dictExp: header.dictExp,
         unpackedSizeUnknown: header.unpackedSizeUnknown,
+        blake2spDigest: header.blake2spDigest,
         rar5Header: header,
       ),
     );
