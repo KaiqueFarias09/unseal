@@ -291,7 +291,11 @@ abstract final class ReadiumPositionListBuilder {
       }
 
       final text = await _sessionSectionText(session, item);
-      if (item.isHtml && text == null) missing++;
+      if (item.isHtml && text == null) {
+        missing++;
+        reportCoverage();
+        continue;
+      }
       final length = text?.length ?? 0;
       if (textBefore + length > limits.maxTextCodeUnits) {
         throw const ReadiumPositionLimitException(
@@ -339,7 +343,7 @@ abstract final class ReadiumPositionListBuilder {
         occurrencesTotal: order.length,
         positionsEmitted: positions.length,
         missingResources: missing,
-        isComplete: true,
+        isComplete: missing == 0,
       ),
       cancelled: false,
     );

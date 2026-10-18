@@ -32,6 +32,7 @@ storage, synchronization, OCR execution, and audio playback.
 | [hOCR](hocr.md) | The supported HTML vocabulary, geometry, limits, and snapshot binding. |
 | [Readium locators](readium-locators.md) | Locator interchange and versioned position-list generation. |
 | [TIFF planar and palette pages](tiff-planar-palette.md) | Native sample and ColorMap comparisons with libtiff. |
+| [DjVu foreground palettes](djvu-fgbz.md) | Per-blit palette decoding and native/foreground comparison. |
 | [RAR5 BLAKE2sp](rar5-blake2sp.md) | Declared data-hash verification and solid-state integrity. |
 | [TIFF tiles](tiff-tiles.md) | The tiled TIFF/BigTIFF contract, decode budgets, and the libtiff comparison. |
 | [Roadmap](roadmap.md) | The single list of pending work and proposals. |

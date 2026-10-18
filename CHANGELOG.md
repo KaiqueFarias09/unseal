@@ -1,4 +1,4 @@
-## Unreleased
+## 1.3.0 - October 18, 2026
 
 ### Added
 
@@ -79,11 +79,6 @@
   is pure Dart with identical VM/dart2js integer semantics
   (`doc/rar5-blake2sp.md` fixes the contract; the corpus comes from the
   real RAR 7.23 producer with `-htb`).
-
-## 1.3.0 - October 18, 2026
-
-### Added
-
 - DjVu FGbz version 0 foreground palettes and per-occurrence JB2 color indices, including simple shared dictionaries and local indirect documents. Palette-only chunks retain black ink; malformed palettes, counts and duplicate foregrounds fail typed. Native colors, symbol bitmaps and foreground pixels are checked against DjVuLibre 3.5.29; composed pages retain the existing hard-mask contract. Signed IW44 samples now agree on the VM and browser.
 
 - OPDS 2.0 JSON catalog parsing through `parseOpds2Feed`,

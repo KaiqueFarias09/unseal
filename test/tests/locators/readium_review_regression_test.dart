@@ -128,6 +128,19 @@ void main() {
     );
   });
 
+  test('a host-extended reading order cannot certify missing session text', () async {
+    final session = await BookSession.open(_twoChapters());
+    addTearDown(session.dispose);
+    (session.book as EpubBook).spinePaths!.add('missing.xhtml');
+    final coverage = <ReadiumPositionCoverage>[];
+    final result = await ReadiumPositionListBuilder.ofSession(session, onCoverage: coverage.add);
+    expect(result.coverage.missingResources, 1);
+    expect(result.coverage.isComplete, isFalse);
+    expect(result.list.total, 6);
+    expect(coverage.last.positionsEmitted, 6);
+    expect(coverage.last.isComplete, isFalse);
+  });
+
   test('coverage callbacks report positions after the occurrence was emitted', () async {
     final session = await BookSession.open(_twoChapters());
     addTearDown(session.dispose);
