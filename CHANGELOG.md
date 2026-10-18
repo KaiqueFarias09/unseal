@@ -1,3 +1,31 @@
+## Unreleased
+
+### Added
+
+- PDF progressive sessions over host byte sources:
+  `BookSession.openSource` opens a PDF through the host's
+  `UnsealByteSource` (with a `password` for encrypted documents), and
+  the parser reads demand-driven — the `startxref` tail, the xref
+  chain, the object windows and each materialized page's streams
+  arrive as separate, budget-checked exact ranges. Open plus first
+  content stays a small fraction of a normally shaped document
+  (measured: ~13% of a 2.3 MB scanned fixture, ~35% of a 1.9 MB
+  designed fixture, against a 50% ceiling fixed before
+  implementation). Nothing is read ahead of demand, the resident
+  range cache is bounded to half the source, and recovery scans on
+  damaged documents keep the eager parse's semantics with every
+  scanned window a counted range. `session.metrics()` exposes the
+  wire ledger (fetches, wire bytes, unique bytes, resident peak,
+  resumes, queued-step peak) as the public evidence channel; EPUB,
+  CBZ, CBR, MOBI 6 and AZW3/KF8 sessions and all bytes/file opens are
+  unchanged. The acceptance matrix compares against MuPDF 1.26.5
+  under the fixed fold + Dice policy (declared expected difference on
+  the multi-column Byrne Euclid plates), executes the real
+  VM/Chrome/fuzz/corpus lanes, and measures open, first content,
+  distant jump and peak RSS per process
+  (`tool/pdf_mupdf_reference.py`, `tool/pdf_range_compare.dart`,
+  `tool/pdf_session_bench.dart`).
+
 ## 1.3.0 - October 17, 2026
 
 ### Added

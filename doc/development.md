@@ -74,6 +74,26 @@ dart run tool/progressive_bench.dart --mode=session-first-content --book=build/f
 dart run tool/progressive_bench_sweep.dart --book=build/fixtures/large-reflowable.epub --repetitions=5 --out=build/progressive-open-sweep.json
 ```
 
+PDF byte-source sessions benchmark in isolated processes (one per mode
+and book, peak RSS sampled with a baseline delta, wire ledger from a
+file-backed host source):
+
+```sh
+dart run tool/pdf_session_bench.dart --out=build/evidence/C01/pdf-session-bench.json
+```
+
+The C01 acceptance matrix re-runs end to end with the MuPDF reference
+dumped first (campaign venv python):
+
+```sh
+python3 tool/pdf_mupdf_reference.py --output build/evidence/C01/reference.json     test/resources/pdf/dickens-sample.pdf test/resources/pdf/gutenberg/pg2701-generated.pdf     test/resources/books/pdf/elements-of-euclid-pg.pdf test/resources/pdf/jbig2/jbig2_huffman_2.pdf     --password test/resources/pdf/encrypted/pr6531_1.pdf=asdfasdf     --password test/resources/pdf/encrypted/r6.pdf=user123     --password test/resources/pdf/encrypted/r3-rc4-128.pdf=user123
+dart run tool/pdf_range_compare.dart     --reference build/evidence/C01/reference.json --report build/evidence/C01/comparison.json
+```
+
+The compare stage runs the full release matrix (format, analyze, VM,
+Chrome, fuzz, corpus, pub dry-run, benchmark) as real processes and
+fails when any lane exits non-zero.
+
 Use the actual output path printed by the generator. Probe modes are
 `parse-sync`, `read-isolate`, `read-file-isolate`, `session-header`, and
 `session-first-content`. The sweep starts a fresh process for each run and

@@ -1067,7 +1067,7 @@ Palm databases throw `SessionUnsupportedFormatException`.
 | File | What it does and why it exists |
 | --- | --- |
 | `features/progressive/book_session.dart` | Defines opening (bytes, file, or a host byte source), resource/text requests, search, statistics, progression, CFI, cancellation, and disposal. |
-| `features/progressive/byte_source.dart` | The public `UnsealByteSource` contract (length, revision identity, exact `readRange`, close) and its typed failure hierarchy — the seam a host implements to stream EPUB/CBZ by ranges it serves. |
+| `features/progressive/byte_source.dart` | The public `UnsealByteSource` contract (length, revision identity, exact `readRange`, close) and its typed failure hierarchy — the seam a host implements to stream EPUB/CBZ/PDF by ranges it serves. |
 | `features/progressive/byte_source_gate.dart` | The authoritative host-side gate: bounds, exact answers, revision identity, in-flight request/byte caps with FIFO backpressure, and the per-request refusal, all on the thread that owns the source. |
 | `features/progressive/session_policy.dart` | Defines cache, cover, byte-range limits, and the external-source range budgets plus session lifecycle errors. |
 | `features/progressive/session_engine.dart` | Owns the resident source, format-specific opening, header, cache, and requested operations — asynchronous end to end, reading through an `AsyncByteReader`. |
@@ -1078,6 +1078,8 @@ Palm databases throw `SessionUnsupportedFormatException`.
 | `features/progressive/transport/session_transport_io.dart` | Keeps a session in a long-lived VM isolate, reads file sources there, and serves the engine's `byteSource.v1` range requests through the host gate. |
 | `features/progressive/transport/session_transport_web.dart` | Routes requests to the configured browser worker, registers the served source for the `byteSource.v1` bridge, and falls back to inline execution when unavailable. |
 | `platform/web/byte_source_bridge.dart` | The worker-side half of the bridge: pure request/reply correlation a test can drive without browser types. |
+| `features/progressive/pdf_range_loader.dart` | The PDF session's demand-driven resident range store: exact budget-checked reads over the session gate, span-merging with eviction under a half-source budget, the resume loop that replays a synchronous parser step on a miss, and the `PdfResidentByteSource` the unchanged PDF parser reads through. |
+| `features/progressive/pdf_session_header.dart` | Builds the PDF session header — the complete structure book, the sampled reflow plan and the seeded extractions — synchronously for bytes/file opens and through the range loader for byte-source opens. |
 | `features/progressive/mobi_session_header.dart` | Builds MOBI/AZW3 session headers and their serving state: the open pass over records, MOBI 6 section materialization (anchor-chain splices, body-range clamping, wrapper stripping), KF8 per-part assembly with bounded position resolution, and the lazy resource walk. |
 | `features/progressive/session_metrics.dart` | The shared session counter (source reads, decoded units and bytes, materialized content), the counting byte source, and the `SessionMetrics` snapshot behind `BookSession.metrics`. |
 
