@@ -15,6 +15,13 @@ String _document(final String body, {final String head = ''}) =>
     '<html><head><meta name="ocr-system" content="test 1"/>$head</head><body>$body</body></html>';
 
 void main() {
+  test('escaped page class tokens retain the pre-DOM per-page element budget', () {
+    for (final token in ['ocr&#x5f;page', 'ocr&lowbar;page', 'ocr&#95page']) {
+      final markup = '<div class="$token" title="bbox 0 0 10 10">${'<i></i>' * 65536}</div>';
+      expect(() => parseHocrDocument(_bytes(markup)), throwsA(isA<HocrException>()));
+    }
+  });
+
   test('transparent hOCR containers cannot silently request another reading order', () {
     for (final property in ['order 1', 'cflow "column"']) {
       expect(

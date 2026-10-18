@@ -220,7 +220,7 @@ void _preflight(final String text) {
         if (value.length > _maxClassLength) {
           throw const HocrException('hOCR class attribute exceeds the 1024-character limit.');
         }
-        if (_hasToken(value, 'ocr_page')) isPage = true;
+        if (_hasToken(_classForPreflight(value), 'ocr_page')) isPage = true;
       }
     }
     if (isPage && pageDepth < 0) {
@@ -244,6 +244,35 @@ void _preflight(final String text) {
     }
   }
 }
+
+// Only numeric references and these four named references can produce
+// ASCII characters in an hOCR role token or its ASCII whitespace boundary.
+// Decode them before counting a page subtree; the bounded class attribute
+// needs no HTML tree just to recognize an escaped `ocr_page` token.
+final _classReferences = RegExp(
+  r'&(#(?:[xX][0-9a-fA-F]+|[0-9]+);?|lowbar;|UnderBar;|Tab;|NewLine;)',
+);
+
+String _classForPreflight(final String value) => value.replaceAllMapped(_classReferences, (
+  final match,
+) {
+  final reference = match[1]!;
+  if (reference.startsWith('#')) {
+    final digits = reference.endsWith(';')
+        ? reference.substring(0, reference.length - 1)
+        : reference;
+    final hexadecimal = digits.startsWith('#x') || digits.startsWith('#X');
+    final code = int.tryParse(digits.substring(hexadecimal ? 2 : 1), radix: hexadecimal ? 16 : 10);
+    return code != null && code > 0 && code < 128 ? String.fromCharCode(code) : match[0]!;
+  }
+
+  return switch (reference) {
+    'lowbar;' || 'UnderBar;' => '_',
+    'Tab;' => '\t',
+    'NewLine;' => '\n',
+    _ => match[0]!,
+  };
+});
 
 /// The index of `</name` at or after [from], case-insensitive, or -1.
 int _indexOfCloseTag(final String text, final String name, final int from) {
