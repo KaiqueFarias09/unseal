@@ -215,8 +215,9 @@ Input is untrusted. The following rules are architectural, not parser details:
 - Bound TIFF/BigTIFF IFD traversal, entry counts, offsets, strip and tile
   footprints, decoded pixels, resident bytes (page images plus live scratch),
   and decode work before allocation; validate every page's segment layout as
-  a whole (bounds, header, directory, and mutual overlap) first. Reject
-  unsupported codecs and raster layouts with format-owned typed failures.
+  a whole (bounds, header, directory, and mutual overlap, across planar
+  bands too) first. Reject unsupported codecs and raster layouts with
+  format-owned typed failures.
 - Bound JPEG 2000 codestream reads (input bytes, per-component raster samples,
   native planes, tile buffers, reference-grid projections, PNG scanlines,
   component and tile counts) before allocation. The decoder lives beside the
@@ -278,9 +279,11 @@ bytes and provenance unless the change intentionally updates the fixture.
   bookmark navigation, and resolves indirect files only through filesystem
   reads. Chained shared dictionaries and replacement visual codecs remain
   unsupported. `FGbz` palette recoloring is ignored.
-- TIFF/BigTIFF produces page images rather than reflowed text. Strip and
-  tiled pages share the codecs documented in the README and are compared
-  sample by sample with libtiff (`doc/tiff-tiles.md`); planar, palette,
+- TIFF/BigTIFF produces page images rather than reflowed text. Strip,
+  tiled, planar, and palette pages share the codecs documented in the
+  README and are compared sample by sample with libtiff
+  (`doc/tiff-tiles.md`, `doc/tiff-planar-palette.md`); planar pages with
+  alpha or extra samples, 16-bit palettes, palette horizontal differencing,
   float, JPEG-tiled, transposed, and other unsupported raster layouts fail
   explicitly.
 - PDF `JPXDecode` extracts images through the JPEG 2000 subset decoder; the

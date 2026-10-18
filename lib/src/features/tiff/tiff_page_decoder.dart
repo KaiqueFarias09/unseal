@@ -63,6 +63,7 @@ final class TiffDecodedSegment {
     required this.samplesPerPixel,
     required this.photometric,
     required this.endian,
+    this.sample = 0,
   });
 
   /// Read-only samples after the production predictor, in file byte order.
@@ -86,7 +87,8 @@ final class TiffDecodedSegment {
   /// Native sample layout and photometric interpretation.
   final int bits;
 
-  /// Number of interleaved native samples per pixel.
+  /// Number of interleaved native samples per pixel. Planar segments hold
+  /// one sample per pixel of a single plane.
   final int samplesPerPixel;
 
   /// TIFF photometric interpretation before display conversion.
@@ -94,6 +96,59 @@ final class TiffDecodedSegment {
 
   /// Byte order of each multi-byte native sample.
   final Endian endian;
+
+  /// The plane index of a planar segment (0 for every contiguous segment
+  /// and for palette indices).
+  final int sample;
+}
+
+/// The ColorMap of one palette page, resolved from the file byte order.
+/// Development tools can observe the native 16-bit palette values through
+/// [decodeTiffPage] without duplicating the production parsing. This type
+/// is internal to the package.
+final class TiffDecodedPalette {
+  /// Creates the read-only observation of a resolved ColorMap.
+  const TiffDecodedPalette({
+    required this.red,
+    required this.green,
+    required this.blue,
+    required this.bits,
+  });
+
+  /// The native 16-bit red color table entries, `2^bits` of them.
+  final Uint16List red;
+
+  /// The native 16-bit green color table entries, `2^bits` of them.
+  final Uint16List green;
+
+  /// The native 16-bit blue color table entries, `2^bits` of them.
+  final Uint16List blue;
+
+  /// The palette index depth in bits.
+  final int bits;
+
+  /// libtiff's legacy heuristic: when every entry of the three tables
+  /// fits one byte, the stored values are display colors already and are
+  /// used directly; full-range tables take the high byte (see
+  /// doc/tiff-planar-palette.md).
+  bool get isLegacy8Bit {
+    for (final table in [red, green, blue]) {
+      for (final value in table) {
+        if (value > 255) return false;
+      }
+    }
+    return true;
+  }
+
+  /// The 8-bit display value of one native entry under the fixed
+  /// projection rule.
+  int project(final int value) => isLegacy8Bit ? value : value >> 8;
+
+  /// The display lookup table for one native table.
+  Uint8List displayTable(final Uint16List table) {
+    final legacy = isLegacy8Bit;
+    return Uint8List.fromList([for (final value in table) legacy ? value : value >> 8]);
+  }
 }
 
 /// The compression ids whose segments decode to a byte-aligned raster.
@@ -119,12 +174,14 @@ const _rasterizableBits = <int>{1, 2, 4, 8, 16};
 /// [TiffUnsupportedCodecException] naming the codec. [onDecodedSegment]
 /// observes each raster segment synchronously after the predictor and before
 /// quantization or orientation; the read-only view must not be retained by
-/// observers that need the decoder's own memory bound.
+/// observers that need the decoder's own memory bound. [onDecodedPalette]
+/// observes the resolved ColorMap of a palette page before its projection.
 TiffPageImage decodeTiffPage(
   final TiffContainer container,
   final TiffIfd ifd, {
   required final TiffDecodeBudget budget,
   final void Function(TiffDecodedSegment segment)? onDecodedSegment,
+  final void Function(TiffDecodedPalette palette)? onDecodedPalette,
 }) {
   final width = _requiredUint(container, ifd, 256, 'ImageWidth');
   final height = _requiredUint(container, ifd, 257, 'ImageLength');
@@ -142,10 +199,8 @@ TiffPageImage decodeTiffPage(
   }
   final bits = _bitsPerSample(container, ifd, samplesPerPixel);
   final planar = _optionalUint(container, ifd, 284, fallback: 1);
-  if (planar != 1) {
-    throw const TiffUnsupportedCodecException(
-      'TIFF page stores planes separately (PlanarConfiguration 2), not decoded.',
-    );
+  if (planar != 1 && planar != 2) {
+    throw TiffException('TIFF page declares the invalid PlanarConfiguration $planar.');
   }
   _requireUintSampleFormat(container, ifd);
   final predictor = _optionalUint(container, ifd, 317, fallback: 1);
@@ -169,6 +224,16 @@ TiffPageImage decodeTiffPage(
 
   final photometric = _optionalUint(container, ifd, 262, fallback: bits == 1 ? 0 : 1);
   if (compression == tiffCompressionJpeg) {
+    if (planar == 2) {
+      throw const TiffUnsupportedCodecException(
+        'TIFF JPEG page stores planes separately (PlanarConfiguration 2), not decoded.',
+      );
+    }
+    if (photometric == 3) {
+      throw const TiffUnsupportedCodecException(
+        'TIFF palette page is passed through as JPEG, which never applies a color map.',
+      );
+    }
     if (bits != 8 || (samplesPerPixel != 1 && samplesPerPixel != 3)) {
       throw const TiffException('TIFF JPEG page must hold 8-bit gray or RGB samples.');
     }
@@ -180,9 +245,19 @@ TiffPageImage decodeTiffPage(
     );
   }
   if (photometric == 3) {
-    throw const TiffUnsupportedCodecException(
-      'TIFF page uses a palette color map (PhotometricInterpretation 3), '
-      'which the display raster does not decode.',
+    return _decodePalettePage(
+      container,
+      ifd,
+      width: width,
+      height: height,
+      bits: bits,
+      samplesPerPixel: samplesPerPixel,
+      compression: compression,
+      predictor: predictor,
+      planar: planar,
+      budget: budget,
+      onDecodedSegment: onDecodedSegment,
+      onDecodedPalette: onDecodedPalette,
     );
   }
   if (photometric != 0 && photometric != 1 && photometric != 2) {
@@ -199,6 +274,49 @@ TiffPageImage decodeTiffPage(
   if (_optionalUint(container, ifd, 266, fallback: 1) == 2) {
     throw const TiffUnsupportedCodecException(
       'TIFF page uses reversed bit fill order (FillOrder 2), not decoded.',
+    );
+  }
+  if (planar == 2) {
+    final ccittName = switch (compression) {
+      tiffCompressionCcittModifiedHuffman ||
+      tiffCompressionCcittG3 ||
+      tiffCompressionCcittG4 => tiffCompressionName(compression),
+      _ => null,
+    };
+    if (ccittName != null) {
+      throw TiffUnsupportedCodecException(
+        'TIFF planar page uses the $ccittName codec; CCITT coding stays a bilevel layout.',
+      );
+    }
+    if (samplesPerPixel != 3) {
+      throw TiffUnsupportedCodecException(
+        ifd[338] != null
+            ? 'TIFF planar page carries alpha or extra samples in separate '
+                  'planes (SamplesPerPixel $samplesPerPixel), not decoded.'
+            : 'TIFF planar page carries $samplesPerPixel samples per pixel; '
+                  'separate planes decode as RGB (3 samples) only.',
+      );
+    }
+    if (photometric != 2) {
+      throw TiffUnsupportedCodecException(
+        'TIFF planar page uses the photometric interpretation $photometric; '
+        'separate planes decode as RGB only.',
+      );
+    }
+    return _rasterizePlanarPage(
+      container,
+      ifd,
+      width: width,
+      height: height,
+      bits: bits,
+      samplesPerPixel: samplesPerPixel,
+      photometric: photometric,
+      compression: compression,
+      predictor: predictor,
+      orientation: _orientation(container, ifd),
+      dpi: _pageDpi(container, ifd),
+      budget: budget,
+      onDecodedSegment: onDecodedSegment,
     );
   }
   final orientation = _orientation(container, ifd);
@@ -218,6 +336,126 @@ TiffPageImage decodeTiffPage(
     dpi: dpi,
     budget: budget,
     onDecodedSegment: onDecodedSegment,
+  );
+}
+
+/// Decodes a palette page (PhotometricInterpretation 3): single-sample
+/// indices of 1/2/4/8 bits through an exact-size ColorMap, projected
+/// with libtiff's fixed rule (see TiffDecodedPalette).
+TiffPageImage _decodePalettePage(
+  final TiffContainer container,
+  final TiffIfd ifd, {
+  required final int width,
+  required final int height,
+  required final int bits,
+  required final int samplesPerPixel,
+  required final int compression,
+  required final int predictor,
+  required final int planar,
+  required final TiffDecodeBudget budget,
+  required final void Function(TiffDecodedSegment segment)? onDecodedSegment,
+  required final void Function(TiffDecodedPalette palette)? onDecodedPalette,
+}) {
+  final ccittName = switch (compression) {
+    tiffCompressionCcittModifiedHuffman ||
+    tiffCompressionCcittG3 ||
+    tiffCompressionCcittG4 => tiffCompressionName(compression),
+    _ => null,
+  };
+  if (ccittName != null) {
+    throw TiffUnsupportedCodecException(
+      'TIFF palette page uses the $ccittName codec; CCITT coding stays a bilevel layout.',
+    );
+  }
+  if (samplesPerPixel != 1) {
+    throw TiffException('TIFF palette page must be single-sample.');
+  }
+  if (bits != 1 && bits != 2 && bits != 4 && bits != 8) {
+    throw TiffUnsupportedCodecException(
+      'TIFF page uses a $bits-bit palette, which the display raster does not decode.',
+    );
+  }
+  if (predictor == 2) {
+    throw const TiffUnsupportedCodecException(
+      'TIFF palette page combines horizontal differencing with palette indices.',
+    );
+  }
+  if (planar == 2) {
+    throw const TiffUnsupportedCodecException(
+      'TIFF page stores its single palette plane separately '
+      '(PlanarConfiguration 2), not decoded.',
+    );
+  }
+  if (_optionalUint(container, ifd, 266, fallback: 1) == 2) {
+    throw const TiffUnsupportedCodecException(
+      'TIFF page uses reversed bit fill order (FillOrder 2), not decoded.',
+    );
+  }
+  final palette = _readColormap(container, ifd, bits, budget);
+  try {
+    onDecodedPalette?.call(palette);
+    final orientation = _orientation(container, ifd);
+    final dpi = _pageDpi(container, ifd);
+    return _rasterizePage(
+      container,
+      ifd,
+      width: width,
+      height: height,
+      bits: bits,
+      samplesPerPixel: samplesPerPixel,
+      photometric: 3,
+      compression: compression,
+      predictor: predictor,
+      orientation: orientation,
+      dpi: dpi,
+      budget: budget,
+      onDecodedSegment: onDecodedSegment,
+      palette: palette,
+    );
+  } finally {
+    budget.releaseScratch(3 * (1 << bits) * Uint16List.bytesPerElement);
+  }
+}
+
+/// Reads ColorMap (320): three 16-bit tables with exactly
+/// 3 * 2^bits entries. The entry count is validated before the list is
+/// allocated, so a hostile count never allocates.
+TiffDecodedPalette _readColormap(
+  final TiffContainer container,
+  final TiffIfd ifd,
+  final int bits,
+  final TiffDecodeBudget budget,
+) {
+  final entry = ifd[320];
+  if (entry == null) {
+    throw const TiffException('TIFF palette page is missing the ColorMap tag.');
+  }
+  if (entry.type != 3) {
+    throw const TiffException('TIFF ColorMap must use unsigned 16-bit SHORT values.');
+  }
+  final tableLength = 1 << bits;
+  final expected = 3 * tableLength;
+  if (entry.count != expected) {
+    throw TiffException(
+      'TIFF ColorMap holds ${entry.count} entries; a $bits-bit palette needs $expected.',
+    );
+  }
+  // Charge the native tables before allocating them. Read directly into
+  // each band instead of keeping a second, unbudgeted integer list.
+  budget.reserveScratch(expected * Uint16List.bytesPerElement);
+  Uint16List table(final int base) {
+    final result = Uint16List(tableLength);
+    for (var index = 0; index < tableLength; index++) {
+      result[index] = container.readUint(entry, base + index);
+    }
+    return result;
+  }
+
+  return TiffDecodedPalette(
+    red: table(0),
+    green: table(tableLength),
+    blue: table(tableLength * 2),
+    bits: bits,
   );
 }
 
@@ -441,6 +679,7 @@ TiffPageImage _rasterizePage(
   required final int dpi,
   required final TiffDecodeBudget budget,
   required final void Function(TiffDecodedSegment segment)? onDecodedSegment,
+  final TiffDecodedPalette? palette,
 }) {
   final isTiled = ifd[322] != null || ifd[323] != null;
   final sampleBytes = samplesPerPixel * (bits ~/ 8);
@@ -514,8 +753,9 @@ TiffPageImage _rasterizePage(
   // Every tile decodes at its full footprint; only the last strip is
   // shorter. The budget takes the kept BMP, then the live scratch (RGB
   // conversion plus the decoded segment, which LZW and PackBits hold
-  // twice while their chunks are joined), then the total decode work,
-  // each before the matching allocation.
+  // twice while their chunks are joined, plus the palette's native
+  // tables and display lookup), then the total decode work, each before
+  // the matching allocation.
   final segmentBytes = segmentRows * segmentRowBytes;
   final rgbBytes = width * height * 3;
   final bmpBytes = bmpHeaderBytes + bmpRowStride(width) * height;
@@ -529,14 +769,21 @@ TiffPageImage _rasterizePage(
     tiffCompressionLzw || tiffCompressionPackbits => 2,
     _ => 1,
   };
+  final paletteEntries = palette == null ? 0 : 3 * (1 << palette.bits);
   final scratchBytes =
       rgbBytes +
       segmentBytes * scratchCopies +
-      (isCcitt ? tiffCcittRunBufferBytes(segmentWidth) : 0);
+      (isCcitt ? tiffCcittRunBufferBytes(segmentWidth) : 0) +
+      // Native tables were reserved before construction; this reserve
+      // covers only the derived 8-bit display lookup.
+      paletteEntries;
   budget.reserveScratch(scratchBytes);
   budget.reserveWork(isTiled ? segmentCount * segmentBytes : rowBytes * height);
 
   final rgb = Uint8List(rgbBytes);
+  final redLut = palette?.displayTable(palette.red);
+  final greenLut = palette?.displayTable(palette.green);
+  final blueLut = palette?.displayTable(palette.blue);
   final ccittPlan = isCcitt
       ? tiffCcittPlan(
           compression: compression,
@@ -604,7 +851,187 @@ TiffPageImage _rasterizePage(
         samplesPerPixel: samplesPerPixel,
         photometric: photometric,
         endian: container.endian,
+        redLut: redLut,
+        greenLut: greenLut,
+        blueLut: blueLut,
       );
+    }
+  }
+
+  _applyOrientation(rgb, width: width, height: height, orientation: orientation);
+  final bmp = encodeRgb24Bmp(width: width, height: height, rgb: rgb);
+  budget.releaseScratch(scratchBytes);
+  return TiffPageImage.raster(width: width, height: height, dpi: dpi, bmp: bmp);
+}
+
+/// Rasterizes a planar RGB page (PlanarConfiguration 2, RGB, 8/16-bit,
+/// three planes): the segment grid holds every tile or strip of plane 0
+/// first, then plane 1, then plane 2, and each band is decoded, predicted
+/// with a one-sample stride, and observed before the page raster assembles
+/// the three channels.
+TiffPageImage _rasterizePlanarPage(
+  final TiffContainer container,
+  final TiffIfd ifd, {
+  required final int width,
+  required final int height,
+  required final int bits,
+  required final int samplesPerPixel,
+  required final int photometric,
+  required final int compression,
+  required final int predictor,
+  required final int orientation,
+  required final int dpi,
+  required final TiffDecodeBudget budget,
+  required final void Function(TiffDecodedSegment segment)? onDecodedSegment,
+}) {
+  final isTiled = ifd[322] != null || ifd[323] != null;
+  final bytesPerSample = bits ~/ 8;
+  int rowBytesFor(final int pixels) => pixels * bytesPerSample;
+
+  final List<int> segmentOffsets;
+  final List<int> segmentByteCounts;
+  final int segmentsAcross;
+  final int segmentsDown;
+  final int segmentRows;
+  final int segmentWidth;
+  if (isTiled) {
+    final tileWidth = _requiredUint(container, ifd, 322, 'TileWidth');
+    final tileLength = _requiredUint(container, ifd, 323, 'TileLength');
+    if (tileWidth < 1 ||
+        tileLength < 1 ||
+        tileWidth > tiffMaxPagePixels ||
+        tileLength > tiffMaxPagePixels) {
+      throw const TiffException('Invalid TIFF tile dimensions.');
+    }
+    if (tileWidth * tileLength > tiffMaxPagePixels) {
+      throw const TiffException('TIFF tile exceeds the 256-megapixel limit.');
+    }
+    segmentsAcross = (width + tileWidth - 1) ~/ tileWidth;
+    segmentsDown = (height + tileLength - 1) ~/ tileLength;
+    segmentRows = tileLength;
+    segmentWidth = tileWidth;
+    segmentOffsets = _tileSegmentList(
+      container,
+      ifd,
+      tileTag: 324,
+      stripTag: 273,
+      label: 'TileOffsets',
+    );
+    segmentByteCounts = _tileSegmentList(
+      container,
+      ifd,
+      tileTag: 325,
+      stripTag: 279,
+      label: 'TileByteCounts',
+    );
+  } else {
+    final declaredRowsPerStrip = _optionalUint(container, ifd, 278, fallback: height);
+    if (declaredRowsPerStrip < 1) {
+      throw const TiffException('TIFF RowsPerStrip must be positive.');
+    }
+    segmentRows = declaredRowsPerStrip > height ? height : declaredRowsPerStrip;
+    segmentsAcross = 1;
+    segmentsDown = (height + segmentRows - 1) ~/ segmentRows;
+    segmentWidth = width;
+    segmentOffsets = _requiredUintList(container, ifd, 273, 'StripOffsets');
+    segmentByteCounts = _requiredUintList(container, ifd, 279, 'StripByteCounts');
+  }
+  final segmentRowBytes = rowBytesFor(segmentWidth);
+
+  final gridCells = segmentsAcross * segmentsDown;
+  if (gridCells > tiffMaxSegmentsPerPage) {
+    throw const TiffException('TIFF page exceeds the strip count limit.');
+  }
+  final segmentCount = gridCells * samplesPerPixel;
+  if (segmentOffsets.length != segmentCount || segmentByteCounts.length != segmentCount) {
+    throw TiffException(
+      'TIFF planar page declares ${segmentOffsets.length} offsets and '
+      '${segmentByteCounts.length} byte counts for $segmentCount segments '
+      '($gridCells cells x $samplesPerPixel planes).',
+    );
+  }
+  // The whole band matrix is validated before any band decodes.
+  _validateSegmentLayout(container, ifd, segmentOffsets, segmentByteCounts);
+
+  // The budget takes the kept BMP, then the live scratch (RGB conversion
+  // plus all band buffers that are live at once, with codec scratch
+  // copies included), then the total decode work at every band's full
+  // footprint, each before the matching allocation.
+  final segmentBytes = segmentRows * segmentRowBytes;
+  final rgbBytes = width * height * 3;
+  final bmpBytes = bmpHeaderBytes + bmpRowStride(width) * height;
+  budget.reserve(pixels: width * height, rasterBytes: bmpBytes);
+  final scratchCopies = switch (compression) {
+    tiffCompressionNone => predictor == 2 ? 1 : 0,
+    tiffCompressionLzw || tiffCompressionPackbits => 2,
+    _ => 1,
+  };
+  final scratchBytes = rgbBytes + samplesPerPixel * segmentBytes * scratchCopies;
+  budget.reserveScratch(scratchBytes);
+  budget.reserveWork(
+    isTiled ? segmentCount * segmentBytes : rowBytesFor(width) * height * samplesPerPixel,
+  );
+
+  final rgb = Uint8List(rgbBytes);
+  for (var cell = 0; cell < gridCells; cell++) {
+    final gridRow = cell ~/ segmentsAcross;
+    final gridColumn = cell % segmentsAcross;
+    final rowStart = gridRow * segmentRows;
+    final columnStart = gridColumn * segmentWidth;
+    final rows = isTiled || segmentRows < height - rowStart ? segmentRows : height - rowStart;
+    final visibleRows = rows < height - rowStart ? rows : height - rowStart;
+    final visibleColumns = segmentWidth < width - columnStart ? segmentWidth : width - columnStart;
+    final expectedBytes = rows * segmentRowBytes;
+    for (var sample = 0; sample < samplesPerPixel; sample++) {
+      final segmentIndex = sample * gridCells + cell;
+      final offset = segmentOffsets[segmentIndex];
+      final byteCount = segmentByteCounts[segmentIndex];
+      final encoded = Uint8List.sublistView(container.bytes, offset, offset + byteCount);
+      var decoded = decodeTiffSegment(
+        encoded,
+        compression: compression,
+        expectedBytes: expectedBytes,
+      );
+      if (predictor == 2) {
+        // Uncompressed segments are views of the source; differencing
+        // must not write into the bytes the book keeps. One plane holds
+        // one sample per pixel, so the differencing stride is one sample.
+        if (compression == tiffCompressionNone) decoded = Uint8List.fromList(decoded);
+        applyTiffPredictor(
+          decoded,
+          rows: rows,
+          rowBytes: segmentRowBytes,
+          samplesPerPixel: 1,
+          bytesPerSample: bytesPerSample,
+          endian: container.endian,
+        );
+      }
+      onDecodedSegment?.call(
+        TiffDecodedSegment(
+          bytes: decoded.asUnmodifiableView(),
+          rowStart: rowStart,
+          columnStart: columnStart,
+          width: visibleColumns,
+          height: visibleRows,
+          rowBytes: segmentRowBytes,
+          bits: bits,
+          samplesPerPixel: 1,
+          photometric: photometric,
+          endian: container.endian,
+          sample: sample,
+        ),
+      );
+      final view = bits == 16 ? ByteData.sublistView(decoded) : null;
+      for (var row = 0; row < visibleRows; row++) {
+        final sourceRow = row * segmentRowBytes;
+        final targetRow = (rowStart + row) * width + columnStart;
+        for (var x = 0; x < visibleColumns; x++) {
+          final value = view == null
+              ? decoded[sourceRow + x]
+              : view.getUint16(sourceRow + x * 2, container.endian) >> 8;
+          rgb[(targetRow + x) * 3 + sample] = value;
+        }
+      }
     }
   }
 
@@ -625,6 +1052,9 @@ void _unpackSamples(
   required final int samplesPerPixel,
   required final int photometric,
   required final Endian endian,
+  final Uint8List? redLut,
+  final Uint8List? greenLut,
+  final Uint8List? blueLut,
 }) {
   final data = ByteData.sublistView(source);
   for (var x = 0; x < samples; x++) {
@@ -632,7 +1062,13 @@ void _unpackSamples(
     int red;
     int green;
     int blue;
-    if (photometric == 2) {
+    if (redLut != null) {
+      // Palette page: the sample is an index into the display lookup.
+      final index = bits == 8 ? source[sourceIndex] : _subByteSample(source, sourceBase, x, bits);
+      red = redLut[index];
+      green = greenLut![index];
+      blue = blueLut![index];
+    } else if (photometric == 2) {
       if (bits == 8) {
         red = source[sourceIndex];
         green = source[sourceIndex + 1];

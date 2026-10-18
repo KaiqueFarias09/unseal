@@ -189,10 +189,9 @@ void main() {
   test('typed unsupported codecs carry explicit messages', () {
     final cases = <String, String>{
       'ojpeg_zackthecat_subsamp22_single_strip.tiff': 'old-style JPEG (6)',
-      'palette-1c-8b.tiff': 'palette',
       'logluv-3c-16b.tiff': 'SampleFormat',
       'quad-tile.jpg.tiff': 'tiled',
-      'minisblack-2c-8b-alpha.tiff': 'PlanarConfiguration 2',
+      'minisblack-2c-8b-alpha.tiff': 'alpha or extra samples',
     };
     cases.forEach((name, messagePart) {
       try {
@@ -209,6 +208,10 @@ void main() {
       () => parseTiffBook(_fixture('jpeg-external-tables.tif')),
       throwsA(isA<TiffUnsupportedCodecException>()),
     );
+    // The palette page decodes since D03 (doc/tiff-planar-palette.md);
+    // its libtiff-verified golden lives in the planar-palette suite.
+    final palette = parseTiffBook(_fixture('palette-1c-8b.tiff'));
+    expect((palette.pages.single.width, palette.pages.single.height), (157, 151));
   });
 
   test('hostile IFD chains fail typed (real loop file and hand-built cycle)', () {

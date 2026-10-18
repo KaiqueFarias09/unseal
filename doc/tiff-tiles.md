@@ -28,7 +28,8 @@ samples, and CCITT modified Huffman, Group 3, and Group 4 on bilevel pages.
 A CCITT tile is decoded with the tile width as its row length. Sample
 layouts match strips: PlanarConfiguration 1; gray 1, 2, 4, 8, and 16 bits
 (PhotometricInterpretation 0 or 1); RGB 8 and 16 bits (2); up to four
-samples per pixel, with extra samples ignored. `SampleFormat` 1 (unsigned)
+samples per pixel, with extra samples ignored. Planar configuration 2 and palette pages moved to their own contract,
+`doc/tiff-planar-palette.md`. `SampleFormat` 1 (unsigned)
 and 4 (void) are read as unsigned integers, which is how libtiff treats the
 obsolete SGI `DataType` tag that `tiffcp` re-emits as `SampleFormat 4`.
 
@@ -65,9 +66,11 @@ with `TiffException`:
   footprint instead of inflating first and checking later.
 
 `TiffUnsupportedCodecException` keeps naming the layouts outside the
-contract: planar 2, palette, SampleFormat 2/3/5/6, LogLuv, JPEG tiles and
-JPEGTables, old-style JPEG, FillOrder 2, orientations 5-8, uncompressed-mode
-CCITT extensions, and every other compression id.
+contract: SampleFormat 2/3/5/6, LogLuv, JPEG tiles and JPEGTables, old-style
+JPEG, FillOrder 2, orientations 5-8, uncompressed-mode CCITT extensions, and
+every other compression id. (Planar 2 and palette have their own contract
+since D03; planar alpha and 16-bit palettes still fail typed under
+`doc/tiff-planar-palette.md`.)
 
 ## Budgets
 
@@ -175,7 +178,9 @@ per acceptance ID and the artifacts each verdict rests on.
 
 ## Outside this contract
 
-Planar configuration 2, palette, float and LogLuv samples, JPEG (new or
-old) tiles, OCR, region or viewport rendering, external byte sources for
-TIFF, and transposed orientations are not decoded. Sparse files (tiles
-with a zero byte count) are rejected rather than filled.
+Planar configuration 2 and palette pages decode under their own contract
+since D03 (`doc/tiff-planar-palette.md`), with planar alpha/extra samples
+and 16-bit palettes still failing typed there. Float and LogLuv samples,
+JPEG (new or old) tiles, OCR, region or viewport rendering, external byte
+sources for TIFF, and transposed orientations are not decoded. Sparse
+files (tiles with a zero byte count) are rejected rather than filled.
