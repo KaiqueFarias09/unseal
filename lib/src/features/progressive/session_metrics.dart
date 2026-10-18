@@ -133,13 +133,15 @@ final class SessionMetrics {
   /// Current resident cache weight in bytes.
   final int cacheBytesResident;
 
-  /// Byte-source PDF sessions only: range fetches issued to the host.
+  /// Byte-source PDF sessions only: read attempts issued through the source gate.
   final int? pdfRangeFetches;
 
-  /// Wire bytes those fetches carried (re-demands included).
+  /// Bytes returned to the PDF range loader (re-demands included).
+  /// Physical host reads discarded by a canceled transport are not included.
   final int? pdfRangeFetchBytes;
 
-  /// Merged unique wire bytes — the partial-reading number.
+  /// Unique offsets returned to the PDF range loader.
+  /// Hosts must separately measure traffic discarded by canceled reads.
   final int? pdfRangeUniqueBytes;
 
   /// Peak resident range bytes — the no-complete-buffer channel.

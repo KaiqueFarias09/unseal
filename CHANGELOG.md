@@ -104,7 +104,7 @@
   cache working-set budget, and recovery scans on
   damaged documents keep the eager parse's semantics with every
   scanned window a counted range. `session.metrics()` exposes the
-  wire ledger (fetches, wire bytes, unique bytes, resident peak,
+  range ledger (attempts, returned bytes, unique offsets, resident peak,
   resumes, queued-step peak) as the public evidence channel; EPUB,
   CBZ, CBR, MOBI 6 and AZW3/KF8 sessions and all bytes/file opens are
   unchanged. The acceptance matrix compares against MuPDF 1.26.5

@@ -49,7 +49,6 @@ void main(final List<String> arguments) {
   }
 
   final dart = io.Platform.environment['UNSEAL_DART'] ?? io.Platform.resolvedExecutable;
-  final chromedriver = io.Platform.environment['CHROMEDRIVER'];
 
   // OJ01: public API compiles and Atom stays intact; entrypoint tests plus
   // the model/parser suites run against the committed corpus.
@@ -152,11 +151,13 @@ void main(final List<String> arguments) {
     '-o',
     'test/web/unseal_worker.js',
   ]);
-  final chromeLog = run(
-    'oj07-chrome',
-    <String>[dart, 'test', '-p', 'chrome', 'test/web/opds2_web_test.dart'],
-    environment: <String, String>{if (chromedriver != null) 'CHROMEDRIVER': chromedriver},
-  );
+  final chromeLog = run('oj07-chrome', <String>[
+    dart,
+    'test',
+    '-p',
+    'chrome',
+    'test/web/opds2_web_test.dart',
+  ]);
 
   // OJ08: size/time/peak-RSS benchmark. Wall time per size in one
   // process, then peak RSS per size through /usr/bin/time over a fresh
