@@ -143,6 +143,21 @@ object streams), `jbig2_huffman_2.pdf` (xref stream + object streams),
   the `byteSource.v1` bridge are reused unchanged; the compiled worker
   must be rebuilt for web lanes.
 
+## Amendment: expected content difference on Byrne's Euclid (PR02)
+
+The strict text policy (fold + whitespace collapse + casefold, Dice
+over character bigrams, page aligned at ≥ 0.90) passes every corpus
+page except `elements-of-euclid-pg.pdf`: MuPDF walks the multi-column
+Byrne plates in its own reading order and expands their display
+symbols differently from the canonical reflow. A pre-implementation
+probe measured the divergence as order-sensitive dice ≈ 0.78–0.86 with
+character-sorted dice ≈ 0.93–0.95 on the failing pages — a genuine
+cross-parser difference on heavily designed plates, not a transport or
+extraction defect. The acceptance records PR02 as
+`expected-difference` with the per-page measurements in
+`build/evidence/C01/cases/pr02.json`; every other corpus page must
+align or the case fails.
+
 ## Known base limitations discovered (pre-existing, not introduced here)
 
 - Session extraction on dart2js: the first extraction a browser
