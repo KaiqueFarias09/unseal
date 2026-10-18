@@ -4002,8 +4002,8 @@
     {
       "path": "test/resources/tiff/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 10274,
-      "sha256": "700b9a4a0f5d6f65b897e57b0d88208942398026e43368e440e75775d928f961",
+      "bytes": 13657,
+      "sha256": "56c0092156850ceb11ee8633df5d980e90d7297561c37c28738f3280955deff4",
       "container": "unknown",
       "landmarks": 0
     },
@@ -4674,7 +4674,7 @@
   ],
   "counts": {
     "total": 578,
-    "totalBytes": 93101392,
+    "totalBytes": 93104775,
     "byFormat": {
       "manifest": 97,
       "xml-sidecar": 14,
