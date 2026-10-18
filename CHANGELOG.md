@@ -1,3 +1,30 @@
+## Unreleased
+
+### Added
+
+- OPDS 2.0 JSON catalog parsing through `parseOpds2Feed`,
+  `parseOpds2Publication`, and the `Opds2*` model: navigation,
+  publications, nested groups, facets, named subcollections, contributor
+  roles, subjects, images, acquisition links with
+  price/indirectAcquisition/holds/copies/availability properties, `rel`
+  as string or list, and pagination metadata. Links stay data; relative
+  references resolve only against a base URL the caller passes
+  (`resolveOpds2Href`), URI templates stay data with a documented
+  `{var}`/`{?var}` expansion subset, and unknown schemes are never
+  fetched. Input is bounded before allocation (16 MiB bytes, 64 depth,
+  250k values, 1 MiB strings, per-collection counts under `Opds2Limits`)
+  and failures are typed (`Opds2MalformedException`,
+  `Opds2LimitExceededException`) with JSON pointers. Rules the official
+  schemas do not enforce but the normative text requires (facet titles,
+  search `{?query}` templates, RFC 3339 timestamps) reject separately;
+  the schema-vs-normative table and the extension policy live in
+  `doc/opds2.md`. Validated against the pinned official OPDS/Readium
+  schema closure (jsonschema 4.25.1 + referencing 0.37.0, 26 schemas by
+  SHA-256) over the real Feedbooks OPDS 2.0 test catalog and canonical
+  specification examples, with the same corpus embedded for the Chrome
+  suite. The OPDS 1.x Atom API is unchanged; networking, authentication,
+  purchase/loan flows, and DRM stay out of scope.
+
 ## 1.3.0 - October 17, 2026
 
 ### Added
