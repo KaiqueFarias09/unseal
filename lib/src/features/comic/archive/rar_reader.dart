@@ -171,7 +171,9 @@ List<_RarEntry> _readRar5(final Uint8List bytes) {
 
     // Stored payloads stay verbatim; supported compressed payloads
     // decode through the shared RAR 5 decoder. Every path verifies the
-    // declared data CRC-32 (zero included).
+    // declared data CRC-32 (zero included) and the declared BLAKE2sp
+    // digest (zero digest included) — one correct checksum never
+    // excuses the other.
     Uint8List data;
     if (header.isStored) {
       final intact =
@@ -202,6 +204,10 @@ List<_RarEntry> _readRar5(final Uint8List bytes) {
     }
     if (header.hasDataCrc && data.isNotEmpty && getCrc32(data) != header.dataCrc32) {
       throw ComicException('RAR entry "${header.name}" has an invalid checksum.');
+    }
+    final digest = header.blake2spDigest;
+    if (digest != null) {
+      verifyRar5Blake2sp(name: header.name, content: data, digest: digest);
     }
     entries.add(
       _RarEntry(

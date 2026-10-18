@@ -12,6 +12,8 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 
+import 'package:unseal/src/features/comic/archive/rar5_blake2sp.dart';
+
 /// One file entry of a fixture archive: path plus decoded content.
 final class FixtureEntry {
   FixtureEntry(this.name, this.content);
@@ -58,17 +60,39 @@ Uint8List buildRar5Archive({
   final List<int>? entryDictExps,
   final List<int?>? entryFilters,
   final Set<String> directoryNames = const {},
+
+  /// File headers carry a BLAKE2sp hash record with the entry digest.
+  final bool blake2spHashes = false,
+
+  /// When non-negative (and `blake2spHashes` is on) that entry's
+  /// digest is corrupted before the header CRC is computed — the
+  /// in-archive negative the web parity tests build.
+  final int corruptDigestIndex = -1,
 }) {
   final body = BytesBuilder();
   body.add([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
 
   // Adds one block: CRC-32 over (type .. extra area end), the size
   // vint, the body, then the data area.
-  void block(final int type, final int flags, final List<int> payload, {final List<int>? data}) {
-    final typed = <int>[..._vint(type), ..._vint(flags)];
-    if (flags & 0x0001 != 0) typed.addAll(_vint(0)); // no extra area
-    if (flags & 0x0002 != 0) typed.addAll(_vint(data?.length ?? 0));
+  void block(
+    final int type,
+    final int flags,
+    final List<int> payload, {
+    final List<int>? data,
+    final List<int>? extra,
+  }) {
+    final withExtra = extra != null;
+    final typed = <int>[..._vint(type), ..._vint(withExtra ? flags | 0x0001 : flags)];
+    if (withExtra) {
+      typed.addAll(_vint(extra.length));
+    } else if (flags & 0x0001 != 0) {
+      typed.addAll(_vint(0)); // no extra area
+    }
+    if (flags & 0x0002 != 0) {
+      typed.addAll(_vint(data?.length ?? 0));
+    }
     typed.addAll(payload);
+    if (withExtra) typed.addAll(extra);
     final sizeFieldBytes = _vint(typed.length);
     // The header CRC covers the size field and the typed body, the
     // coverage real archivers write.
@@ -155,7 +179,16 @@ Uint8List buildRar5Archive({
       ...nameBytes,
     ];
 
-    block(2, 0x0002 | (dataCrc ? 0x0004 : 0), payload, data: packed);
+    List<int>? extra;
+    if (blake2spHashes) {
+      final digest = rar5Blake2spDigest(target);
+      if (index == corruptDigestIndex) {
+        digest[3] ^= 0x08;
+      }
+      extra = [34, 2, 0, ...digest]; // record size 34, type 2, hash type 0
+    }
+
+    block(2, 0x0002 | (dataCrc ? 0x0004 : 0), payload, data: packed, extra: extra);
   }
 
   // End of archive: end flags 0.

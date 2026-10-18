@@ -1,3 +1,16 @@
+## BLAKE2 reference implementation
+
+The RAR 5 data-hash verifier in `lib/src/features/comic/archive/
+rar5_blake2sp.dart` is a bounded Dart port of the reference C
+implementations `blake2s-ref.c` and `blake2sp-ref.c` from the
+[BLAKE2](https://github.com/BLAKE2/BLAKE2) package, pinned at revision
+`ed1974ea83433eba7b2d95c5dcd9ac33cb847913`. Upstream is tri-licensed
+under CC0 1.0 Universal, the OpenSSL License, and the Apache Public
+License 2.0; Unseal uses it under CC0. The pinned sources (with the
+upstream license headers preserved) also drive the acceptance oracle in
+`tool/rar5_hash_blake2sp/`; they are development tools and are never
+linked at runtime.
+
 # Third-party notices
 
 ## jchmlib

@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 
 import '../../../foundation/archive/zip_byte_source.dart';
 import '../exceptions/comic_exception.dart';
+import 'rar5_blake2sp.dart';
 
 /// Shared RAR 5 container reader.
 ///
@@ -223,7 +224,7 @@ final class Rar5EntryHeader {
     required this.dictExp,
     required this.isSplit,
     required this.unpackedSizeUnknown,
-    required this.hasBlake2Hash,
+    required this.blake2spDigest,
     required this.isRedirect,
     required this.solidChainUnknown,
   });
@@ -277,11 +278,16 @@ final class Rar5EntryHeader {
   /// Links never carry page payload; they are typed rejections.
   final bool isRedirect;
 
-  /// Whether a hash extra record declares a BLAKE2sp digest.
+  /// The declared BLAKE2sp data digest of the extra-area hash record,
+  /// or null when the entry carries none.
   ///
-  /// The digest is parsed but not verified; payload verification uses
-  /// the header CRC-32 when present.
-  final bool hasBlake2Hash;
+  /// A digest of 32 zero bytes is a present digest and still verifies
+  /// (it will normally fail against the computed hash). Absence of the
+  /// record is absence: such entries keep the CRC-32-only contract.
+  final Uint8List? blake2spDigest;
+
+  /// Whether a hash extra record declares a BLAKE2sp digest.
+  bool get hasBlake2Hash => blake2spDigest != null;
 
   /// Whether the entry continues a solid chain whose dictionary state
   /// is unavailable because an earlier compressed entry is outside the
@@ -353,7 +359,7 @@ Rar5EntryHeader _parseRar5FileHeader({
 
   // Extra-area records: each is (size, type, payload) and the record
   // size bounds its own payload.
-  var hasBlake2Hash = false;
+  Uint8List? blake2spDigest;
   var isRedirect = false;
   final extraEnd = reader.position + extraAreaSize;
   if (extraEnd > reader.length) {
@@ -370,10 +376,26 @@ Rar5EntryHeader _parseRar5FileHeader({
       throw const ComicException('RAR 5 encrypted entries are not supported.');
     }
     if (recordType == _extraHash) {
-      final hashFlags = reader.vint();
-      // Bit 0: CRC-32 (already carried by the file header field when
-      // present), bit 1: BLAKE2sp.
-      hasBlake2Hash = hashFlags & 0x0002 != 0;
+      // The hash record is (hash type vint, payload). Only type 0 —
+      // BLAKE2sp — is inside the cut, and its payload is exactly 32
+      // digest bytes; anything else fails typed instead of being
+      // skipped as an unknown checksum.
+      final hashType = reader.vint();
+      if (hashType != 0) {
+        throw ComicException(
+          'RAR entry "$name" declares an unsupported extra hash type $hashType.',
+        );
+      }
+      if (recordEnd - reader.position != rar5Blake2spDigestBytes) {
+        throw ComicException(
+          'RAR entry "$name" has a truncated or oversized BLAKE2sp hash record.',
+        );
+      }
+      final digest = Uint8List.fromList(reader.bytes(rar5Blake2spDigestBytes));
+      if (blake2spDigest != null && !_digestEquals(blake2spDigest, digest)) {
+        throw ComicException('RAR entry "$name" declares conflicting BLAKE2sp digests.');
+      }
+      blake2spDigest = digest;
     }
     if (recordType == _extraRedirect) {
       isRedirect = true;
@@ -395,7 +417,7 @@ Rar5EntryHeader _parseRar5FileHeader({
     dictExp: (compressionInfo >> _compressDictShift) & _compressDictMask,
     isSplit: blockFlags & _blockFlagDataNotFirst != 0 || blockFlags & _blockFlagDataNotLast != 0,
     unpackedSizeUnknown: fileFlags & _fileFlagUnpackedSizeUnknown != 0,
-    hasBlake2Hash: hasBlake2Hash,
+    blake2spDigest: blake2spDigest,
     isRedirect: isRedirect,
     solidChainUnknown: false,
   );
@@ -418,10 +440,35 @@ Rar5EntryHeader _withSolidChainUnknown(final Rar5EntryHeader header) {
     dictExp: header.dictExp,
     isSplit: header.isSplit,
     unpackedSizeUnknown: header.unpackedSizeUnknown,
-    hasBlake2Hash: header.hasBlake2Hash,
+    blake2spDigest: header.blake2spDigest,
     isRedirect: header.isRedirect,
     solidChainUnknown: true,
   );
+}
+
+/// Verifies [content] against a declared BLAKE2sp digest — the port of
+/// "publish the payload only after its declared data hash matches".
+/// Failures name the hash so a CRC failure is never mistaken for it.
+void verifyRar5Blake2sp({
+  required final String name,
+  required final Uint8List content,
+  required final Uint8List digest,
+}) {
+  final hasher = Rar5Blake2spHasher();
+  hasher.add(content);
+  final computed = hasher.close();
+  if (!_digestEquals(computed, digest)) {
+    throw ComicException('RAR entry "$name" fails its declared BLAKE2sp data hash.');
+  }
+}
+
+bool _digestEquals(final Uint8List a, final Uint8List b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+
+  return true;
 }
 
 /// Bounds-checked cursor over one RAR 5 header body.

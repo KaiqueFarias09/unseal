@@ -62,7 +62,7 @@ development, and the single [roadmap](doc/roadmap.md).
 | ODT | OpenDocument paragraphs, headings, styles, lists, tables, images, links, and metadata | Semantic conversion; not pixel-perfect LibreOffice layout. |
 | AZW4 | PalmDB/MOBI wrapper validation, PDF extraction, metadata, pages, and original PDF bytes | Requires a valid, unencrypted PDF payload. |
 | CBZ | ZIP comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Page-oriented data; no comic UI is included. |
-| CBR | RAR 4 stored and ordinary non-solid method-29 entries; RAR 5 stored entries and compressed streams (algorithm version 0, methods 1-5, delta/E8/E8-E9/ARM filters, dictionaries up to 64 MiB), solid chains included | Split (multi-volume), encrypted, linked entries, PPMd, RAR VM, later algorithm versions, and oversized dictionaries are rejected typed. Solid chains decode sequentially in container order; the per-entry solid bit continues the shared dictionary and the archive-level flag alone leaves entries independent. Compressed RAR 4 PPMd/VM streams remain on the roadmap. |
+| CBR | RAR 4 stored and ordinary non-solid method-29 entries; RAR 5 stored entries and compressed streams (algorithm version 0, methods 1-5, delta/E8/E8-E9/ARM filters, dictionaries up to 64 MiB), solid chains included; declared BLAKE2sp digests (hash type 0) verify with the CRC-32 | Split (multi-volume), encrypted, linked entries, PPMd, RAR VM, later algorithm versions, other hash-record types and shapes, and oversized dictionaries are rejected typed. Solid chains decode sequentially in container order; the per-entry solid bit continues the shared dictionary and the archive-level flag alone leaves entries independent. Compressed RAR 4 PPMd/VM streams remain on the roadmap. |
 | CB7 | 7-Zip comic pages, `ComicInfo.xml` reading direction and page roles, natural ordering, and declared front cover | Asynchronous only; encrypted or unsupported entries are rejected. |
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, JPEG/JPEG 2000/CCITT/JBIG2 images, and structured layout: words, blocks, columns, tables, and stable source anchors mapped to canonical text | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. JPEG 2000 supports the documented Part 1 subset below. |
@@ -893,8 +893,11 @@ and confidence ranges validate before the model exists.
   entries, symbolic links, and compression methods other than stored or
   deflated are rejected with `InvalidBookException`.
 - CBR supports a deliberate subset of RAR. RAR 5 headers verify their
-  CRC-32; a declared data CRC-32 (zero included) verifies after decode.
-  RAR 5 decoding allocates the declared output before decompressing and
+  CRC-32; a declared data CRC-32 (zero included) verifies after decode,
+  and a declared extra-area BLAKE2sp digest (hash type 0) verifies
+  before any payload or solid-chain dependency publishes — both
+  checksums when both are present, failures named per cause. RAR 5
+  decoding allocates the declared output before decompressing and
   rejects dictionaries above 64 MiB. Unsupported compression modes,
   split archives, links, and encrypted entries are rejected. Solid RAR 5
   chains decode in container order with one dictionary per reader or
