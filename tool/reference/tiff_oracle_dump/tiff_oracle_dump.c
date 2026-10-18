@@ -6,9 +6,14 @@
  *                       applied, host byte order, FillOrder normalized to
  *                       MSB-first, sub-byte depths unpacked to one byte per
  *                       sample, no orientation applied, no cropping beyond
- *                       the declared image size);
+ *                       the declared image size). Planar-separate pages are
+ *                       assembled from per-band reads, plane 0 first, so the
+ *                       interleaved layout matches a contiguous page;
  *   <prefix>.pN.rgba    TIFFReadRGBAImageOriented(ORIENTATION_TOPLEFT), the
- *                       display conversion libtiff ships (tiff2rgba level).
+ *                       display conversion libtiff ships (tiff2rgba level);
+ *   <prefix>.pN.colormap  the raw ColorMap of a palette page (photometric 3)
+ *                       as stored: 3 * 2^BitsPerSample little-endian uint16
+ *                       values in red, green, blue table order.
  *
  * <prefix>.json records the layout tags of each directory, the status of
  * both dumps, and every libtiff warning/error raised while reading.
@@ -91,7 +96,6 @@ static void storeSample(unsigned char *out, size_t index, unsigned value, int by
 /* Returns NULL on success or a static status string on failure. */
 static const char *dumpNative(TIFF *tif, uint32_t width, uint32_t height, uint16_t bits,
                               uint16_t spp, uint16_t planar, const char *path) {
-    if (planar != PLANARCONFIG_CONTIG) return "planar-separate-not-dumped";
     if (bits != 1 && bits != 2 && bits != 4 && bits != 8 && bits != 16) return "depth-not-dumped";
     int bytesPerSample = bits == 16 ? 2 : 1;
     size_t samples = (size_t)width * height * spp;
@@ -110,21 +114,46 @@ static const char *dumpNative(TIFF *tif, uint32_t width, uint32_t height, uint16
             free(out);
             return "tile-geometry-invalid";
         }
-        for (uint32_t y = 0; y < height && !status; y += tileLength) {
-            for (uint32_t x = 0; x < width; x += tileWidth) {
-                if (TIFFReadTile(tif, tile, x, y, 0, 0) < 0) {
-                    status = "tile-read-failed";
-                    break;
+        if (planar == PLANARCONFIG_SEPARATE) {
+            /* Plane-major reads: libtiff's codecs decode a plane's tiles
+             * sequentially, so the bands are walked one at a time. */
+            for (uint16_t s = 0; s < spp && !status; s++) {
+                for (uint32_t y = 0; y < height && !status; y += tileLength) {
+                    for (uint32_t x = 0; x < width && !status; x += tileWidth) {
+                        if (TIFFReadTile(tif, tile, x, y, 0, s) < 0) {
+                            status = "tile-read-failed";
+                            break;
+                        }
+                        uint32_t rows = tileLength < height - y ? tileLength : height - y;
+                        uint32_t columns = tileWidth < width - x ? tileWidth : width - x;
+                        for (uint32_t r = 0; r < rows; r++) {
+                            const unsigned char *row = tile + (size_t)r * tileRowBytes;
+                            for (uint32_t c = 0; c < columns; c++) {
+                                unsigned value = readSample(row, c, bits);
+                                size_t index = ((size_t)(y + r) * width + (x + c)) * spp + s;
+                                storeSample(out, index, value, bytesPerSample);
+                            }
+                        }
+                    }
                 }
-                uint32_t rows = tileLength < height - y ? tileLength : height - y;
-                uint32_t columns = tileWidth < width - x ? tileWidth : width - x;
-                for (uint32_t r = 0; r < rows; r++) {
-                    const unsigned char *row = tile + (size_t)r * tileRowBytes;
-                    for (uint32_t c = 0; c < columns; c++) {
-                        for (uint16_t s = 0; s < spp; s++) {
-                            unsigned value = readSample(row, c * spp + s, bits);
-                            size_t index = ((size_t)(y + r) * width + (x + c)) * spp + s;
-                            storeSample(out, index, value, bytesPerSample);
+            }
+        } else {
+            for (uint32_t y = 0; y < height && !status; y += tileLength) {
+                for (uint32_t x = 0; x < width && !status; x += tileWidth) {
+                    if (TIFFReadTile(tif, tile, x, y, 0, 0) < 0) {
+                        status = "tile-read-failed";
+                        break;
+                    }
+                    uint32_t rows = tileLength < height - y ? tileLength : height - y;
+                    uint32_t columns = tileWidth < width - x ? tileWidth : width - x;
+                    for (uint32_t r = 0; r < rows; r++) {
+                        const unsigned char *row = tile + (size_t)r * tileRowBytes;
+                        for (uint32_t c = 0; c < columns; c++) {
+                            for (uint16_t s = 0; s < spp; s++) {
+                                unsigned value = readSample(row, c * spp + s, bits);
+                                size_t index = ((size_t)(y + r) * width + (x + c)) * spp + s;
+                                storeSample(out, index, value, bytesPerSample);
+                            }
                         }
                     }
                 }
@@ -138,16 +167,32 @@ static const char *dumpNative(TIFF *tif, uint32_t width, uint32_t height, uint16
             free(out);
             return "scanline-geometry-invalid";
         }
-        for (uint32_t y = 0; y < height; y++) {
-            if (TIFFReadScanline(tif, row, y, 0) < 0) {
-                status = "scanline-read-failed";
-                break;
+        if (planar == PLANARCONFIG_SEPARATE) {
+            for (uint16_t s = 0; s < spp && !status; s++) {
+                for (uint32_t y = 0; y < height && !status; y++) {
+                    if (TIFFReadScanline(tif, row, y, s) < 0) {
+                        status = "scanline-read-failed";
+                        break;
+                    }
+                    for (uint32_t c = 0; c < width; c++) {
+                        unsigned value = readSample(row, c, bits);
+                        size_t index = ((size_t)y * width + c) * spp + s;
+                        storeSample(out, index, value, bytesPerSample);
+                    }
+                }
             }
-            for (uint32_t c = 0; c < width; c++) {
-                for (uint16_t s = 0; s < spp; s++) {
-                    unsigned value = readSample(row, c * spp + s, bits);
-                    size_t index = ((size_t)y * width + c) * spp + s;
-                    storeSample(out, index, value, bytesPerSample);
+        } else {
+            for (uint32_t y = 0; y < height && !status; y++) {
+                if (TIFFReadScanline(tif, row, y, 0) < 0) {
+                    status = "scanline-read-failed";
+                    break;
+                }
+                for (uint32_t c = 0; c < width; c++) {
+                    for (uint16_t s = 0; s < spp; s++) {
+                        unsigned value = readSample(row, c * spp + s, bits);
+                        size_t index = ((size_t)y * width + c) * spp + s;
+                        storeSample(out, index, value, bytesPerSample);
+                    }
                 }
             }
         }
@@ -160,6 +205,29 @@ static const char *dumpNative(TIFF *tif, uint32_t width, uint32_t height, uint16
         }
         if (file) fclose(file);
     }
+    free(out);
+    return status;
+}
+
+/* Dumps the raw ColorMap of a palette page: 3 * 2^bits uint16 values in
+ * red, green, blue order, host byte order (little-endian here). */
+static const char *dumpColormap(TIFF *tif, uint16_t bits, const char *path, uint32_t *entries) {
+    uint16_t *red = NULL, *green = NULL, *blue = NULL;
+    if (!TIFFGetField(tif, TIFFTAG_COLORMAP, &red, &green, &blue)) return "colormap-missing";
+    if (bits > 16) return "depth-not-dumped";
+    size_t perTable = (size_t)1 << bits;
+    uint16_t *out = malloc(perTable * 3 * sizeof(uint16_t));
+    if (!out) return "allocation-failed";
+    memcpy(out, red, perTable * sizeof(uint16_t));
+    memcpy(out + perTable, green, perTable * sizeof(uint16_t));
+    memcpy(out + perTable * 2, blue, perTable * sizeof(uint16_t));
+    *entries = (uint32_t)(perTable * 3);
+    const char *status = NULL;
+    FILE *file = fopen(path, "wb");
+    if (!file || fwrite(out, sizeof(uint16_t), perTable * 3, file) != perTable * 3) {
+        status = "colormap-write-failed";
+    }
+    if (file) fclose(file);
     free(out);
     return status;
 }
@@ -253,17 +321,23 @@ int main(int argc, char **argv) {
         } else {
             TIFFGetFieldDefaulted(tif, TIFFTAG_ROWSPERSTRIP, &rowsPerStrip);
         }
-        char nativePath[4096], rgbaPath[4096];
+        char nativePath[4096], rgbaPath[4096], colormapPath[4096];
         snprintf(nativePath, sizeof nativePath, "%s.p%d.native", prefix, index + 1);
         snprintf(rgbaPath, sizeof rgbaPath, "%s.p%d.rgba", prefix, index + 1);
+        snprintf(colormapPath, sizeof colormapPath, "%s.p%d.colormap", prefix, index + 1);
         const char *nativeStatus = NULL;
         const char *rgbaStatus = NULL;
+        const char *colormapStatus = NULL;
+        uint32_t colormapEntries = 0;
         if (width == 0 || height == 0) {
             nativeStatus = "empty-geometry";
             rgbaStatus = "empty-geometry";
         } else {
             nativeStatus = dumpNative(tif, width, height, bits, spp, planar, nativePath);
             rgbaStatus = dumpRgba(tif, width, height, rgbaPath);
+            if (photometric == PHOTOMETRIC_PALETTE) {
+                colormapStatus = dumpColormap(tif, bits, colormapPath, &colormapEntries);
+            }
         }
         fprintf(json, "%s\n    {\n      \"index\": %d,\n      \"width\": %u,\n      \"height\": %u,\n",
                 index == 0 ? "" : ",", index, width, height);
@@ -293,6 +367,19 @@ int main(int argc, char **argv) {
         }
         fputs(",\n      \"rgbaStatus\": ", json);
         writeJsonString(json, rgbaStatus ? rgbaStatus : "ok");
+        fputs(",\n      \"colormapFile\": ", json);
+        if (photometric == PHOTOMETRIC_PALETTE && !colormapStatus) {
+            writeJsonString(json, colormapPath);
+        } else {
+            fputs("null", json);
+        }
+        fputs(",\n      \"colormapStatus\": ", json);
+        if (photometric == PHOTOMETRIC_PALETTE) {
+            writeJsonString(json, colormapStatus ? colormapStatus : "ok");
+        } else {
+            fputs("\"not-palette\"", json);
+        }
+        fprintf(json, ",\n      \"colormapEntries\": %u", colormapEntries);
         fputs(",\n      \"diagnostics\": ", json);
         writeJsonString(json, diagnostics);
         fputs("\n    }", json);
