@@ -6,12 +6,12 @@ import 'package:html/parser.dart' as html_parser;
 import '../../foundation/text/xml_encoding.dart';
 import 'hocr_document.dart';
 import 'hocr_exception.dart';
+import 'hocr_input_limits.dart';
 import 'hocr_title.dart';
 
 /// Input and structure bounds for the supported hOCR subset. Hostile or
 /// oversized documents fail with [HocrException] before the DOM exists and
 /// again while the tree is walked.
-const int _maxInputBytes = 32 * 1024 * 1024;
 const int _maxDepth = 128;
 const int _maxElements = 1048576;
 const int _maxElementsPerPage = 65536;
@@ -74,9 +74,7 @@ const Set<String> _metadataNames = <String>{
 /// element, attribute and title budgets are checked over the raw markup
 /// before any tree is allocated.
 HocrDocument parseHocrDocument(final Uint8List bytes) {
-  if (bytes.length > _maxInputBytes) {
-    throw const HocrException('hOCR input exceeds the 32 MiB limit.');
-  }
+  checkHocrInputLength(bytes.length);
   final text = decodeXmlText(bytes);
   _preflight(text);
   final document = html_parser.parse(text);

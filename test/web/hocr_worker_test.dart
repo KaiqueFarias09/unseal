@@ -21,6 +21,21 @@ void main() {
 
   tearDown(UnsealWorker.dispose);
 
+  test('oversized sidecars fail before the worker request and keep it usable', () async {
+    await Unseal.read(djvuJpegPage(tinyJpeg, txtz: base64Decode(cyrillicTxtzBase64)));
+    final identity = PublicationRevision(publicationId: 'browser:hocr-budget');
+    expect(await UnsealWorker.spatialDjvuPageInWorker(0), isNotNull);
+    await expectLater(
+      UnsealWorker.bindHocrInWorker(
+        hocrBytes: Uint8List(32 * 1024 * 1024 + 1),
+        pageIndex: 0,
+        identity: identity,
+      ),
+      throwsA(isA<HocrException>()),
+    );
+    expect(await UnsealWorker.spatialDjvuPageInWorker(0), isNotNull);
+  });
+
   test('worker binds hOCR onto the resident page snapshot', () async {
     final txtz = base64Decode(cyrillicTxtzBase64);
     final bytes = djvuJpegPage(tinyJpeg, txtz: txtz);

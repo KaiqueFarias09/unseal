@@ -361,11 +361,11 @@ void main(final List<String> arguments) {
                 final ratio = (pair['planarOverContiguous']! as Map)['decodeMedianRatio'];
                 final contig = pair['contiguous']! as Map;
                 final planar = pair['planar']! as Map;
-                return '${pair['label']}: planar/contig decode x$ratio, peak RSS '
+                return '${pair['label']}: planar/contig decode $ratio%, peak RSS '
                     '${_mib(contig['peakRssBytes']! as int)} / ${_mib(planar['peakRssBytes']! as int)}';
               }
               final ratio = (pair['paletteOverGray']! as Map)['decodeMedianRatio'];
-              return '${pair['label']}: palette/gray decode x$ratio';
+              return '${pair['label']}: palette/gray decode $ratio%';
             })
             .join('; ');
   verdict(

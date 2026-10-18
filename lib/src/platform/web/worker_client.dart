@@ -9,6 +9,7 @@ import '../../features/alto/bind_alto_snapshot.dart';
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/djvu/djvu_page_structure.dart';
 import '../../features/hocr/bind_hocr_snapshot.dart';
+import '../../features/hocr/hocr_input_limits.dart';
 import '../../features/page/bind_page_snapshot.dart';
 import '../../features/pdf/entities/pdf_page_text.dart';
 import '../../features/pdf/layout/pdf_page_structure.dart';
@@ -216,6 +217,7 @@ final class WorkerClient {
     required final PublicationRevision identity,
   }) async {
     if (!_residentBook) return null;
+    checkHocrInputLength(hocrBytes.length);
 
     return await _request(
           workerOpHocrBind,
