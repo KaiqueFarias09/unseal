@@ -102,7 +102,7 @@ the spec's ABNF with the deviations the corpus forced, each named here:
 | --- | --- | --- | --- |
 | `bbox` | all roles | exactly four non-negative integers `x0 y0 x1 y1`, `x1 >= x0`, `y1 >= y0` | `HocrBox` in image pixels, top-left origin; `width = x1 - x0`, `height = y1 - y0`. Zero extent is accepted as declared (gcv2hocr writes `bbox 0 0 0 0` on its page); an inverted box fails typed; a non-integer or negative token fails typed. |
 | `baseline` | lines | two or more finite numbers, at most eight | `HocrBaseline.coefficients` verbatim in stored order (`pn ... p0`), `order = count - 1`. The spec's ABNF says `float int`; Tesseract 5.5.3 writes `baseline 0.029 -12.192`, so both coefficients are read as decimals. The polynomial lives in the line's frame with the bottom-left corner of the line's `bbox` as origin and y growing downward. |
-| `x_wconf` | words (any role accepted) | one finite number in `0..100` | `HocrConfidence`: `declared` is the 0..100 value, `shared` is `declared / 100` for the spatial contract. A non-numeric token (`unknown`) is kept as `declaredToken` with no value; a missing property has no record at all. Absent, unknown and zero are three different states; none of them becomes another. Out-of-range or non-finite fails typed. |
+| `x_wconf` | words (data on any other role) | one token | `HocrConfidence`: a token that starts with a digit, `-` or `.` must satisfy the decimal grammar and lie in `0..100`, or it fails typed (`1e400`, `101`, `-1`); `declared` is that 0..100 value and `shared` is `declared / 100` for the spatial contract. Any other token (`unknown`, `inf`) is a declared non-numeric confidence kept as `declaredToken` with no value. A missing property has no record at all. Absent, unknown and zero are three different states; none of them becomes another. |
 | `textangle` | all roles | one finite decimal | degrees, counter-clockwise, native. It never rotates coordinates or the spatial page; the spatial projection's rotation is always 0. |
 | `scan_res` | page | two non-negative integers; one integer is accepted as both axes | `scanResolutionX`/`Y` in DPI. |
 | `ppageno` | page | one non-negative integer | `physicalPageNumber`. Recorded, never used to reorder pages. |
@@ -274,8 +274,10 @@ while walking the tree, all failing typed with `HocrException`:
 | Binding candidate occurrences per unit | 16 (configurable, >= 2) |
 | Binding projection work | 64 Mi code-unit scans (configurable) |
 
-Non-finite numbers cannot be written in the grammar, but `inf`, `nan`,
-`1e400` and friends are refused typed wherever a number is consumed.
+Non-finite numbers cannot be written in the grammar, but `1e400`,
+`Infinity`, `NaN` and friends are refused typed wherever a number is
+consumed. `x_wconf` is the one place a token that does not start like a
+number is data rather than a refusal (see the property table).
 
 ## Corpus and reference
 
