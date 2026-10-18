@@ -4136,6 +4136,334 @@
       "landmarks": 0
     },
     {
+      "path": "test/resources/tiff/planar-palette/flower-palette-02.tif",
+      "format": "tiff",
+      "bytes": 1164,
+      "sha256": "75e74d8816942ff6e9dfda411f9171f0f1dd1a5a88cb1410238b55a2b2aeeb71",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-palette-04.tif",
+      "format": "tiff",
+      "bytes": 2010,
+      "sha256": "700ec8103b4197c415ba90d983a7d5f471f155fd5b1c952d86ee9becba898a1a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-palette-08.tif",
+      "format": "tiff",
+      "bytes": 4998,
+      "sha256": "1a05a3e39e3f58e48e3667e8cca3613476752e2defe0af80c07faf2bb00d7812",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-palette-16.tif",
+      "format": "tiff",
+      "bytes": 399816,
+      "sha256": "fc107b301c04288133f990dc7c87a01cf9bed2a1c7097ea6c162c879b581011d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-planar-none-t32-be.tif",
+      "format": "tiff",
+      "bytes": 18871,
+      "sha256": "fa3870c40360e1dc8bf0cfbe3128f02057c2fdc7e0602862cee1bf469d13421b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-planar16-zip2-t16.tif",
+      "format": "tiff",
+      "bytes": 24149,
+      "sha256": "46bf8a9f4fbd9c1d7927bf34788e63694b76a892d8ca9bcf598d02b16dc377bb",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-rgb-planar-02.tif",
+      "format": "tiff",
+      "bytes": 2795,
+      "sha256": "21c4ede6382d8c72cb8e6f7939203d5111b362646a9727d95a2f63310ec8e5b3",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-rgb-planar-04.tif",
+      "format": "tiff",
+      "bytes": 5117,
+      "sha256": "ca4434aa1a8c52654b20596c7c428c9016e089de75c29dc6ddcd32708874005c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-rgb-planar-08.tif",
+      "format": "tiff",
+      "bytes": 9761,
+      "sha256": "9fec3afeaee2a1fa931e2321f266d0c546ef3437aba343d3065bf4ea8bf1d0fa",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-rgb-planar-16.tif",
+      "format": "tiff",
+      "bytes": 19177,
+      "sha256": "0a143fb6c5792fa7755e06feb757c745ad68944336985dc5be8a0c37247fe36d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-separated-planar-08.tif",
+      "format": "tiff",
+      "bytes": 12927,
+      "sha256": "6f6e99290839dc804a49fbadd224b842a66581ddff63461413c3d80c319d8468",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/flower-separated-planar-16.tif",
+      "format": "tiff",
+      "bytes": 25483,
+      "sha256": "07bd74b686dfa4293d0047ec80bcd4c08159d669ff70dd33914edb0d050da850",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/jello-zip-t32-be.tif",
+      "format": "tiff",
+      "bytes": 22540,
+      "sha256": "6516fa014b78319641234b45b2a460181a0653edce0314d3477dcff760a62a2e",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/jello.tif",
+      "format": "tiff",
+      "bytes": 47136,
+      "sha256": "4ded66cd13d87a36b7d33e663e3bfed7c2a150419579fd6491d09cd437f18edc",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/manifest.json",
+      "format": "manifest",
+      "bytes": 17296,
+      "sha256": "99f62747c981a2558d05344878f4af8f5fa6140c7e76f35096d8bde29b8c5b42",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/mixed-planar-big-be-2page.tif",
+      "format": "tiff",
+      "bytes": 32427,
+      "sha256": "758fa4154a8a2814d7fe7af6f438b457c8370e6db8e727dba3556c1cac8d7c90",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/mixed-planar-palette-3page.tif",
+      "format": "tiff",
+      "bytes": 45289,
+      "sha256": "c1453e5781c2de2e2504a1d918c84f8dfa886fecf71794ce1783480be97cbcfe",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette1-none-strips-be.tif",
+      "format": "tiff",
+      "bytes": 3178,
+      "sha256": "7b370c92d5dce62193f3a9dd97985f452b663cff73df30685c10ac9317221094",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette2-enc-strips-be.tif",
+      "format": "tiff",
+      "bytes": 418,
+      "sha256": "a3018b59e26ab2ff619366131a9d8030dc39ecd936dcff5964fe3aef4176fb84",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette2-packbits-strips.tif",
+      "format": "tiff",
+      "bytes": 1027,
+      "sha256": "014c239ccd40451e8492877cebcaef1a6ee05ca67113e9746005bb5c1d13704f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette4-enc-strips.tif",
+      "format": "tiff",
+      "bytes": 4120,
+      "sha256": "bc9da2671b203ffea2cc77f114561498d5c8498219644f496cbbd6a4b7ca4ed4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette4-t16.tif",
+      "format": "tiff",
+      "bytes": 2345,
+      "sha256": "1505fc8f8ec0c323b648f3425121efcabb2386989ed53b9339986a6e22e0406b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette8-enc-strips.tif",
+      "format": "tiff",
+      "bytes": 2296,
+      "sha256": "3bc27ea268bfc586e4551a328d31127ea79892f9c4cdeb3e0f1b5d91efce0c44",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette8-legacy8bit.tif",
+      "format": "tiff",
+      "bytes": 7942,
+      "sha256": "e1f81b901316302f5111bc5da75007db3920d9efe0e01e32489d2917be4d9db1",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette8-lzw2-reject.tif",
+      "format": "tiff",
+      "bytes": 22467,
+      "sha256": "8a5e33b2ac8c2b23610a1235d1f813df61156f8c5fc4fdff8d24bab1ad7465cf",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette8-none-t16-le.tif",
+      "format": "tiff",
+      "bytes": 28039,
+      "sha256": "91e0987f52f06d92b8d73d566c7969812070fe1ef6a8540bb395e78838a2a12b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette8-o4-t32.tif",
+      "format": "tiff",
+      "bytes": 5976,
+      "sha256": "5d0cf4a94c2645eeb9f2d1c61b6081ca3ae6c9f220c4df782006ac2cb01ba63f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette8-packbits-strips-be.tif",
+      "format": "tiff",
+      "bytes": 24807,
+      "sha256": "77a122bbcc24b4840c912a9938bb6cf79f5b1d3dcdb7109ca525fac104176fb2",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/palette8-zip-t16-big.tif",
+      "format": "tiff",
+      "bytes": 23451,
+      "sha256": "c4e460189148574f53b77b49acffba66e1bf6148e80e07254d1cab2d2a471c1d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar16-lzw-t32-be.tif",
+      "format": "tiff",
+      "bytes": 14446,
+      "sha256": "840d9c8fa86dbff0a463f6a63b432fc09873265efc957405d4477d9a0959d688",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar16-none-strips.tif",
+      "format": "tiff",
+      "bytes": 11730,
+      "sha256": "c55f35d40aba3f8fea6fa707aabb8696b78ebe1ee62f2bde569fce71ec337847",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar16-o3-strips-big-be.tif",
+      "format": "tiff",
+      "bytes": 11856,
+      "sha256": "537b876116fef742a06cc4ec2fc29268c49290403fc17d1b04cbf14af7410764",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar16-zip2-t16.tif",
+      "format": "tiff",
+      "bytes": 2180,
+      "sha256": "07678cc3eab129f4ca01113c4b30c877615f07003d12589485f1e8abe91b81e8",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar8-lzw2-strips.tif",
+      "format": "tiff",
+      "bytes": 2022,
+      "sha256": "0e03f65028ffe33d8a8ff13b8f710b236faf03ea856598708cb866bc1d06d336",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar8-none-strips.tif",
+      "format": "tiff",
+      "bytes": 18690,
+      "sha256": "689932fc0472b63eba2066d9d87238d89faa1832a9410d1094ce4ea17adf2a6b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar8-none-t16-le.tif",
+      "format": "tiff",
+      "bytes": 27726,
+      "sha256": "9c5a1bcb981255fd5ec25f89a167746d22b565dc1c92e9a99e2ec5314a746653",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar8-o2-t16.tif",
+      "format": "tiff",
+      "bytes": 11926,
+      "sha256": "24aeaa87247bcdec239349597def5e9e19c73103abf4d2d2287681e2044bd1dd",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar8-packbits-t32-be.tif",
+      "format": "tiff",
+      "bytes": 31394,
+      "sha256": "3be856654ad177c02a9565bcf756ba1624a56bce06a9e965a641c51d9c56028a",
+      "container": "palmDb",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar8-rows8.tif",
+      "format": "tiff",
+      "bytes": 18780,
+      "sha256": "07655d756782a22c140a7aef0b2d6c308b2a7f5ba0cd8ca18dd3cbfb97ec1c16",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/planar8-zip2-t16-big.tif",
+      "format": "tiff",
+      "bytes": 6014,
+      "sha256": "8b3f102eb3fdbdad98d3cd413bd7ee967c160724ecb921e3c17d18581693ea18",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/planar-palette/quad-planar-zip2-t64-big-be.tif",
+      "format": "tiff",
+      "bytes": 95884,
+      "sha256": "79ac28d5aef785285bb7ad8788280ec0489e4dc9aea5b4b56f80d7b5a27e9159",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/tiff/quad-lzw-compat.tiff",
       "format": "tiff",
       "bytes": 214342,
@@ -4673,10 +5001,10 @@
     }
   ],
   "counts": {
-    "total": 578,
-    "totalBytes": 93104775,
+    "total": 619,
+    "totalBytes": 94174445,
     "byFormat": {
-      "manifest": 97,
+      "manifest": 98,
       "xml-sidecar": 14,
       "chm": 4,
       "cbr": 20,
@@ -4702,7 +5030,7 @@
       "azw4": 1,
       "odt": 1,
       "pdf": 31,
-      "tiff": 80,
+      "tiff": 120,
       "txtz": 1,
       "resource": 126
     }
