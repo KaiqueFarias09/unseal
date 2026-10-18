@@ -121,7 +121,7 @@ You only need a small set of format terms to understand most of the repository.
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
 | DjVu JPEG, JB2, and bounded IW44 subset | An IFF document with INFO, direct BGjp JPEG, local or shared Sjbz JB2 masks, progressive BG44/FG44 IW44 layers, TXTz/TXTa text, and NAVM bookmarks. | `DjvuBook` with JPEG/BMP page images, geometry, searchable text, navigation, and source bytes. File-based reads resolve indirect sibling components. Chained dictionaries and replacement visual codecs fail typed; FGbz palette recoloring is ignored. |
-| TIFF and BigTIFF | A classic TIFF or BigTIFF header whose IFD chains describe pages of strip- or tile-organized raster. | `TiffBook` with BMP page images (or a passed-through self-contained JPEG strip), dimensions, resolution, and original bytes; strip and tiled pages share the codecs and Orientation 1-4 are brought to top-left. Planar=2, palette, LogLuv, JPEG tiles, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and transposed orientations fail typed. |
+| TIFF and BigTIFF | A classic TIFF or BigTIFF header whose IFD chains describe pages of strip- or tile-organized raster. | `TiffBook` with BMP page images (or a passed-through self-contained JPEG strip), dimensions, resolution, and original bytes; strip, tiled, planar, and palette pages share the codecs and Orientation 1-4 are brought to top-left. Planar alpha/extra samples, 16-bit palettes, palette + Predictor 2, LogLuv, JPEG tiles, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and transposed orientations fail typed. |
 | CHM | An ITSF compiled HTML Help archive with compressed topic streams. | `DocumentBook` with ordered HTML topics, resources, title, and hierarchical contents. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
 | Standalone Markdown | CommonMark text with optional small front matter. | `DocumentBook` with converted HTML, heading navigation, and selected metadata. |
@@ -882,26 +882,36 @@ grid of segments: strips as a one-column grid, or tiles from
 `TileWidth`/`TileLength` addressed by the tile tags or, as the Silicon
 Graphics Image Library wrote them, by the strip tags. Every tile decodes at
 its full footprint and is cropped into the page; CCITT tiles decode at the
-tile width; Orientation 2-4 flip the finished raster to top-left. Planar=2,
-palette, SampleFormat 2/3/5/6, LogLuv, JPEG tiles, JPEGTables-abbreviated
-strips, old-style JPEG, reversed FillOrder under any codec, transposed
-Orientation 5-8, and uncompressed-mode extensions fail with
-`TiffUnsupportedCodecException`; malformed containers, hostile offsets and
-counts, segments overlapping each other, the header, or the directory, IFD
+tile width; Orientation 2-4 flip the finished raster to top-left. Two more
+raster layouts decode: planar RGB (`PlanarConfiguration` 2, unsigned
+8/16-bit, three planes, by strips or tiles, with every band's segment
+matrix validated up front and Predictor 2 differencing on a one-sample
+stride per plane), and palette pages (1/2/4/8-bit indices through an
+exact-size ColorMap of three 16-bit tables, projected with libtiff's fixed
+rule — byte-range legacy tables direct, full-range tables take the high
+byte). Planar pages with alpha or extra samples, planar CCITT/JPEG,
+16-bit palettes, palette + Predictor 2, SampleFormat 2/3/5/6, LogLuv, JPEG
+tiles, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder
+under any codec, transposed Orientation 5-8, and uncompressed-mode
+extensions fail with `TiffUnsupportedCodecException`; malformed containers,
+hostile offsets and counts, ColorMaps with a wrong entry count, segments
+overlapping each other (bands included), the header, or the directory, IFD
 cycles, oversized tiles, and short segments fail with `TiffException`
 before any declared allocation. Documents are capped at 128 MiB of input,
 1,024 pages, 65,536 IFD entries, 4 samples per pixel, a 256-megapixel page
 or tile footprint, a million segments per page, 256 million decoded pixels
 per book, 128 MiB of resident decoded bytes (page images plus the live
-conversion, segment scratch and fixed CCITT row buffers), and 512 MiB of decode work counted at full
-footprints. `doc/tiff-tiles.md` fixes the tiled contract, the budgets, and
-the libtiff comparison.
+conversion, all live planar band buffers, palette tables, segment scratch
+and fixed CCITT row buffers), and 512 MiB of decode work counted at full
+footprints. `doc/tiff-tiles.md` fixes the tiled contract,
+`doc/tiff-planar-palette.md` the planar/palette contract, and both fix the
+libtiff comparison.
 
 | File | What it does and why it exists |
 | --- | --- |
 | `lib/tiff.dart` | Exposes the narrow format API. |
 | `features/tiff/tiff_container.dart` | Parses classic and BigTIFF headers, walks IFD chains with cycle detection, records each directory's table extent, and reads typed values with bounds and count checks. |
-| `features/tiff/tiff_page_decoder.dart` | Validates page geometry and the whole segment layout (strips or tiles), reserves the budgets, decodes each segment at its footprint into the page, applies orientation, and encodes the BMP or passes a JPEG through. |
+| `features/tiff/tiff_page_decoder.dart` | Validates page geometry and the whole segment layout (strips, tiles, and planar bands), resolves palette ColorMaps before projection, reserves the budgets, decodes each segment at its footprint into the page, applies orientation, and encodes the BMP or passes a JPEG through. |
 | `features/tiff/tiff_ccitt_decoder.dart` | Decodes CCITT modified Huffman, Group 3, and Group 4 rows with libtiff's reference-run state machine, byte-aligning modified Huffman rows the way `Fax3DecodeRLE` does, with typed failures. |
 | `features/tiff/tiff_codec.dart` | Implements PackBits and TIFF LZW (standard and bit-reversed compat), inflates Deflate straight into the segment footprint, applies horizontal differencing per sample width, and names codecs in typed failures. |
 | `features/tiff/tiff_limits.dart` | Reserves the input, page, segment, sample, resident, scratch, and work budgets before allocations. |

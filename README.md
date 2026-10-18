@@ -67,7 +67,7 @@ development, and the single [roadmap](doc/roadmap.md).
 | CBC | Top-level `comics.txt` collections containing CBZ, CBR, or CB7 files | The collection is flattened into one `ComicBook` page sequence. |
 | PDF | Metadata, bookmarks, page text with extraction diagnosis, conservative two-column reflow, facsimile data, JPEG/JPEG 2000/CCITT/JBIG2 images, and structured layout: words, blocks, columns, tables, and stable source anchors mapped to canonical text | Reading-oriented extraction, not OCR or a general-purpose PDF renderer. JPEG 2000 supports the documented Part 1 subset below. |
 | DjVu (JPEG, JB2, and IW44 subset) | Direct `BGjp` JPEG pages, `Sjbz` masks with shared `Djbz` dictionaries and `INCL` references, progressive `BG44`/`FG44` layers, and INFO dimensions and rotation in single-page or bundled documents; compressed `TXTz` hidden text, legacy `TXTa` OCR, and `NAVM` bookmark outlines | JB2 masks and composed IW44 pages become BMP images. Compressed text is byte-exact against `djvutxt`. Indirect document directories resolve through file-based opens only; `FGbz` recoloring, `FGjp`/`Smmr` layer replacements, `ANTz` annotations, and thumbnails are ignored or rejected as described below. |
-| TIFF / BigTIFF | Baseline uncompressed, PackBits, LZW, and Deflate/AdobeDeflate raster pages (8-bit gray and RGB, 16-bit gray, bilevel, with horizontal-differencing predictors), CCITT Group 4 and Group 3 (including modified Huffman and EOL-less producers), in strips or in tiles (tile grids with edge padding, tile addresses under the tile or the strip tags, Orientation 1-4 brought to top-left), multi-page IFD chains mixing strips and tiles in both byte orders, BigTIFF 64-bit offsets, ImageDescription/DateTime/Software/Artist metadata, and X/Y-resolution DPI | Pages become BMP images (JPEG passthrough when a page holds one self-contained strip). Planar=2, palette, float/SampleFormat 2/3/5/6, LogLuv, JPEG tiles and JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, transposed Orientation 5-8, and uncompressed-mode extensions are rejected typed. A page or a tile footprint is capped at 256 megapixels; strip and tile addresses are bounds- and overlap-checked before allocation; a document is capped at 128 MiB input, 1024 pages, 256 megapixels of decoded pixels, 128 MiB of resident decoded bytes (page images plus live scratch), and 512 MiB of decode work. Pixels are compared sample by sample with libtiff 4.7.2 ([doc/tiff-tiles.md](doc/tiff-tiles.md)). |
+| TIFF / BigTIFF | Baseline uncompressed, PackBits, LZW, and Deflate/AdobeDeflate raster pages (8-bit gray and RGB, 16-bit gray, bilevel, with horizontal-differencing predictors), planar RGB (`PlanarConfiguration` 2, unsigned 8/16-bit, three planes, by strips or tiles, predictor stride one per plane), palette pages (`PhotometricInterpretation` 3, 1/2/4/8-bit indices through an exact-size 16-bit ColorMap, projected with libtiff's rule), CCITT Group 4 and Group 3 (including modified Huffman and EOL-less producers), in strips or in tiles (tile grids with edge padding, tile addresses under the tile or the strip tags, Orientation 1-4 brought to top-left), multi-page IFD chains mixing strips, tiles, planar, and palette pages in both byte orders, BigTIFF 64-bit offsets, ImageDescription/DateTime/Software/Artist metadata, and X/Y-resolution DPI | Pages become BMP images (JPEG passthrough when a page holds one self-contained strip). Planar alpha/extra samples, planar CCITT/JPEG, 16-bit palettes, palette + Predictor 2, palette + CCITT, float/SampleFormat 2/3/5/6, LogLuv, JPEG tiles and JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, transposed Orientation 5-8, and uncompressed-mode extensions are rejected typed. A page or a tile footprint is capped at 256 megapixels; band, tile, and strip addresses are bounds- and overlap-checked (across bands too) before allocation; a document is capped at 128 MiB input, 1024 pages, 256 megapixels of decoded pixels, 128 MiB of resident decoded bytes (page images, all live band buffers, palette tables, and scratch), and 512 MiB of decode work. Pixels, band samples, palette indices, and ColorMaps are compared with libtiff 4.7.2 at zero tolerance ([doc/tiff-tiles.md](doc/tiff-tiles.md), [doc/tiff-planar-palette.md](doc/tiff-planar-palette.md)). |
 
 `OPF` is not a standalone reading format. When unseal finds `metadata.opf`
 inside TXTZ or HTMLZ, or a sibling `<book-name>.opf` beside a native file, it
@@ -829,17 +829,27 @@ included) before the page takes the visible part, tile addresses are read
 from `TileOffsets`/`TileByteCounts` or, as Silicon Graphics files wrote
 them, from the strip tags, CCITT tiles decode at the tile width, and
 Orientation 2-4 are flipped to top-left. Old-style bit-reversed compat LZW
-decodes through libtiff's detection heuristic. Layouts outside the contract
-fail with `TiffUnsupportedCodecException`: planar=2, palette,
+decodes through libtiff's detection heuristic. Two more raster layouts
+decode ([doc/tiff-planar-palette.md](doc/tiff-planar-palette.md)): planar
+RGB (`PlanarConfiguration` 2, unsigned 8/16-bit, three planes, by strips or
+tiles, with Predictor 2 differencing on a one-sample stride per plane,
+band arrays validated across planes before any band decodes), and palette
+pages (1/2/4/8-bit indices through an exact-size ColorMap of three 16-bit
+tables, native values preserved and compared before libtiff's fixed
+display projection: byte-range legacy tables used directly, full-range
+tables take the high byte). Layouts outside the contract fail with
+`TiffUnsupportedCodecException`: planar pages with alpha or extra samples,
+planar CCITT/JPEG, 16-bit palettes, palette + Predictor 2, palette + CCITT,
 float/SampleFormat 2/3/5/6, LogLuv, JPEG tiles and JPEGTables-abbreviated
 strips, old-style JPEG, reversed FillOrder under any codec, transposed
 Orientation 5-8, and uncompressed-mode extensions; malformed containers,
-addresses that overlap each other or the directory, and oversized tiles
-fail with `TiffException` before any declared allocation. Pixels are
-verified sample by sample against libtiff 4.7.2 over the tracked strip and
-tiled corpora (SGI-written tiled files, libtiff test images, and identified
-`tiffcp` derivatives; see `doc/tiff-tiles.md` and
-`test/resources/tiff/PROVENANCE.md`).
+ColorMaps with a wrong entry count, addresses that overlap each other or
+the directory (bands included), and oversized tiles fail with
+`TiffException` before any declared allocation. Pixels are verified sample
+by sample against libtiff 4.7.2 over the tracked strip, tiled, and
+planar/palette corpora (SGI-written tiled files, libtiff test images, and
+identified `tiffcp` derivatives; see `doc/tiff-tiles.md`,
+`doc/tiff-planar-palette.md`, and `test/resources/tiff/PROVENANCE.md`).
 
 ### Input and archive boundaries
 

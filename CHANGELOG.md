@@ -1,3 +1,27 @@
+## Unreleased
+
+### Added
+
+- TIFF/BigTIFF planar RGB and palette pages (contract in
+  `doc/tiff-planar-palette.md`): `PlanarConfiguration` 2 for RGB unsigned
+  8/16-bit, three samples per pixel, by strips and tiles in classic and
+  BigTIFF files and both byte orders, with Predictor 2 accumulating on a
+  one-sample stride per plane; and `PhotometricInterpretation` 3 palettes
+  of 1/2/4/8-bit indices with an exact-size 16-bit ColorMap whose native
+  values are preserved before the fixed display projection (byte-range
+  legacy tables used directly as libtiff's "Assuming 8-bit colormap"
+  rule, full-range tables take the high byte). Palette + Predictor 2,
+  palette + CCITT, 16-bit palettes, planar alpha/extra samples, and
+  planar CCITT/JPEG stay typed rejections. Every planar band segment is
+  validated (bounds, header, directory, mutual overlap across bands)
+  before any band decodes; resident budgets count all three band
+  buffers, the ColorMap tables, and the display lookup together.
+  Verified sample-by-sample against libtiff 4.7.2 — 49-case corpus over
+  independent SGI/GraphicsMagick files and identified derivatives with
+  native band samples, palette indices, ColorMaps, and RGBA pixels at
+  zero tolerance (`tool/tiff_planar_palette_compare.dart`), on the VM and
+  under a real browser worker.
+
 ## 1.3.0 - October 18, 2026
 
 ### Added
