@@ -36,10 +36,8 @@ Future<void> main() async {
       .split(' ')
       .firstWhere((word) => word.trim().isNotEmpty)
       .trim();
-  String escape(final String text) => text
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;');
+  String escape(final String text) =>
+      text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   final escapedWord = escape(firstWord);
   final pageXml = Uint8List.fromList(
     utf8.encode(
@@ -91,10 +89,12 @@ Future<void> main() async {
     expect(bound.targetOccurrence, inline.targetOccurrence);
     expect(bound.targetProfile.sameProfile(inline.targetProfile), isTrue);
     expect(bound.targetTextRevision, inline.targetTextRevision);
-    final wireZone = bound.pages.single.zones
-        .firstWhere((zone) => zone.kind == SpatialZoneKind.word);
-    final inlineZone = inline.pages.single.zones
-        .firstWhere((zone) => zone.kind == SpatialZoneKind.word);
+    final wireZone = bound.pages.single.zones.firstWhere(
+      (zone) => zone.kind == SpatialZoneKind.word,
+    );
+    final inlineZone = inline.pages.single.zones.firstWhere(
+      (zone) => zone.kind == SpatialZoneKind.word,
+    );
     expect(wireZone.rect, inlineZone.rect);
     expect(wireZone.textStart, inlineZone.textStart);
     expect(wireZone.confidence, 0.87);
@@ -127,7 +127,10 @@ Future<void> main() async {
       utf8.encode(
         utf8
             .decode(pageXml)
-            .replaceFirst('<Unicode>$escapedWord</Unicode>', '<Unicode>${escape(repeated)}</Unicode>')
+            .replaceFirst(
+              '<Unicode>$escapedWord</Unicode>',
+              '<Unicode>${escape(repeated)}</Unicode>',
+            )
             .replaceFirst('<Unicode>q</Unicode>', '<Unicode>${escape(repeated)}</Unicode>'),
       ),
     );
