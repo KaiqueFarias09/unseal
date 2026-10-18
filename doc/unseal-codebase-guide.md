@@ -120,7 +120,7 @@ You only need a small set of format terms to understand most of the repository.
 | AZW3 or KF8 | A newer Kindle representation, sometimes stored beside MOBI 6 in one file. | `MobiBook` tagged as `BookFormat.azw3`. |
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
-| DjVu JPEG, JB2, and bounded IW44 subset | An IFF document with INFO, direct BGjp JPEG, local or shared Sjbz JB2 masks, progressive BG44/FG44 IW44 layers, TXTz/TXTa text, and NAVM bookmarks. | `DjvuBook` with JPEG/BMP page images, geometry, searchable text, navigation, and source bytes. File-based reads resolve indirect sibling components. Chained dictionaries and replacement visual codecs fail typed; FGbz palette recoloring is ignored. |
+| DjVu JPEG, JB2, and bounded IW44 subset | An IFF document with INFO, direct BGjp JPEG, local or shared Sjbz JB2 masks, progressive BG44/FG44 IW44 layers, TXTz/TXTa text, and NAVM bookmarks. | `DjvuBook` with JPEG/BMP page images, geometry, searchable text, navigation, and source bytes. File-based reads resolve indirect sibling components. Chained dictionaries and replacement visual codecs fail typed; FGbz version 0 recolors individual JB2 blits with bounded palette/index buffers. |
 | TIFF and BigTIFF | A classic TIFF or BigTIFF header whose IFD chains describe pages of strip- or tile-organized raster. | `TiffBook` with BMP page images (or a passed-through self-contained JPEG strip), dimensions, resolution, and original bytes; strip and tiled pages share the codecs and Orientation 1-4 are brought to top-left. Planar=2, palette, LogLuv, JPEG tiles, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and transposed orientations fail typed. |
 | CHM | An ITSF compiled HTML Help archive with compressed topic streams. | `DocumentBook` with ordered HTML topics, resources, title, and hierarchical contents. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
@@ -779,7 +779,7 @@ rotation. The adapter exposes direct `BGjp` JPEG, decodes `Sjbz` JB2 masks
 with local or shared `Djbz` symbols through `INCL`, and supports progressive
 IW44 v1.0 through v1.2 `BG44`/`FG44` layers. Reduced IW44 backgrounds expand
 bilinearly; compound pages combine color layers through a hard `Sjbz` mask.
-`FGbz` recoloring is ignored, so its foreground renders as black ink.
+`FGbz` version 0 palettes color individual JB2 blit occurrences; a palette without indices preserves black ink. One bounded page color map keeps symbol reuse and overlap order without a page-sized allocation per color. `fgbz_decoder.dart` validates the BGR palette and bounded BZZ index stream; `jb2_decoder.dart` associates those indices with actual blit occurrences and `djvu_layer_compositor.dart` applies their colors under the existing hard-mask contract.
 
 Compressed `TXTz` supplies searchable text and takes precedence over `TXTa`.
 `NAVM` becomes navigation with verbatim bookmark targets. Indirect directories

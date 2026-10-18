@@ -272,15 +272,22 @@ Uint8List _convertYCbCrToRgb(
     final luma = y[pixel] - 128;
     final blueDifference = cb[pixel] - 128;
     final redDifference = cr[pixel] - 128;
-    final t2 = redDifference + (redDifference >> 1);
-    final t3 = luma + 128 - (blueDifference >> 2);
+    final t2 = redDifference + _shr(redDifference, 1);
+    final t3 = luma + 128 - _shr(blueDifference, 2);
+    final doubledBlue = (blueDifference << 1).toSigned(32);
     final offset = pixel * 3;
     rgb[offset] = (luma + 128 + t2).clamp(0, 255);
-    rgb[offset + 1] = (t3 - (t2 >> 1)).clamp(0, 255);
-    rgb[offset + 2] = (t3 + (blueDifference << 1)).clamp(0, 255);
+    rgb[offset + 1] = (t3 - _shr(t2, 1)).clamp(0, 255);
+    rgb[offset + 2] = (t3 + doubledBlue).clamp(0, 255);
   }
   return rgb;
 }
+
+/// Arithmetic right shift whose result stays a signed 32-bit value on every
+/// platform; compiled JavaScript leaves negative operands as their unsigned
+/// 32-bit forms (the same normalization the wavelet and the JPEG 2000
+/// decoder apply). The zero-bit shift normalizes the `<<` result too.
+int _shr(final int value, final int bits) => (value >> bits).toSigned(32);
 
 int _max(final int a, final int b) => a > b ? a : b;
 

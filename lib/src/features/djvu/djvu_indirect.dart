@@ -227,14 +227,22 @@ Uint8List assembleIndirectDjvu(
   // Layout: AT&T magic, FORM:DJVM header with sub-id, DIRM chunk, then each
   // component FORM verbatim. Offsets point at the component starts. The
   // source name table is carried verbatim so INCL references keep resolving.
+  // IFF pads odd chunks to even boundaries, so every component but the last
+  // carries a pad byte after an odd length.
   final encodedNames = directory.encodedNames;
   final dirmDataLength = 3 + components.length * 4 + encodedNames.length;
   final directoryChunkLength = 8 + dirmDataLength + (dirmDataLength & 1);
   final offsets = <int>[];
+  var componentsLength = 0;
   var cursor = 4 + 8 + 4 + directoryChunkLength;
-  for (final component in components) {
+  for (var i = 0; i < components.length; i++) {
     offsets.add(cursor);
-    cursor += component.length;
+    cursor += components[i].length;
+    componentsLength += components[i].length;
+    if (components[i].length.isOdd && i != components.length - 1) {
+      cursor++;
+      componentsLength++;
+    }
   }
 
   final dirm = BytesBuilder();
@@ -250,7 +258,6 @@ Uint8List assembleIndirectDjvu(
 
   final output = BytesBuilder();
   output.add(const <int>[0x41, 0x54, 0x26, 0x54]); // AT&T
-  final componentsLength = components.fold<int>(0, (sum, c) => sum + c.length);
   final formLength = 4 + directoryChunkLength + componentsLength;
   final formHeader = ByteData(8)
     ..setUint32(0, 0x464F524D) // FORM
@@ -263,8 +270,11 @@ Uint8List assembleIndirectDjvu(
   output.add(dirmHeader.buffer.asUint8List());
   output.add(dirmBytes);
   if (dirmBytes.length.isOdd) output.addByte(0);
-  for (final component in components) {
-    output.add(component);
+  for (var i = 0; i < components.length; i++) {
+    output.add(components[i]);
+    if (components[i].length.isOdd && i != components.length - 1) {
+      output.addByte(0);
+    }
   }
   return output.toBytes();
 }

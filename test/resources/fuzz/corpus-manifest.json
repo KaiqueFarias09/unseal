@@ -974,8 +974,8 @@
     {
       "path": "test/resources/djvu/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 13581,
-      "sha256": "b4b5081ff74c637232dc84c2b3a0c68a048e1de696808a87b0759998a0e2b23f",
+      "bytes": 16207,
+      "sha256": "338b496ba3194eab7318be5b3c2f3a49b72aef6456c67aebf0d43893643ff566",
       "container": "unknown",
       "landmarks": 0
     },
@@ -1040,6 +1040,126 @@
       "format": "djvu",
       "bytes": 56,
       "sha256": "a38a5cbc332b21993bbaa0293065ec0dfe7b3f853886e1dd4b7e4a16f56ff8a7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-budget-page.djvu",
+      "format": "djvu",
+      "bytes": 193,
+      "sha256": "106ff91a576b9f2aabbb5410bcd905d8bccd6524b81d91d17527a1df603e7a4c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-bundled.djvu",
+      "format": "djvu",
+      "bytes": 464,
+      "sha256": "79c822acf294110096080ead26b0c94295ffd1c3d9389d841f6e41de15e7c7b7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-colors-absent.djvu",
+      "format": "djvu",
+      "bytes": 60,
+      "sha256": "c503d4e2c22e065fe619c492d12ae609f9895a3f7ebe52dddf4e23008e1d74c4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-index-shift.djvu",
+      "format": "djvu",
+      "bytes": 116,
+      "sha256": "4460a97446023b16f78125c8cb8eeff6d0d1e627b04bbbbd4b1565a8e521f0a4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-indirect/fgbz-overlap-bg.djvu",
+      "format": "djvu",
+      "bytes": 141,
+      "sha256": "069cc510c14bebc9dd8ded25b590973f6fc7f7af331d2b59cb48bb3a3c565473",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-indirect/fgbz-repeat-colors.djvu",
+      "format": "djvu",
+      "bytes": 116,
+      "sha256": "b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-indirect/fgbz-shifted-base.djvu",
+      "format": "djvu",
+      "bytes": 116,
+      "sha256": "b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-indirect/index.djvu",
+      "format": "djvu",
+      "bytes": 89,
+      "sha256": "fe27b4d867c15902bd77c103c3427843178d4b5a5ecf09759614eae086cb892c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-inverted-order.djvu",
+      "format": "djvu",
+      "bytes": 16138,
+      "sha256": "fef37a579c698ad797d21a5f3a24618f1a4f63616f4b5373c97316283cc31d1f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-inverted-order.origin.json",
+      "format": "manifest",
+      "bytes": 421,
+      "sha256": "907874a7b1c1c6f13b9878f01bf45aa7916b9ee6d3beb92cc17de2e0b7aa9d46",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-overlap-bg.djvu",
+      "format": "djvu",
+      "bytes": 141,
+      "sha256": "069cc510c14bebc9dd8ded25b590973f6fc7f7af331d2b59cb48bb3a3c565473",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-palette-only.djvu",
+      "format": "djvu",
+      "bytes": 98,
+      "sha256": "b1c4128f34d68bb19e6752d0f31aa2c95cf70db1009d829683a0ae26526fcd26",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-repeat-colors.djvu",
+      "format": "djvu",
+      "bytes": 116,
+      "sha256": "b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-shifted-b.djvu",
+      "format": "djvu",
+      "bytes": 118,
+      "sha256": "21226c8d30cf28013ae703a40546d788eb598f16a62c3a4c6dac3779aa44729d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/djvu/derived/fgbz-shifted-base.djvu",
+      "format": "djvu",
+      "bytes": 116,
+      "sha256": "b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8",
       "container": "unknown",
       "landmarks": 0
     },
@@ -4673,10 +4793,10 @@
     }
   ],
   "counts": {
-    "total": 578,
-    "totalBytes": 93101392,
+    "total": 593,
+    "totalBytes": 93122461,
     "byFormat": {
-      "manifest": 97,
+      "manifest": 98,
       "xml-sidecar": 14,
       "chm": 4,
       "cbr": 20,
@@ -4684,7 +4804,7 @@
       "comic": 8,
       "cbc": 1,
       "cb7": 1,
-      "djvu": 15,
+      "djvu": 29,
       "docx": 1,
       "epub": 68,
       "fb2": 4,

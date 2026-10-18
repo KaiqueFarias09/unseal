@@ -1,0 +1,10 @@
+{
+  "source": "test/resources/djvu/spec-bundled.djvu page 21",
+  "sourceSha256": "2f5e8995c86902daf2038fa8833b6e0dec63cf5aac69202f6b5cd349f1bc6bbc",
+  "overlapPair": {
+    "i": 11,
+    "j": 12
+  },
+  "expectation": "the blit-i/blit-j overlap pixel renders lime: color groups paint in first-appearance order, so the later red blit j does not win over the earlier lime blit i",
+  "generator": "tool/djvu_fgbz_fixtures.py"
+}

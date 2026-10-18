@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../foundation/entities/entities.dart';
+import '../../foundation/images/bmp_encoder.dart';
 import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';
 import 'bzz_decoder.dart';
@@ -10,6 +11,7 @@ import 'djvu_exception.dart';
 import 'djvu_layer_compositor.dart';
 import 'djvu_outline.dart';
 import 'djvu_text.dart';
+import 'fgbz_decoder.dart';
 import 'iw44_decoder.dart';
 import 'jb2_decoder.dart';
 
@@ -313,6 +315,7 @@ final class _DjvuDocument {
     _Chunk? legacyText;
     _Chunk? compressedText;
     _Chunk? inlineDjbz;
+    _Chunk? fgbz;
     final inclTargets = <String>[];
     final backgroundChunks = <_Chunk>[];
     final foregroundChunks = <_Chunk>[];
@@ -331,6 +334,9 @@ final class _DjvuDocument {
         case 'Sjbz':
           if (jb2 != null) throw const DjvuException('Duplicate DjVu Sjbz chunk.');
           jb2 = chunk;
+        case 'FGbz':
+          if (fgbz != null) throw const DjvuException('Duplicate DjVu FGbz chunk.');
+          fgbz = chunk;
         case 'BG44':
           backgroundChunks.add(chunk);
         case 'FG44':
@@ -343,8 +349,7 @@ final class _DjvuDocument {
         case 'FGjp':
         case 'Smmr':
           // These chunks replace a supported layer (JPEG foreground, MMR
-          // mask); pages that need them stay typed rejections. FGbz only
-          // recolors Sjbz blits, so like annotations it is ignored.
+          // mask); pages that need them stay typed rejections.
           unsupported.add(chunk.id);
       }
     }
@@ -352,10 +357,14 @@ final class _DjvuDocument {
         (jb2 != null || backgroundChunks.isNotEmpty || foregroundChunks.isNotEmpty)) {
       unsupported.add('multiple image layers');
     }
-    // A mask without a color layer is a valid FGbz page: the ignored color
-    // chunk would recolor blits, and the mask renders as black ink instead.
+    // A mask may stand alone; FGbz supplies per-occurrence colors without FG44.
     if (foregroundChunks.isNotEmpty && (backgroundChunks.isEmpty || jb2 == null)) {
       unsupported.add('incomplete IW44 compound layers');
+    }
+    // FGbz and an IW44 foreground are duplicate foreground encodings; the
+    // native DjVuFile decoder refuses their combination the same way.
+    if (fgbz != null && foregroundChunks.isNotEmpty) {
+      unsupported.add('FGbz with an FG44 foreground');
     }
     if (unsupported.isNotEmpty) {
       final codecs = unsupported.toSet().join(', ');
@@ -365,6 +374,17 @@ final class _DjvuDocument {
     }
     if (jpeg == null && jb2 == null && backgroundChunks.isEmpty) {
       throw DjvuUnsupportedCodecException('DjVu page $number has no supported image layer.');
+    }
+    // FGbz recolors Sjbz blits; the chunk is decoded whenever the page has a
+    // mask (including palette-only chunks, whose corruptions must refuse)
+    // and ignored otherwise, preserving the base behavior of pages without
+    // recolorable content.
+    DjvuFgbzPalette? fgbzColors;
+    if (jb2 != null && fgbz != null) {
+      fgbzColors = decodeDjvuFgbz(
+        Uint8List.sublistView(bytes, fgbz.data, fgbz.end),
+        budget: decodeBudget,
+      );
     }
 
     // The page's shared JB2 dictionary: the component the INCL chunk names,
@@ -441,15 +461,31 @@ final class _DjvuDocument {
               budget: decodeBudget,
             );
       DjvuJb2Mask? mask;
+      DjvuJb2ColorizedMask? colorizedMask;
       if (jb2 != null) {
         final pagePixels = info.width * info.height;
-        decodeBudget.reserve(pixels: pagePixels, rasterBytes: pagePixels);
-        mask = decodeDjvuJb2Mask(
-          Uint8List.sublistView(bytes, jb2.data, jb2.end),
-          expectedWidth: info.width,
-          expectedHeight: info.height,
-          inherited: dictionary,
-        );
+        if (fgbzColors != null && fgbzColors.hasColorData) {
+          decodeBudget.reserve(
+            pixels: pagePixels,
+            rasterBytes: 3 * pagePixels + djvuFgbzPlacementBudgetBytes,
+          );
+          colorizedMask = decodeDjvuJb2ColorizedMask(
+            Uint8List.sublistView(bytes, jb2.data, jb2.end),
+            expectedWidth: info.width,
+            expectedHeight: info.height,
+            inherited: dictionary,
+            colors: fgbzColors,
+            budget: decodeBudget,
+          );
+        } else {
+          decodeBudget.reserve(pixels: pagePixels, rasterBytes: pagePixels);
+          mask = decodeDjvuJb2Mask(
+            Uint8List.sublistView(bytes, jb2.data, jb2.end),
+            expectedWidth: info.width,
+            expectedHeight: info.height,
+            inherited: dictionary,
+          );
+        }
       }
       imageBytes = composeDjvuLayersBmp(
         background: DjvuRgbRaster(
@@ -465,24 +501,42 @@ final class _DjvuDocument {
                 rgb: foreground.rgb,
               ),
         mask: mask,
+        colorizedMask: colorizedMask,
         pageWidth: info.width,
         pageHeight: info.height,
         budget: decodeBudget,
       );
       extension = 'bmp';
     } else {
-      final rowStride = ((info.width + 31) ~/ 32) * 4;
-      decodeBudget.reserve(
-        pixels: info.width * info.height,
-        rasterBytes: 62 + rowStride * info.height,
-      );
-      final mask = decodeDjvuJb2Mask(
-        Uint8List.sublistView(bytes, jb2!.data, jb2.end),
-        expectedWidth: info.width,
-        expectedHeight: info.height,
-        inherited: dictionary,
-      );
-      imageBytes = encodeDjvuJb2Bmp(mask);
+      final pagePixels = info.width * info.height;
+      if (fgbzColors != null && fgbzColors.hasColorData) {
+        decodeBudget.reserve(
+          pixels: pagePixels,
+          rasterBytes:
+              3 * pagePixels +
+              djvuFgbzPlacementBudgetBytes +
+              bmpHeaderBytes +
+              bmpRowStride(info.width) * info.height,
+        );
+        final colorized = decodeDjvuJb2ColorizedMask(
+          Uint8List.sublistView(bytes, jb2!.data, jb2.end),
+          expectedWidth: info.width,
+          expectedHeight: info.height,
+          inherited: dictionary,
+          colors: fgbzColors,
+        );
+        imageBytes = encodeDjvuColoredMaskBmp(colorized);
+      } else {
+        final rowStride = ((info.width + 31) ~/ 32) * 4;
+        decodeBudget.reserve(pixels: pagePixels, rasterBytes: 62 + rowStride * info.height);
+        final mask = decodeDjvuJb2Mask(
+          Uint8List.sublistView(bytes, jb2!.data, jb2.end),
+          expectedWidth: info.width,
+          expectedHeight: info.height,
+          inherited: dictionary,
+        );
+        imageBytes = encodeDjvuJb2Bmp(mask);
+      }
       extension = 'bmp';
     }
     final image = BinaryFile(

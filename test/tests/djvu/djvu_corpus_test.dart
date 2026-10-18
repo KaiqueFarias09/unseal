@@ -190,8 +190,11 @@ void main() {
       // Deviation from ddjvu's blended stencil is bounded: measured against
       // the archived renders, the mean channel error stays under 3.3/255
       // (goody) and 0.7/255 (speller page 1), maximum 91 and 176. The FGbz
-      // pages of navm-fgbz render black ink where ddjvu paints palette
-      // colors, so their deviation is pinned as our own raster hashes.
+      // pages of navm-fgbz paint palette colors under the same hard-mask
+      // convention (doc/djvu-fgbz.md); their colors and the uncolored
+      // foreground raster are verified byte-for-byte against the native
+      // ddjvu renders by tool/djvu_fgbz_compare.dart, and these pins hold
+      // the composed images to the house contract.
       expectRasterHash(
         open('goody-twoshoes.djvu'),
         0,
@@ -215,12 +218,17 @@ void main() {
       expectRasterHash(
         open('navm-fgbz.djvu'),
         0,
-        'f2d40734b2e512bf01fdb204b1ca42be0a8e0b8d488b15d397fb1c88938219b1',
+        '1ed036821c02f78eaa6766854ecb25f3ada62ba02be77247bda280f66773b3d1',
+      );
+      expectRasterHash(
+        open('navm-fgbz.djvu'),
+        4,
+        '2932ecd936cbe25687990d64f3e3f46f5b5b69dafc31e7acd3b97a28a39591e5',
       );
       expectRasterHash(
         open('navm-fgbz.djvu'),
         5,
-        'ebdd921434842557a8b8982272d1b3f9a2c16e22b221a204aa50c2fe792a795b',
+        'ed3195a22909024e04b3291d773c9e8f8ec4d489e3e2baf3e1108a9713c9f04d',
       );
     });
   });

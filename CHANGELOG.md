@@ -2,6 +2,8 @@
 
 ### Added
 
+- DjVu FGbz version 0 foreground palettes and per-occurrence JB2 color indices, including simple shared dictionaries and local indirect documents. Palette-only chunks retain black ink; malformed palettes, counts and duplicate foregrounds fail typed. Native colors, symbol bitmaps and foreground pixels are checked against DjVuLibre 3.5.29; composed pages retain the existing hard-mask contract. Signed IW44 samples now agree on the VM and browser.
+
 - OPDS 2.0 JSON catalog parsing through `parseOpds2Feed`,
   `parseOpds2Publication`, and the `Opds2*` model: navigation,
   publications, nested groups, facets, named subcollections, contributor

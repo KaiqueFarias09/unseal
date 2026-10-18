@@ -549,7 +549,7 @@ for (var i = 0; i < pdf.pageTexts.length; i++) {
 ```
 
 `DjvuBook.pages` exposes directly stored JPEG pages, decoded JB2 masks as
-black-on-white 1-bit BMP images, and bounded IW44 photo or composed pages as
+black-on-white 1-bit BMP images, FGbz per-blit palette colors, and bounded IW44 photo or composed pages as
 24-bit BMP images. It preserves dimensions, DPI, rotation, and hidden text:
 compressed `TXTz` chunks (preferred over the legacy `TXTa` encoding when a
 page stores both) carry the page text in reading order, rendered with the
@@ -920,7 +920,7 @@ and confidence ranges validate before the model exists.
   document's own directory.
 - DjVu chunks that neither carry displayable content nor replace a supported
   layer are ignored: `ANTz`/`ANTa` annotations, `CIDa` identifiers, `TH44`
-  thumbnails, `BMKz` compressed bookmarks, and `FGbz` blit recoloring. Chunks
+  thumbnails and `BMKz` compressed bookmarks. FGbz v0 palettes and per-blit indices recolor supported JB2 masks; palette-only chunks keep black ink. Duplicate foregrounds and invalid counts fail typed. See `doc/djvu-fgbz.md` for the separate native-foreground and hard-mask composition contracts. Chunks
   that replace a supported layer — `Smmr` MMR masks and `FGjp` JPEG foregrounds —
   fail with `DjvuUnsupportedCodecException`. Measured across the tracked corpus and the
   1,196-page stress set, these cover every chunk observed in the wild except

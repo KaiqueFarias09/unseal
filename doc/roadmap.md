@@ -75,7 +75,7 @@ Do not replace the existing contracts solely to match an external schema.
 
 | Format | Candidate work | Current boundary |
 | --- | --- | --- |
-| DjVu | `FGjp`, `Smmr`, `FGbz` palette colors, chained shared dictionaries, annotations, and `BMKz`. | Replacement visual codecs and chained dictionaries fail typed. Palette recoloring, annotations, thumbnails, and `BMKz` are ignored. Composed output uses a hard mask rather than ddjvu's blended stencil. |
+| DjVu | `FGjp`, `Smmr`, chained shared dictionaries, annotations, and `BMKz`. | Replacement visual codecs and chained dictionaries fail typed. FGbz v0 palette colors are supported per JB2 occurrence; annotations, thumbnails, and `BMKz` are ignored. Composed output uses a hard mask rather than ddjvu's blended stencil. |
 | TIFF/BigTIFF | Planar raster, palettes, additional sample formats, external JPEG tables, multi-strip JPEG, old JPEG, reversed FillOrder, and further predictors. | Unsupported layouts/codecs fail with typed exceptions. Support must remain bounded before allocation. |
 | PDF/JPEG 2000 | Signed or mixed sample depths, additional progression orders, coding styles, calibrated/ICC color spaces, palettes, and alpha. | The documented Part 1 subset decodes to grayscale/RGB images; unsupported features fail typed. |
 | CBR/RAR5 | BLAKE2sp data-hash verification and RAR 4 PPMd/VM streams. | RAR 5 compression, including bounded solid history, ships: algorithm version 0, methods 1-5, delta/E8/E8-E9/ARM filters, header and data CRC-32 (zero included), dictionaries through 64 MiB, UTF-8 names, eager and session parity, VM and worker execution. Split, encrypted, linked, later-version, and oversized-dictionary records reject typed. |
