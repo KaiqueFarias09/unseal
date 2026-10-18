@@ -34,7 +34,11 @@ Ignored as data (declared policy): `AlternativeImage`, `Layers`,
 `Relations`, `TextStyle`/typography attributes, `UserDefined`,
 `Labels`, `Roles`, glyph/grapheme trees, `CustomAttribute` payloads
 and the `custom` attribute's embedded conventions. They travel nowhere;
-a host that needs them reads the source bytes. Elements the subset
+a host that needs them reads the source bytes. Descriptive enumeration
+tokens (`type`, `readingDirection`, `textLineOrder`, `production`,
+`align`, resolution units) travel verbatim as declared data; their
+vocabulary is the XSD lane's job, and an out-of-vocabulary token is a
+declared acceptance, not a parse failure. Elements the subset
 requires but cannot serve — malformed points, confidence outside 0–1,
 a `TextEquiv` without `Unicode`, a ReadingOrder reference to an
 undeclared region, duplicate or cyclic group structure — fail typed
