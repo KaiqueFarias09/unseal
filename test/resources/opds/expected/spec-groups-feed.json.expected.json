@@ -1,0 +1,69 @@
+{
+  "metadata": {
+    "title": {
+      "und": "Example for groups"
+    },
+    "identifier": null,
+    "modified": null,
+    "description": null,
+    "numberOfItems": null,
+    "itemsPerPage": null,
+    "currentPage": null
+  },
+  "self": {
+    "href": "http://example.com/grouped",
+    "type": "application/opds+json"
+  },
+  "links": [
+    {
+      "rels": [
+        "self"
+      ],
+      "href": "http://example.com/grouped",
+      "type": "application/opds+json",
+      "templated": false
+    }
+  ],
+  "navigation": [],
+  "facets": [],
+  "groups": [
+    {
+      "title": {
+        "und": "Main Menu"
+      },
+      "self": null,
+      "navigation": [
+        {
+          "title": "New Publications",
+          "href": "/new"
+        },
+        {
+          "title": "Popular Publications",
+          "href": "/popular"
+        }
+      ],
+      "publications": []
+    },
+    {
+      "title": {
+        "und": "Formats"
+      },
+      "self": null,
+      "navigation": [
+        {
+          "title": "EBooks",
+          "href": "/ebooks"
+        },
+        {
+          "title": "Audiobooks",
+          "href": "/audiobooks"
+        }
+      ],
+      "publications": []
+    }
+  ],
+  "publications": [],
+  "subcollections": [],
+  "feed": "spec-groups-feed.json",
+  "acquisitionRels": []
+}

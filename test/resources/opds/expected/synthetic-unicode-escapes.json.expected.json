@@ -1,0 +1,107 @@
+{
+  "metadata": {
+    "title": {
+      "und": "Catálogo 世界 — Bibliothèque globale"
+    },
+    "identifier": "https://catalog.example/opds",
+    "modified": "2026-10-18T09:30:00.000Z",
+    "description": "Escapes éà冬 and literal текст, العربية, 📚",
+    "numberOfItems": null,
+    "itemsPerPage": null,
+    "currentPage": null
+  },
+  "self": {
+    "href": "https://catalog.example/opds/%C3%ADndice?lang=pt#top",
+    "type": "application/opds+json"
+  },
+  "links": [
+    {
+      "rels": [
+        "self"
+      ],
+      "href": "https://catalog.example/opds/%C3%ADndice?lang=pt#top",
+      "type": "application/opds+json",
+      "templated": false
+    },
+    {
+      "rels": [
+        "search"
+      ],
+      "href": "https://catalog.example/search{?query}",
+      "type": "application/opds+json",
+      "templated": true
+    },
+    {
+      "rels": [
+        "next"
+      ],
+      "href": "/opds/page/2?cursor=%E5%86%AC&order=desc#results",
+      "type": "application/opds+json",
+      "templated": false
+    }
+  ],
+  "navigation": [
+    {
+      "title": {
+        "und": "冬の本 (Winter books)"
+      },
+      "href": "%E6%9C%AC/collection?sort=%E6%96%B0#shelf",
+      "rels": [],
+      "type": "application/opds+json"
+    },
+    {
+      "title": {
+        "und": "كتب عربية"
+      },
+      "href": "https://catalog.example/كتب?filter=جديد#list",
+      "rels": [],
+      "type": "application/opds+json"
+    }
+  ],
+  "facets": [],
+  "groups": [],
+  "publications": [
+    {
+      "title": {
+        "en": "The Winter Palace",
+        "ja": "冬の宮殿",
+        "ru": "Зимний дворец"
+      },
+      "sortAs": null,
+      "subtitle": null,
+      "identifier": "urn:isbn:978-4-00-000000-0",
+      "languages": [
+        "ja",
+        "ru"
+      ],
+      "authors": [
+        "Иван Тургенев"
+      ],
+      "published": null,
+      "modified": "2026-05-01T00:00:00.000Z",
+      "links": [
+        {
+          "rels": [
+            "http://opds-spec.org/acquisition/open-access"
+          ],
+          "href": "https://files.example/%E5%86%AC/winter-palace.epub?dl=1#page=1",
+          "type": "application/epub+zip",
+          "templated": false
+        }
+      ],
+      "images": [
+        {
+          "href": "https://covers.example/%E5%86%AC/winter-palace.png?w=600",
+          "type": "image/png",
+          "width": 600,
+          "height": 900
+        }
+      ]
+    }
+  ],
+  "subcollections": [],
+  "feed": "synthetic-unicode-escapes.json",
+  "acquisitionRels": [
+    "http://opds-spec.org/acquisition/open-access"
+  ]
+}

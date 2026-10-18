@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "title": "No self link"
+  },
+  "links": [
+    {
+      "rel": "next",
+      "href": "https://x.example/page2",
+      "type": "application/opds+json"
+    }
+  ],
+  "navigation": [
+    {
+      "href": "https://x.example/a",
+      "title": "A",
+      "type": "application/opds+json"
+    }
+  ]
+}

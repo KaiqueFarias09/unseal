@@ -1,0 +1,156 @@
+{
+  "metadata": {
+    "title": "Grouped catalog with facets and subcollections",
+    "identifier": "https://catalog.example/opds/grouped",
+    "modified": "2026-10-18T10:00:00Z",
+    "numberOfItems": 120,
+    "itemsPerPage": 20,
+    "currentPage": 1
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://catalog.example/opds/grouped",
+      "type": "application/opds+json"
+    },
+    {
+      "rel": "next",
+      "href": "https://catalog.example/opds/grouped?page=2",
+      "type": "application/opds+json"
+    }
+  ],
+  "facets": [
+    {
+      "metadata": {
+        "title": "Sort by"
+      },
+      "links": [
+        {
+          "href": "https://catalog.example/opds/grouped?sort=title",
+          "title": "Title",
+          "type": "application/opds+json",
+          "properties": {
+            "numberOfItems": 120
+          }
+        },
+        {
+          "href": "https://catalog.example/opds/grouped?sort=author",
+          "title": "Author",
+          "type": "application/opds+json",
+          "properties": {
+            "numberOfItems": 120
+          }
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "title": "Format"
+      },
+      "links": [
+        {
+          "href": "https://catalog.example/opds/grouped?format=epub",
+          "title": "EPUB",
+          "type": "application/opds+json"
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "metadata": {
+        "title": "Featured",
+        "numberOfItems": 2
+      },
+      "links": [
+        {
+          "rel": "self",
+          "href": "https://catalog.example/opds/featured",
+          "type": "application/opds+json"
+        }
+      ],
+      "publications": [
+        {
+          "metadata": {
+            "title": "Dom Casmurro",
+            "author": "Machado de Assis",
+            "identifier": "https://catalog.example/book/dom-casmurro",
+            "language": "pt-BR",
+            "published": "1899"
+          },
+          "links": [
+            {
+              "rel": "http://opds-spec.org/acquisition",
+              "href": "https://files.example/dom-casmurro.epub",
+              "type": "application/epub+zip"
+            }
+          ],
+          "images": [
+            {
+              "href": "https://covers.example/dom-casmurro.jpg",
+              "type": "image/jpeg",
+              "width": 400,
+              "height": 600
+            }
+          ]
+        },
+        {
+          "metadata": {
+            "title": "O Cortiço",
+            "author": "Aluísio Azevedo",
+            "identifier": "https://catalog.example/book/o-cortico",
+            "language": "pt-BR"
+          },
+          "links": [
+            {
+              "rel": "borrow",
+              "href": "https://library.example/loans/o-cortico",
+              "type": "text/html"
+            }
+          ],
+          "images": [
+            {
+              "href": "https://covers.example/o-cortico.gif",
+              "type": "image/gif",
+              "width": 300,
+              "height": 450
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "title": "Browse"
+      },
+      "navigation": [
+        {
+          "href": "https://catalog.example/opds/by-title",
+          "title": "By title",
+          "type": "application/opds+json",
+          "properties": {
+            "numberOfItems": 90
+          }
+        },
+        {
+          "href": "https://catalog.example/opds/by-author",
+          "title": "By author",
+          "rel": "subsection",
+          "type": "application/opds+json"
+        }
+      ]
+    }
+  ],
+  "latest": {
+    "metadata": {
+      "title": "Latest additions"
+    },
+    "links": [
+      {
+        "href": "https://catalog.example/opds/latest",
+        "title": "Latest",
+        "type": "application/opds+json"
+      }
+    ]
+  }
+}

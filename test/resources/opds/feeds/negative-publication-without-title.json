@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "title": "Publication without metadata title"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://x.example/feed",
+      "type": "application/opds+json"
+    }
+  ],
+  "publications": [
+    {
+      "metadata": {
+        "identifier": "urn:x",
+        "author": "A"
+      },
+      "links": [
+        {
+          "rel": "buy",
+          "href": "https://x.example/buy/1",
+          "type": "text/html"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "title": "Facet without title"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://x.example/feed",
+      "type": "application/opds+json"
+    }
+  ],
+  "facets": [
+    {
+      "links": [
+        {
+          "href": "https://x.example/sort-title",
+          "title": "Title",
+          "type": "application/opds+json"
+        },
+        {
+          "href": "https://x.example/sort-author",
+          "title": "Author",
+          "type": "application/opds+json"
+        }
+      ]
+    }
+  ],
+  "navigation": [
+    {
+      "href": "https://x.example/a",
+      "title": "A",
+      "type": "application/opds+json"
+    }
+  ]
+}

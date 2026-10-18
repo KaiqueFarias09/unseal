@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "title": "Publication without acquisition"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://x.example/feed",
+      "type": "application/opds+json"
+    }
+  ],
+  "publications": [
+    {
+      "metadata": {
+        "title": "Only related links",
+        "identifier": "urn:x",
+        "author": "A"
+      },
+      "links": [
+        {
+          "rel": "detail",
+          "href": "https://x.example/book/1",
+          "type": "text/html"
+        }
+      ]
+    }
+  ]
+}

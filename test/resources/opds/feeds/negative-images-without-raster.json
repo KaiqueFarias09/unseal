@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "title": "Images without raster format"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://x.example/feed",
+      "type": "application/opds+json"
+    }
+  ],
+  "publications": [
+    {
+      "metadata": {
+        "title": "Svg-only cover",
+        "identifier": "urn:x",
+        "author": "A"
+      },
+      "links": [
+        {
+          "rel": "buy",
+          "href": "https://x.example/buy/1",
+          "type": "text/html"
+        }
+      ],
+      "images": [
+        {
+          "href": "https://x.example/cover.svg",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}

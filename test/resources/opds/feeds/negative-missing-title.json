@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "identifier": "https://x.example/feed"
+  },
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://x.example/feed",
+      "type": "application/opds+json"
+    }
+  ],
+  "navigation": [
+    {
+      "href": "https://x.example/a",
+      "title": "A",
+      "type": "application/opds+json"
+    }
+  ]
+}

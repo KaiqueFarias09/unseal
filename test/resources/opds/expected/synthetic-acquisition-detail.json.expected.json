@@ -1,0 +1,145 @@
+{
+  "metadata": {
+    "title": {
+      "und": "Acquisition details catalog"
+    },
+    "identifier": "https://shop.example/opds",
+    "modified": "2026-10-18T08:00:00.000Z",
+    "description": null,
+    "numberOfItems": null,
+    "itemsPerPage": null,
+    "currentPage": null
+  },
+  "self": {
+    "href": "https://shop.example/opds",
+    "type": "application/opds+json"
+  },
+  "links": [
+    {
+      "rels": [
+        "self"
+      ],
+      "href": "https://shop.example/opds",
+      "type": "application/opds+json",
+      "templated": false
+    }
+  ],
+  "navigation": [],
+  "facets": [],
+  "groups": [],
+  "publications": [
+    {
+      "title": {
+        "und": "A navalha de Occam e outros contos"
+      },
+      "sortAs": {
+        "und": "navalha de Occam, A"
+      },
+      "subtitle": {
+        "und": "Coletânea"
+      },
+      "identifier": "urn:uuid:8f14e45f-ceea-467f-abf5-eec7d5f5e1e0",
+      "languages": [
+        "pt"
+      ],
+      "authors": [
+        "Ana Terra",
+        "Bruno Camelo"
+      ],
+      "published": "2026-03-14",
+      "modified": "2026-10-01T12:00:00.000Z",
+      "links": [
+        {
+          "rels": [
+            "self"
+          ],
+          "href": "https://shop.example/publications/navalha.json",
+          "type": "application/opds-publication+json",
+          "templated": false
+        },
+        {
+          "rels": [
+            "buy",
+            "http://opds-spec.org/acquisition/buy"
+          ],
+          "href": "https://shop.example/purchase/navalha",
+          "type": "text/html",
+          "templated": false
+        },
+        {
+          "rels": [
+            "http://opds-spec.org/acquisition/sample"
+          ],
+          "href": "https://shop.example/samples/navalha.epub",
+          "type": "application/epub+zip",
+          "templated": false
+        },
+        {
+          "rels": [
+            "preview"
+          ],
+          "href": "https://shop.example/previews/navalha.html",
+          "type": "text/html",
+          "templated": false
+        }
+      ],
+      "images": [
+        {
+          "href": "https://covers.example/navalha-full.jpg",
+          "type": "image/jpeg",
+          "width": 1200,
+          "height": 1800
+        },
+        {
+          "href": "https://covers.example/navalha-thumb.webp",
+          "type": "image/webp",
+          "width": 300,
+          "height": 450
+        }
+      ]
+    },
+    {
+      "title": {
+        "und": "Winter loans"
+      },
+      "sortAs": null,
+      "subtitle": null,
+      "identifier": "https://library.example/book/winter-loans",
+      "languages": [
+        "en"
+      ],
+      "authors": [
+        "Library of Frost"
+      ],
+      "published": null,
+      "modified": null,
+      "links": [
+        {
+          "rels": [
+            "http://opds-spec.org/acquisition/borrow"
+          ],
+          "href": "https://library.example/loans/winter-loans",
+          "type": "application/epub+zip",
+          "templated": false
+        }
+      ],
+      "images": [
+        {
+          "href": "https://covers.example/winter-loans.avif",
+          "type": "image/avif",
+          "width": 500,
+          "height": 750
+        }
+      ]
+    }
+  ],
+  "subcollections": [],
+  "feed": "synthetic-acquisition-detail.json",
+  "acquisitionRels": [
+    "buy",
+    "http://opds-spec.org/acquisition/borrow",
+    "http://opds-spec.org/acquisition/buy",
+    "http://opds-spec.org/acquisition/sample",
+    "preview"
+  ]
+}

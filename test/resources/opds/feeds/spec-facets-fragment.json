@@ -1,0 +1,35 @@
+{
+  "facets": [
+    {
+      "metadata": {
+        "title": "Language"
+      },
+      "links": [
+        {
+          "href": "/fr",
+          "type": "application/opds+json",
+          "title": "French",
+          "properties": {
+            "numberOfItems": 10
+          }
+        },
+        {
+          "href": "/en",
+          "type": "application/opds+json",
+          "title": "English",
+          "properties": {
+            "numberOfItems": 40
+          }
+        },
+        {
+          "href": "/de",
+          "type": "application/opds+json",
+          "title": "German",
+          "properties": {
+            "numberOfItems": 6
+          }
+        }
+      ]
+    }
+  ]
+}
