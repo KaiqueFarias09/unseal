@@ -161,3 +161,17 @@ licensed under BSD-2-Clause; the license text is included at
 `licenses/openjpeg-LICENSE`. The `real-*` precision fixtures are encoded by
 the ffmpeg 9.0.2 native `jpeg2000` encoder (GPL build) over a public-domain
 NASA photograph; ffmpeg is a development tool only and ships no code.
+
+## hOCR test corpus
+
+The four source TIFF images under `test/resources/hocr/images/` come from
+[tesseract-ocr/test](https://github.com/tesseract-ocr/test), licensed under
+Apache License 2.0. Its license is included at
+`licenses/tesseract-test-APACHE-2.0.txt`. The hOCR/TSV files under
+`test/resources/hocr/tesseract/` are identified derivatives produced from
+those images. The pre-existing sidecars under `test/resources/hocr/external/`
+come from [ocr-fileformat-samples](https://github.com/kba/ocr-fileformat-samples)
+under CC0-1.0; the CC0 text is included at
+`test/resources/books/licenses/LICENSE-CC0-1.0.txt`. Individual sources,
+producers and hashes are recorded in `test/resources/hocr/PROVENANCE.md`
+and `tool/reference/hocr/corpus-sha256.json`.
