@@ -220,6 +220,7 @@ final class PrecisionSpec {
     this.ffmpegPixelFormat,
     this.ffmpegPredictor,
     this.insertCocQcc = false,
+    this.patchDerivedQuantization = false,
   });
 
   final String name;
@@ -257,6 +258,12 @@ final class PrecisionSpec {
   /// COD/QCD, exercising the override parsers without changing the pixels.
   final bool insertCocQcc;
 
+  /// Rewrites the expounded QCD of a 9/7 codestream as scalar derived
+  /// (band 0 kept, the other bands follow equation E-5), so both decoders
+  /// apply the derivation; the pixels no longer match the encoder's
+  /// intent but the reference and Unseal must agree on them.
+  final bool patchDerivedQuantization;
+
   String get file => '$name.$container';
   bool get isFfmpeg => ffmpegPixelFormat != null;
   int get width => x1 - x0;
@@ -288,6 +295,8 @@ final class PrecisionSpec {
         ? 'ffmpeg 9.0.2 jpeg2000 ($ffmpegPredictor, $ffmpegPixelFormat)'
         : insertCocQcc
         ? 'opj_oracle encode (libopenjp2 2.5.4) + redundant COC/QCC insertion'
+        : patchDerivedQuantization
+        ? 'opj_oracle encode (libopenjp2 2.5.4) + QCD rewritten as scalar derived'
         : 'opj_oracle encode (libopenjp2 2.5.4)',
     'content': isFfmpeg ? 'NASA Apollo 17 derivative (public domain)' : 'synthetic LCG',
     'container': container,
@@ -378,7 +387,9 @@ final class PrecisionSpec {
       return null;
     }
     final bytes = output.readAsBytesSync();
-    return insertCocQcc ? _withRedundantCocQcc(bytes) : bytes;
+    if (insertCocQcc) return _withRedundantCocQcc(bytes);
+    if (patchDerivedQuantization) return _withDerivedQuantization(bytes);
+    return bytes;
   }
 
   /// Deterministic planar samples for every component: the 8-bit corpus
@@ -513,6 +524,31 @@ Uint8List _withRedundantCocQcc(final Uint8List bytes) {
   return out.toBytes();
 }
 
+/// Rewrites the main-header QCD (scalar expounded, 2 bytes per band) as
+/// scalar derived: style byte keeps the guard bits with style 1, only the
+/// band-0 (exponent, mantissa) pair remains, Lqcd becomes 5.
+Uint8List _withDerivedQuantization(final Uint8List bytes) {
+  var cursor = 2;
+  while (cursor + 4 <= bytes.length) {
+    final marker = (bytes[cursor] << 8) | bytes[cursor + 1];
+    if (marker == 0xFF90) break;
+    final length = (bytes[cursor + 2] << 8) | bytes[cursor + 3];
+    if (marker == 0xFF5C) {
+      final style = bytes[cursor + 4];
+      if (style & 0x1F != 2) {
+        throw StateError('QCD is not scalar expounded');
+      }
+      final out = BytesBuilder(copy: false)
+        ..add(bytes.sublist(0, cursor))
+        ..add(<int>[0xFF, 0x5C, 0, 5, (style & 0xE0) | 1, bytes[cursor + 5], bytes[cursor + 6]])
+        ..add(bytes.sublist(cursor + 2 + length));
+      return out.toBytes();
+    }
+    cursor += 2 + length;
+  }
+  throw StateError('codestream lacks QCD in the main header');
+}
+
 /// The corpus. Every lossy entry has a lossless sibling with the same
 /// geometry and precision.
 const List<PrecisionSpec> kPrecisionMatrix = <PrecisionSpec>[
@@ -597,6 +633,36 @@ const List<PrecisionSpec> kPrecisionMatrix = <PrecisionSpec>[
     lanes: ['native'],
     seed: 0x0516,
   ),
+  PrecisionSpec(
+    name: 'synth-gray16-lossy-origin-tiles',
+    precision: 16,
+    components: [ComponentSpec(1, 1)],
+    x0: 5,
+    y0: 3,
+    x1: 69,
+    y1: 51,
+    tiles: [32, 32, 4, 2],
+    sop: true,
+    eph: true,
+    colorSpace: 'gray',
+    lanes: ['native'],
+    seed: 0x0516,
+    lossless: false,
+    rate: 4,
+  ),
+  PrecisionSpec(
+    name: 'synth-gray16-lossy-derived',
+    precision: 16,
+    components: [ComponentSpec(1, 1)],
+    x1: 64,
+    y1: 48,
+    colorSpace: 'gray',
+    lanes: ['native'],
+    seed: 0x1616,
+    lossless: false,
+    rate: 4,
+    patchDerivedQuantization: true,
+  ),
   // Subsampled grayscale: native + replication upsample.
   PrecisionSpec(
     name: 'synth-gray12-sub2x2-odd',
@@ -641,6 +707,19 @@ const List<PrecisionSpec> kPrecisionMatrix = <PrecisionSpec>[
     colorSpace: 'gray',
     lanes: ['native', 'upsample'],
     seed: 0x2103,
+  ),
+  PrecisionSpec(
+    name: 'synth-gray8-sub2x1-origin-lossy',
+    precision: 8,
+    components: [ComponentSpec(2, 1)],
+    x0: 3,
+    x1: 66,
+    y1: 48,
+    colorSpace: 'gray',
+    lanes: ['native', 'upsample'],
+    seed: 0x2103,
+    lossless: false,
+    rate: 4,
   ),
   PrecisionSpec(
     name: 'synth-gray12-sub1x3-tiles',

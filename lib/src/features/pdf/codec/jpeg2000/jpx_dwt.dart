@@ -61,13 +61,31 @@ final class JpxDwt {
       if (buffer is! Float32List) {
         throw const JpxException('The 9/7 tile buffer must be float.');
       }
-      _forLevels(buffer, resolutionBounds, width, _lift97Line, _lift97Column);
+      _forLevels(buffer, resolutionBounds, width, _lift97Line, _lift97Column, true);
     } else {
       if (buffer is! Int32List) {
         throw const JpxException('The 5/3 tile buffer must be int.');
       }
-      _forLevels(buffer, resolutionBounds, width, _lift53Line, _lift53Column);
+      _forLevels(buffer, resolutionBounds, width, _lift53Line, _lift53Column, false);
     }
+  }
+
+  /// Whether OpenJPEG lifts a line of [sn] low-pass and [dn] high-pass
+  /// samples starting on parity [cas]: `opj_idwt53_h/v` touch nothing
+  /// for an even-start single sample but always handle odd starts
+  /// (lengths 1 and 2 are special cases inside the lifts);
+  /// `opj_v8dwt_decode` returns early unless `dn > 0 || sn > 1` for an
+  /// even start and `sn > 0 || dn > 1` for an odd one.
+  static bool _shouldLift(final bool irreversible, final int cas, final int sn, final int dn) {
+    if (sn + dn <= 0) {
+      // A resolution can be empty in one direction (width 0, height > 0
+      // for a one-column tile): there is no line to lift.
+      return false;
+    }
+    if (irreversible) {
+      return cas == 0 ? (dn > 0 || sn > 1) : (sn > 0 || dn > 1);
+    }
+    return cas == 0 ? sn + dn > 1 : true;
   }
 
   static void _forLevels(
@@ -76,6 +94,7 @@ final class JpxDwt {
     final int width,
     final void Function(TypedData, int, int, int, int, int) lineLift,
     final void Function(TypedData, int, int, int, int, int) columnLift,
+    final bool irreversible,
   ) {
     var previousWidth = bounds[0].$3 - bounds[0].$1;
     var previousHeight = bounds[0].$4 - bounds[0].$2;
@@ -83,20 +102,14 @@ final class JpxDwt {
       final (x0, y0, x1, y1) = bounds[level];
       final rowWidth = x1 - x0;
       final rowHeight = y1 - y0;
-      // Partial-tile resolutions can contribute no high-pass samples
-      // (or a degenerate one-sample row/column); OpenJPEG's
-      // opj_v8dwt_decode skips the lifting in exactly those cases,
-      // per direction.
-      final highWidth = rowWidth - previousWidth;
-      if (highWidth > 0 || previousWidth > 1) {
-        final casRow = x0.isOdd ? 1 : 0;
+      final casRow = x0.isOdd ? 1 : 0;
+      if (_shouldLift(irreversible, casRow, previousWidth, rowWidth - previousWidth)) {
         for (var row = 0; row < rowHeight; row++) {
           lineLift(buffer, row * width, previousWidth, rowWidth, casRow, 1);
         }
       }
-      final highHeight = rowHeight - previousHeight;
-      if (highHeight > 0 || previousHeight > 1) {
-        final casColumn = y0.isOdd ? 1 : 0;
+      final casColumn = y0.isOdd ? 1 : 0;
+      if (_shouldLift(irreversible, casColumn, previousHeight, rowHeight - previousHeight)) {
         for (var column = 0; column < rowWidth; column++) {
           columnLift(buffer, column, previousHeight, rowHeight, casColumn, width);
         }
@@ -117,6 +130,10 @@ final class JpxDwt {
     final int stride,
   ) {
     final buffer = typedBuffer as Int32List;
+    if (cas == 1 && length <= 2) {
+      _idwt53OddShort(buffer, base, low, length, 1);
+      return;
+    }
     final tmp = Int32List(length);
     if (cas == 0) {
       _idwt53Cas0(buffer, base, base + low, length, tmp);
@@ -138,6 +155,10 @@ final class JpxDwt {
     final int stride,
   ) {
     final buffer = typedBuffer as Int32List;
+    if (cas == 1 && length <= 2) {
+      _idwt53OddShort(buffer, base, low, length, stride);
+      return;
+    }
     final tmp = Int32List(length);
     if (cas == 0) {
       _idwt53Cas0(buffer, base, base + low * stride, length, tmp, stride);
@@ -147,6 +168,28 @@ final class JpxDwt {
     for (var index = 0; index < length; index++) {
       buffer[base + index * stride] = tmp[index];
     }
+  }
+
+  /// The odd-start short lines of `opj_idwt53_h`/`opj_idwt53_v`: one
+  /// sample is halved toward zero (`tiledp[0] /= 2`); two samples
+  /// (one low-pass at [base], one high-pass at [base] + [low] * [stride])
+  /// reconstruct as `out1 = odd - ((even + 1) >> 1)`, `out0 = even + out1`.
+  static void _idwt53OddShort(
+    final Int32List buffer,
+    final int base,
+    final int low,
+    final int length,
+    final int stride,
+  ) {
+    if (length == 1) {
+      buffer[base] = buffer[base] ~/ 2;
+      return;
+    }
+    final even = buffer[base + low * stride];
+    final odd = buffer[base];
+    final out1 = odd - _shr(even + 1, 1);
+    buffer[base] = even + out1;
+    buffer[base + stride] = out1;
   }
 
   /// OpenJPEG `opj_idwt53_h_cas0` / `opj_idwt3_v_cas0` verbatim; the
@@ -241,16 +284,7 @@ final class JpxDwt {
       highs[index] = buffer[base + low + index];
     }
     _lift97(lows, highs, cas);
-    // The reconstructed row interleaves the lifted samples: the first
-    // output column takes the low-pass phase for cas 0 and the
-    // high-pass phase for cas 1. When one band is longer than the
-    // other (sn != dn), its tail samples land without a partner.
-    for (var index = 0; index < low; index++) {
-      buffer[base + 2 * index] = cas == 0 ? lows[index] : highs[index];
-      if (index < highs.length) {
-        buffer[base + 2 * index + 1] = cas == 0 ? highs[index] : lows[index];
-      }
-    }
+    _interleave97(buffer, base, 1, lows, highs, cas);
   }
 
   /// Vertical 9/7 over one column at [base] with row [stride].
@@ -272,12 +306,57 @@ final class JpxDwt {
       highs[index] = buffer[base + (low + index) * stride];
     }
     _lift97(lows, highs, cas);
-    for (var index = 0; index < low; index++) {
-      buffer[base + 2 * index * stride] = cas == 0 ? lows[index] : highs[index];
-      if (index < highs.length) {
-        buffer[base + (2 * index + 1) * stride] = cas == 0 ? highs[index] : lows[index];
+    _interleave97(buffer, base, stride, lows, highs, cas);
+  }
+
+  /// Writes the lifted samples back in coordinate order: even positions
+  /// take the low-pass phase for cas 0 and the high-pass phase for cas 1.
+  /// The longer band (lows for an even start, highs for an odd one) ends
+  /// with a sample without a partner, so the loop runs to the longer
+  /// length and each band is bounds-checked separately.
+  static void _interleave97(
+    final Float32List buffer,
+    final int base,
+    final int stride,
+    final Float32List lows,
+    final Float32List highs,
+    final int cas,
+  ) {
+    final sn = lows.length;
+    final dn = highs.length;
+    final count = sn > dn ? sn : dn;
+    for (var index = 0; index < count; index++) {
+      final even = cas == 0 ? (index < sn ? lows : null) : (index < dn ? highs : null);
+      final odd = cas == 0 ? (index < dn ? highs : null) : (index < sn ? lows : null);
+      if (even != null) {
+        buffer[base + 2 * index * stride] = even[index];
+      }
+      if (odd != null) {
+        buffer[base + (2 * index + 1) * stride] = odd[index];
       }
     }
+  }
+
+  /// Sum of the two low-pass neighbours of high-pass sample [index]
+  /// with the symmetric extension of `opj_v8dwt_decode_step2`: an odd
+  /// start (cas 1) has no left neighbour for the first sample and the
+  /// reference reads the right one twice (`fl = wavelet + a`); the last
+  /// sample mirrors the left one when the right one is missing.
+  static double _lowNeighbours(
+    final Float32List lows,
+    final int sn,
+    final int index,
+    final int cas,
+  ) {
+    final leftIndex = index - cas;
+    final rightIndex = index + 1 - cas;
+    if (leftIndex < 0) {
+      return 2 * lows[rightIndex];
+    }
+    if (rightIndex >= sn) {
+      return 2 * lows[leftIndex];
+    }
+    return lows[leftIndex] + lows[rightIndex];
   }
 
   /// The four 9/7 lifting steps over packed low/high arrays with the
@@ -310,15 +389,7 @@ final class JpxDwt {
     // Undo gamma on the high-pass samples.
     final mHigh = dn < sn - (1 - cas) ? dn : sn - (1 - cas);
     for (var index = 0; index < mHigh; index++) {
-      final leftIndex = index - cas;
-      final rightIndex = index + 1 - cas;
-      final double sum;
-      if (rightIndex >= sn) {
-        sum = 2 * lows[leftIndex];
-      } else {
-        sum = lows[leftIndex] + lows[rightIndex];
-      }
-      highs[index] = highs[index] + sum * -_kGamma;
+      highs[index] = highs[index] + _lowNeighbours(lows, sn, index, cas) * -_kGamma;
     }
     if (mHigh < dn) {
       highs[mHigh] = highs[mHigh] + (lows[mHigh - cas] * -_kGamma) * 2;
@@ -340,15 +411,7 @@ final class JpxDwt {
     }
     // Undo alpha on the high-pass samples.
     for (var index = 0; index < mHigh; index++) {
-      final leftIndex = index - cas;
-      final rightIndex = index + 1 - cas;
-      final double sum;
-      if (rightIndex >= sn) {
-        sum = 2 * lows[leftIndex];
-      } else {
-        sum = lows[leftIndex] + lows[rightIndex];
-      }
-      highs[index] = highs[index] + sum * -_kAlpha;
+      highs[index] = highs[index] + _lowNeighbours(lows, sn, index, cas) * -_kAlpha;
     }
     if (mHigh < dn) {
       highs[mHigh] = highs[mHigh] + (lows[mHigh - cas] * -_kAlpha) * 2;

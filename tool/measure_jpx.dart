@@ -502,7 +502,7 @@ void _measure(final String label, final Uint8List bytes) {
     final watch = Stopwatch()..start();
     final image = decodeJpxImage(bytes);
     watch.stop();
-    checksum += image.samples[0][0];
+    checksum += image.components[0].samples[0];
     samples.add(watch.elapsedMicroseconds.toDouble());
   }
   samples.sort();

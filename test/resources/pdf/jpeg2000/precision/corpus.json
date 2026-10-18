@@ -214,6 +214,67 @@
       ]
     },
     {
+      "name": "synth-gray16-lossy-origin-tiles",
+      "file": "synth-gray16-lossy-origin-tiles.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 5,
+      "y0": 3,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "9/7",
+      "lossless": false,
+      "mct": 0,
+      "tiles": [
+        32,
+        32,
+        4,
+        2
+      ],
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-gray16-lossy-derived",
+      "file": "synth-gray16-lossy-derived.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4) + QCD rewritten as scalar derived",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "9/7",
+      "lossless": false,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
       "name": "synth-gray12-sub2x2-odd",
       "file": "synth-gray12-sub2x2-odd.j2k",
       "producer": "opj_oracle encode (libopenjp2 2.5.4)",
@@ -322,6 +383,35 @@
       "colr": null,
       "transform": "5/3",
       "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "upsample"
+      ]
+    },
+    {
+      "name": "synth-gray8-sub2x1-origin-lossy",
+      "file": "synth-gray8-sub2x1-origin-lossy.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 8,
+      "x0": 3,
+      "y0": 0,
+      "width": 63,
+      "height": 48,
+      "components": [
+        {
+          "dx": 2,
+          "dy": 1,
+          "width": 31,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "9/7",
+      "lossless": false,
       "mct": 0,
       "tiles": null,
       "lanes": [

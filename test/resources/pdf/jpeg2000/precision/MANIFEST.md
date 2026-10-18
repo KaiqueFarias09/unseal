@@ -34,10 +34,13 @@ byte per sample up to 8 bits and two little-endian bytes above.
 | `synth-gray16-lossless.j2k` | 16 | 64x48 @0,0 | 1,1 | 5/3 lossless | native |
 | `synth-gray16-lossy.j2k` | 16 | 64x48 @0,0 | 1,1 | 9/7 lossy | native |
 | `synth-gray16-lossless-origin-tiles.j2k` | 16 | 64x48 @5,3 tiles 32x32 | 1,1 | 5/3 lossless | native |
+| `synth-gray16-lossy-origin-tiles.j2k` | 16 | 64x48 @5,3 tiles 32x32 | 1,1 | 9/7 lossy | native |
+| `synth-gray16-lossy-derived.j2k` | 16 | 64x48 @0,0 | 1,1 | 9/7 lossy | native |
 | `synth-gray12-sub2x2-odd.j2k` | 12 | 63x45 @0,0 | 2,2 | 5/3 lossless | native, upsample |
 | `synth-gray16-sub2x2-odd-lossless.j2k` | 16 | 63x45 @0,0 | 2,2 | 5/3 lossless | native, upsample |
 | `synth-gray16-sub2x2-odd-lossy.j2k` | 16 | 63x45 @0,0 | 2,2 | 9/7 lossy | native, upsample |
 | `synth-gray8-sub2x1-origin.j2k` | 8 | 63x48 @3,0 | 2,1 | 5/3 lossless | native, upsample |
+| `synth-gray8-sub2x1-origin-lossy.j2k` | 8 | 63x48 @3,0 | 2,1 | 9/7 lossy | native, upsample |
 | `synth-gray12-sub1x3-tiles.j2k` | 12 | 64x50 @0,0 tiles 40x24 | 1,3 | 5/3 lossless | native, upsample |
 | `synth-rgb12-rct-lossless.j2k` | 12 | 64x48 @0,0 | 1,1 1,1 1,1 | 5/3 lossless + MCT | native |
 | `synth-rgb16-rct-lossless-odd.j2k` | 16 | 63x45 @0,0 | 1,1 1,1 1,1 | 5/3 lossless + MCT | native |
@@ -67,7 +70,7 @@ byte per sample up to 8 bits and two little-endian bytes above.
 SHA-256 of every committed file:
 
 ```
-eca10259298aa16496f2249a1cabbdcbbd93c1a314821ad93636035be259d1b6  corpus.json
+0ea53cc598d5a702ccf9e9aa16255628317274f4b1db05f8e38f052b2e2d6610  corpus.json
 44f951e3f386a57dd42bdb42dc9192d1676704c7242ae456b8f6bc9e1d8b4fb2  oracle/real-gray16-lossless-ffmpeg.native.bin
 6800f41dd5fc804c2dba3b5f6236567f2fedda10c94040d3841252bfda6c5525  oracle/real-gray16-lossless-ffmpeg.native.json
 e3008d275419d471f5dab1fd363752aef6d424e271bc70a7f3060ddbaae7d8d4  oracle/real-rgb16-lossless-ffmpeg.native.bin
@@ -106,6 +109,10 @@ d3f6178ea9623a82efd40a7519d41b1c545d1a914b40bf8e936a4d1202245ee7  oracle/synth-g
 fa0a11d871d0e70eb5ed9c67e331627b4d0c52aae5d9d6febe92b9a4b8c878c0  oracle/synth-gray16-lossless-origin-tiles.native.json
 8deea2ec5c8b2a53696fed4aa6e79b1b282365b92656ecba98911895d81efc24  oracle/synth-gray16-lossless.native.bin
 6800f41dd5fc804c2dba3b5f6236567f2fedda10c94040d3841252bfda6c5525  oracle/synth-gray16-lossless.native.json
+7667f62ffdcf43339d70f84661d897ef42ea4920bab117b96d50aac0a2bd7144  oracle/synth-gray16-lossy-derived.native.bin
+6800f41dd5fc804c2dba3b5f6236567f2fedda10c94040d3841252bfda6c5525  oracle/synth-gray16-lossy-derived.native.json
+7913b57834ff446f80cf1becffdfb974f82e0ad59c6fc2152c8f52e45429997c  oracle/synth-gray16-lossy-origin-tiles.native.bin
+fa0a11d871d0e70eb5ed9c67e331627b4d0c52aae5d9d6febe92b9a4b8c878c0  oracle/synth-gray16-lossy-origin-tiles.native.json
 045fb0fe6a6f9ddd708b3ccf8632afefe16925510863f1bdc10d5716ed11adf5  oracle/synth-gray16-lossy.native.bin
 6800f41dd5fc804c2dba3b5f6236567f2fedda10c94040d3841252bfda6c5525  oracle/synth-gray16-lossy.native.json
 dd6c55cade4596c581f9ab578441435c9bc7a084d2a4a46c1e0aed70c16f0030  oracle/synth-gray16-sub2x2-odd-lossless.native.bin
@@ -114,6 +121,9 @@ abd121ef676502e8a60b5e1be9adc04c0008b2fa203871ca1a89fd3133a2216f  oracle/synth-g
 3f63c84a98eaddee971e351cdb99819ad8ab6d8b21a0130d79a5ccfba7940ac1  oracle/synth-gray16-sub2x2-odd-lossy.native.bin
 8b7a21581578443e5db38a8e5680acca70b304b4ba6cccc8393e3ce62c2b3646  oracle/synth-gray16-sub2x2-odd-lossy.native.json
 3146a2eb62f835b6af930e438a7e6a93ade2bd836dbd07fd2dd41e0aa3f00566  oracle/synth-gray16-sub2x2-odd-lossy.upsample.rawl
+f9e5ac2536ab752b5daf0538359a1d2fdb01e05cc987931c84e357824803ca10  oracle/synth-gray8-sub2x1-origin-lossy.native.bin
+f2f959ae3bb6993731fd9dea9c30860436330f427af651929e0b3838df09146e  oracle/synth-gray8-sub2x1-origin-lossy.native.json
+65a4d658e358bfed6b0ccf15bcd788de4b27d904ed66cef5f721f69e982879c4  oracle/synth-gray8-sub2x1-origin-lossy.upsample.rawl
 3d057e5bd8f251217c81a41aaff74c8878aabfd7fece25cb9f49af292200d52a  oracle/synth-gray8-sub2x1-origin.native.bin
 f2f959ae3bb6993731fd9dea9c30860436330f427af651929e0b3838df09146e  oracle/synth-gray8-sub2x1-origin.native.json
 befc10d7389d0838bf00ae60e49b4951e350cc806154a515b9b92c8588d27da3  oracle/synth-gray8-sub2x1-origin.upsample.rawl
@@ -172,9 +182,12 @@ a9974c784576d243591e38e01149fb4ff3d9632f90d0eb4dfd086c5438ae1602  real-sycc8-422
 b5f233059b1e4fb80563cf9e5297d4caf42243032732a561b276a6f46b5dc63e  synth-gray12-sub2x2-odd.j2k
 e97fc3e14bc80afa1bfdbcba2b5fa9c841ef14d9d887ec92c2b198283d34d4c9  synth-gray16-lossless-origin-tiles.j2k
 8a37fbedf5ce208c438d1604071c8cef76ecb1c70307aa32b55cde6f0ce349e5  synth-gray16-lossless.j2k
+49fd44905f1741597ba9ddf16c60df5cc014b01f7f8c210492e77afc7d6a96bd  synth-gray16-lossy-derived.j2k
+fc93b32b8918c79d1e5a259aca1e91880766d3dc7ec8a1760737772c9494c955  synth-gray16-lossy-origin-tiles.j2k
 05f94ce5105cf3d0030dd1d72c3a3e577f296c7395917c0657efbe659a773f4d  synth-gray16-lossy.j2k
 1b7c2d82ed74c88f8e0caf010764be7cc071fe1f34463f3c5ce6fb42e5b723af  synth-gray16-sub2x2-odd-lossless.j2k
 5de11464a0433b1abc3ff28bb102b0db478104db7e3057f896ce8466568a3592  synth-gray16-sub2x2-odd-lossy.j2k
+582141f77cee12856a028b08e37f474d98bd0551b5e62c6603c1fe151d4e58ac  synth-gray8-sub2x1-origin-lossy.j2k
 4ce29ec025a6c0f50ddcd61ed8d776d83bfd270b8a37e1706bc6afced942b4eb  synth-gray8-sub2x1-origin.j2k
 572371ce81c65dfc10b4e49674d3e7ddec08605807d70014bfbaa8a2db94e1ee  synth-gray9-lossless.j2k
 1d3fb5d94654b02b6ea9a38085eeab7493cddf19409d3d57ee01907af279caaf  synth-rgb10-sub2x2-all.j2k

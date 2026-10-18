@@ -11,15 +11,15 @@ void main(final List<String> args) {
     // The oracle payload is planar (component-major), matching
     // opj_decompress's .raw writer.
     final actual = <int>[];
-    for (final plane in image.samples) {
-      actual.addAll(plane);
+    for (final component in image.components) {
+      actual.addAll(component.samples);
     }
     if (args.length > 2 && args[2] == '--planes') {
       final perComp = image.width * image.height;
       for (var c = 0; c < image.componentCount; c++) {
         var matching = 0;
         for (var i = 0; i < perComp; i++) {
-          if (oracle[c * perComp + i] == image.samples[c][i]) matching++;
+          if (oracle[c * perComp + i] == image.components[c].samples[i]) matching++;
         }
         // Dev probe diagnostics, not a test assertion: ignore the
         // print lint.
@@ -27,7 +27,7 @@ void main(final List<String> args) {
         print(
           'PLANE$c matching=$matching/${image.width}x${image.height} '
           'first12 mine: '
-          '${[for (var i = 0; i < 12; i++) image.samples[c][i]].join(' ')} '
+          '${[for (var i = 0; i < 12; i++) image.components[c].samples[i]].join(' ')} '
           'oracle: '
           '${[for (var i = 0; i < 12; i++) oracle[c * perComp + i]].join(' ')}',
         );
