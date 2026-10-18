@@ -63,6 +63,42 @@ void main() {
     expect(bound.pageIndexes, <int>[0]);
   });
 
+  test('alternative ancestors and concurrent identities survive the real worker', () async {
+    final bytes = djvuJpegPage(tinyJpeg, txtz: base64Decode(cyrillicTxtzBase64));
+    final book = await Unseal.read(bytes) as DjvuBook;
+    final selected = book.pages.single.text
+        .split(RegExp(r'\s+'))
+        .firstWhere((final word) => word.isNotEmpty)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+    final sidecar = Uint8List.fromList(
+      utf8.encode(
+        '<div class="ocr_page" title="bbox 0 0 8 8">'
+        '<div class="alternatives"><ins>'
+        '<span class="ocr_line" title="bbox 0 0 8 4">$selected</span>'
+        '</ins><del><span class="ocr_line" title="bbox 0 4 8 8">discarded</span></del>'
+        '</div></div>',
+      ),
+    );
+    final identities = [
+      PublicationRevision(publicationId: 'browser:hocr-concurrent-a'),
+      PublicationRevision(publicationId: 'browser:hocr-concurrent-b'),
+    ];
+    final results = await Future.wait([
+      for (final identity in identities)
+        UnsealWorker.bindHocrInWorker(hocrBytes: sidecar, pageIndex: 0, identity: identity),
+    ]);
+    for (var i = 0; i < results.length; i++) {
+      final result = results[i];
+      expect(result, isNotNull, reason: 'hocr.bind must execute on the real worker');
+      expect(result!.targetIdentity, identities[i]);
+      expect(result.wordsResolved, 0);
+      expect(result.wordsAmbiguous, 1);
+      expect(result.wordsMissing, 0);
+    }
+  });
+
   test('a second bind answers independently with its own identity', () async {
     final txtz = base64Decode(cyrillicTxtzBase64);
     final bytes = djvuJpegPage(tinyJpeg, txtz: txtz);
