@@ -295,7 +295,11 @@ final class _WorkerSessionTransport implements SessionTransport {
       _dispatch(() => _client.sessionMetricsInWorker(_sessionId));
 
   @override
-  void cancelPending() => _drain(const SessionCancelledException());
+  void cancelPending() {
+    if (_disposed) return;
+    _client.sessionCancelInWorker(_sessionId);
+    _drain(const SessionCancelledException());
+  }
 
   @override
   void dispose() {

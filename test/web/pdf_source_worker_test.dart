@@ -28,7 +28,7 @@ Uint8List _buildPdf({required final int pages}) {
     _utf8('<< /Type /Pages /Kids [3 0 R] /Count $pages >>'),
     _utf8(
       '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] '
-      '/Resources << /Font << /F1 5 0 R >> >> /Contents 3 0 R >>',
+      '/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
     ),
     <int>[
       ..._utf8('<< /Length ${_flate(_pageStream(1)).length} /Filter /FlateDecode >>\nstream\n'),
@@ -154,23 +154,12 @@ void main() {
     expect(session.sourceRevision, 'pdf-worker-1');
 
     final eager = Unseal.parse(bytes) as PdfBook;
-    // Pages 2..3 pin the content parity; page 1 rides the base
-    // extractor's first-extraction defect on dart2js (empty first
-    // sample; reproduces with the 1.3.0 session on this platform and is
-    // unrelated to the byte-source transport — see the proposal's
-    // limitations), so the browser lane pins page 1's parity on the VM
-    // suites only.
-    for (var i = 2; i <= 3; i++) {
+    for (var i = 1; i <= 3; i++) {
       expect(await session.loadDocumentText('page_$i.html'), eager.pageTexts[i - 1].text);
     }
     expect(source.reads, isNotEmpty, reason: 'the worker pulled ranges from the host source');
   });
 
-  // The worker lane loads pages in ascending order per session: the
-  // base extractor fails on dart2js when a page is extracted after a
-  // later page of the same document (reproduces with BookSession.open
-  // on 1.3.0 in the browser and is unrelated to the byte-source
-  // transport; see the proposal's limitations note).
   test('two PDF source sessions live in the worker; disposal keeps the peer', () async {
     final bytesA = _buildPdf(pages: 3);
     final bytesB = _buildPdf(pages: 4);
@@ -185,12 +174,14 @@ void main() {
     final sessionB = await BookSession.openSource(sourceB);
     addTearDown(sessionB.dispose);
 
-    // Alternating sequential loads: the two engines serve their own
-    // sessions without cross-talk. (Concurrent ops inside one session
-    // are covered by the VM isolate and inline lanes; in the worker
-    // they race the base extractor's dart2js defect, not the bridge.
-    // Page 1's session text has the same known limitation.)
-    expect(await sessionA.loadDocumentText('page_2.html'), contains('worker page 2'));
+    expect(await sessionA.loadDocumentText('page_3.html'), contains('worker page 3'));
+    expect(await sessionA.loadDocumentText('page_1.html'), contains('worker page 1'));
+    final concurrent = await Future.wait([
+      sessionA.loadDocumentText('page_2.html'),
+      sessionA.loadDocumentText('page_1.html'),
+    ]);
+    expect(concurrent[0], contains('worker page 2'));
+    expect(concurrent[1], contains('worker page 1'));
     expect(await sessionB.loadDocumentText('page_2.html'), contains('worker page 2'));
     expect(await sessionA.loadDocumentText('page_3.html'), contains('worker page 3'));
     expect(await sessionB.loadDocumentText('page_4.html'), contains('worker page 4'));

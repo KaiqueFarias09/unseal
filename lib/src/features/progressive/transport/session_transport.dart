@@ -133,6 +133,12 @@ final class InlineSourceSessionTransport extends InlineSessionTransport {
   String? get sourceRevision => _gate.revisionAtOpen;
 
   @override
+  void cancelPending() {
+    super.cancelPending();
+    _gate.cancelPending();
+  }
+
+  @override
   void dispose() {
     super.dispose();
     unawaited(_gate.close());
@@ -273,7 +279,11 @@ class InlineSessionTransport implements SessionTransport {
   @override
   Future<Map<String, Object?>> metrics() => _dispatch(_engine.metrics);
   @override
-  void cancelPending() => _drain(const SessionCancelledException());
+  void cancelPending() {
+    _engine.cancelPending();
+    _drain(const SessionCancelledException());
+  }
+
   @override
   void dispose() {
     if (_disposed) return;

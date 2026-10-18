@@ -5,13 +5,15 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 import 'package:unseal/unseal.dart';
 
+import '../../support/held_pdf_byte_source.dart';
+import '../../support/pdf_range_review_fixture.dart';
+
 // PR05 (isolate lane): two source sessions over the real session
 // isolate — interleaved and reverse-order loads, cancellation of a
 // pending read, disposal under load, and the survivor session. The
 // worker lane lives in test/web/pdf_source_worker_test.dart.
 const dickensPdf = 'test/resources/pdf/dickens-sample.pdf';
 const alicePdf = 'test/resources/pdf/gutenberg/pg11-generated.pdf';
-const mobyDickPdf = 'test/resources/pdf/gutenberg/pg2701-generated.pdf';
 
 Uint8List _bytes(final String path) => Uint8List.fromList(File(path).readAsBytesSync());
 
@@ -79,37 +81,40 @@ void main() {
   });
 
   test('cancelPending fails the in-flight read; the session keeps serving', () async {
-    final source = SlowSource(_bytes(mobyDickPdf));
+    final source = HeldPdfByteSource(spacedPdfRangeFixture());
     final session = await BookSession.openSource(source);
     addTearDown(session.dispose);
 
     final pages = (session.book as PdfBook).pageCount;
-    // A deep page needs wire reads the cache cannot serve.
-    final pending = session.loadDocumentText('page_${pages - 40}.html');
-    await source.firstRead;
+    source.holdNext = true;
+    final pending = session.loadDocumentText('page_${pages - 1}.html');
+    await source.entered.future;
     session.cancelPending();
     await expectLater(pending, throwsA(isA<SessionCancelledException>()));
 
     // The engine survives: a fresh op completes with the right bytes.
     final recovered = await session.loadDocumentText('page_$pages.html');
-    final eager = Unseal.parse(_bytes(mobyDickPdf)) as PdfBook;
+    source.release.complete();
+    final eager = Unseal.parse(source.bytes) as PdfBook;
     expect(recovered, eager.pageTexts[pages - 1].text);
   });
 
   test('disposing under load fails the op, closes the source, keeps the peer', () async {
-    final doomedSource = SlowSource(_bytes(mobyDickPdf));
+    final doomedSource = HeldPdfByteSource(spacedPdfRangeFixture());
     final peerSource = SlowSource(_bytes(alicePdf), delay: Duration.zero);
     final doomed = await BookSession.openSource(doomedSource);
     final peer = await BookSession.openSource(peerSource);
     addTearDown(peer.dispose);
 
     final doomedPages = (doomed.book as PdfBook).pageCount;
-    final pending = doomed.loadDocumentText('page_${doomedPages - 40}.html');
-    await doomedSource.firstRead;
+    doomedSource.holdNext = true;
+    final pending = doomed.loadDocumentText('page_${doomedPages - 1}.html');
+    await doomedSource.entered.future;
     doomed.dispose();
     await expectLater(pending, throwsA(isA<SessionClosedException>()));
     expect(doomedSource.closed, isTrue, reason: 'dispose closed the host source');
 
+    doomedSource.release.complete();
     // Late bridge replies land on a dead session: they serve nobody
     // and must not disturb the peer.
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -127,15 +132,16 @@ void main() {
   });
 
   test('a source closed by its owner fails pending reads typed', () async {
-    final source = SlowSource(_bytes(mobyDickPdf), delay: const Duration(milliseconds: 40));
+    final source = HeldPdfByteSource(spacedPdfRangeFixture());
     final session = await BookSession.openSource(source);
     addTearDown(session.dispose);
 
-    // A deep page needs wire reads the cache cannot serve.
     final pages = (session.book as PdfBook).pageCount;
-    final pending = session.loadDocumentText('page_${pages - 40}.html');
-    await source.firstRead;
+    source.holdNext = true;
+    final pending = session.loadDocumentText('page_${pages - 1}.html');
+    await source.entered.future;
     await source.close();
+    source.release.complete();
     await expectLater(pending, throwsA(isA<UnsealException>()));
   });
 }

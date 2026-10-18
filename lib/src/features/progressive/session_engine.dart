@@ -846,9 +846,10 @@ final class SessionEngine {
     _searchIndexPending = null;
   }
 
-  /// Releases the container source and the cache. Further ops throw
-  /// [SessionClosedException]. Remote readers are not closed here —
-  /// the host's gate owns their source.
+  /// Invalidates pending PDF parser steps while keeping completed content usable.
+  void cancelPending() => _pdf?.loader?.cancelPending();
+
+  /// Releases the container source and cache. Remote readers belong to the host gate.
   void close() {
     if (_closed) return;
 

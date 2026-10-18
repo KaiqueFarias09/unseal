@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -10,7 +11,7 @@ import 'session_policy.dart';
 /// A byte range the parser demanded that the resident store does not
 /// hold yet. Pure control flow between [PdfResidentByteSource.read] and
 /// the [PdfRangeLoader] resume loop — it never escapes a loader step.
-final class PdfRangeDemand implements Exception {
+final class PdfRangeDemand {
   /// Creates the demand for the missing `[offset, offset + count)` span.
   const PdfRangeDemand(this.offset, this.count);
 
@@ -52,8 +53,9 @@ final class _Range {
 /// Nothing is read ahead of demand: every stored byte was demanded by
 /// a parser read first, and an overlapping demand fetches only its
 /// missing sub-spans, so re-walks never multiply the wire bytes.
-/// Between steps, unpinned ranges evict oldest-first down to the byte
-/// budget; a step's working set is never evicted mid-step.
+/// Between steps, unpinned ranges evict in offset order down to the cache
+/// budget. A step exceeding the cache working-set budget fails before fetching
+/// additional bytes. Output and host-response copies have the per-request cap.
 final class PdfRangeLoader {
   /// Builds a loader over [readRange] with the policy's range budgets.
   ///
@@ -66,7 +68,11 @@ final class PdfRangeLoader {
     final SessionMetricsCounter? counter,
   }) : _readRange = readRange,
        _length = length,
-       _maxRequestBytes = policy.effectiveMaxRangeRequestBytes,
+       _maxRequestBytes = math.min(
+         policy.effectiveMaxRangeRequestBytes,
+         policy.effectiveMaxRangeBytesInFlight,
+       ),
+       _workingSetBytes = policy.effectiveCacheBytes,
        _budgetBytes = _budgetFor(length, policy),
        _counter = counter {
     if (length < 0) throw RangeError.range(length, 0, null, 'length');
@@ -85,13 +91,17 @@ final class PdfRangeLoader {
   final int _length;
   final int _maxRequestBytes;
   final int _budgetBytes;
+  final int _workingSetBytes;
   final SessionMetricsCounter? _counter;
 
   /// Resident ranges, sorted by start, pairwise disjoint.
   final List<_Range> _ranges = <_Range>[];
 
   /// Every range ever fetched, sorted by start, pairwise disjoint.
-  final List<_Range> _coverage = <_Range>[];
+  final List<(int, int)> _coverage = <(int, int)>[];
+  final Set<_Range> _pinned = <_Range>{};
+  int _generation = 0;
+  Completer<void>? _stepCancellation;
 
   var _residentBytes = 0;
   var _maxResidentBytes = 0;
@@ -138,7 +148,7 @@ final class PdfRangeLoader {
 
   /// The merged all-time fetch coverage as `[start, end)` pairs — the
   /// per-document read map the acceptance evidence records.
-  List<(int, int)> coverage() => [for (final range in _coverage) (range.start, range.end)];
+  List<(int, int)> coverage() => List<(int, int)>.unmodifiable(_coverage);
 
   /// Copies [count] bytes at [offset] out of the resident store, or
   /// throws [PdfRangeDemand] for the first missing span of the request.
@@ -148,16 +158,22 @@ final class PdfRangeLoader {
     RangeError.checkValidRange(offset, offset + count, _length, 'offset', 'end');
     if (count == 0) return Uint8List(0);
 
-    final out = Uint8List(count);
+    _checkReadBudget(count);
     var cursor = offset;
     final end = offset + count;
     while (cursor < end) {
       final index = _rangeIndexAt(cursor);
-      if (index < 0) {
-        throw PdfRangeDemand(cursor, end - cursor);
-      }
-
+      if (index < 0) throw PdfRangeDemand(cursor, end - cursor);
       final range = _ranges[index];
+      _pinned.add(range);
+      cursor = math.min(range.end, end);
+    }
+    // No speculative output is allocated on a cache miss. At this point
+    // resident bytes are bounded by cacheBytes and this copy by rangeRequestBytes.
+    final out = Uint8List(count);
+    cursor = offset;
+    while (cursor < end) {
+      final range = _ranges[_rangeIndexAt(cursor)];
       final take = math.min(range.end, end) - cursor;
       out.setRange(cursor - offset, cursor - offset + take, range.bytes, cursor - range.start);
       cursor += take;
@@ -202,7 +218,8 @@ final class PdfRangeLoader {
     _outstandingSteps++;
     if (_outstandingSteps > _queuedStepsPeak) _queuedStepsPeak = _outstandingSteps;
 
-    final run = _stepQueue.then((final _) => _runStep(step));
+    final generation = _generation;
+    final run = _stepQueue.then((final _) => _runStep(step, generation));
     _stepQueue = run.then((final _) {}, onError: (final Object _) {});
 
     return run.whenComplete(() => _outstandingSteps--);
@@ -210,28 +227,60 @@ final class PdfRangeLoader {
 
   var _outstandingSteps = 0;
 
-  Future<T> _runStep<T>(final T Function() step) async {
-    const resumeCap = 65536;
-    for (var resume = 0; ; resume++) {
-      try {
-        final result = step();
-        _evictToBudget();
+  /// Cancels queued parser work without closing the source or dropping
+  /// completed parsed objects. The transport separately cancels its range futures.
+  void cancelPending() {
+    _generation++;
+    final pending = _stepCancellation;
+    if (pending != null && !pending.isCompleted) pending.complete();
+  }
 
-        return result;
-      } on PdfRangeDemand catch (demand) {
-        _resumeCount++;
-        if (resume >= resumeCap) {
-          throw PdfException(
-            'The PDF session demanded more than $resumeCap range resumes in one '
-            'step; the document structure does not converge over a byte source.',
-          );
-        }
-        await _fetch(demand.offset, demand.count);
-      }
+  void _checkGeneration(final int generation) {
+    if (_closed) throw const ByteSourceClosedException();
+    if (generation != _generation) throw const SessionCancelledException();
+  }
+
+  void _checkReadBudget(final int count) {
+    if (count > _maxRequestBytes || count > _workingSetBytes) {
+      throw ByteSourceLimitExceededException(
+        'A $count-byte PDF read exceeds the per-request or cache working-set budget.',
+      );
     }
   }
 
-  Future<void> _fetch(final int offset, final int count) async {
+  Future<T> _runStep<T>(final T Function() step, final int generation) async {
+    const resumeCap = 65536;
+    final signal = Completer<void>();
+    _stepCancellation = signal;
+    Future<void>? cancelled;
+    try {
+      for (var resume = 0; ; resume++) {
+        _checkGeneration(generation);
+        try {
+          return step();
+        } on PdfRangeDemand catch (demand) {
+          _resumeCount++;
+          if (resume >= resumeCap) {
+            throw PdfException(
+              'The PDF session demanded more than $resumeCap range resumes in one '
+              'step; the document structure does not converge over a byte source.',
+            );
+          }
+          await Future.any<void>([
+            _fetch(demand.offset, demand.count, generation),
+            cancelled ??= signal.future.then((final _) => _checkGeneration(generation)),
+          ]);
+        }
+      }
+    } finally {
+      _stepCancellation = null;
+      if (!signal.isCompleted) signal.complete();
+      _pinned.clear();
+      _evictToBudget();
+    }
+  }
+
+  Future<void> _fetch(final int offset, final int count, final int generation) async {
     // Bounds were validated by read(); fetch only what is missing so
     // overlapping windows never re-request covered bytes.
     var cursor = offset;
@@ -245,7 +294,7 @@ final class PdfRangeLoader {
       }
 
       final spanEnd = math.min(_nextResidentStart(cursor), end);
-      await _fetchSpan(cursor, spanEnd - cursor);
+      await _fetchSpan(cursor, spanEnd - cursor, generation);
       cursor = spanEnd;
     }
   }
@@ -267,91 +316,60 @@ final class PdfRangeLoader {
     return low < _ranges.length ? _ranges[low].start : _length;
   }
 
-  Future<void> _fetchSpan(final int offset, final int count) async {
-    if (count > _maxRequestBytes) {
-      throw ByteSourceLimitExceededException(
-        'A $count-byte PDF range demand exceeds the session '
-        '$_maxRequestBytes-byte per-request cap; raise '
-        'SessionPolicy.rangeRequestBytes to serve streams this large.',
-      );
+  Future<void> _fetchSpan(final int offset, final int count, final int generation) async {
+    _checkGeneration(generation);
+    _checkReadBudget(count);
+    // Previous steps' ranges may evict; this step's pinned ranges may not.
+    // Refuse an oversized working set before requesting or copying more bytes.
+    while (_residentBytes + count > _workingSetBytes) {
+      final index = _ranges.indexWhere((final range) => !_pinned.contains(range));
+      if (index < 0) {
+        throw const ByteSourceLimitExceededException(
+          'The PDF parser step exceeds SessionPolicy.cacheBytes; raise the cache '
+          'budget for this document structure.',
+        );
+      }
+      final removed = _ranges.removeAt(index);
+      _residentBytes -= removed.bytes.length;
+      _evictedBytes += removed.bytes.length;
     }
     _fetchCount++;
     final bytes = await _readRange(offset, count);
     if (bytes.length != count) {
       throw ByteSourceShortReadException(offset: offset, count: count, received: bytes.length);
     }
-
     _fetchedBytes += count;
     _counter?.addContainerRead(count);
-    _storeResident(offset, bytes);
-    _recordCoverage(offset, bytes);
+    if (!_closed) _recordCoverage(offset, offset + count);
+    _checkGeneration(generation);
+    final range = _Range(offset, bytes);
+    final index = _ranges.indexWhere((final other) => other.start > offset);
+    _ranges.insert(index < 0 ? _ranges.length : index, range);
+    _pinned.add(range);
+    _residentBytes += count;
+    _maxResidentBytes = math.max(_maxResidentBytes, _residentBytes);
   }
 
-  /// Inserts `[start, start + bytes.length)` into the resident store,
-  /// absorbing any overlapping ranges (fresh bytes win on overlap).
-  void _storeResident(final int start, final Uint8List bytes) {
-    final merged = _mergeInto(_ranges, start, bytes);
-    _residentBytes += merged;
-    if (_residentBytes > _maxResidentBytes) _maxResidentBytes = _residentBytes;
-  }
-
-  void _recordCoverage(final int start, final Uint8List bytes) {
-    _mergeInto(_coverage, start, bytes);
-    var unique = 0;
-    var cursor = -1;
-    for (final range in _coverage) {
-      if (range.end <= cursor) continue;
-      unique += range.end - (range.start > cursor ? range.start : cursor);
-      cursor = range.end;
-    }
-    _fetchedUniqueBytes = unique;
-  }
-
-  /// Merges `[start, start + bytes.length)` into [target] and returns
-  /// the resident-byte delta (zero for the coverage ledger).
-  int _mergeInto(final List<_Range> target, final int start, final Uint8List bytes) {
-    final end = start + bytes.length;
-
-    // First range that could overlap or touch the new span; touching
-    // ranges coalesce so consecutive windows stay one interval.
+  void _recordCoverage(final int start, final int end) {
     var index = 0;
-    while (index < target.length && target[index].end < start) {
+    while (index < _coverage.length && _coverage[index].$2 < start) {
       index++;
     }
-
     var mergedStart = start;
     var mergedEnd = end;
-    var overlapCount = 0;
-    var absorbedBytes = 0;
-    while (index + overlapCount < target.length &&
-        target[index + overlapCount].start <= mergedEnd) {
-      final range = target[index + overlapCount];
-      mergedStart = math.min(mergedStart, range.start);
-      mergedEnd = math.max(mergedEnd, range.end);
-      absorbedBytes += range.end - range.start;
-      overlapCount++;
+    var last = index;
+    var absorbed = 0;
+    while (last < _coverage.length && _coverage[last].$1 <= mergedEnd) {
+      final interval = _coverage[last++];
+      mergedStart = math.min(mergedStart, interval.$1);
+      mergedEnd = math.max(mergedEnd, interval.$2);
+      absorbed += interval.$2 - interval.$1;
     }
-
-    if (overlapCount == 0) {
-      target.insert(index, _Range(start, bytes));
-
-      return bytes.length;
-    }
-
-    final buffer = Uint8List(mergedEnd - mergedStart);
-    for (var i = 0; i < overlapCount; i++) {
-      final range = target[index + i];
-      buffer.setRange(range.start - mergedStart, range.end - mergedStart, range.bytes);
-    }
-    buffer.setRange(start - mergedStart, end - mergedStart, bytes);
-
-    target[index] = _Range(mergedStart, buffer);
-    target.removeRange(index + 1, index + overlapCount);
-
-    return buffer.length - absorbedBytes;
+    _coverage.replaceRange(index, last, [(mergedStart, mergedEnd)]);
+    _fetchedUniqueBytes += mergedEnd - mergedStart - absorbed;
   }
 
-  /// Drops resident bytes oldest-first until the store fits the budget.
+  /// Drops the lowest-offset resident ranges until the store fits the budget.
   /// Only called between steps, so pinned working sets never shrink.
   void _evictToBudget() {
     while (_residentBytes > _budgetBytes && _ranges.isNotEmpty) {
@@ -361,10 +379,12 @@ final class PdfRangeLoader {
     }
   }
 
-  /// Drops every resident range. Coverage statistics stay — they report
-  /// what the session touched, not what it still holds.
+  /// Drops resident ranges and the interval ledger. Scalar statistics stay.
   Future<void> close() async {
     _closed = true;
+    cancelPending();
+    _pinned.clear();
+    _coverage.clear();
     _ranges.clear();
     _residentBytes = 0;
   }

@@ -659,6 +659,13 @@ final class WorkerClient {
     );
   }
 
+  /// Cancels range futures and queued parser steps for this session only.
+  void sessionCancelInWorker(final int sessionId) {
+    if (!_residentSessions.contains(sessionId)) return;
+    unawaited(_request(workerOpSessionCancel, payload: _sessionPayload(sessionId)));
+    _sessionSources[sessionId]?.cancelPending();
+  }
+
   /// Ends the resident session inside the worker (the message is
   /// fire-and-forget, like the isolate transport killing its
   /// isolate). Later ops for this ID throw [SessionClosedException];

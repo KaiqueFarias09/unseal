@@ -108,8 +108,10 @@ const String workerOpSessionCfiResolve = 'sessionCfiResolve';
 /// resident session.
 const String workerOpSessionCfiBuild = 'sessionCfiBuild';
 
-/// Wire protocol op: end only the session identified by the request
-/// payload. Later ops with that ID fail typed; other sessions stay live.
+/// Cancels pending operations without closing the resident session.
+const String workerOpSessionCancel = 'sessionCancel';
+
+/// Ends only the session identified by the payload; other sessions stay live.
 const String workerOpSessionDispose = 'sessionDispose';
 
 /// Wire protocol message kind (byteSource.v1): the worker asks the

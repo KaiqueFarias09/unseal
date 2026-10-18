@@ -301,6 +301,10 @@ Future<void> _dispatch(
   final SendPort replyPort,
   final List<Object?> message,
 ) async {
+  if (message[0] == _opCancel) {
+    engine.cancelPending();
+    return;
+  }
   final id = message[1]! as int;
   try {
     final result = await switch (message[0]! as String) {
@@ -368,6 +372,7 @@ Future<Map<String, Uint8List>> _resources(
   return result;
 }
 
+const _opCancel = 'cancelPending';
 const _opResource = 'resource';
 const _opResources = 'resources';
 const _opRange = 'range';
@@ -796,7 +801,12 @@ final class _IsolateSessionTransport implements SessionTransport {
   }) async => await _request([_opCfiBuild, contentIndex, offsetInText]) as String;
 
   @override
-  void cancelPending() => _drain(const SessionCancelledException());
+  void cancelPending() {
+    if (_disposed) return;
+    _port?.send(<Object?>[_opCancel]);
+    _gate?.cancelPending();
+    _drain(const SessionCancelledException());
+  }
 
   @override
   void dispose() {

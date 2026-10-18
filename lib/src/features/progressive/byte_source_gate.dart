@@ -104,6 +104,22 @@ final class ByteSourceGate {
     return active.completer.future;
   }
 
+  /// Fails queued and active range futures while keeping the source open.
+  /// Physical host reads retain their slots/bytes until they settle: a host
+  /// without an abort primitive cannot bypass the in-flight budget by cancelling.
+  void cancelPending() {
+    for (final queued in _queue) {
+      queued.active.completer.completeError(const SessionCancelledException());
+    }
+    _queue.clear();
+    for (final active in _active) {
+      if (!active.cancelled) {
+        active.cancelled = true;
+        active.completer.completeError(const SessionCancelledException());
+      }
+    }
+  }
+
   /// Closes the gate: queued and in-flight reads fail with
   /// [ByteSourceClosedException], no further reads are accepted, and
   /// the underlying source's [UnsealByteSource.close] completes before
@@ -117,7 +133,7 @@ final class ByteSourceGate {
     }
     _queue.clear();
     for (final active in _active) {
-      active.completer.completeError(const ByteSourceClosedException());
+      if (!active.cancelled) active.completer.completeError(const ByteSourceClosedException());
       active.cancelled = true;
     }
     _active.clear();
@@ -156,15 +172,14 @@ final class ByteSourceGate {
       failure = _normalizeFailure(active, error);
     }
 
-    if (active.cancelled || _closed) {
-      // The gate closed under the read: the completer already failed;
-      // drop the answer so a late reply serves nobody.
-      return;
-    }
-
+    if (_closed) return;
     _active.remove(active);
     _inFlightRequests = math.max(0, _inFlightRequests - 1);
     _inFlightBytes = math.max(0, _inFlightBytes - active.count);
+    if (active.cancelled) {
+      _pump();
+      return;
+    }
 
     if (failure != null) {
       active.completer.completeError(failure);

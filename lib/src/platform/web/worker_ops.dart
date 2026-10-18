@@ -124,6 +124,14 @@ runWorkerOp({
       return _sessionCfiResolve(payload!, residentSession);
     case workerOpSessionCfiBuild:
       return _sessionCfiBuild(payload!, residentSession);
+    case workerOpSessionCancel:
+      residentSession?.cancelPending();
+      return (
+        kind: wireReplySessionDispose,
+        json: const <String, Object?>{},
+        blobs: const <Object>[],
+        session: null,
+      );
     case workerOpSessionDispose:
       residentSession?.close();
 
