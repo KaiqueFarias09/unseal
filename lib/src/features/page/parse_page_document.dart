@@ -139,6 +139,9 @@ PageXmlPage _parsePage(final XmlElement node, final Set<String> ids) {
   }
   final width = _requiredIntAttribute(node, 'imageWidth', 'page');
   final height = _requiredIntAttribute(node, 'imageHeight', 'page');
+  if (width <= 0 || height <= 0) {
+    throw PageXmlException('PAGE page declares unusable dimensions $width×$height.');
+  }
 
   final regions = <PageXmlRegion>[];
   for (final child in node.childElements) {
@@ -165,8 +168,8 @@ PageXmlPage _parsePage(final XmlElement node, final Set<String> ids) {
     confidence: _confidenceAttribute(node, 'conf'),
     type: node.getAttribute('type'),
     primaryLanguage: node.getAttribute('primaryLanguage'),
-    border: border == null ? null : _polygon(border, ids),
-    printSpace: printSpace == null ? null : _polygon(printSpace, ids),
+    border: border == null ? null : _polygon(_requiredChild(border, 'Coords'), ids),
+    printSpace: printSpace == null ? null : _polygon(_requiredChild(printSpace, 'Coords'), ids),
     readingOrder: readingOrderNode == null ? null : _parseReadingOrder(readingOrderNode, ids),
     regions: regions,
   );
@@ -454,6 +457,14 @@ PageXmlGroup _parseGroup(
   }
 
   walk(node);
+  final seenIndexes = <int>{};
+  for (final item in items) {
+    final index = item.index;
+    if (index == null) continue;
+    if (!seenIndexes.add(index)) {
+      throw PageXmlException('PAGE reading order declares index $index twice among siblings.');
+    }
+  }
 
   return PageXmlGroup(
     id: id,

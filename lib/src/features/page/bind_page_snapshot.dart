@@ -346,6 +346,9 @@ PageXmlSnapshotBinding bindPageToSnapshot({
     var regionStart = -1;
     var regionEnd = -1;
     var regionMapped = false;
+    // Depth-first emission: the region's own zone goes out first, then
+    // each line followed by that line's words.
+    final lineGroups = <List<SpatialTextZone>>[];
 
     for (var lineIndex = 0; lineIndex < region.lines.length; lineIndex++) {
       final line = region.lines[lineIndex];
@@ -399,8 +402,10 @@ PageXmlSnapshotBinding bindPageToSnapshot({
       regionMapped = true;
       regionStart = regionStart < 0 ? lineStart : math.min(regionStart, lineStart);
       regionEnd = regionEnd < 0 ? lineEnd : math.max(regionEnd, lineEnd);
-      addZone(SpatialZoneKind.line, line.polygon, lineStart, lineEnd, lineConfidence);
-      zones.addAll(wordZones);
+      lineGroups.add(<SpatialTextZone>[
+        _lineZone(line, lineStart, lineEnd, lineConfidence),
+        ...wordZones,
+      ]);
     }
 
     if (!regionMapped && region.text != null && region.text!.text.isNotEmpty) {
@@ -418,6 +423,9 @@ PageXmlSnapshotBinding bindPageToSnapshot({
     }
     if (!regionMapped) continue;
     addZone(SpatialZoneKind.region, region.polygon, regionStart, regionEnd, regionConfidence);
+    for (final group in lineGroups) {
+      zones.addAll(group);
+    }
   }
 
   final spatialPage = SpatialTextPage(
@@ -443,6 +451,23 @@ PageXmlSnapshotBinding bindPageToSnapshot({
     wordsAmbiguous: wordsAmbiguous,
     wordsMissing: wordsMissing,
     ambiguousWords: ambiguousWords,
+  );
+}
+
+/// A line's zone: its derived bounding box over the aggregate of its
+/// children's ranges, and the line's own confidence when declared.
+SpatialTextZone _lineZone(
+  final PageXmlTextLine line,
+  final int start,
+  final int end,
+  final double? confidence,
+) {
+  return SpatialTextZone(
+    kind: SpatialZoneKind.line,
+    rect: line.polygon.boundingRect,
+    textStart: start,
+    textEnd: end,
+    confidence: confidence,
   );
 }
 
