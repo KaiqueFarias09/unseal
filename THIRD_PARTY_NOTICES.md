@@ -148,9 +148,16 @@ prefix). The libarchive COPYING is included at
 ## OpenJPEG
 
 The JPEG 2000 decoder in `lib/src/features/pdf/codec/jpeg2000/` is a pure-Dart
-port of a pinned [OpenJPEG](https://github.com/uclouvain/openjpeg) revision
-(8314119b067c0fc77834731168daaebd379fdb12) developed for Unseal's reading model
-and VM/browser runtimes. The MQ coder state table and lifting constants are
-transcribed protocol data; acceptance compares decoded output against OpenJPEG
-oracle payloads. OpenJPEG is licensed under BSD-2-Clause; the license text is
-included at `licenses/openjpeg-LICENSE`.
+port of [OpenJPEG](https://github.com/uclouvain/openjpeg) developed for
+Unseal's reading model and VM/browser runtimes. The MQ coder state table and
+lifting constants are transcribed protocol data; acceptance compares decoded
+output against OpenJPEG oracle payloads. The 8-bit corpus pins revision
+8314119b067c0fc77834731168daaebd379fdb12 and the precision corpus
+(`doc/jpeg2000-precision.md`) pins release v2.5.4
+(6c4a29b00211eb0430fa0e5e890f1ce5c80f409f, the Homebrew `openjpeg` 2.5.4_1
+build), which also drives the development-only `tool/jpx_oracle` helper.
+Neither OpenJPEG nor any native code ships in the package. OpenJPEG is
+licensed under BSD-2-Clause; the license text is included at
+`licenses/openjpeg-LICENSE`. The `real-*` precision fixtures are encoded by
+the ffmpeg 9.0.2 native `jpeg2000` encoder (GPL build) over a public-domain
+NASA photograph; ffmpeg is a development tool only and ships no code.

@@ -141,7 +141,7 @@ final class LaneStats {
     'samples': samples,
     'differing': differing,
     'maxAbsError': maxAbsError,
-    'rmse': double.parse(rmse.toStringAsFixed(6)),
+    'rmse': rmse.isFinite ? double.parse(rmse.toStringAsFixed(6)) : null,
     if (sizeMismatch) 'sizeMismatch': true,
   };
 }

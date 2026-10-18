@@ -702,15 +702,24 @@ its own facsimile renderer.
 
 PDF `JPXDecode` images decode through a pure-Dart JPEG 2000 Part 1 subset ported
 from a pinned OpenJPEG revision: bare J2K codestreams and JP2 wrappers, unsigned
-8-bit grayscale and RGB, the reversible 5/3 and irreversible 9/7 wavelets, LRCP
-and RLCP progression, single and multiple tiles, RCT and ICT component
-transforms, custom precincts, SOP/EPH markers, segmentation symbols, multiple
-quality layers, and `/ASCII85Decode /JPXDecode` chains. Lossless decodes are
-byte-exact against the OpenJPEG oracle; lossy decodes stay inside ceilings fixed
-before the first Dart comparison; VM and compiled-browser decodes are
-byte-identical. Arithmetic coding bypass, Part 2 extensions, CMYK/palette, sYCC, ICC and calibrated
-color spaces, `SMaskInData` alpha, and PDF/codestream geometry conflicts fail
-typed instead of inventing pixels.
+8- to 16-bit grayscale and RGB, subsampled component grids (`XRsiz`/`YRsiz`,
+image origins, odd sizes, partial edge tiles) upsampled to the reference grid,
+JP2 sYCC converted to RGB with the reference's 4:4:4, 4:2:2 and 4:2:0 rules,
+the reversible 5/3 and irreversible 9/7 wavelets, LRCP and RLCP progression,
+single and multiple tiles, RCT and ICT component transforms, custom precincts,
+SOP/EPH markers, segmentation symbols, multiple quality layers, COD/COC and
+QCD/QCC overrides, and `/ASCII85Decode /JPXDecode` chains. Images above 8 bits
+extract as 16-bit PNGs whose samples are bit-replicated and tagged with an
+`sBIT` chunk; the native sample planes keep the full precision and 8-bit images
+extract byte-identically to previous releases. Lossless decodes are byte-exact
+against the OpenJPEG oracle on native samples, upsampled planes and converted
+RGB; lossy decodes stay inside ceilings fixed before the first Dart
+comparison; VM and compiled-browser decodes are byte-identical. Signed
+components, precision outside 8–16 bits, mixed component precisions, arithmetic
+coding bypass, Part 2 extensions, CMYK/palette, sYCC chroma layouts outside the
+three standard patterns, ICC and calibrated color spaces, `SMaskInData` alpha,
+and PDF/codestream geometry conflicts fail typed instead of inventing pixels
+(`doc/jpeg2000-precision.md` documents the contract and comparison protocol).
 
 DjVu visual reading covers direct JPEG pages, JB2 masks encoded with direct
 symbols, matched refinements, symbol copies, and shared-dictionary

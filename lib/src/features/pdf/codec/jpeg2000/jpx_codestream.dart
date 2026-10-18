@@ -497,7 +497,8 @@ void _validateCoding(final JpxComponentCoding coding) {
 /// and the MCT flag stay what COD established (A.6.2).
 void _parseCocBody(final JpxReader body, final JpxComponentCoding coding) {
   final scoc = body.readByte();
-  coding.segmentStyle = (coding.segmentStyle & ~kSegmentStylePrecincts) | (scoc & kSegmentStylePrecincts);
+  coding.segmentStyle =
+      (coding.segmentStyle & ~kSegmentStylePrecincts) | (scoc & kSegmentStylePrecincts);
   coding.decompositionLevels = body.readByte();
   coding.codeblockWidthExp = body.readByte() + 2;
   coding.codeblockHeightExp = body.readByte() + 2;

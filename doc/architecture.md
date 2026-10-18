@@ -200,11 +200,13 @@ Input is untrusted. The following rules are architectural, not parser details:
 - Bound TIFF/BigTIFF IFD traversal, entry counts, offsets, strip sizes, decoded
   pixels, and raster bytes before allocation. Reject unsupported codecs and
   raster layouts with format-owned typed failures.
-- Bound JPEG 2000 codestream reads (input bytes, raster samples, tile buffers,
+- Bound JPEG 2000 codestream reads (input bytes, per-component raster samples,
+  native planes, tile buffers, reference-grid projections, PNG scanlines,
   component and tile counts) before allocation. The decoder lives beside the
-  PDF feature, enforces a documented Part 1 subset, rejects unsupported features
-  with typed failures, and must decode identically on the VM and on compiled
-  JavaScript (integer shifts normalized).
+  PDF feature, enforces a documented Part 1 subset (unsigned 8-16 bit
+  components, per-component sample grids, JP2 sYCC), rejects unsupported
+  features with typed failures, and must decode identically on the VM and on
+  compiled JavaScript (integer shifts normalized).
 - Bound XML depth and convert malformed or excessive structures to typed
   failures. EPUB diagnostics preflight XML at 16 MiB, 128 nesting levels,
   and one million elements. ALTO preflights nesting and element counts before
@@ -261,8 +263,10 @@ bytes and provenance unless the change intentionally updates the fixture.
   strip codecs are documented in the README; tiled and other unsupported
   raster layouts fail explicitly.
 - PDF `JPXDecode` extracts images through the JPEG 2000 subset decoder; the
-  acceptance contract is the pinned OpenJPEG oracle (exact lossless, pre-fixed
-  lossy ceilings), and the PDF dispatch keeps text/reflow untouched.
+  acceptance contract is the pinned OpenJPEG oracle (exact lossless on native,
+  upsampled and colour-converted planes, pre-fixed lossy ceilings; contract and
+  policies in `doc/jpeg2000-precision.md`), and the PDF dispatch keeps
+  text/reflow untouched.
 - DOCX and ODT conversion preserves semantic reading structure, not exact page
   layout.
 - HTML remains unsanitized so parsing does not silently rewrite content.

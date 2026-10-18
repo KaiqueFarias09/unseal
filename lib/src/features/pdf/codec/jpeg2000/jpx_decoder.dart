@@ -296,7 +296,10 @@ JpxImage decodeJpxImage(final Uint8List bytes) {
 
   var nativeBytes = 0;
   for (var component = 0; component < componentCount; component++) {
-    final samples = checkedProduct(image.componentWidth(component), image.componentHeight(component));
+    final samples = checkedProduct(
+      image.componentWidth(component),
+      image.componentHeight(component),
+    );
     if (samples > kJpxMaxRasterSamples) {
       throw JpxException(kJpxBudgetMessage);
     }
