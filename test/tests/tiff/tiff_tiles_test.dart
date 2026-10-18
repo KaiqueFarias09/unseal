@@ -731,10 +731,10 @@ void main() {
           reason: name,
         );
       });
-      expect(
-        () => Unseal.parse(_stripFixture('palette-1c-8b.tiff')),
-        _throwsUnsupported('palette'),
-      );
+      // The palette page decodes since D03 (doc/tiff-planar-palette.md);
+      // its libtiff-verified golden lives in the planar-palette suite.
+      final palette = Unseal.parse(_stripFixture('palette-1c-8b.tiff')) as TiffBook;
+      expect((palette.pages.single.width, palette.pages.single.height), (157, 151));
       expect(() => Unseal.parse(_stripFixture('test_ifd_loop_to_self.tif')), _throwsTiff('cycle'));
     });
   });
