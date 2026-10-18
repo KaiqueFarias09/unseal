@@ -82,24 +82,30 @@ Future<(SessionTransport, Book)> openSessionTransport({
 /// Opens a session over a host-owned [UnsealByteSource]: the
 /// [ByteSourceGate] stays on the calling thread and answers the
 /// isolate's `byteSource.v1` range requests, so budgets, contract
-/// checks, and the source lifecycle stay with the host. When the
-/// runtime refuses to spawn isolates, the engine runs inline against
-/// the same gate. The gate closes the source when the returned
-/// session is disposed or the open fails.
+/// checks, and the source lifecycle stay with the host. [password]
+/// opens encrypted PDF documents. When the runtime refuses to spawn
+/// isolates, the engine runs inline against the same gate. The gate
+/// closes the source when the returned session is disposed or the open
+/// fails.
 Future<(SessionTransport, Book)> openSessionSourceTransport({
   required final UnsealByteSource source,
+  required final String password,
   required final SessionPolicy policy,
 }) async {
   final gate = ByteSourceGate(source, policy: policy);
   final _IsolateSessionTransport transport;
   try {
-    transport = await _IsolateSessionTransport.openRemote(gate: gate, policy: policy);
+    transport = await _IsolateSessionTransport.openRemote(
+      gate: gate,
+      password: password,
+      policy: policy,
+    );
   } on UnsupportedError {
-    final engine = await _openInlineRemoteEngine(gate, policy);
+    final engine = await _openInlineRemoteEngine(gate, password, policy);
 
     return (InlineSourceSessionTransport(engine, gate), engine.book);
   } on ArgumentError {
-    final engine = await _openInlineRemoteEngine(gate, policy);
+    final engine = await _openInlineRemoteEngine(gate, password, policy);
 
     return (InlineSourceSessionTransport(engine, gate), engine.book);
   } on Object {
@@ -133,6 +139,7 @@ Future<SessionEngine> _openInlineEngine({
 /// engine's byte reader directly — no bridge, same limits.
 Future<SessionEngine> _openInlineRemoteEngine(
   final ByteSourceGate gate,
+  final String password,
   final SessionPolicy policy,
 ) {
   return SessionEngine.openRemote(
@@ -142,6 +149,7 @@ Future<SessionEngine> _openInlineRemoteEngine(
       read: (final offset, final count) =>
           gate.read(offset, count, expectedRevision: gate.revisionAtOpen),
     ),
+    password: password,
     policy: policy,
   );
 }
@@ -152,10 +160,9 @@ final class _SessionBootstrap {
     : remote = false;
 
   /// Bootstrap for the byteSource.v1 path: bytes and path stay null.
-  _SessionBootstrap.remote(this.replyPort, this.policy)
+  _SessionBootstrap.remote(this.replyPort, this.password, this.policy)
     : bytes = null,
       path = null,
-      password = '',
       remote = true;
 
   final SendPort replyPort;
@@ -476,15 +483,17 @@ final class _IsolateSessionTransport implements SessionTransport {
   /// Spawns the session isolate over a host-side gate: the isolate
   /// announces its bridge port, the handshake carries the gate's
   /// length and revision, and every `byteSource.v1` request is served
-  /// through the gate on this thread.
+  /// through the gate on this thread. [password] rides the bootstrap
+  /// for encrypted PDF documents.
   static Future<_IsolateSessionTransport> openRemote({
     required final ByteSourceGate gate,
+    required final String password,
     required final SessionPolicy policy,
   }) async {
     final replies = ReceivePort();
     final isolate = await Isolate.spawn(
       _isolateMain,
-      _SessionBootstrap.remote(replies.sendPort, policy),
+      _SessionBootstrap.remote(replies.sendPort, password, policy),
       errorsAreFatal: true,
     );
 

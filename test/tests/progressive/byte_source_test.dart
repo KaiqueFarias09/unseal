@@ -416,19 +416,14 @@ void main() {
     });
 
     test('formats outside the cut are refused explicitly', () async {
-      // A PDF through a byte source: the format keeps its bytes/file
-      // opens, and the refusal names it.
+      // A PDF over a byte source now opens demand-driven; its deep
+      // contract lives in pdf_source_test.dart. A one-line smoke keeps
+      // the format matrix honest here.
       final pdfBytes = _bytes('test/resources/pdf/dickens-sample.pdf');
-      await expectLater(
-        BookSession.openSource(RecordingByteSource(pdfBytes)),
-        throwsA(
-          isA<SessionUnsupportedFormatException>().having(
-            (final error) => error.message,
-            'message',
-            contains('PDF'),
-          ),
-        ),
-      );
+      final pdfSession = await BookSession.openSource(RecordingByteSource(pdfBytes));
+      expect(pdfSession.book, isA<PdfBook>());
+      expect((pdfSession.book as PdfBook).pageCount, 1);
+      pdfSession.dispose();
 
       // A RAR container: same contract.
       final rarBytes = _bytes('test/resources/books/comic/american-beauty-trading-cards-1909.cbr');

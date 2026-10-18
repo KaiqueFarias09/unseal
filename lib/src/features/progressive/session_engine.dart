@@ -43,6 +43,7 @@ import 'comic_session_header.dart';
 import 'epub_session_header.dart';
 import 'mobi_session_header.dart';
 import 'mobi_session_header.dart' as mobi_header;
+import 'pdf_range_loader.dart';
 import 'pdf_session_header.dart';
 import 'session_metrics.dart';
 import 'session_policy.dart';
@@ -261,10 +262,12 @@ final class SessionEngine {
   }
 
   /// Opens a host-provided byte source — the remote path of
-  /// `BookSession.openSource`. Only EPUB and CBZ are covered: RAR and
-  /// PDF sessions keep their bytes/file opens this round, and other
-  /// ZIP books (office documents, zipped FB2/HTML/TXT, Calibre
-  /// collections) are refused explicitly, like the eager dispatch.
+  /// `BookSession.openSource`. EPUB, CBZ and PDF are covered: ZIP books
+  /// outside that cut (office documents, zipped FB2/HTML/TXT, Calibre
+  /// collections) and RAR are refused explicitly, like the eager
+  /// dispatch. PDF reads demand-driven: the xref chain, the object
+  /// windows and the sampled pages' streams are fetched range by range
+  /// through [reader] (see `PdfRangeLoader`), never materialized whole.
   ///
   /// The engine does not own [reader]: the transport's gate closes the
   /// host source when the session is disposed. See `BookSession.openSource`
@@ -280,7 +283,9 @@ final class SessionEngine {
         ? reader.length
         : _sessionFormatProbeBytes;
     final DetectedFormat detected;
+    var probeBytes = 0;
     try {
+      probeBytes = prefixLength;
       detected = detectFormat(await reader.read(0, prefixLength));
     } on FormatNotSupportedException {
       throw const SessionUnsupportedFormatException(
@@ -296,10 +301,7 @@ final class SessionEngine {
           'use BookSession.open or openFile.',
         );
       case DetectedFormat.pdf:
-        throw const SessionUnsupportedFormatException(
-          'PDF sessions do not open over external byte sources; '
-          'use BookSession.open or openFile.',
-        );
+        return _openPdfRemote(reader, probeBytes, password, policy);
       case DetectedFormat.epub:
         return _openZipSource(
           await AsyncZipRandomAccess.open(reader),
@@ -526,9 +528,8 @@ final class SessionEngine {
     }
 
     final canonical = (await _pdfMaterialize(pageIndex + 1)).pdfPage!;
-    final layout = pdf!.extractor.extractLayout(
-      pdf.book.pages[pageIndex],
-      onImage: _discardPdfImage,
+    final layout = await pdf!.drive(
+      () => pdf.extractor.extractLayout(pdf.book.pages[pageIndex], onImage: _discardPdfImage),
     );
 
     return PdfPageStructure.build(
@@ -683,11 +684,24 @@ final class SessionEngine {
 
   /// What the session has touched so far: source reads, decode work,
   /// and materialized content, as the metrics wire map. The
-  /// progressivity evidence channel.
+  /// progressivity evidence channel. Byte-source PDF sessions add the
+  /// range loader's ledger: fetches, wire bytes, unique wire bytes and
+  /// the resident peak (the no-complete-buffer channel).
   Map<String, Object?> metrics() {
     _ensureOpen();
+    final wire = <String, Object?>{..._counter.toWire(), 'cacheBytesResident': _cacheWeight()};
+    final loader = _pdf?.loader;
+    if (loader != null) {
+      wire['pdfRangeFetches'] = loader.fetchCount;
+      wire['pdfRangeFetchBytes'] = loader.fetchedBytes;
+      wire['pdfRangeUniqueBytes'] = loader.fetchedUniqueBytes;
+      wire['pdfRangeResidentPeak'] = loader.maxResidentBytes;
+      wire['pdfRangeResumes'] = loader.resumeCount;
+      wire['pdfRangeEvicted'] = loader.evictedBytes;
+      wire['pdfRangeQueuedStepsPeak'] = loader.queuedStepsPeak;
+    }
 
-    return <String, Object?>{..._counter.toWire(), 'cacheBytesResident': _cacheWeight()};
+    return wire;
   }
 
   /// Advances the resident search index by at most [maxSections]
@@ -843,6 +857,9 @@ final class SessionEngine {
     _searchIndex = null;
     _searchIndexPending = null;
     _cache.clear();
+    // Remote PDF sessions drop their resident ranges here; the host
+    // source itself closes through the transport's gate.
+    unawaited(_pdf?.loader?.close());
     // The PDF branch owns no archive wrapper: the raw source itself
     // carries the file handle (the PdfByteSource is a view over it).
     if (_ownsReader) {
@@ -983,6 +1000,60 @@ final class SessionEngine {
     return engine;
   }
 
+  /// PDF session over a host byte source. The header build parses the
+  /// structure and samples the reflow plan through the range loader —
+  /// every read is a demanded range — so a broken or encrypted document
+  /// fails here with the eager parse's typed error, exactly like the
+  /// bytes and file opens. The loader stays reachable for later page
+  /// materialization and its counters feed the session metrics.
+  static Future<SessionEngine> _openPdfRemote(
+    final AsyncByteReader reader,
+    final int probeBytes,
+    final String password,
+    final SessionPolicy policy,
+  ) async {
+    final counter = SessionMetricsCounter();
+    // The format probe rode the same wire the loader will use; count it
+    // so the ledger covers every byte the session pulled.
+    counter.addContainerRead(probeBytes);
+    final loader = PdfRangeLoader(
+      readRange: reader.read,
+      length: reader.length,
+      policy: policy,
+      counter: counter,
+    );
+    try {
+      final header = await buildPdfSessionHeaderAsync(loader, password: password, policy: policy);
+      final engine =
+          SessionEngine._(
+              header.book,
+              null,
+              reader,
+              reader.length,
+              policy,
+              ownsReader: false,
+              counter: counter,
+            )
+            .._pdf = PdfSessionContent(
+              book: header.book,
+              source: header.source,
+              document: header.document,
+              extractor: header.extractor,
+              plan: header.plan,
+              loader: loader,
+            );
+
+      for (var i = 0; i < header.sampledPageTexts.length; i++) {
+        engine._store('page_${i + 1}.html', _CacheEntry(pdfPage: header.sampledPageTexts[i]));
+      }
+
+      return engine;
+    } on Object {
+      await loader.close();
+      rethrow;
+    }
+  }
+
   /// The PDF page document at [path] (`page_<i>.html`, 1-based), or
   /// null for any other path.
   Future<TextFile?> _pdfTextFile(final String path) async {
@@ -1055,7 +1126,9 @@ final class SessionEngine {
       return cached.pdfPage!;
     }
 
-    final extracted = pdf.extractor.extract(pdf.book.pages[page - 1], onImage: _discardPdfImage);
+    final extracted = await pdf.drive(
+      () => pdf.extractor.extract(pdf.book.pages[page - 1], onImage: _discardPdfImage),
+    );
     // Seeding only fills empty slots: a materialized entry (text +
     // lines) is never downgraded to an extraction-only one.
     if (_cache[path] == null) _store(path, _CacheEntry(pdfPage: extracted));
@@ -1080,7 +1153,9 @@ final class SessionEngine {
     }
 
     final extension = match.group(2)!;
-    final decoded = decodePdfImageObject(_pdf!.document, int.parse(match.group(1)!));
+    final decoded = await _pdf!.drive(
+      () => decodePdfImageObject(_pdf!.document, int.parse(match.group(1)!)),
+    );
     if (decoded == null || decoded.$2 != extension) return null;
 
     _store(path, _CacheEntry(bytes: decoded.$1));
@@ -1293,6 +1368,7 @@ final class PdfSessionContent {
     required this.document,
     required this.extractor,
     required this.plan,
+    this.loader,
   });
 
   /// The header book (placeholder pages), so page geometry and the
@@ -1311,6 +1387,21 @@ final class PdfSessionContent {
 
   /// The sampled reflow plan every page materializes under.
   final PdfReflowPlan plan;
+
+  /// The range loader behind [source], set only for byte-source
+  /// sessions. Every later parse step that can touch the source — page
+  /// extraction, layout, image decode — resumes through it; bytes and
+  /// file sessions run the same steps directly.
+  final PdfRangeLoader? loader;
+
+  /// Runs one synchronous parser step, resuming through the loader when
+  /// the session reads over a host byte source.
+  Future<T> drive<T>(final T Function() step) {
+    final loader = this.loader;
+    if (loader == null) return Future<T>.sync(step);
+
+    return loader.drive(step);
+  }
 }
 
 void _discardPdfImage(final int objectNumber, final Uint8List bytes, final String extension) {

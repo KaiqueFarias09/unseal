@@ -49,17 +49,23 @@ Future<(SessionTransport, Book)> openSessionTransport({
 /// Opens a session over a host-owned byte source on the web. The
 /// configured worker runs the engine and pulls exact ranges through
 /// the byteSource.v1 bridge; this thread's gate serves them, so the
-/// source never leaves the main thread. Without a worker the engine
-/// runs inline against the same gate. The gate closes the source when
-/// the session is disposed (worker path) or inline (fallback).
+/// source never leaves the main thread. [password] opens encrypted PDF
+/// documents. Without a worker the engine runs inline against the same
+/// gate. The gate closes the source when the session is disposed
+/// (worker path) or inline (fallback).
 Future<(SessionTransport, Book)> openSessionSourceTransport({
   required final UnsealByteSource source,
+  required final String password,
   required final SessionPolicy policy,
 }) async {
   final client = WorkerClient.instance;
   if (client.isConfigured) {
     try {
-      final opened = await client.sessionOpenSourceInWorker(source, policy: policy);
+      final opened = await client.sessionOpenSourceInWorker(
+        source,
+        password: password,
+        policy: policy,
+      );
       if (opened != null) {
         return (
           _WorkerSessionTransport(
@@ -88,6 +94,7 @@ Future<(SessionTransport, Book)> openSessionSourceTransport({
         read: (final offset, final count) =>
             gate.read(offset, count, expectedRevision: gate.revisionAtOpen),
       ),
+      password: password,
       policy: policy,
     );
 

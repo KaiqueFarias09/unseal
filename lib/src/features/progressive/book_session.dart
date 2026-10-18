@@ -102,15 +102,21 @@ final class BookSession {
   }
 
   /// Opens a progressive session over a host-owned byte source — an
-  /// EPUB or CBZ the host streams by range over its own transport
+  /// EPUB, CBZ or PDF the host streams by range over its own transport
   /// (HTTP, storage, authentication stay with the host).
   ///
-  /// Unseal requests the central directory and structural entries at
-  /// open and each requested entry on demand; the host's
-  /// [UnsealByteSource.readRange] answers with exact ranges. Formats
-  /// and variants outside the EPUB/CBZ cut are refused explicitly with
-  /// [SessionUnsupportedFormatException]; RAR and PDF sessions keep
-  /// opening from bytes or files.
+  /// Unseal orders exact, budget-checked range reads against the
+  /// source: EPUB and CBZ request the central directory and structural
+  /// entries at open and each requested entry on demand; PDF parses
+  /// demand-driven, fetching the xref chain, the object windows and
+  /// each materialized page's streams range by range, so open plus
+  /// first content touches a small fraction of a normally shaped
+  /// document. Formats and variants outside the cut are refused
+  /// explicitly with [SessionUnsupportedFormatException].
+  ///
+  /// [password] opens encrypted PDF documents with the same standard
+  /// handler as the eager parse; a wrong or missing password throws
+  /// `PdfEncryptedException` (ignored by the other formats).
   ///
   /// The source's [UnsealByteSource.revision] (when present) is
   /// captured at open: reads are stamped with it and fail typed if the
@@ -118,9 +124,14 @@ final class BookSession {
   /// when the session is disposed.
   static Future<BookSession> openSource(
     final UnsealByteSource source, {
+    final String password = '',
     final SessionPolicy policy = const SessionPolicy(),
   }) async {
-    final (transport, header) = await openSessionSourceTransport(source: source, policy: policy);
+    final (transport, header) = await openSessionSourceTransport(
+      source: source,
+      password: password,
+      policy: policy,
+    );
 
     return BookSession._(header, isProgressive: true, transport: transport);
   }

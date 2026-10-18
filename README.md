@@ -225,15 +225,21 @@ final session = await BookSession.openSource(myHttpByteSource);
 Implement `UnsealByteSource`: report `length` and, when you can verify
 identity, a `revision` token (an ETag works); answer `readRange(offset,
 count)` with exactly `count` bytes; release the transport in `close`.
-Unseal orders the reads — one end-of-central-directory tail scan, the
-central directory, then one local header plus one compressed payload
-per entry — and never asks for the whole file at once: opening an 11 MB
-EPUB transfers a few percent of it, and a Deflate entry's real
-decompression unit is its whole compressed payload, which is exactly
-what gets requested. HTTP, authentication, storage, and retries stay
-with you. Sessions opened this way cover EPUB and CBZ; other formats
-are refused with `SessionUnsupportedFormatException` and keep their
-bytes/file opens.
+Unseal orders the reads — for EPUB and CBZ, one end-of-central-directory
+tail scan, the central directory, then one local header plus one
+compressed payload per entry; a Deflate entry's real decompression unit
+is its whole compressed payload, which is exactly what gets requested.
+Opening an 11 MB EPUB transfers a few percent of it. PDF parses
+demand-driven: the `startxref` tail, the xref chain windows, the object
+windows the structure walk touches, and each materialized page's
+streams arrive as separate exact ranges, so open plus first content
+stays a small fraction of a normally shaped document (measured on the
+committed fixtures: ~13% of a 2.3 MB scanned file, ~35% of a 1.9 MB
+designed one, ceiling 50%). HTTP, authentication, storage, and retries
+stay with you. Sessions opened this way cover EPUB, CBZ and PDF;
+other formats are refused with `SessionUnsupportedFormatException`
+and keep their bytes/file opens. Encrypted PDFs take the standard
+password through `BookSession.openSource(source, password: ...)`.
 
 Budgets live in `SessionPolicy`: `rangeRequestsInFlight` and
 `rangeBytesInFlight` cap concurrent reads (extra requests queue —
@@ -243,6 +249,14 @@ The revision token you reported at open stamps every read; a source
 whose revision changes under an open session fails its reads with
 `ByteSourceRevisionChangedException` instead of mixing file states.
 The source is closed when the session is disposed.
+
+PDF sessions over byte sources expose their read ledger through
+`session.metrics()`: `pdfRangeFetches`, `pdfRangeFetchBytes` and
+`pdfRangeUniqueBytes` report exactly what crossed the wire,
+`pdfRangeResidentPeak` shows the bounded range cache (never the whole
+file), and `pdfRangeQueuedStepsPeak` shows the parser queue absorbing
+concurrent page loads. Recovery scans on damaged documents keep their
+eager-parse semantics — each scanned window is a real, counted range.
 
 PDF sessions derive their reflow plan from up to 20 sampled pages. For longer
 documents, that plan differs from a full parse, so the two modes carry
