@@ -100,6 +100,27 @@ Keep generated fixtures and reports under ignored output directories.
 Private-library sweeps require an external random-ID map; do not publish
 paths, titles, authors, private files, or reports that identify them.
 
+### TIFF strips, tiles, and the libtiff oracle
+
+The TIFF lanes need libtiff 4.7.2 (`/opt/homebrew`, override with
+`LIBTIFF_BIN`/`LIBTIFF_PREFIX`) and a C compiler. The reference stage runs
+libtiff only; the comparison stage opens every case through `Unseal.parse`:
+
+```sh
+python3 tool/tiff_tiles_reference.py --version
+python3 tool/tiff_tiles_reference.py --out build/evidence/C03
+dart run tool/tiff_tiles_compare.dart --reference=build/evidence/C03/reference.json --out=build/evidence/C03/compare
+dart run tool/tiff_tiles_evidence.dart --out=build/evidence/C03
+dart run benchmark/tiff_tiles_benchmarks.dart --out=build/evidence/C03/bench.json
+dart run tool/tiff_tiles_fixtures.dart check
+```
+
+The benchmark decodes strip and tiled twins of the same pixels in separate
+AOT child processes, so each `peakRssBytes` is one process's high-water
+mark above a bytes-only baseline. Tiles cost their padding: a 158×118 image
+in 256×256 tiles decodes 3.5 times its own area. `doc/tiff-tiles.md` fixes
+the comparison contract and the budgets.
+
 ## Prepare a release
 
 Commit reviewed changes and start from a clean `main`. Match the version in

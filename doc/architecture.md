@@ -197,9 +197,11 @@ Input is untrusted. The following rules are architectural, not parser details:
   materializing page resources. BZZ output and shared JB2 dictionaries have
   separate allocation budgets; indirect components allow only validated
   sibling names and matching declared sizes.
-- Bound TIFF/BigTIFF IFD traversal, entry counts, offsets, strip sizes, decoded
-  pixels, and raster bytes before allocation. Reject unsupported codecs and
-  raster layouts with format-owned typed failures.
+- Bound TIFF/BigTIFF IFD traversal, entry counts, offsets, strip and tile
+  footprints, decoded pixels, resident bytes (page images plus live scratch),
+  and decode work before allocation; validate every page's segment layout as
+  a whole (bounds, header, directory, and mutual overlap) first. Reject
+  unsupported codecs and raster layouts with format-owned typed failures.
 - Bound JPEG 2000 codestream reads (input bytes, raster samples, tile buffers,
   component and tile counts) before allocation. The decoder lives beside the
   PDF feature, enforces a documented Part 1 subset, rejects unsupported features
@@ -257,9 +259,11 @@ bytes and provenance unless the change intentionally updates the fixture.
   bookmark navigation, and resolves indirect files only through filesystem
   reads. Chained shared dictionaries and replacement visual codecs remain
   unsupported. `FGbz` palette recoloring is ignored.
-- TIFF/BigTIFF produces page images rather than reflowed text. Supported
-  strip codecs are documented in the README; tiled and other unsupported
-  raster layouts fail explicitly.
+- TIFF/BigTIFF produces page images rather than reflowed text. Strip and
+  tiled pages share the codecs documented in the README and are compared
+  sample by sample with libtiff (`doc/tiff-tiles.md`); planar, palette,
+  float, JPEG-tiled, transposed, and other unsupported raster layouts fail
+  explicitly.
 - PDF `JPXDecode` extracts images through the JPEG 2000 subset decoder; the
   acceptance contract is the pinned OpenJPEG oracle (exact lossless, pre-fixed
   lossy ceilings), and the PDF dispatch keeps text/reflow untouched.

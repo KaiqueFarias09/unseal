@@ -1,3 +1,47 @@
+## Unreleased
+
+### Added
+
+- Tiled TIFF and BigTIFF pages decode through the existing entry points
+  with the strip codecs: uncompressed, PackBits, LZW, Deflate with
+  Predictor 2, and CCITT modified Huffman, Group 3, and Group 4 at the tile
+  width, for gray 1/2/4/8/16-bit and RGB 8/16-bit pages. Tile grids decode
+  every tile at its full footprint before the page takes the visible part,
+  tile addresses are read from `TileOffsets`/`TileByteCounts` or from the
+  strip tags that Silicon Graphics files use, Orientation 2-4 are flipped to
+  top-left, and multi-IFD documents mix strips and tiles in either byte
+  order with classic or 64-bit addresses. Every tiled layout of the matrix
+  is compared sample by sample and through the RGBA conversion with libtiff
+  4.7.2 over SGI-written files, libtiff test images, and identified `tiffcp`
+  derivatives (`doc/tiff-tiles.md`, `test/resources/tiff/tiled/`).
+- TIFF decode budgets gained independent guards for resident bytes (page
+  images plus the live RGB conversion and segment scratch) and for decode
+  work counted at full strip/tile footprints (512 MiB per document), so a
+  small page cannot pay for oversized temporary tiles; segment layouts are
+  validated as a whole before any allocation, including overlaps with the
+  header, the page's directory, and each other; Deflate segments inflate
+  straight into their footprint and stop there.
+- `SampleFormat` 4 (void) is read as unsigned integer samples, as libtiff
+  reads the obsolete SGI `DataType` tag that `tiffcp` re-emits.
+
+### Changed
+
+- TIFF `FillOrder` 2 now fails typed under every codec; only the CCITT path
+  checked it before, and sub-byte samples under other codecs would have been
+  read bit-reversed. Transposed Orientation 5-8 and JPEG tiles fail typed.
+
+### Fixed
+
+- TIFF Predictor 2 on 16-bit samples accumulated bytes instead of 16-bit
+  words and lost every carry; gray and RGB 16-bit pages with horizontal
+  differencing now match libtiff (the previous `gray16-deflate-predictor.tif`
+  golden pinned the wrong raster).
+- TIFF modified Huffman (compression 2) dropped whole buffered bytes when
+  aligning rows and failed on libtiff-written files; rows now align the way
+  `Fax3DecodeRLE` does.
+- TIFF Group 4 read `T6Options` bit 1 as a row-alignment flag; it is the
+  uncompressed-mode extension flag (bit 0 is reserved) and now fails typed.
+
 ## 1.3.0 - October 17, 2026
 
 ### Added

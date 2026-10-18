@@ -121,7 +121,7 @@ You only need a small set of format terms to understand most of the repository.
 | AZW4 | A Palm Database wrapper whose payload is a PDF. | `PdfBook` tagged as `BookFormat.azw4`. |
 | PDF | A graph of numbered objects that describes pages, fonts, drawing commands, images, and metadata. | `PdfBook` with original bytes, page geometry, extracted text, images, outline, and reflowed HTML. |
 | DjVu JPEG, JB2, and bounded IW44 subset | An IFF document with INFO, direct BGjp JPEG, local or shared Sjbz JB2 masks, progressive BG44/FG44 IW44 layers, TXTz/TXTa text, and NAVM bookmarks. | `DjvuBook` with JPEG/BMP page images, geometry, searchable text, navigation, and source bytes. File-based reads resolve indirect sibling components. Chained dictionaries and replacement visual codecs fail typed; FGbz palette recoloring is ignored. |
-| TIFF and BigTIFF | A classic TIFF or BigTIFF header whose IFD chains describe pages of strip- or tile-organized raster. | `TiffBook` with BMP page images (or a passed-through self-contained JPEG strip), dimensions, resolution, and original bytes. Tiled raster, planar=2, palette, LogLuv, JPEGTables-abbreviated strips, old-style JPEG, and reversed FillOrder fail typed. |
+| TIFF and BigTIFF | A classic TIFF or BigTIFF header whose IFD chains describe pages of strip- or tile-organized raster. | `TiffBook` with BMP page images (or a passed-through self-contained JPEG strip), dimensions, resolution, and original bytes; strip and tiled pages share the codecs and Orientation 1-4 are brought to top-left. Planar=2, palette, LogLuv, JPEG tiles, JPEGTables-abbreviated strips, old-style JPEG, reversed FillOrder, and transposed orientations fail typed. |
 | CHM | An ITSF compiled HTML Help archive with compressed topic streams. | `DocumentBook` with ordered HTML topics, resources, title, and hierarchical contents. |
 | TXT | Plain text with no formal book structure. | One HTML document, filename or header metadata, and a single navigation point. Markdown and Textile headings are recognized only when that input mode is selected. |
 | Standalone Markdown | CommonMark text with optional small front matter. | `DocumentBook` with converted HTML, heading navigation, and selected metadata. |
@@ -840,43 +840,62 @@ holds exactly one self-contained strip.
 
 Raster codecs: uncompressed, PackBits, LZW (including old-style
 bit-reversed compat streams, detected through libtiff's heuristic), and
-Deflate/AdobeDeflate, with horizontal-differencing predictors for 8- and
-16-bit gray and 8-bit RGB; CCITT modified Huffman, Group 3, and Group 4
-through a strict row-oriented decoder that mirrors libtiff's reference-run
-state machine and retries EOL-less producers. Tiled raster, planar=2,
-palette, float samples, LogLuv, JPEGTables-abbreviated strips, old-style
-JPEG, reversed FillOrder, and uncompressed-mode extensions fail with
+Deflate/AdobeDeflate, with horizontal-differencing predictors accumulated
+per 8- or 16-bit sample for gray and RGB; CCITT modified Huffman, Group 3,
+and Group 4 through a strict row-oriented decoder that mirrors libtiff's
+reference-run state machine and retries EOL-less producers. A page is a
+grid of segments: strips as a one-column grid, or tiles from
+`TileWidth`/`TileLength` addressed by the tile tags or, as the Silicon
+Graphics Image Library wrote them, by the strip tags. Every tile decodes at
+its full footprint and is cropped into the page; CCITT tiles decode at the
+tile width; Orientation 2-4 flip the finished raster to top-left. Planar=2,
+palette, SampleFormat 2/3/5/6, LogLuv, JPEG tiles, JPEGTables-abbreviated
+strips, old-style JPEG, reversed FillOrder under any codec, transposed
+Orientation 5-8, and uncompressed-mode extensions fail with
 `TiffUnsupportedCodecException`; malformed containers, hostile offsets and
-counts, IFD cycles, and truncated strips fail with `TiffException` before
-any declared allocation. Documents are capped at 128 MiB of input, 1,024
-pages, 65,536 IFD entries, 4 samples per pixel, a 256-megapixel page, a
-million segments per page, 256 million decoded pixels per book, and 128 MiB
-of decoded raster per book.
+counts, segments overlapping each other, the header, or the directory, IFD
+cycles, oversized tiles, and short segments fail with `TiffException`
+before any declared allocation. Documents are capped at 128 MiB of input,
+1,024 pages, 65,536 IFD entries, 4 samples per pixel, a 256-megapixel page
+or tile footprint, a million segments per page, 256 million decoded pixels
+per book, 128 MiB of resident decoded bytes (page images plus the live
+conversion and segment scratch), and 512 MiB of decode work counted at full
+footprints. `doc/tiff-tiles.md` fixes the tiled contract, the budgets, and
+the libtiff comparison.
 
 | File | What it does and why it exists |
 | --- | --- |
 | `lib/tiff.dart` | Exposes the narrow format API. |
-| `features/tiff/tiff_container.dart` | Parses classic and BigTIFF headers, walks IFD chains with cycle detection, and reads typed values with bounds and count checks. |
-| `features/tiff/tiff_page_decoder.dart` | Validates page geometry, strips and tiles, and dispatches per-codec decoding into BMP rasters or JPEG passthrough. |
-| `features/tiff/tiff_ccitt_decoder.dart` | Decodes CCITT modified Huffman, Group 3, and Group 4 rows with libtiff's reference-run state machine and typed failures. |
-| `features/tiff/tiff_codec.dart` | Implements PackBits and TIFF LZW (standard and bit-reversed compat), routes Deflate, applies horizontal differencing, and names codecs in typed failures. |
-| `features/tiff/tiff_limits.dart` | Reserves the input, page, strip, sample, and raster budgets before allocations. |
+| `features/tiff/tiff_container.dart` | Parses classic and BigTIFF headers, walks IFD chains with cycle detection, records each directory's table extent, and reads typed values with bounds and count checks. |
+| `features/tiff/tiff_page_decoder.dart` | Validates page geometry and the whole segment layout (strips or tiles), reserves the budgets, decodes each segment at its footprint into the page, applies orientation, and encodes the BMP or passes a JPEG through. |
+| `features/tiff/tiff_ccitt_decoder.dart` | Decodes CCITT modified Huffman, Group 3, and Group 4 rows with libtiff's reference-run state machine, byte-aligning modified Huffman rows the way `Fax3DecodeRLE` does, with typed failures. |
+| `features/tiff/tiff_codec.dart` | Implements PackBits and TIFF LZW (standard and bit-reversed compat), inflates Deflate straight into the segment footprint, applies horizontal differencing per sample width, and names codecs in typed failures. |
+| `features/tiff/tiff_limits.dart` | Reserves the input, page, segment, sample, resident, scratch, and work budgets before allocations. |
 | `features/tiff/tiff_book.dart` | Keeps page geometry, BMP/JPEG resources, and original source bytes together. |
 | `features/tiff/tiff_exception.dart` | Distinguishes malformed documents from valid pages needing an unsupported codec. |
 | `foundation/images/ccitt/` | The shared T.4/T.6 run-length tables and the pdf.js-derived fax decoder used by the PDF path. |
 | `foundation/images/bmp_encoder.dart` | The shared 24-bit BMP writer used by the TIFF and DjVu rasters. |
+| `tool/tiff_tiles_fixtures.dart` | Rebuilds the tiled corpus with libtiff (`tiffcp` and `tool/reference/tiff_oracle_encode`), its manifest, and the embedded browser fixtures. |
+| `tool/tiff_tiles_reference.py`, `tool/reference/tiff_oracle_dump/` | Run libtiff over the corpora and dump native samples and RGBA per directory. |
+| `tool/tiff_tiles_compare.dart`, `tool/tiff_tiles_evidence.dart` | Compare Unseal's pages with the dumps pixel by pixel and assemble the acceptance report. |
+| `benchmark/tiff_tiles_benchmarks.dart` | Strip-versus-tiled open/decode timings and peak RSS in separate AOT processes. |
 
 Metadata-only reads validate the container and IFD chain and read the
 ImageDescription, DateTime, Software, Artist, Copyright, and resolution tags
-without decoding image layers. Pixels are verified against libtiff: every
-tracked fixture is compared page-by-page with `tiffcmp -t` against a
-`tiffcp -c none` reference, the real bilevel and gray libtiff images are
+without decoding image layers. Pixels are verified against libtiff 4.7.2
+sample by sample: `tool/tiff_tiles_reference.py` dumps every directory's
+native samples (`TIFFReadTile`/`TIFFReadScanline`) and RGBA conversion,
+`tool/tiff_tiles_compare.dart` matches every page of every decodable strip
+and tiled fixture against them under the normalization of
+`doc/tiff-tiles.md`, the real bilevel and gray libtiff images are also
 checked against their PBM/PGM pixel oracles, and raster SHA-256 goldens pin
-the bytes. The corpus mixes generated fixtures (transcoded with libtiff
-4.7.2's `tiffcp`) with libtiff's own MIT-licensed test images, including a
-real 2453×3369 Group 4 fax page, an EOL-less Group 3 regression file, and an
-old-style bit-reversed LZW book. Fixture and reference provenance is
-recorded in `test/resources/tiff/PROVENANCE.md`.
+the bytes on the VM and in Chrome. The corpus mixes generated fixtures
+(transcoded with libtiff's `tiffcp`) with libtiff's MIT-licensed test images
+and the Silicon Graphics tiled samples of libtiff's `pics-3.8.0` set,
+including a real 2453×3369 Group 4 fax page, an EOL-less Group 3 regression
+file, an old-style bit-reversed LZW book, and an 800×607 tiled gray page
+with edge tiles on both axes. Fixture and reference provenance is recorded
+in `test/resources/tiff/PROVENANCE.md` and `test/resources/tiff/tiled/manifest.json`.
 
 ## Search: query the HTML-backed content of a parsed book
 
