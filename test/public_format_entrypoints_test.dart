@@ -47,7 +47,7 @@ void main() {
     final hocr.HocrDocument Function(Uint8List) parseDocument = hocr.parseHocrDocument;
     final hocr.HocrSnapshotBinding Function({
       required hocr.HocrDocument document,
-      required unseal.CanonicalTextSnapshot target,
+      required hocr.CanonicalTextSnapshot target,
       hocr.HocrBindLimits limits,
     })
     bindDocument = hocr.bindHocrToSnapshot;
@@ -87,6 +87,21 @@ void main() {
     final hocr.SpatialTextOrigin? origin = null;
     final hocr.SpatialZoneLookup? lookup = null;
 
+    final snapshot = hocr.CanonicalTextSnapshot(
+      identity: hocr.PublicationRevision(publicationId: 'test:hocr-public'),
+      occurrence: hocr.SectionOccurrence(
+        sectionIndex: 0,
+        resourcePath: 'page-1',
+        readingOrderRevision: null,
+      ),
+      profile: hocr.TextProfile.of(
+        algorithm: 'test.hocr',
+        options: const {},
+        planRevision: 'sha256:${'0' * 64}',
+      ),
+      text: 'word',
+    );
+    expect(snapshot.identity.sourceEvidence, hocr.SourceEvidence.unverified);
     expect(<Object?>[
       parseDocument,
       bindDocument,

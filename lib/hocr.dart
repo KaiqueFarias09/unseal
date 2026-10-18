@@ -23,3 +23,7 @@ export 'src/foundation/spatial/spatial_text_page.dart';
 export 'src/foundation/spatial/spatial_text_zone.dart';
 export 'src/foundation/spatial/spatial_unit.dart';
 export 'src/foundation/spatial/spatial_zone_lookup.dart';
+export 'src/foundation/text/canonical_text_snapshot.dart';
+export 'src/foundation/text/publication_revision.dart';
+export 'src/foundation/text/section_occurrence.dart';
+export 'src/foundation/text/text_profile.dart';
