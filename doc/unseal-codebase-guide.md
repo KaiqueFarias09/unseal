@@ -209,8 +209,8 @@ Read `lib/unseal.dart` first when reviewing public compatibility. An item export
 | `foundation/metadata/sort_keys.dart` | Builds stable author sorting values and removes bracketed qualifiers when the policy requires it. |
 | `foundation/metadata/title_sort.dart` | Moves leading articles according to language so titles sort consistently. |
 | `foundation/spatial/spatial_rect.dart` | The shared rectangle in the canonical top-left page space; doubles because ALTO stores floats, exact for integer sources. |
-| `foundation/spatial/spatial_unit.dart` | The unit vocabulary both positioned-text formats use (the ALTO enumeration): pixel self-verifies, physical units need a positive dpi and return null otherwise. |
-| `foundation/spatial/spatial_text_zone.dart` | Region/line/word zones — the hierarchy levels DjVu hidden text and ALTO share — each with a rectangle, a UTF-16 range, and optional OCR confidence. |
+| `foundation/spatial/spatial_unit.dart` | The unit vocabulary the positioned-text formats use (the ALTO enumeration): pixel self-verifies, physical units need a positive dpi and return null otherwise. PAGE XML geometry is always pixel space. |
+| `foundation/spatial/spatial_text_zone.dart` | Region/line/word zones — the hierarchy levels DjVu hidden text, ALTO and PAGE XML share — each with a rectangle, a UTF-16 range, and optional OCR confidence. |
 | `foundation/spatial/spatial_text_page.dart` | One page of positioned text: depth-first region>line>word zones validated by an open-level stack, with provenance (native vs imported OCR, software, confidence presence). |
 | `foundation/spatial/spatial_zone_lookup.dart` | Range queries over one page's zones: which word/line/region holds an offset, which zones overlap a range, which regions a selection paints. |
 | `foundation/text/canonical_document_text.dart` | Scans and memoizes HTML into the whitespace-preserving character stream used by search, progression, navigation, locators, and annotations. Its shared `documentTextProfile` identifies that extraction contract. |
@@ -827,6 +827,29 @@ snapshot.
 | `features/alto/alto_scale.dart` | The verified conversion from document units to pixels: from a declared dpi or page-dimension agreement (1% aspect tolerance); a physical unit without evidence has no scale and refuses. |
 | `features/alto/bind_alto_snapshot.dart` | The snapshot binding: a reading cursor maps each string to the first target occurrence at or after it, repeated quotes stay ambiguous with bounded candidate lists, absent words report missing, line and block spans aggregate with min/max because real blocks do not map monotonically, and a projection budget stops quadratic work. The binding preserves the target identity tuple, OCR origin, software, and confidence. |
 | `features/alto/alto_exception.dart` | Malformed/out-of-subset refusals and the unverifiable-conversion error. |
+
+## PAGE XML: import the PRImA OCR vocabulary into the spatial contract
+
+PAGE is the other sidecar OCR format: one `PcGts` document per page, with
+regions of fifteen kinds, text regions holding lines and words, native
+integer polygons, baselines, a nested reading order, and `TextEquiv`
+alternatives carrying confidence, language and a declared preference
+index. The subset pins the 2019-07-15 namespace; any other release
+refuses typed. Coordinates are integer pixels on the page image — no
+unit or scale step exists — and orientation stays a display-space hint
+that never rotates the coordinate space. The host owns the link between
+sidecar and publication; binding takes an explicit target snapshot, and
+the reference lane diffs the parser field by field against an
+independent lxml extraction of a licensed real corpus (OCR-D
+`gt_structure_text`, CC-BY-SA-4.0; see `doc/page-xml.md`).
+
+| File | What it does and why it exists |
+| --- | --- |
+| `lib/page.dart` | The public import entry point, with the shared spatial types its signatures use. |
+| `features/page/page_document.dart` | The document model: metadata, page identity and dimensions, all region kinds, text lines and words, native polygons with derived bounding boxes, baselines, reading-order groups, and TextEquiv content with the deterministic lowest-index choice. |
+| `features/page/parse_page_document.dart` | Parses the 2019-07-15 subset under event-level bounds checked before the DOM; points, confidence ranges, id collisions, reading-order references, duplicate indexes, cycles and schema-required metadata fail typed. Extension elements travel nowhere; descriptive enumeration tokens stay verbatim. |
+| `features/page/bind_page_snapshot.dart` | The snapshot binding at the finest declared granularity (words, then lines, then regions): a reading cursor maps chosen TextEquiv content, repeated quotes stay ambiguous with bounded candidate lists, absent text reports missing, parents aggregate with min/max, and a projection budget stops quadratic work. The binding preserves the target identity tuple, OCR origin, creator, and confidence presence. |
+| `features/page/page_exception.dart` | Malformed/out-of-subset refusals. |
 
 ## TIFF and BigTIFF: decode multi-page raster books
 

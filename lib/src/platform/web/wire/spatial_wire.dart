@@ -1,6 +1,7 @@
 import '../../../features/alto/bind_alto_snapshot.dart';
 import '../../../features/djvu/djvu_page_structure.dart';
 import '../../../features/djvu/djvu_text.dart';
+import '../../../features/page/bind_page_snapshot.dart';
 import '../../../foundation/spatial/spatial_rect.dart';
 import '../../../foundation/spatial/spatial_text_page.dart';
 import '../../../foundation/spatial/spatial_text_zone.dart';
@@ -313,5 +314,80 @@ TextProfile _decodeProfileWire(final Map<String, Object?> json) {
     algorithm: json['algorithm'] as String,
     options: (json['options'] as Map<String, Object?>).cast<String, String>(),
     planRevision: json['planRevision'] as String,
+  );
+}
+
+/// The wire map of one bound PAGE spatial text. Shares the spatial-page
+/// encoding with ALTO; ambiguous units address the parsed document by
+/// their region/line/word indexes.
+Map<String, Object?> encodePageXmlBoundTextWire(final PageXmlBoundSpatialText bound) {
+  return <String, Object?>{
+    'pages': <Object?>[for (final page in bound.pages) _encodeSpatialPage(page)],
+    'resolved': bound.wordsResolved,
+    'ambiguous': bound.wordsAmbiguous,
+    'missing': bound.wordsMissing,
+    'amb': <Object?>[
+      for (final unit in bound.ambiguousWords)
+        <String, Object?>{
+          'r': unit.place.regionIndex,
+          'l': unit.place.lineIndex,
+          'w': unit.place.wordIndex,
+          'content': unit.content,
+          'cands': <Object?>[
+            for (final (start, end) in unit.candidates) <Object?>[start, end],
+          ],
+          'chosen': <Object?>[unit.chosen.$1, unit.chosen.$2],
+        },
+    ],
+    'identity': encodePublicationRevisionWire(bound.targetIdentity),
+    'occurrence': <String, Object?>{
+      'sectionIndex': bound.targetOccurrence.sectionIndex,
+      'resourcePath': bound.targetOccurrence.resourcePath,
+      'readingOrderRevision': bound.targetOccurrence.readingOrderRevision,
+    },
+    'profile': _encodeProfileWire(bound.targetProfile),
+    'textRevision': bound.targetTextRevision,
+  };
+}
+
+/// Rebuilds the bound PAGE spatial text an
+/// [encodePageXmlBoundTextWire] payload carries.
+PageXmlBoundSpatialText decodePageXmlBoundTextWire(final Map<String, Object?> json) {
+  return PageXmlBoundSpatialText(
+    pages: <SpatialTextPage>[
+      for (final page in (json['pages'] as List<Object?>))
+        _decodeSpatialPage(page as Map<String, Object?>),
+    ],
+    wordsResolved: json['resolved'] as int,
+    wordsAmbiguous: json['ambiguous'] as int,
+    wordsMissing: json['missing'] as int,
+    ambiguousWords: <PageXmlAmbiguousWord>[
+      for (final unit in (json['amb'] as List<Object?>).cast<Map<String, Object?>>())
+        PageXmlAmbiguousWord(
+          place: PageXmlWordPlace(
+            regionIndex: unit['r'] as int,
+            lineIndex: unit['l'] as int?,
+            wordIndex: unit['w'] as int?,
+          ),
+          content: unit['content'] as String,
+          candidates: <(int, int)>[
+            for (final pair in (unit['cands'] as List<Object?>).cast<List<Object?>>())
+              (pair[0] as int, pair[1] as int),
+          ],
+          chosen: (
+            (unit['chosen'] as List<Object?>)[0] as int,
+            (unit['chosen'] as List<Object?>)[1] as int,
+          ),
+        ),
+    ],
+    targetIdentity: decodePublicationRevisionWire(json['identity']),
+    targetOccurrence: SectionOccurrence(
+      sectionIndex: (json['occurrence'] as Map<String, Object?>)['sectionIndex'] as int,
+      resourcePath: (json['occurrence'] as Map<String, Object?>)['resourcePath'] as String,
+      readingOrderRevision:
+          (json['occurrence'] as Map<String, Object?>)['readingOrderRevision'] as String?,
+    ),
+    targetProfile: _decodeProfileWire(json['profile'] as Map<String, Object?>),
+    targetTextRevision: json['textRevision'] as String,
   );
 }

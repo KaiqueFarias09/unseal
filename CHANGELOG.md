@@ -24,6 +24,39 @@
   specification examples, with the same corpus embedded for the Chrome
   suite. The OPDS 1.x Atom API is unchanged; networking, authentication,
   purchase/loan flows, and DRM stay out of scope.
+- PAGE XML OCR import (`lib/page.dart`, exactly the 2019-07-15
+  namespace): metadata, page identity and dimensions, all fifteen
+  region kinds, text regions with lines and words, native integer
+  polygons with explicitly derived bounding boxes, baselines, the
+  nested reading order (ordered and unordered groups with deterministic
+  index sequencing, validated references, duplicate and cycle
+  refusals), and `TextEquiv` alternatives with declared index,
+  confidence, and language. Orientation stays a display-space hint; an
+  exact 90-degree multiple projects as the spatial page's rotation and
+  fractional skew stays native. Descriptive enumeration tokens travel
+  verbatim as declared data.
+- `bindPageToSnapshot`: binds the chosen TextEquiv content onto a
+  host-provided canonical snapshot at the finest declared granularity —
+  words, then lines whose words carry none, then regions without
+  text-bearing lines — reusing the shared spatial contract, the UTF-16
+  ranges, the reading cursor, bounded ambiguity candidates, and the
+  projection work budget. The binding preserves the target identity
+  tuple, the OCR origin, the creator, and confidence presence.
+- The `pageXml.bind` worker op over the `pageSource`/resident-book
+  protocol, mirroring `spatial.altoBind`, with the PAGE typed failures
+  registered in the error wire and `UnsealWorker.bindPageXmlInWorker`
+  on the facade.
+- Bounded preflight before any allocation: 32 MiB input, 128 XML
+  levels, one million elements per document and 65,536 per page, and
+  caps on regions, lines, words, polygon points, alternatives,
+  reading-order entries, and group depth; corruption fails typed.
+- `doc/page-xml.md` records the subset, policies, limits, and the
+  executed reference lane: the official PAGE 2019-07-15 XSD over the
+  licensed OCR-D `gt_structure_text` corpus (CC-BY-SA-4.0, four works
+  printed 1506–1897) with an independent lxml extractor whose records
+  the Dart parser matches field by field, plus nine XSD negatives, one
+  declared schema-valid parser negative, and one declared
+  accepted-as-data enumeration negative.
 
 ## 1.3.0 - October 17, 2026
 

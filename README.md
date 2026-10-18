@@ -574,6 +574,38 @@ binding preserves the target's identity tuple and the OCR's origin,
 software, and confidence. Browser workers serve the same operations through
 `UnsealWorker.spatialDjvuPageInWorker` and `UnsealWorker.bindAltoInWorker`.
 
+## PAGE XML import
+
+PAGE OCR sidecars (the PRImA vocabulary) import through the same spatial
+contract via `parsePageXmlDocument` and `bindPageToSnapshot`;
+`package:unseal/page.dart` is the narrow entry point. The supported subset
+is exactly the 2019-07-15 namespace — any other PAGE release refuses with
+`PageXmlUnsupportedFeatureException` — validated against the official
+schema of that date over a licensed real-corpus lane (the OCR-D
+`gt_structure_text` ground truth, CC-BY-SA-4.0) and an independent lxml
+extractor whose records the Dart parser is diffed against.
+
+The subset keeps the format's own detail: metadata, page identity and
+dimensions, all fifteen region kinds, text lines and words, native
+integer polygons and baselines, the reading order with nested ordered
+and unordered groups, and `TextEquiv` alternatives with declared index,
+confidence and language. Polygons stay native; bounding boxes are the
+explicitly derived projection. Orientation stays a display-space hint —
+coordinates never rotate; a page-level orientation that is an exact
+multiple of 90 degrees projects as the spatial page's rotation, and
+fractional skew stays native. Reading order re-sequences text regions
+deterministically; references must resolve, regions may not be
+referenced twice, and duplicate indexes or cyclic group structure fail
+typed.
+
+`bindPageToSnapshot` maps the chosen text onto a host-provided canonical
+snapshot at the finest granularity the sidecar declares — words, then
+lines whose words carry none, then regions without text-bearing lines.
+Repeated quotes stay ambiguous with bounded candidate lists, absent text
+reports missing, and a work budget stops hostile scans, exactly like the
+ALTO binding. Workers serve `UnsealWorker.bindPageXmlInWorker` against a
+resident DjVu page. Unseal does not run OCR.
+
 ## Durable annotations and W3C exchange
 
 Highlights survive edition changes through durable anchors: an additive
@@ -772,7 +804,11 @@ verified against libtiff by `tiffcmp` parity over the tracked corpus
 
 EPUB diagnostics preflight XML at 16 MiB, 128 nesting levels, and one million
 elements per resource. ALTO validates finite geometry and bounds XML nesting
-and element counts before building its tree.
+and element counts before building its tree. PAGE XML preflights the same
+way (32 MiB input, 128 levels, bounded elements per page) and caps regions,
+lines, words, polygon points, TextEquiv alternatives, reading-order
+entries and group depth before any allocation; references, id collisions
+and confidence ranges validate before the model exists.
 
 - Every ZIP-backed format goes through the same bounded decoder. Before
   inflation, unseal rejects containers declaring more than 1 GiB in total,
@@ -906,6 +942,9 @@ input from corrupted or protected content. Common types include:
   `AltoUnsupportedFeatureException` for namespaces, versions or units
   outside the supported subset, and `AltoUnitConversionException` when a
   physical-unit conversion lacks verifiable scale.
+- `PageXmlException` for malformed, excessive, or inconsistent PAGE XML
+  and `PageXmlUnsupportedFeatureException` for namespaces or versions
+  outside the 2019-07-15 subset.
 - `EpubException`, `MobiException`, and `Fb2Exception` for parser-specific
   errors.
 

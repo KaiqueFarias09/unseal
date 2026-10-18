@@ -7,6 +7,8 @@ import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/djvu/djvu_book.dart';
 import '../../features/epub/entities/book/book.dart';
 import '../../features/mobi/header/pdb_header.dart';
+import '../../features/page/bind_page_snapshot.dart';
+import '../../features/page/parse_page_document.dart';
 import '../../features/pdf/entities/pdf_book.dart';
 import '../../features/progressive/session_engine.dart';
 import '../../features/progressive/session_policy.dart';
@@ -80,6 +82,8 @@ runWorkerOp({
       return _spatialDjvuPage(payload!, residentBook);
     case workerOpSpatialAltoBind:
       return _spatialAltoBind(bytes!, payload!, residentBook);
+    case workerOpPageXmlBind:
+      return _pageXmlBind(bytes!, payload!, residentBook);
     case workerOpCfiBuild:
       return _cfiBuild(payload!, residentBook);
     case workerOpSessionOpen:
@@ -233,6 +237,35 @@ _spatialAltoBind(
   return (
     kind: wireReplySpatialAltoBind,
     json: <String, Object?>{wireKeyBound: encodeAltoBoundTextWire(binding.boundText)},
+    blobs: const <Object>[],
+    session: null,
+  );
+}
+
+({String kind, Map<String, Object?> json, List<Object> blobs, SessionEngine? session}) _pageXmlBind(
+  final Uint8List pageBytes,
+  final Map<String, Object?> payload,
+  final Book? residentBook,
+) {
+  final book = _residentFor(residentBook);
+  if (book is! DjvuBook) {
+    throw UnsealException('spatial ops need a resident DjVu book, got ${book.format.name}.');
+  }
+  final identity = decodePublicationRevisionWire(payload[wireKeyIdentity]);
+  final pageIndex = payload[wireKeyPageIndex] as int;
+  final structure = book.pageStructureAt(pageIndex);
+  if (structure == null) {
+    throw UnsealException('DjVu page ${pageIndex + 1} has no hidden-text chunk to bind.');
+  }
+  final document = parsePageXmlDocument(pageBytes);
+  final binding = bindPageToSnapshot(
+    document: document,
+    target: structure.snapshot(identity: identity),
+  );
+
+  return (
+    kind: wireReplyPageXmlBind,
+    json: <String, Object?>{wireKeyBound: encodePageXmlBoundTextWire(binding.boundText)},
     blobs: const <Object>[],
     session: null,
   );

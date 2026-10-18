@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../features/alto/bind_alto_snapshot.dart';
 import '../../features/cfi/epub_cfi_resolver.dart';
 import '../../features/djvu/djvu_page_structure.dart';
+import '../../features/page/bind_page_snapshot.dart';
 import '../../features/search/entities/search_mode.dart';
 import '../../features/search/entities/search_results.dart';
 import '../../foundation/entities/book/book.dart';
@@ -64,6 +65,14 @@ final class WorkerClient {
     required final int pageIndex,
     required final PublicationRevision identity,
   }) => Future<AltoBoundSpatialText?>.value();
+
+  /// Always `null`: PAGE binding keeps running on the calling thread —
+  /// see [searchInWorker].
+  Future<PageXmlBoundSpatialText?> bindPageXmlInWorker({
+    required final Uint8List pageBytes,
+    required final int pageIndex,
+    required final PublicationRevision identity,
+  }) => Future<PageXmlBoundSpatialText?>.value();
 
   /// Always `null`: CFI building keeps running on the calling thread —
   /// see [searchInWorker].

@@ -34,6 +34,10 @@ const String workerOpSpatialDjvuPage = 'spatial.djvuPage';
 /// Wire protocol op: bind ALTO bytes onto a resident DjVu page snapshot.
 const String workerOpSpatialAltoBind = 'spatial.altoBind';
 
+/// Wire protocol op: bind PAGE XML bytes onto a resident DjVu page
+/// snapshot.
+const String workerOpPageXmlBind = 'pageXml.bind';
+
 /// Wire protocol op: build a CFI from a reading position in the
 /// resident book.
 const String workerOpCfiBuild = 'cfiBuild';
@@ -143,6 +147,9 @@ const String wireReplySpatialDjvuPage = 'spatialDjvuPage';
 
 /// Reply kind: one ALTO binding onto a resident DjVu page snapshot.
 const String wireReplySpatialAltoBind = 'spatialAltoBind';
+
+/// Reply kind: one PAGE XML binding onto a resident DjVu page snapshot.
+const String wireReplyPageXmlBind = 'pageXmlBind';
 
 /// Wire protocol reply kind: a parse failure.
 const String wireReplyError = 'error';

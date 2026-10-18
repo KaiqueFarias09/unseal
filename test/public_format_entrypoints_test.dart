@@ -11,6 +11,7 @@ import 'package:unseal/fb2.dart' as fb2;
 import 'package:unseal/html.dart' as html;
 import 'package:unseal/mobi.dart' as mobi;
 import 'package:unseal/odt.dart' as odt;
+import 'package:unseal/page.dart' as page;
 import 'package:unseal/pdf.dart' as pdf;
 import 'package:unseal/txt.dart' as txt;
 import 'package:unseal/unseal.dart' as unseal;
@@ -21,6 +22,89 @@ void main() {
     expect(parseAlto, isNotNull);
     expect(unseal.bindAltoToSnapshot, isNotNull);
     expect(() => parseAlto(Uint8List(0)), throwsA(isA<unseal.AltoException>()));
+  });
+
+  test('main entrypoint exposes PAGE XML parsing and snapshot binding', () {
+    final unseal.PageXmlDocument Function(Uint8List) parsePage = unseal.parsePageXmlDocument;
+    expect(parsePage, isNotNull);
+    expect(unseal.bindPageToSnapshot, isNotNull);
+    expect(unseal.PageXmlBindLimits.new, isNotNull);
+    expect(() => parsePage(Uint8List(0)), throwsA(isA<unseal.PageXmlException>()));
+    expect(() => parsePage(Uint8List(0)), throwsA(isA<unseal.InvalidBookException>()));
+  });
+
+  test('the PAGE narrow entry point exposes its full signature surface', () {
+    final page.PageXmlDocument Function(Uint8List) parsePage = page.parsePageXmlDocument;
+    final page.PageXmlSnapshotBinding Function({
+      required page.PageXmlDocument document,
+      required unseal.CanonicalTextSnapshot target,
+      page.PageXmlBindLimits limits,
+    })
+    bindPage = page.bindPageToSnapshot;
+
+    // Every type the public signatures mention is exported here.
+    final page.PageXmlDocument? document = null;
+    final page.PageXmlPage? pagePage = null;
+    final page.PageXmlRegion? region = null;
+    final page.PageXmlRegionKind? regionKind = null;
+    final page.PageXmlTextLine? line = null;
+    final page.PageXmlWord? word = null;
+    final page.PageXmlPolygon? polygon = null;
+    final page.PageXmlBaseline? baseline = null;
+    final page.PageXmlTextContent? text = null;
+    final page.PageXmlTextEquiv? textEquiv = null;
+    final page.PageXmlReadingOrder? readingOrder = null;
+    final page.PageXmlGroup? group = null;
+    final page.PageXmlRegionRef? regionRef = null;
+    final page.PageXmlSnapshotBinding? binding = null;
+    final page.PageXmlBoundSpatialText? boundText = null;
+    final page.PageXmlAmbiguousWord? ambiguousWord = null;
+    final page.PageXmlWordPlace? wordPlace = null;
+    final page.PageXmlBindLimits? limits = null;
+    final page.PageXmlException? exception = null;
+    final page.PageXmlUnsupportedFeatureException? unsupported = null;
+    final page.SpatialRect? rect = null;
+    final page.SpatialUnit? unit = null;
+    final page.SpatialTextZone? zone = null;
+    final page.SpatialZoneKind? zoneKind = null;
+    final page.SpatialTextPage? spatialPage = null;
+    final page.SpatialTextProvenance? provenance = null;
+    final page.SpatialTextOrigin? origin = null;
+    final page.SpatialZoneLookup? lookup = null;
+
+    expect(<Object?>[
+      parsePage,
+      bindPage,
+      document,
+      pagePage,
+      region,
+      regionKind,
+      line,
+      word,
+      polygon,
+      baseline,
+      text,
+      textEquiv,
+      readingOrder,
+      group,
+      regionRef,
+      binding,
+      boundText,
+      ambiguousWord,
+      wordPlace,
+      limits,
+      exception,
+      unsupported,
+      rect,
+      unit,
+      zone,
+      zoneKind,
+      spatialPage,
+      provenance,
+      origin,
+      lookup,
+    ], hasLength(30));
+    expect(() => parsePage(Uint8List(0)), throwsA(isA<page.PageXmlException>()));
   });
 
   test('public reading facade uses the package identity as its namespace', () {
