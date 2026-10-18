@@ -971,6 +971,15 @@ A locator describes where the reader is in a publication. It does not store pixe
 | `features/locators/locator_codec.dart` | Encodes locators to maps and decodes persisted maps with validation. Storage knowledge stays out of the locator entities. |
 | `features/locators/search_locator.dart` | Converts search matches into portable text locators. |
 | `features/locators/fuzzy_relocation.dart` | Repairs a text locator after content changes by finding exact occurrences of its selected quote. Prefix and suffix context score duplicate occurrences; they are not searched independently. |
+| `features/locators/readium/readium_locator.dart` | The Readium Locator model and its toolkit-mirroring map decode: required href/type, tolerant `#fragment` split and legacy singular `fragment`, out-of-range values dropped, opaque bounded extensions. |
+| `features/locators/readium/readium_limits.dart` | The declared resource bounds (JSON code units, depth, nodes, strings, fragments, extensions, text context, position counts) and the feature's typed failures; every bound is checked before the crossed output is allocated. |
+| `features/locators/readium/readium_codec.dart` | Bounded string entry points: a measure-before-allocate JSON preflight, typed failures for hostile input, and service-shape serialization for locators and position lists. |
+| `features/locators/readium/readium_conversion.dart` | Conversions between Readium Locators and the BookLocator union with exactly one outcome — exact, approximate, ambiguous, or unsupported — plus the context/reuse verdict that refuses unverified reuse. The one place the locator feature reaches into CFI resolution and the EPUB/PDF/comic entities. |
+| `features/locators/readium/readium_media_type.dart` | The shared media-type derivation: EPUB manifest types first, then the declared extension fallback table. |
+| `features/locators/readium/readium_position_profile.dart` | The versioned `unseal.readium.positions/1` profile: scalar-1024 anchor spacing with surrogate-safe UTF-16 mapping, the occurrence-first rule, and the page rule. |
+| `features/locators/readium/readium_position_list.dart` | The position-list model (`total` + `positions` in the pinned service shape), its generation binding (identity, occurrences, text profile), observable coverage, and the cancellation token. |
+| `features/locators/readium/readium_position_builder.dart` | Deterministic generation over eager books and live sessions: a lengths pass plus an anchor pass, one occurrence per step, limits and cancellation between steps, eager/session parity under one profile. |
+| `features/locators/readium/readium_session_conversion.dart` | Session-aware conversions executed through the session's CFI transport, so the addressed document is the only content a session materializes. |
 
 Fuzzy relocation exists because a saved character offset becomes stale when a book is replaced or normalized differently. The quoted context gives the library evidence for finding the same passage again.
 
@@ -1182,6 +1191,7 @@ The intentional cross-feature cases are narrow:
 - PalmDOC reuses the MOBI feature's bounded Palm Database record reader and the TXT converter.
 - CBC calls comic parsers because a collection contains nested comic archives.
 - EPUB CFI accepts `EpubBook` because CFI is defined specifically for EPUB structure.
+- The Readium interchange feature (`features/locators/readium/`) imports CFI resolution and the EPUB, PDF, and comic entities because its whole job is converting between their addressing schemes and the Readium model; the generic locator union and codec above it stay CFI-free.
 
 ## Read a feature without getting lost
 

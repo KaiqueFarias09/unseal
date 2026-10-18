@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "mission": "D01",
+  "description": "Fixed Locator interchange corpus for the @readium/shared 2.8.0 reference run. Cases 1-4 carry official content; cases 5-12 are declared synthetic edge cases. Expected outputs are never stored here: the reference runner derives them by executing the official toolkit.",
+  "sources": {
+    "locatorSpec": {
+      "url": "https://raw.githubusercontent.com/readium/architecture/master/models/locators/README.md",
+      "sha256": "f98efc359fab39de350d0cb2e16438faf89569af01c1877ba66c7c8dafbb617a",
+      "examples": ["spec-example-1", "spec-example-2", "spec-example-3"]
+    },
+    "positionsSpec": {
+      "url": "https://raw.githubusercontent.com/readium/architecture/master/models/locators/positions/README.md",
+      "sha256": "4b99dcf4ecf52f310e0fdf543a68d4d1d0b16538e7278e8795ae7c2b21b44dc9",
+      "examples": ["position-list-spec-example"]
+    },
+    "locatorSchema": {
+      "url": "https://raw.githubusercontent.com/readium/architecture/master/schema/locator.schema.json",
+      "rawSha256": "4a35a3e4d66ab4c5d1d0c4f51689c39ef52fc83d5657a9c30a8dfe6c3efbcfef",
+      "derivedSha256": "3e573b8139620fbb20d9ba8e64df648d875e1b1d05f69c8fa873cfd5a74d5456",
+      "note": "The pinned upstream schema contains one trailing comma outside strings; derivation recorded in locator-derivation.json. The raw bytes are preserved; validation uses only the derived file."
+    },
+    "toolkit": {
+      "package": "@readium/shared",
+      "version": "2.8.0",
+      "license": "BSD-3-Clause",
+      "smokeCase": "toolkit-smoke"
+    }
+  },
+  "cases": [
+    {
+      "id": "spec-example-1",
+      "origin": "official: locator-spec.md Example 1 (Pride and Prejudice start)",
+      "kind": "locator",
+      "input": {
+        "href": "http://example.com/chapter1",
+        "type": "text/html",
+        "title": "Chapter 1",
+        "locations": {
+          "position": 4,
+          "progression": 0.03401,
+          "totalProgression": 0.01349
+        },
+        "text": {
+          "after": "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife."
+        }
+      }
+    },
+    {
+      "id": "spec-example-2",
+      "origin": "official: locator-spec.md Example 2 (audiobook middle)",
+      "kind": "locator",
+      "input": {
+        "href": "http://example.com/track6",
+        "type": "audio/ogg",
+        "title": "Chapter 5",
+        "locations": {
+          "fragments": ["t=389.84"],
+          "progression": 0.607379,
+          "totalProgression": 0.50678
+        }
+      }
+    },
+    {
+      "id": "spec-example-3",
+      "origin": "official: locator-spec.md Example 3 (PDF page rectangle)",
+      "kind": "locator",
+      "input": {
+        "href": "http://example.com/document",
+        "type": "application/pdf",
+        "title": "Page 5",
+        "locations": {
+          "fragments": ["page=5", "viewrect=50,50,640,480"],
+          "progression": 0.12703,
+          "totalProgression": 0.12703
+        }
+      }
+    },
+    {
+      "id": "toolkit-smoke",
+      "origin": "official: campaign-D preparation smoke.mjs input (all supported fields)",
+      "kind": "locator",
+      "input": {
+        "href": "chapter.xhtml",
+        "type": "application/xhtml+xml",
+        "locations": {
+          "fragments": ["para1"],
+          "progression": 0.25,
+          "position": 2,
+          "totalProgression": 0.1
+        },
+        "text": {
+          "before": "antes ",
+          "highlight": "leitura",
+          "after": " depois"
+        }
+      }
+    },
+    {
+      "id": "legacy-fragment",
+      "origin": "synthetic: singular locations.fragment, the legacy spelling the official positions-spec example uses",
+      "kind": "locator",
+      "input": {
+        "href": "chapter1.xhtml",
+        "type": "application/xhtml+xml",
+        "locations": {
+          "fragment": "partialcfi(/4[body01])",
+          "position": 1,
+          "progression": 0.0
+        }
+      }
+    },
+    {
+      "id": "href-fragment-split",
+      "origin": "synthetic: href carrying a #fragment; the spec forbids it (href must not point to a fragment) and the toolkit tolerantly splits it",
+      "kind": "locator",
+      "input": {
+        "href": "chapter1.xhtml#para-2",
+        "type": "application/xhtml+xml",
+        "title": "Paragraph 2"
+      }
+    },
+    {
+      "id": "out-of-range-locations",
+      "origin": "synthetic: progression/totalProgression outside [0,1] and position below 1; the toolkit drops the invalid values and keeps href/type",
+      "kind": "locator",
+      "input": {
+        "href": "chapter1.xhtml",
+        "type": "application/xhtml+xml",
+        "locations": {
+          "progression": 1.5,
+          "totalProgression": -0.5,
+          "position": 0
+        }
+      }
+    },
+    {
+      "id": "unknown-extensions",
+      "origin": "synthetic: unregistered location extension keys; the toolkit keeps them as opaque otherLocations and re-emits them top-level",
+      "kind": "locator",
+      "input": {
+        "href": "chapter1.xhtml",
+        "type": "application/xhtml+xml",
+        "locations": {
+          "position": 7,
+          "https://example.com/loc-ext": {"second": 42}
+        }
+      }
+    },
+    {
+      "id": "missing-href",
+      "origin": "synthetic: required href absent; official toolkit must refuse",
+      "kind": "locator",
+      "input": {
+        "type": "application/xhtml+xml"
+      },
+      "expectRejected": true
+    },
+    {
+      "id": "missing-type",
+      "origin": "synthetic: required type absent; official toolkit must refuse",
+      "kind": "locator",
+      "input": {
+        "href": "chapter1.xhtml"
+      },
+      "expectRejected": true
+    },
+    {
+      "id": "text-partial",
+      "origin": "synthetic: text object carrying only highlight",
+      "kind": "locator",
+      "input": {
+        "href": "page5.xhtml",
+        "type": "application/xhtml+xml",
+        "text": {
+          "highlight": "the quoted passage"
+        }
+      }
+    },
+    {
+      "id": "position-list-spec-example",
+      "origin": "official: positions-spec.md Usage example (service shape total/positions; entries use the legacy singular fragment spelling)",
+      "kind": "positionList",
+      "input": {
+        "total": 2,
+        "positions": [
+          {
+            "href": "http://example.com/resource",
+            "type": "application/xhtml+xml",
+            "locations": {
+              "fragment": "partialcfi(/4[body01])",
+              "position": 1,
+              "progression": 0.0
+            }
+          },
+          {
+            "href": "http://example.com/resource",
+            "type": "application/xhtml+xml",
+            "locations": {
+              "fragment": "partialcfi(/18[body02])",
+              "position": 2,
+              "progression": 0.57289
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

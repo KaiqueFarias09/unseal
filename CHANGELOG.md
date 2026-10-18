@@ -1,3 +1,30 @@
+## Unreleased
+
+### Added
+
+- Readium Locator interchange and deterministic position lists
+  (`doc/readium-locators.md` is the normative contract). The
+  `ReadiumLocator`/`ReadiumLocations`/`ReadiumTextContext` model mirrors
+  the executed `@readium/shared` 2.8.0 toolkit over the pinned corpus
+  (required `href`+`type`, tolerant `#fragment` split and legacy
+  singular `fragment` on import, out-of-range progression/position
+  dropped, opaque bounded extensions, service-shape serialization).
+  Conversions to and from the `BookLocator` union report exactly one
+  outcome — exact, approximate, ambiguous, or unsupported — with EPUB
+  CFI confirmed through the existing resolver, PDF `page=N` fragments
+  converted explicitly against the zero-based native page index, and
+  comic pages addressed by their resource hrefs; verified reuse requires
+  publication revision, occurrence, and text-profile context. Position
+  lists generate under the versioned `unseal.readium.positions/1`
+  profile (reflowable anchors every 1024 Unicode scalars plus the first
+  position of each occurrence, one position per PDF/comic page, UTF-16
+  public offsets, documented formulas, empty and non-linear handling),
+  deterministically over eager books and live `BookSession`s with
+  observable coverage and cancellation between steps. All JSON inputs
+  are bounded before allocation and fail typed. Validated against the
+  official toolkit, the pinned official Locator schema, and an
+  independent position-list verifier in `tool/readium/`.
+
 ## 1.3.0 - October 18, 2026
 
 ### Added

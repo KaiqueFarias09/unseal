@@ -43,6 +43,7 @@ export 'src/features/detection/refine_mobi_format.dart';
 export 'src/features/locators/book_locator.dart';
 export 'src/features/locators/fuzzy_relocation.dart';
 export 'src/features/locators/locator_codec.dart';
+export 'src/features/locators/readium/readium.dart';
 export 'src/features/locators/search_locator.dart';
 export 'src/features/opds/opds2_exception.dart';
 export 'src/features/opds/opds2_limits.dart';
