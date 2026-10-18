@@ -82,3 +82,67 @@ dart run tool/rar5_compare.dart --allow-reject \
 All positive files must report `ok … both oracles`; the malformed and
 out-of-subset files must report typed `reject` lines matching the
 oracles' own refusals.
+
+## BLAKE2sp hash fixtures (`rar5-hash-*.cbr`)
+
+Added 2026-10-18 for the RAR 5 data-hash verification contract
+(`doc/rar5-blake2sp.md`). Primary archives were produced with the
+official RAR 7.23 for macOS ARM (rarlab trial distribution, development
+cache only, not shipped) over deterministic page payloads generated in
+this repository, then re-tested and extracted with the same binary:
+
+```sh
+rar a -ma5 -m0  -htb -ep -idq rar5-hash-stored.cbr z-tiny.jpg m-medium.jpg ComicInfo.xml
+rar a -ma5 -m1  -htb -ep -idq rar5-hash-m1.cbr    z-tiny.jpg m-medium.jpg
+rar a -ma5 -m3  -htb -ep -idq rar5-hash-m3.cbr    z-tiny.jpg m-medium.jpg
+rar a -ma5 -m5  -htb -ep -idq rar5-hash-m5.cbr    k-large.jpg z-tiny.jpg
+rar a -ma5 -m3  -htb -s  -ep -idq rar5-hash-solid.cbr z-tiny.jpg k-large.jpg
+rar a -ma5 -m0  -htb -s  -ep -idq rar5-hash-solid.cbr s-solid-stored.jpg
+rar a -ma5 -m3  -htb -ep -idq rar5-hash-empty.cbr z-tiny.jpg empty.bin
+```
+
+`rar lt` reports `RAR 5.0(v50)` (compression algorithm version 0, the
+supported cut) and a BLAKE2 digest per member; extraction is
+byte-identical to the source payloads. The page payloads are
+deterministic synthetic files, generated once outside Git:
+
+- `z-tiny.jpg`: the same 10-byte JPEG stub as `test/support/rar_fixtures.dart`.
+- `m-medium.jpg` (33 032 bytes): JPEG stub head, then
+  `body[i] = (i*37 + (i>>3)*11) & 0xFF`, then the JPEG tail.
+- `k-large.jpg` (131 072 bytes): JPEG stub head, then a sparse pattern
+  (`buf[i] = (i*37) & 0xFF` at every 97th byte, zeros elsewhere), then
+  the JPEG tail.
+- `s-solid-stored.jpg` (2 046 bytes): JPEG stub head, then
+  `body[i] = (i*13 + (i>>5)*7) & 0xFF`, then the JPEG tail.
+- `ComicInfo.xml`: `<ComicInfo><Series>Hash Verification</Series></ComicInfo>`.
+- `empty.bin`: zero bytes.
+
+`rar5-hash-solid.cbr` is the only archive built in two `rar a` passes
+(compressed solid members first, then the stored member appended), so
+the chain mixes a stored record between compressed ones. Every entry's
+decoded bytes, SHA-256 and declared BLAKE2sp digest are pinned by
+`manifest.json`.
+
+The negative and paired-checksum fixtures are byte derivations of the
+primaries, rebuilt and verified by a versioned tool:
+
+```sh
+dart run tool/rar5_hash_fixtures.dart --out   test/resources/books/comic/rar5
+dart run tool/rar5_hash_fixtures.dart --check test/resources/books/comic/rar5
+```
+
+`--check` reproduces the committed bytes exactly (the derivation is a
+fixed-width byte patch plus header CRC-32 repair, no timestamps). The
+derivations flip or zero digest bytes (`rar5-hash-stored-corrupt-
+digest.cbr`, `rar5-hash-stored-zero-digest.cbr`), substitute the
+payload's BLAKE2s-256 for its BLAKE2sp (`rar5-hash-m3-blake2s.cbr`,
+digest pinned from Python 3.12 `hashlib.blake2s`/OpenSSL), move the
+hash record outside the supported shape (`rar5-hash-unknown-type.cbr`,
+`rar5-hash-truncated.cbr`, `rar5-hash-oversized.cbr`), inject a correct
+header CRC-32 field into the `-htb` headers (`rar5-hash-both-
+checksums.cbr`, which real RAR 7.23 tests clean), corrupt the injected
+CRC while the payload and digest stay correct (`rar5-hash-both-wrong-
+crc.cbr`), and corrupt the digest under the injected CRC
+(`rar5-hash-both-corrupt-digest.cbr`). The quick-open locator is
+stripped from the main header of the injected archives because the
+added bytes shift the service block it points at.

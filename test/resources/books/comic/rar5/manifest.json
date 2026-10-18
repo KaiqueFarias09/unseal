@@ -1,420 +1,582 @@
 [
-  {
-    "file": "rar5-m1.cbr",
-    "bytes": 7102,
-    "sha256": "7c8a1e52d06ab616f08d842dfa74472840663ecbc215bb5b99f4ec4153a2e218",
-    "method": 1,
-    "dictExp": 0,
-    "filters": [],
-    "solid": false,
-    "entries": [
-      {
-        "name": "data-1.bin",
-        "bytes": 98304,
-        "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
-      },
-      {
-        "name": "image-1.jpg",
-        "bytes": 49152,
-        "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
-      }
-    ]
-  },
-  {
-    "file": "rar5-m2.cbr",
-    "bytes": 7102,
-    "sha256": "2fae613cca551827f5d1333d1e3342abf635071dc929114321ed25b4b6f88356",
-    "method": 2,
-    "dictExp": 0,
-    "filters": [],
-    "solid": false,
-    "entries": [
-      {
-        "name": "data-2.bin",
-        "bytes": 98304,
-        "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
-      },
-      {
-        "name": "image-2.jpg",
-        "bytes": 49152,
-        "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
-      }
-    ]
-  },
-  {
-    "file": "rar5-m3.cbr",
-    "bytes": 7102,
-    "sha256": "5e71161a3e2f52edb9269a0cf1337e5fe6c75a4da4d26d110ceca4a0c3f38f76",
-    "method": 3,
-    "dictExp": 0,
-    "filters": [],
-    "solid": false,
-    "entries": [
-      {
-        "name": "data-3.bin",
-        "bytes": 98304,
-        "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
-      },
-      {
-        "name": "image-3.jpg",
-        "bytes": 49152,
-        "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
-      }
-    ]
-  },
-  {
-    "file": "rar5-m4.cbr",
-    "bytes": 7102,
-    "sha256": "b567e177ba1f0818860f0554e7a13ab369313679d3b87cf4aa5b9c27b805d127",
-    "method": 4,
-    "dictExp": 0,
-    "filters": [],
-    "solid": false,
-    "entries": [
-      {
-        "name": "data-4.bin",
-        "bytes": 98304,
-        "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
-      },
-      {
-        "name": "image-4.jpg",
-        "bytes": 49152,
-        "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
-      }
-    ]
-  },
-  {
-    "file": "rar5-m5.cbr",
-    "bytes": 7102,
-    "sha256": "16ab2cea9a0c44b897797abda227444f5d90accfac3b09867ca1d961cf55b64f",
-    "method": 5,
-    "dictExp": 0,
-    "filters": [],
-    "solid": false,
-    "entries": [
-      {
-        "name": "data-5.bin",
-        "bytes": 98304,
-        "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
-      },
-      {
-        "name": "image-5.jpg",
-        "bytes": 49152,
-        "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
-      }
-    ]
-  },
-  {
-    "file": "rar5-dict-128k.cbr",
-    "bytes": 2072,
-    "sha256": "0c1db2cc306c82e520dd64f21921cf8837bd3ab4f3c269adb184ddb5119f895d",
-    "method": 3,
-    "dictExp": 0,
-    "filters": [],
-    "solid": false,
-    "entries": [
-      {
-        "name": "dict-128k.bin",
-        "bytes": 98304,
-        "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
-      }
-    ]
-  },
-  {
-    "file": "rar5-dict-1m.cbr",
-    "bytes": 2070,
-    "sha256": "58990810b7793526a8727a86460442fef4b6ecfe7b77399206a8076b08c6b7b6",
-    "method": 3,
-    "dictExp": 3,
-    "filters": [],
-    "solid": false,
-    "entries": [
-      {
-        "name": "dict-1m.bin",
-        "bytes": 98304,
-        "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
-      }
-    ]
-  },
-  {
-    "file": "rar5-dict-64m.cbr",
-    "bytes": 2071,
-    "sha256": "b973dc5284da518756ded21d32ed402a93f364f276d8d121d42e797e8bb1b9a9",
-    "method": 3,
-    "dictExp": 9,
-    "filters": [],
-    "solid": false,
-    "entries": [
-      {
-        "name": "dict-64m.bin",
-        "bytes": 98304,
-        "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
-      }
-    ]
-  },
-  {
-    "file": "rar5-filter-delta.cbr",
-    "bytes": 595,
-    "sha256": "914c976c4073fc2886384d659c9eec638fdfb68b16c1436faf101240334d96f1",
-    "method": 4,
-    "dictExp": 0,
-    "filters": [
-      "delta"
-    ],
-    "solid": false,
-    "entries": [
-      {
-        "name": "filtered-delta.bin",
-        "bytes": 16384,
-        "sha256": "22000f3a8b3614c3b65f073168591fb4b63cc92e02bd7aa6eea0bb071cfcb60b"
-      }
-    ]
-  },
-  {
-    "file": "rar5-filter-e8.cbr",
-    "bytes": 7233,
-    "sha256": "9c06e498a8647e3dfdac7fcb8778013a26597e85928ca71b7430ed08d7bf0e1f",
-    "method": 4,
-    "dictExp": 0,
-    "filters": [
-      "e8"
-    ],
-    "solid": false,
-    "entries": [
-      {
-        "name": "filtered-e8.bin",
-        "bytes": 16384,
-        "sha256": "2834b83503476b617af92aff559ccb320b0fc41d6e9e4a92a252f0de11ddf2b3"
-      }
-    ]
-  },
-  {
-    "file": "rar5-filter-e8e9.cbr",
-    "bytes": 7235,
-    "sha256": "4f371f3a15fce5e771025c6ed5ad49852e93381d2470b751c919a7a559022b39",
-    "method": 4,
-    "dictExp": 0,
-    "filters": [
-      "e8e9"
-    ],
-    "solid": false,
-    "entries": [
-      {
-        "name": "filtered-e8e9.bin",
-        "bytes": 16384,
-        "sha256": "c78688055ff869bd12363f876af1576094bf8495f887c4d9ec3045928ee81b55"
-      }
-    ]
-  },
-  {
-    "file": "rar5-filter-arm.cbr",
-    "bytes": 11070,
-    "sha256": "b7217e6d7ed904181e6c4a0bf80864fc483a259062515a4d1d43623d5d7dd276",
-    "method": 4,
-    "dictExp": 0,
-    "filters": [
-      "arm"
-    ],
-    "solid": false,
-    "entries": [
-      {
-        "name": "filtered-arm.bin",
-        "bytes": 16384,
-        "sha256": "962c3f136f88be27959d1fc909d7fe76e87490b5f3391594610f7aee605bf3b2"
-      }
-    ]
-  },
-  {
-    "file": "rar5-comic-utf8.cbr",
-    "bytes": 14842,
-    "sha256": "47a213a4212f84fbee3b41fbfed98d25ef5566bd0657e452abd77185c2b7f476",
-    "method": 3,
-    "dictExp": 3,
-    "filters": [],
-    "solid": false,
-    "entries": [
-      {
-        "name": "ComicInfo.xml",
-        "bytes": 135,
-        "sha256": "6d7bfb817f15c66b656c9c2493d9beeb5428ea84b33e67d1e74f1679139705d2"
-      },
-      {
-        "name": "Páginas/001 – título.jpg",
-        "bytes": 24576,
-        "sha256": "81f82a8434c87547e76bb894491e51d21079c0c31119ca7d2b7d214394daffe0"
-      },
-      {
-        "name": "Páginas/002 – título.jpg",
-        "bytes": 24576,
-        "sha256": "6342c917365afb41506d9f46e941c388095572a0aacccfe2e36c0ced74b8201a"
-      },
-      {
-        "name": "Páginas/003 – título.txt",
-        "bytes": 65536,
-        "sha256": "a292bff40dfa24f8b39325d4aa6ac6e3f76a5f16c2638dec1ab784483ebb1524"
-      }
-    ]
-  },
-  {
-    "file": "rar5-solid-chain.cbr",
-    "bytes": 2880,
-    "sha256": "ee0f643252eeb74b0a2b398ed143827134a012721f0ec60f508eeb92975a95ab",
-    "method": 3,
-    "dictExp": 0,
-    "filters": [],
-    "solid": true,
-    "entries": [
-      {
-        "name": "solid-a.bin",
-        "bytes": 22528,
-        "sha256": "84dda0c91a40b410fd06fc899fbdc59cb93a7aef2f60f6dce4e75a12e473fdd4"
-      },
-      {
-        "name": "solid-b.bin",
-        "bytes": 22528,
-        "sha256": "bb455c44f3b73b9b7d477307dbd38e4a623b0ea4e20c507ac3d68df1abdd4b59"
-      },
-      {
-        "name": "solid-c.bin",
-        "bytes": 22528,
-        "sha256": "a182a23a25eedbd46308438af935a3addd931309dcbbaadcf867271f90354cbb"
-      },
-      {
-        "name": "solid-d.bin",
-        "bytes": 22528,
-        "sha256": "72867c8c05d962584c39253bcf0ce64ff6b95aad30c397ef82abf27e12db7b3c"
-      }
-    ]
-  },
-  {
-    "file": "rar5-solid-comic.cbr",
-    "bytes": 6946,
-    "sha256": "af51635f7e4940f92b4a0a832617125e3d5a4febff9564722400d5ba0f959090",
-    "method": 3,
-    "dictExp": 3,
-    "filters": [],
-    "solid": true,
-    "entries": [
-      {
-        "name": "ComicInfo.xml",
-        "bytes": 135,
-        "sha256": "6d7bfb817f15c66b656c9c2493d9beeb5428ea84b33e67d1e74f1679139705d2"
-      },
-      {
-        "name": "Páginas/pág-01.jpg",
-        "bytes": 20480,
-        "sha256": "7a0894e81fdfb1fb845b60d4529effdb31a9e98f7676f064f5275d490fb4ef02"
-      },
-      {
-        "name": "Páginas/pág-02.jpg",
-        "bytes": 20480,
-        "sha256": "324450fb953ccd519d1771c5995bb08fd8d4ba995815b9dd10924e3be9723813"
-      },
-      {
-        "name": "Páginas/pág-03.jpg",
-        "bytes": 20480,
-        "sha256": "e245322d68f4605497fd34674148a44e01e483c3d039dc4967525170aeeae18c"
-      }
-    ]
-  },
-  {
-    "file": "rar5-solid-mixed.cbr",
-    "bytes": 10566,
-    "sha256": "1c0809832718babc8159654fb545abc22033f01a64f90ee64d523e6e1eda342d",
-    "method": 3,
-    "dictExp": 0,
-    "filters": [],
-    "solid": true,
-    "entries": [
-      {
-        "name": "mixed/solid-one.bin",
-        "bytes": 12288,
-        "sha256": "beb05d42bd9c3bdbc3f8643c9c87442c6c31639ea3b6694635cc6abc58aef331"
-      },
-      {
-        "name": "mixed/",
-        "bytes": 0,
-        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-      },
-      {
-        "name": "mixed/stored-middle.bin",
-        "bytes": 8192,
-        "sha256": "cc5d36f5d91c726c0a090026ac0598cadd2297ce5bb44719c9fe147ca99ef541"
-      },
-      {
-        "name": "mixed/solid-two.bin",
-        "bytes": 12288,
-        "sha256": "d387f4f19a97343b289fe67eae03bc06d5f16772dcba9b288b82ee098c4e7b1a"
-      },
-      {
-        "name": "mixed/empty.bin",
-        "bytes": 0,
-        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-      },
-      {
-        "name": "mixed/zero-crc.bin",
-        "bytes": 8192,
-        "sha256": "24cde3cc937d3d2a7f32a4b1ef77be5765a37b9c08b37cd258343b0e1bf732a5"
-      },
-      {
-        "name": "mixed/solid-three.bin",
-        "bytes": 12288,
-        "sha256": "316c75886edd67a40d1620248a9b15daa5fd805390f3c5cc8495107f15af4940"
-      }
-    ]
-  },
-  {
-    "file": "rar5-solid-dict-grow.cbr",
-    "bytes": 3100,
-    "sha256": "67b4a32eb3a7eaf5807d39bcc36c2e16f87a2556637f8e64228f964d608b3989",
-    "method": 3,
-    "dictExp": 0,
-    "filters": [],
-    "solid": true,
-    "entries": [
-      {
-        "name": "grow/small-dict.bin",
-        "bytes": 24576,
-        "sha256": "6f1016e8cc354f5b3e6f8ef1d53a3eb4c8f41dc1e8089cb69880e3162657e20f"
-      },
-      {
-        "name": "grow/big-dict.bin",
-        "bytes": 49152,
-        "sha256": "f45e18518a5d798f59dd3cf4eb6777e094c17798d15b87aee0fb9c5581fa7979"
-      },
-      {
-        "name": "grow/bigger-dict.bin",
-        "bytes": 49152,
-        "sha256": "5d2a4acbabd8a75af4630928a59b96ea04cd55ebe0722a5ac67c7e271c5d0148"
-      }
-    ]
-  },
-  {
-    "file": "rar5-solid-filter-e8.cbr",
-    "bytes": 8499,
-    "sha256": "2e5a22306cb45d47981fc386e19832f9dcda4eb07e41fa8bd8fd3267749f0884",
-    "method": 3,
-    "dictExp": 0,
-    "filters": [
-      "e8"
-    ],
-    "solid": true,
-    "entries": [
-      {
-        "name": "filtered/solid-one.bin",
-        "bytes": 16384,
-        "sha256": "e5a9d0a50a8e829b624c66baf3f5a0c40d030994d396c2aaa2519f3d67ee5208"
-      },
-      {
-        "name": "filtered/e8-middle.bin",
-        "bytes": 16384,
-        "sha256": "cf76d98fb1b4c5c0366b5c55327730f62c16899c795a1a85ac48252fc75070be"
-      },
-      {
-        "name": "filtered/solid-two.bin",
-        "bytes": 16384,
-        "sha256": "7cf92bbba184305c925e83dbae0db5f6ca2469264c4bd72c48ceb491a47091c6"
-      }
-    ]
-  }
+ {
+  "file": "rar5-m1.cbr",
+  "bytes": 7102,
+  "sha256": "7c8a1e52d06ab616f08d842dfa74472840663ecbc215bb5b99f4ec4153a2e218",
+  "method": 1,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "entries": [
+   {
+    "name": "data-1.bin",
+    "bytes": 98304,
+    "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
+   },
+   {
+    "name": "image-1.jpg",
+    "bytes": 49152,
+    "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
+   }
+  ]
+ },
+ {
+  "file": "rar5-m2.cbr",
+  "bytes": 7102,
+  "sha256": "2fae613cca551827f5d1333d1e3342abf635071dc929114321ed25b4b6f88356",
+  "method": 2,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "entries": [
+   {
+    "name": "data-2.bin",
+    "bytes": 98304,
+    "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
+   },
+   {
+    "name": "image-2.jpg",
+    "bytes": 49152,
+    "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
+   }
+  ]
+ },
+ {
+  "file": "rar5-m3.cbr",
+  "bytes": 7102,
+  "sha256": "5e71161a3e2f52edb9269a0cf1337e5fe6c75a4da4d26d110ceca4a0c3f38f76",
+  "method": 3,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "entries": [
+   {
+    "name": "data-3.bin",
+    "bytes": 98304,
+    "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
+   },
+   {
+    "name": "image-3.jpg",
+    "bytes": 49152,
+    "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
+   }
+  ]
+ },
+ {
+  "file": "rar5-m4.cbr",
+  "bytes": 7102,
+  "sha256": "b567e177ba1f0818860f0554e7a13ab369313679d3b87cf4aa5b9c27b805d127",
+  "method": 4,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "entries": [
+   {
+    "name": "data-4.bin",
+    "bytes": 98304,
+    "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
+   },
+   {
+    "name": "image-4.jpg",
+    "bytes": 49152,
+    "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
+   }
+  ]
+ },
+ {
+  "file": "rar5-m5.cbr",
+  "bytes": 7102,
+  "sha256": "16ab2cea9a0c44b897797abda227444f5d90accfac3b09867ca1d961cf55b64f",
+  "method": 5,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "entries": [
+   {
+    "name": "data-5.bin",
+    "bytes": 98304,
+    "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
+   },
+   {
+    "name": "image-5.jpg",
+    "bytes": 49152,
+    "sha256": "d1fd6a15607b2ae57e486a14899061d021b18a8e15221e6f537866406dbe609a"
+   }
+  ]
+ },
+ {
+  "file": "rar5-dict-128k.cbr",
+  "bytes": 2072,
+  "sha256": "0c1db2cc306c82e520dd64f21921cf8837bd3ab4f3c269adb184ddb5119f895d",
+  "method": 3,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "entries": [
+   {
+    "name": "dict-128k.bin",
+    "bytes": 98304,
+    "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
+   }
+  ]
+ },
+ {
+  "file": "rar5-dict-1m.cbr",
+  "bytes": 2070,
+  "sha256": "58990810b7793526a8727a86460442fef4b6ecfe7b77399206a8076b08c6b7b6",
+  "method": 3,
+  "dictExp": 3,
+  "filters": [],
+  "solid": false,
+  "entries": [
+   {
+    "name": "dict-1m.bin",
+    "bytes": 98304,
+    "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
+   }
+  ]
+ },
+ {
+  "file": "rar5-dict-64m.cbr",
+  "bytes": 2071,
+  "sha256": "b973dc5284da518756ded21d32ed402a93f364f276d8d121d42e797e8bb1b9a9",
+  "method": 3,
+  "dictExp": 9,
+  "filters": [],
+  "solid": false,
+  "entries": [
+   {
+    "name": "dict-64m.bin",
+    "bytes": 98304,
+    "sha256": "1545e2de9497339079a1bf1afff102fa0d7fa09038e267148262828a7d89b4c9"
+   }
+  ]
+ },
+ {
+  "file": "rar5-filter-delta.cbr",
+  "bytes": 595,
+  "sha256": "914c976c4073fc2886384d659c9eec638fdfb68b16c1436faf101240334d96f1",
+  "method": 4,
+  "dictExp": 0,
+  "filters": [
+   "delta"
+  ],
+  "solid": false,
+  "entries": [
+   {
+    "name": "filtered-delta.bin",
+    "bytes": 16384,
+    "sha256": "22000f3a8b3614c3b65f073168591fb4b63cc92e02bd7aa6eea0bb071cfcb60b"
+   }
+  ]
+ },
+ {
+  "file": "rar5-filter-e8.cbr",
+  "bytes": 7233,
+  "sha256": "9c06e498a8647e3dfdac7fcb8778013a26597e85928ca71b7430ed08d7bf0e1f",
+  "method": 4,
+  "dictExp": 0,
+  "filters": [
+   "e8"
+  ],
+  "solid": false,
+  "entries": [
+   {
+    "name": "filtered-e8.bin",
+    "bytes": 16384,
+    "sha256": "2834b83503476b617af92aff559ccb320b0fc41d6e9e4a92a252f0de11ddf2b3"
+   }
+  ]
+ },
+ {
+  "file": "rar5-filter-e8e9.cbr",
+  "bytes": 7235,
+  "sha256": "4f371f3a15fce5e771025c6ed5ad49852e93381d2470b751c919a7a559022b39",
+  "method": 4,
+  "dictExp": 0,
+  "filters": [
+   "e8e9"
+  ],
+  "solid": false,
+  "entries": [
+   {
+    "name": "filtered-e8e9.bin",
+    "bytes": 16384,
+    "sha256": "c78688055ff869bd12363f876af1576094bf8495f887c4d9ec3045928ee81b55"
+   }
+  ]
+ },
+ {
+  "file": "rar5-filter-arm.cbr",
+  "bytes": 11070,
+  "sha256": "b7217e6d7ed904181e6c4a0bf80864fc483a259062515a4d1d43623d5d7dd276",
+  "method": 4,
+  "dictExp": 0,
+  "filters": [
+   "arm"
+  ],
+  "solid": false,
+  "entries": [
+   {
+    "name": "filtered-arm.bin",
+    "bytes": 16384,
+    "sha256": "962c3f136f88be27959d1fc909d7fe76e87490b5f3391594610f7aee605bf3b2"
+   }
+  ]
+ },
+ {
+  "file": "rar5-comic-utf8.cbr",
+  "bytes": 14842,
+  "sha256": "47a213a4212f84fbee3b41fbfed98d25ef5566bd0657e452abd77185c2b7f476",
+  "method": 3,
+  "dictExp": 3,
+  "filters": [],
+  "solid": false,
+  "entries": [
+   {
+    "name": "ComicInfo.xml",
+    "bytes": 135,
+    "sha256": "6d7bfb817f15c66b656c9c2493d9beeb5428ea84b33e67d1e74f1679139705d2"
+   },
+   {
+    "name": "P\u00e1ginas/001 \u2013 t\u00edtulo.jpg",
+    "bytes": 24576,
+    "sha256": "81f82a8434c87547e76bb894491e51d21079c0c31119ca7d2b7d214394daffe0"
+   },
+   {
+    "name": "P\u00e1ginas/002 \u2013 t\u00edtulo.jpg",
+    "bytes": 24576,
+    "sha256": "6342c917365afb41506d9f46e941c388095572a0aacccfe2e36c0ced74b8201a"
+   },
+   {
+    "name": "P\u00e1ginas/003 \u2013 t\u00edtulo.txt",
+    "bytes": 65536,
+    "sha256": "a292bff40dfa24f8b39325d4aa6ac6e3f76a5f16c2638dec1ab784483ebb1524"
+   }
+  ]
+ },
+ {
+  "file": "rar5-solid-chain.cbr",
+  "bytes": 2880,
+  "sha256": "ee0f643252eeb74b0a2b398ed143827134a012721f0ec60f508eeb92975a95ab",
+  "method": 3,
+  "dictExp": 0,
+  "filters": [],
+  "solid": true,
+  "entries": [
+   {
+    "name": "solid-a.bin",
+    "bytes": 22528,
+    "sha256": "84dda0c91a40b410fd06fc899fbdc59cb93a7aef2f60f6dce4e75a12e473fdd4"
+   },
+   {
+    "name": "solid-b.bin",
+    "bytes": 22528,
+    "sha256": "bb455c44f3b73b9b7d477307dbd38e4a623b0ea4e20c507ac3d68df1abdd4b59"
+   },
+   {
+    "name": "solid-c.bin",
+    "bytes": 22528,
+    "sha256": "a182a23a25eedbd46308438af935a3addd931309dcbbaadcf867271f90354cbb"
+   },
+   {
+    "name": "solid-d.bin",
+    "bytes": 22528,
+    "sha256": "72867c8c05d962584c39253bcf0ce64ff6b95aad30c397ef82abf27e12db7b3c"
+   }
+  ]
+ },
+ {
+  "file": "rar5-solid-comic.cbr",
+  "bytes": 6946,
+  "sha256": "af51635f7e4940f92b4a0a832617125e3d5a4febff9564722400d5ba0f959090",
+  "method": 3,
+  "dictExp": 3,
+  "filters": [],
+  "solid": true,
+  "entries": [
+   {
+    "name": "ComicInfo.xml",
+    "bytes": 135,
+    "sha256": "6d7bfb817f15c66b656c9c2493d9beeb5428ea84b33e67d1e74f1679139705d2"
+   },
+   {
+    "name": "P\u00e1ginas/p\u00e1g-01.jpg",
+    "bytes": 20480,
+    "sha256": "7a0894e81fdfb1fb845b60d4529effdb31a9e98f7676f064f5275d490fb4ef02"
+   },
+   {
+    "name": "P\u00e1ginas/p\u00e1g-02.jpg",
+    "bytes": 20480,
+    "sha256": "324450fb953ccd519d1771c5995bb08fd8d4ba995815b9dd10924e3be9723813"
+   },
+   {
+    "name": "P\u00e1ginas/p\u00e1g-03.jpg",
+    "bytes": 20480,
+    "sha256": "e245322d68f4605497fd34674148a44e01e483c3d039dc4967525170aeeae18c"
+   }
+  ]
+ },
+ {
+  "file": "rar5-solid-mixed.cbr",
+  "bytes": 10566,
+  "sha256": "1c0809832718babc8159654fb545abc22033f01a64f90ee64d523e6e1eda342d",
+  "method": 3,
+  "dictExp": 0,
+  "filters": [],
+  "solid": true,
+  "entries": [
+   {
+    "name": "mixed/solid-one.bin",
+    "bytes": 12288,
+    "sha256": "beb05d42bd9c3bdbc3f8643c9c87442c6c31639ea3b6694635cc6abc58aef331"
+   },
+   {
+    "name": "mixed/",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   {
+    "name": "mixed/stored-middle.bin",
+    "bytes": 8192,
+    "sha256": "cc5d36f5d91c726c0a090026ac0598cadd2297ce5bb44719c9fe147ca99ef541"
+   },
+   {
+    "name": "mixed/solid-two.bin",
+    "bytes": 12288,
+    "sha256": "d387f4f19a97343b289fe67eae03bc06d5f16772dcba9b288b82ee098c4e7b1a"
+   },
+   {
+    "name": "mixed/empty.bin",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   {
+    "name": "mixed/zero-crc.bin",
+    "bytes": 8192,
+    "sha256": "24cde3cc937d3d2a7f32a4b1ef77be5765a37b9c08b37cd258343b0e1bf732a5"
+   },
+   {
+    "name": "mixed/solid-three.bin",
+    "bytes": 12288,
+    "sha256": "316c75886edd67a40d1620248a9b15daa5fd805390f3c5cc8495107f15af4940"
+   }
+  ]
+ },
+ {
+  "file": "rar5-solid-dict-grow.cbr",
+  "bytes": 3100,
+  "sha256": "67b4a32eb3a7eaf5807d39bcc36c2e16f87a2556637f8e64228f964d608b3989",
+  "method": 3,
+  "dictExp": 0,
+  "filters": [],
+  "solid": true,
+  "entries": [
+   {
+    "name": "grow/small-dict.bin",
+    "bytes": 24576,
+    "sha256": "6f1016e8cc354f5b3e6f8ef1d53a3eb4c8f41dc1e8089cb69880e3162657e20f"
+   },
+   {
+    "name": "grow/big-dict.bin",
+    "bytes": 49152,
+    "sha256": "f45e18518a5d798f59dd3cf4eb6777e094c17798d15b87aee0fb9c5581fa7979"
+   },
+   {
+    "name": "grow/bigger-dict.bin",
+    "bytes": 49152,
+    "sha256": "5d2a4acbabd8a75af4630928a59b96ea04cd55ebe0722a5ac67c7e271c5d0148"
+   }
+  ]
+ },
+ {
+  "file": "rar5-solid-filter-e8.cbr",
+  "bytes": 8499,
+  "sha256": "2e5a22306cb45d47981fc386e19832f9dcda4eb07e41fa8bd8fd3267749f0884",
+  "method": 3,
+  "dictExp": 0,
+  "filters": [
+   "e8"
+  ],
+  "solid": true,
+  "entries": [
+   {
+    "name": "filtered/solid-one.bin",
+    "bytes": 16384,
+    "sha256": "e5a9d0a50a8e829b624c66baf3f5a0c40d030994d396c2aaa2519f3d67ee5208"
+   },
+   {
+    "name": "filtered/e8-middle.bin",
+    "bytes": 16384,
+    "sha256": "cf76d98fb1b4c5c0366b5c55327730f62c16899c795a1a85ac48252fc75070be"
+   },
+   {
+    "name": "filtered/solid-two.bin",
+    "bytes": 16384,
+    "sha256": "7cf92bbba184305c925e83dbae0db5f6ca2469264c4bd72c48ceb491a47091c6"
+   }
+  ]
+ },
+ {
+  "file": "rar5-hash-stored.cbr",
+  "bytes": 33475,
+  "sha256": "c73b95e4efd4e8e3e6603606c52fb165871cd5cd8e1919ff72c611ce062aad74",
+  "method": 0,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "hash": "blake2sp",
+  "producer": "rar 7.23 -htb",
+  "entries": [
+   {
+    "name": "z-tiny.jpg",
+    "bytes": 10,
+    "sha256": "6367c1cf813d3e75e37bb7ab9da58d563c98f1ae28abd6227fa07b4b8d21ce4a",
+    "blake2sp": "684802cbd39df22a7962ff6081e87bfe52a27f9d8b1bb853daa421d16d19e644"
+   },
+   {
+    "name": "m-medium.jpg",
+    "bytes": 33032,
+    "sha256": "787b295e593265aed86aad646ddc7057da5f1ec515166efb091616f26a31c56a",
+    "blake2sp": "7007cedd513464dbfd47a4b34f85492bd7943a4b17aca4328c5ade3b625b31b4"
+   },
+   {
+    "name": "ComicInfo.xml",
+    "bytes": 57,
+    "sha256": "38d4116b5190da9a10a4aaf2238f142d949d04297fcfaa0218d7971a35500dad",
+    "blake2sp": "8b0258f989fb8c02049f34f714f0e3b9e14daf3ef3e6297b183f94c0cfb405bd"
+   }
+  ]
+ },
+ {
+  "file": "rar5-hash-m1.cbr",
+  "bytes": 1136,
+  "sha256": "12ffe8a6a9653347d3eabcc3ff806b7838762d59324f706b07463f566691b331",
+  "method": 0,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "hash": "blake2sp",
+  "producer": "rar 7.23 -htb",
+  "entries": [
+   {
+    "name": "z-tiny.jpg",
+    "bytes": 10,
+    "sha256": "6367c1cf813d3e75e37bb7ab9da58d563c98f1ae28abd6227fa07b4b8d21ce4a",
+    "blake2sp": "684802cbd39df22a7962ff6081e87bfe52a27f9d8b1bb853daa421d16d19e644"
+   },
+   {
+    "name": "m-medium.jpg",
+    "bytes": 33032,
+    "sha256": "787b295e593265aed86aad646ddc7057da5f1ec515166efb091616f26a31c56a",
+    "blake2sp": "7007cedd513464dbfd47a4b34f85492bd7943a4b17aca4328c5ade3b625b31b4"
+   }
+  ]
+ },
+ {
+  "file": "rar5-hash-m3.cbr",
+  "bytes": 295,
+  "sha256": "fa2fb6138e26ca1cebe3f044e3d5bb51fbd43981580deab56634be95c46a82ec",
+  "method": 0,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "hash": "blake2sp",
+  "producer": "rar 7.23 -htb",
+  "entries": [
+   {
+    "name": "z-tiny.jpg",
+    "bytes": 10,
+    "sha256": "6367c1cf813d3e75e37bb7ab9da58d563c98f1ae28abd6227fa07b4b8d21ce4a",
+    "blake2sp": "684802cbd39df22a7962ff6081e87bfe52a27f9d8b1bb853daa421d16d19e644"
+   },
+   {
+    "name": "m-medium.jpg",
+    "bytes": 33032,
+    "sha256": "787b295e593265aed86aad646ddc7057da5f1ec515166efb091616f26a31c56a",
+    "blake2sp": "7007cedd513464dbfd47a4b34f85492bd7943a4b17aca4328c5ade3b625b31b4"
+   }
+  ]
+ },
+ {
+  "file": "rar5-hash-m5.cbr",
+  "bytes": 1038,
+  "sha256": "837fbd605ac9fb994cd17e40d17d3a4c98f06fbc1d86687ab3463f5fc50f805d",
+  "method": 5,
+  "dictExp": 1,
+  "filters": [],
+  "solid": false,
+  "hash": "blake2sp",
+  "producer": "rar 7.23 -htb",
+  "entries": [
+   {
+    "name": "k-large.jpg",
+    "bytes": 131072,
+    "sha256": "1ad1da1da8ca6f20022fac26af44f7e07e5cf9191ce60922b613bb85bbcfa7f8",
+    "blake2sp": "dc780e62d0b06ee65f6a1fd7caf90ffaae3c23a516d82c64dd305467cc6d3ea6"
+   },
+   {
+    "name": "z-tiny.jpg",
+    "bytes": 10,
+    "sha256": "6367c1cf813d3e75e37bb7ab9da58d563c98f1ae28abd6227fa07b4b8d21ce4a",
+    "blake2sp": "684802cbd39df22a7962ff6081e87bfe52a27f9d8b1bb853daa421d16d19e644"
+   }
+  ]
+ },
+ {
+  "file": "rar5-hash-solid.cbr",
+  "bytes": 3281,
+  "sha256": "6728d5ecdf09154bf6e12ec94a543d076e4376cb420842c780594e0fa92b6651",
+  "method": 3,
+  "dictExp": 3,
+  "filters": [],
+  "solid": true,
+  "hash": "blake2sp",
+  "producer": "rar 7.23 -htb",
+  "entries": [
+   {
+    "name": "k-large.jpg",
+    "bytes": 131072,
+    "sha256": "1ad1da1da8ca6f20022fac26af44f7e07e5cf9191ce60922b613bb85bbcfa7f8",
+    "blake2sp": "dc780e62d0b06ee65f6a1fd7caf90ffaae3c23a516d82c64dd305467cc6d3ea6"
+   },
+   {
+    "name": "z-tiny.jpg",
+    "bytes": 10,
+    "sha256": "6367c1cf813d3e75e37bb7ab9da58d563c98f1ae28abd6227fa07b4b8d21ce4a",
+    "blake2sp": "684802cbd39df22a7962ff6081e87bfe52a27f9d8b1bb853daa421d16d19e644"
+   },
+   {
+    "name": "s-solid-stored.jpg",
+    "bytes": 2046,
+    "sha256": "05be17463d270e83a69dd935191788eea94a57ee83b8405a60eacf22c01cc00b",
+    "blake2sp": "de1c1e59e628425a7778a23dbc4e42c5c61bd6e6f88a539dc1c9b195bb55005c"
+   }
+  ]
+ },
+ {
+  "file": "rar5-hash-empty.cbr",
+  "bytes": 192,
+  "sha256": "7de2f521e2e788f1d0cf970639683533e0fe8a48fc24f8e6d8fbae949dee98d4",
+  "method": 0,
+  "dictExp": 0,
+  "filters": [],
+  "solid": false,
+  "hash": "blake2sp",
+  "producer": "rar 7.23 -htb",
+  "entries": [
+   {
+    "name": "z-tiny.jpg",
+    "bytes": 10,
+    "sha256": "6367c1cf813d3e75e37bb7ab9da58d563c98f1ae28abd6227fa07b4b8d21ce4a",
+    "blake2sp": "684802cbd39df22a7962ff6081e87bfe52a27f9d8b1bb853daa421d16d19e644"
+   },
+   {
+    "name": "empty.bin",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "blake2sp": "dd0e891776933f43c7d032b08a917e25741f8aa9a12c12e1cac8801500f2ca4f"
+   }
+  ]
+ }
 ]
