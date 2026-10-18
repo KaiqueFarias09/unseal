@@ -254,6 +254,11 @@ LRF bounds indexed objects, pages, metadata inflation, and expanded zlib
 streams before exposing reflowed content. LRX2 metadata reads are limited to
 the plaintext nested metadata stream; book content is rejected as DRM-protected.
 
+Readium interchange stays in `features/locators/readium/`. Its format adapters
+confirm resource/occurrence and CFI or page evidence, while reuse additionally
+requires matching canonical identity, revision, and profile. Position lists use
+an explicit versioned density policy and bounded eager or session traversal.
+
 Search indexes and durable anchors share the immutable canonical-text identity
 contract in `foundation/text/`. Persisted positions require verified destination
 text and matching identity, occurrence, and extraction profile. PDF profiles

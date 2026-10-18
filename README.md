@@ -29,7 +29,8 @@ document renderer.
 - Common models for metadata, HTML content, stylesheets, images, fonts,
   navigation, covers, and reading order.
 - Format detection, full-text search plus an optional ranked inverted index,
-  reading progression, portable locators, EPUB CFI operations, annotation
+  reading progression, portable locators, Readium Locator interchange and
+  position lists, EPUB CFI operations, annotation
   codecs, and OPDS feed parsing.
 - Pure Dart on the Dart VM, Flutter native targets, and browser JavaScript.
 - Optional web-worker parsing for browser applications.
@@ -573,6 +574,25 @@ the same revision.
 Spatial rectangles use the original page dimensions with a top-left origin;
 rotation is separate metadata. A consumer applies that rotation when mapping
 the source page into its displayed coordinate system.
+
+## Readium locators and position lists
+
+`ReadiumLocator` imports and exports Locator JSON through the bounded
+`readiumLocatorFromJson` and `readiumLocatorToJsonString` APIs. Book and
+BookSession conversions to/from native locators return explicit exact,
+approximate, ambiguous, or unsupported outcomes. EPUB CFIs must confirm the
+addressed href and reading-order occurrence. PDF imports and exports require
+a matching host-supplied document URI; comic locators use the page image href.
+A locator alone does not verify persisted positions across publication revisions.
+
+`ReadiumPositionListBuilder.ofBook` and `.ofSession` generate deterministic
+lists under `unseal.readium.positions/1`: the first position of each reading-order
+occurrence and then every 1024 Unicode scalars, or one position per PDF/comic
+page. Public offsets remain UTF-16. Session builds report coverage and accept
+cancellation; generating a full list can load all text. Limits cap positions
+and cumulative text scans. This profile's density is an Unseal policy.
+See [the Readium contract](doc/readium-locators.md) for units, formulas,
+identity checks, supported mappings, and the independent comparison protocol.
 
 ## ALTO OCR import
 

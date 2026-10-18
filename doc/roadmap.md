@@ -5,7 +5,8 @@ This is the backlog for Unseal, reviewed on October 18, 2026. The
 Structured PDF, indexed search, solid RAR 5 decoding, the JPEG 2000 subset,
 durable annotations, DjVu/ALTO spatial text, EPUB diagnostics, MOBI/AZW3
 sessions, PAGE XML, tiled TIFF/BigTIFF, OPDS 2.0, unsigned 8–16-bit
-JPEG 2000 component grids, and asynchronous EPUB/CBZ/PDF byte sources are
+JPEG 2000 component grids, Readium locators/position lists, hOCR import,
+planar/palette TIFF, RAR5 BLAKE2sp, and asynchronous EPUB/CBZ/PDF byte sources are
 implemented. Remaining
 extensions are listed below.
 
@@ -27,13 +28,12 @@ effect on stored positions.
 
 ### R3. Extend OCR interchange and spatial bindings
 
-Current behavior: DjVu hidden text, ALTO v2/v3/v4, and PAGE XML 2019-07-15
+Current behavior: DjVu hidden text, ALTO v2/v3/v4, hOCR, and PAGE XML 2019-07-15
 expose positioned text, UTF-16 ranges, provenance, confidence, and verified snapshot binding. PDF has
 its own structure and source-anchor contract. TIFF exposes page images.
 
-Pending work: add hOCR import when a consumer needs it, and provide
-verified bindings from OCR sidecars to TIFF or image-only PDF pages using
-host-confirmed identity. PAGE already preserves polygons and nested reading order.
+Pending work: broader hOCR producer coverage and consumer integration of
+the existing host-confirmed snapshot bindings for TIFF or image-only PDF pages. PAGE already preserves polygons and nested reading order.
 OCR execution, queues, storage, and rendering remain consumer responsibilities.
 
 Acceptance: real independently produced OCR sidecars, schema validation where
@@ -63,7 +63,7 @@ state; revisit only with measurements on real files.
 
 | Proposal | Existing contract | Work still needed |
 | --- | --- | --- |
-| Readium locators and position lists | Native text, page, and CFI locators exist; durable anchors layer identity/occurrence/range like Readium's model. | Define supported mappings to Readium locator JSON, progression, and position-list generation. Do not imply that a native locator conforms to Readium. |
+| Readium locators and position lists | Bounded Locator interchange, verified format mappings and deterministic position lists ship under a versioned Unseal density profile. | Additional producer profiles and consumer-driven mappings; preserve resource/occurrence identity and explicit approximation. |
 | W3C annotation exchange | Native bookmark/highlight codecs exist; `W3cAnnotationAdapter` ships the TextQuoteSelector/TextPositionSelector subset with code point/UTF-16 conversions and explicit unsupported-selector reporting. | Broader selector coverage (Range, SVG, data position, fragments), annotation-body serialization, and a consumer-driven decision on preserving versus rejecting unknown fields per direction. |
 
 Choose the adapter boundary and public API from a concrete consumer use case.
@@ -78,7 +78,7 @@ Do not replace the existing contracts solely to match an external schema.
 | DjVu | `FGjp`, `Smmr`, `FGbz` palette colors, chained shared dictionaries, annotations, and `BMKz`. | Replacement visual codecs and chained dictionaries fail typed. Palette recoloring, annotations, thumbnails, and `BMKz` are ignored. Composed output uses a hard mask rather than ddjvu's blended stencil. |
 | TIFF/BigTIFF | Planar raster, palettes, additional sample formats, external JPEG tables, multi-strip JPEG, old JPEG, reversed FillOrder, and further predictors. | Unsupported layouts/codecs fail with typed exceptions. Support must remain bounded before allocation. |
 | PDF/JPEG 2000 | Signed or mixed sample depths, additional progression orders, coding styles, calibrated/ICC color spaces, palettes, and alpha. | The documented Part 1 subset decodes to grayscale/RGB images; unsupported features fail typed. |
-| CBR/RAR5 | BLAKE2sp data-hash verification and RAR 4 PPMd/VM streams. | RAR 5 compression, including bounded solid history, ships: algorithm version 0, methods 1-5, delta/E8/E8-E9/ARM filters, header and data CRC-32 (zero included), dictionaries through 64 MiB, UTF-8 names, eager and session parity, VM and worker execution. Split, encrypted, linked, later-version, and oversized-dictionary records reject typed. |
+| CBR/RAR5 | RAR 4 PPMd/VM streams. | RAR 5 compression, including bounded solid history, ships: algorithm version 0, methods 1-5, delta/E8/E8-E9/ARM filters, header/data CRC-32 (zero included) and declared BLAKE2sp data hashes, dictionaries through 64 MiB, UTF-8 names, eager and session parity, VM and worker execution. Split, encrypted, linked, later-version, and oversized-dictionary records reject typed. |
 | CHM | More codepages, merged help, and full-text index data. | Reading covers supported HTML topics/resources and the documented codepages. |
 | Plucker/eReader | More record and bitmap variants, with independent fixtures. | Existing reading-oriented formatting, resources, links, and navigation remain supported. |
 | RTF and LRF | Richer document fidelity when required by a reading use case. | RTF omits complex layout/images; LRF is reflowed content rather than exact Sony page layout. |
