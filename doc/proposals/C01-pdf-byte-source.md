@@ -142,3 +142,24 @@ object streams), `jbig2_huffman_2.pdf` (xref stream + object streams),
   only if the refusal message text does. `web/unseal_worker.dart` and
   the `byteSource.v1` bridge are reused unchanged; the compiled worker
   must be rebuilt for web lanes.
+
+## Known base limitations discovered (pre-existing, not introduced here)
+
+- Session extraction on dart2js: the first extraction a browser
+  context performs for a synthetic multi-page PDF can return zero
+  lines, and a two-page document fails `loadPdfPageStructure`
+  outright (`Bad state: No element`). Both reproduce on 1.3.0
+  (`BookSession.open` in Chrome on commit `cdd16ac`) and are
+  independent of the byte-source transport; the browser suites pin
+  content parity on pages 2+ and leave the page-1 pin to the VM
+  suites. Recipe: build the proposal's synthetic three-page PDF
+  (`test/web/pdf_source_worker_test.dart`), open it in Chrome, and
+  compare `pageTexts[0]` against the VM result.
+- Reflow degenerate layouts: pages whose lines all sit at the same
+  baseline canonicalize to empty text under the session's sampled
+  plan (VM included). Real fixtures are unaffected; the synthetic
+  builders vary line positions deliberately.
+- The session isolate serves op messages one at a time (platform port
+  batching starves the op port while byte replies drain), so
+  concurrent session ops serialize on the VM isolate path; the inline
+  and loader paths queue them explicitly (`pdfRangeQueuedStepsPeak`).
