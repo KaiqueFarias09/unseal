@@ -202,3 +202,21 @@ between steps: a cancelled build returns the frozen partial list plus
 coverage, leaving the session usable. Disposal fails pending work with the
 session's typed `SessionClosedException`. Two concurrent sessions build
 independently.
+
+## Verification corrections
+
+PDF imports through both Book and BookSession require `documentUri`, supplied
+by the host, equal to the locator href. A CFI must resolve into the same
+reading-order occurrence selected by href and occurrenceHint. Contradictory
+CFI/resource evidence is unsupported. The string codec applies the caller's
+semantic limits as well as its JSON preflight limits.
+
+Position generation caps cumulative canonical UTF-16 text per pass at
+`ReadiumPositionLimits.maxTextCodeUnits` (64 Mi units by default), including
+repeated reading-order occurrences. Anchor storage is checked against the
+remaining position budget during the scalar walk. Coverage callbacks describe
+the positions already emitted for the completed occurrence. Session text
+loading continues to use the session's own decode and cache limits.
+
+Oracle dependencies are installed locally with `npm ci --prefix tool/readium
+--ignore-scripts --no-audit --no-fund`; only the lockfile and drivers are tracked.

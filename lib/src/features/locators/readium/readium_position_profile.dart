@@ -7,6 +7,8 @@
 /// matches it.
 library;
 
+import 'readium_limits.dart';
+
 /// The generation profile every list declares.
 final class ReadiumPositionProfile {
   const ReadiumPositionProfile._({
@@ -40,7 +42,13 @@ final class ReadiumPositionProfile {
   /// surrogate pair is never split.
   ///
   /// Empty text anchors once, at offset 0.
-  List<int> anchorUtf16Offsets(final String text) {
+  List<int> anchorUtf16Offsets(
+    final String text, {
+    final ReadiumPositionLimits limits = const ReadiumPositionLimits(),
+  }) {
+    if (text.length > limits.maxTextCodeUnits) {
+      throw const ReadiumPositionLimitException('Position text scan exceeds its code-unit budget');
+    }
     if (text.isEmpty) return const <int>[0];
 
     final interval = scalarInterval;
@@ -53,6 +61,11 @@ final class ReadiumPositionProfile {
       // The scalar about to start is the boundary anchor: its first code
       // unit is the anchor site, and a surrogate pair never splits.
       if (scalars == nextAnchor) {
+        if (offsets.length >= limits.maxPositions) {
+          throw const ReadiumPositionLimitException(
+            'Position anchors exceed the remaining position budget',
+          );
+        }
         offsets.add(offset);
         nextAnchor += interval;
       }

@@ -43,3 +43,6 @@ tool/reference/node_modules/
 /test/web/unseal_worker.js
 /test/web/unseal_worker.js.deps
 /test/web/unseal_worker.js.map
+
+# Installed oracle packages are reconstructed from the lockfile.
+**/node_modules/

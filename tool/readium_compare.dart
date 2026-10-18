@@ -625,6 +625,7 @@ void _runConversions(
       type: 'application/pdf',
       locations: ReadiumLocations(fragments: const ['page=3']),
     ),
+    documentUri: pdfUri,
   );
   expect(
     'pdf:fragment->page zero-based',
@@ -640,6 +641,7 @@ void _runConversions(
               type: 'application/pdf',
               locations: ReadiumLocations(fragments: [fragment]),
             ),
+            documentUri: pdfUri,
           )
           is ReadiumUnsupported<BookLocator>,
       'RL03: out-of-range fragment $fragment was not refused',
@@ -658,6 +660,7 @@ void _runConversions(
             type: 'application/pdf',
             locations: ReadiumLocations(progression: 0.5),
           ),
+          documentUri: pdfUri,
         )
         is ReadiumApproximate<BookLocator>,
     'RL04: isolated PDF progression did not stay approximate',

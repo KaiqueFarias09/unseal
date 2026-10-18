@@ -77,8 +77,12 @@ extension ReadiumSessionLocatorConversion on BookSession {
   Future<ReadiumConversion<BookLocator>> toBookLocator(
     final ReadiumLocator locator, {
     final int? occurrenceHint,
+    final String? documentUri,
   }) async {
     final book = this.book;
+    if (book is PdfBook || book is ComicBook) {
+      return book.toBookLocator(locator, occurrenceHint: occurrenceHint, documentUri: documentUri);
+    }
     final matches = <int>[
       for (var index = 0; index < book.readingOrder.length; index++)
         if (book.readingOrder[index].name == locator.href) index,
@@ -98,12 +102,24 @@ extension ReadiumSessionLocatorConversion on BookSession {
       );
     }
     final targetIndex = occurrenceHint ?? matches.single;
+    if (!matches.contains(targetIndex)) {
+      return const ReadiumUnsupported(
+        ReadiumUnsupportedReason.foreignResource,
+        detail: 'Occurrence hint does not address the locator href',
+      );
+    }
 
     for (final fragment in locator.locations.fragments) {
       final cfiSource = _decodeCfiFragment(fragment);
       if (cfiSource == null) continue;
 
       final full = await resolveCfi(cfiSource);
+      if (full != null && full.contentIndex != targetIndex) {
+        return const ReadiumUnsupported(
+          ReadiumUnsupportedReason.foreignResource,
+          detail: 'CFI targets a different reading-order occurrence than href',
+        );
+      }
       if (full != null) {
         return ReadiumExact(
           TextLocator(
@@ -121,7 +137,7 @@ extension ReadiumSessionLocatorConversion on BookSession {
       // occurrence, then resolve.
       final composed = _composePartialCfi(cfiSource, targetIndex);
       final resolved = await resolveCfi(composed);
-      if (resolved != null) {
+      if (resolved != null && resolved.contentIndex == targetIndex) {
         return ReadiumExact(
           TextLocator(
             sectionIndex: resolved.contentIndex,
@@ -138,15 +154,6 @@ extension ReadiumSessionLocatorConversion on BookSession {
         TextLocator(sectionIndex: targetIndex, start: 0, end: 0),
         note: 'the CFI fragment does not resolve; the resource is known, the position is not',
       );
-    }
-
-    final pdf = book is PdfBook ? book : null;
-    if (pdf != null) {
-      return book.toBookLocator(locator, occurrenceHint: occurrenceHint);
-    }
-    final comic = book is ComicBook ? book : null;
-    if (comic != null) {
-      return book.toBookLocator(locator, occurrenceHint: occurrenceHint);
     }
 
     final progression = locator.locations.progression;

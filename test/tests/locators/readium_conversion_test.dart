@@ -228,6 +228,7 @@ void main() {
           type: 'application/pdf',
           locations: ReadiumLocations(fragments: ['page=1']),
         ),
+        documentUri: 'https://library.example/books/dickens.pdf',
       );
 
       expect(outcome, isA<ReadiumExact<BookLocator>>());
@@ -244,6 +245,7 @@ void main() {
             type: 'application/pdf',
             locations: ReadiumLocations(fragments: [fragment]),
           ),
+          documentUri: 'https://library.example/books/dickens.pdf',
         );
         expect(outcome, isA<ReadiumUnsupported<BookLocator>>(), reason: fragment);
         expect(
@@ -260,6 +262,7 @@ void main() {
           type: 'application/pdf',
           locations: ReadiumLocations(progression: 0.5),
         ),
+        documentUri: 'https://library.example/books/dickens.pdf',
       );
 
       expect(outcome, isA<ReadiumApproximate<BookLocator>>());

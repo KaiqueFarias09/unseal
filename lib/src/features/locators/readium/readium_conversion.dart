@@ -329,15 +329,29 @@ extension ReadiumBookConversions on Book {
 
   /// Converts a Readium [locator] against this book. [occurrenceHint]
   /// selects the reading-order occurrence when a repeated href alone
-  /// would stay ambiguous.
+  /// would stay ambiguous. PDF imports require a matching host-confirmed
+  /// [documentUri].
   ReadiumConversion<BookLocator> toBookLocator(
     final ReadiumLocator locator, {
     final int? occurrenceHint,
+    final String? documentUri,
   }) {
     // PDF hrefs are the host-confirmed document URI, never a
     // reading-order path; route before the href match.
     final pdf = this is PdfBook ? this as PdfBook : null;
     if (pdf != null) {
+      if (documentUri == null || documentUri.isEmpty) {
+        return const ReadiumUnsupported(
+          ReadiumUnsupportedReason.missingDocumentUri,
+          detail: 'PDF imports need the host-confirmed document URI',
+        );
+      }
+      if (locator.href != documentUri) {
+        return const ReadiumUnsupported(
+          ReadiumUnsupportedReason.foreignResource,
+          detail: 'PDF locator href differs from the host-confirmed document URI',
+        );
+      }
       return _pdfToBookLocator(locator, pdf);
     }
 
@@ -448,6 +462,12 @@ extension ReadiumBookConversions on Book {
       final parsed = EpubCfi.tryParse(cfi);
       if (parsed == null) continue;
       final resolved = epub?.resolveCfi(parsed);
+      if (resolved != null && resolved.contentIndex != targetIndex) {
+        return const ReadiumUnsupported(
+          ReadiumUnsupportedReason.foreignResource,
+          detail: 'CFI targets a different reading-order occurrence than href',
+        );
+      }
       if (resolved != null) {
         return ReadiumExact(
           TextLocator(
@@ -466,7 +486,7 @@ extension ReadiumBookConversions on Book {
       final sectionIndex = targetIndex;
       final composed = EpubCfi.tryParse(_composePartialCfi(cfi, sectionIndex));
       final partialResolved = composed == null ? null : epub?.resolveCfi(composed);
-      if (partialResolved != null) {
+      if (partialResolved != null && partialResolved.contentIndex == targetIndex) {
         return ReadiumExact(
           TextLocator(
             sectionIndex: partialResolved.contentIndex,

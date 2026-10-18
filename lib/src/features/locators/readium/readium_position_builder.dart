@@ -77,7 +77,10 @@ abstract final class ReadiumPositionListBuilder {
   }) {
     final order = book.readingOrder;
     final orderRevision = _orderRevision(order);
-    final textTotal = _sumTextLengths(book);
+    if (order.length > limits.maxPositions) {
+      throw const ReadiumPositionLimitException('Reading order exceeds the position budget');
+    }
+    final textTotal = _sumTextLengths(book, limits);
     var textBefore = 0;
     final occurrences = <SectionOccurrence>[];
     final positions = <ReadiumLocator>[];
@@ -100,7 +103,21 @@ abstract final class ReadiumPositionListBuilder {
 
       final text = _sectionText(book, index);
       final length = text?.length ?? 0;
-      for (final offset in profile.anchorUtf16Offsets(text ?? '')) {
+      if (textBefore + length > limits.maxTextCodeUnits) {
+        throw const ReadiumPositionLimitException(
+          'Position text scan exceeds its code-unit budget',
+        );
+      }
+      if (positions.length >= limits.maxPositions) {
+        throw const ReadiumPositionLimitException('No remaining position budget');
+      }
+      for (final offset in profile.anchorUtf16Offsets(
+        text ?? '',
+        limits: ReadiumPositionLimits(
+          maxPositions: limits.maxPositions - positions.length,
+          maxTextCodeUnits: limits.maxTextCodeUnits,
+        ),
+      )) {
         _emit(
           positions,
           (final oneBased) => _reflowablePosition(
@@ -169,7 +186,11 @@ abstract final class ReadiumPositionListBuilder {
 
     // Lengths pass: the reflowable total must be known before the first
     // anchor carries a global progression. Page-based books skip it.
+    if (order.length > limits.maxPositions) {
+      throw const ReadiumPositionLimitException('Reading order exceeds the position budget');
+    }
     final lengths = List<int>.filled(order.length, 0);
+    var unitsVisited = 0;
     if (comic == null && pdf == null) {
       for (var index = 0; index < order.length; index++) {
         if (cancellation?.isCancelled ?? false) {
@@ -185,6 +206,12 @@ abstract final class ReadiumPositionListBuilder {
         }
 
         lengths[index] = (await _sessionSectionText(session, order[index]))?.length ?? 0;
+        unitsVisited += lengths[index];
+        if (unitsVisited > limits.maxTextCodeUnits) {
+          throw const ReadiumPositionLimitException(
+            'Position text scan exceeds its code-unit budget',
+          );
+        }
       }
     }
     final textTotal = lengths.fold(0, (final sum, final length) => sum + length);
@@ -216,12 +243,14 @@ abstract final class ReadiumPositionListBuilder {
           readingOrderRevision: orderRevision,
         ),
       );
-      final coverage = ReadiumPositionCoverage(
-        occurrencesCompleted: index + 1,
-        occurrencesTotal: order.length,
-        positionsEmitted: positions.length,
-        missingResources: missing,
-        isComplete: index + 1 == order.length,
+      void reportCoverage() => onCoverage?.call(
+        ReadiumPositionCoverage(
+          occurrencesCompleted: index + 1,
+          occurrencesTotal: order.length,
+          positionsEmitted: positions.length,
+          missingResources: missing,
+          isComplete: index + 1 == order.length && missing == 0,
+        ),
       );
 
       if (comic != null) {
@@ -238,7 +267,7 @@ abstract final class ReadiumPositionListBuilder {
           ),
           limits,
         );
-        onCoverage?.call(coverage);
+        reportCoverage();
         continue;
       }
 
@@ -257,14 +286,28 @@ abstract final class ReadiumPositionListBuilder {
           ),
           limits,
         );
-        onCoverage?.call(coverage);
+        reportCoverage();
         continue;
       }
 
       final text = await _sessionSectionText(session, item);
       if (item.isHtml && text == null) missing++;
       final length = text?.length ?? 0;
-      for (final offset in profile.anchorUtf16Offsets(text ?? '')) {
+      if (textBefore + length > limits.maxTextCodeUnits) {
+        throw const ReadiumPositionLimitException(
+          'Position text scan exceeds its code-unit budget',
+        );
+      }
+      if (positions.length >= limits.maxPositions) {
+        throw const ReadiumPositionLimitException('No remaining position budget');
+      }
+      for (final offset in profile.anchorUtf16Offsets(
+        text ?? '',
+        limits: ReadiumPositionLimits(
+          maxPositions: limits.maxPositions - positions.length,
+          maxTextCodeUnits: limits.maxTextCodeUnits,
+        ),
+      )) {
         _emit(
           positions,
           (final oneBased) => _reflowablePosition(
@@ -280,7 +323,7 @@ abstract final class ReadiumPositionListBuilder {
         );
       }
       textBefore += length;
-      onCoverage?.call(coverage);
+      reportCoverage();
     }
 
     return ReadiumPositionBuild(
@@ -433,13 +476,18 @@ abstract final class ReadiumPositionListBuilder {
     ]);
   }
 
-  static int _sumTextLengths(final Book book) {
+  static int _sumTextLengths(final Book book, final ReadiumPositionLimits limits) {
     final filesByPath = <String, TextFile>{for (final file in book.files.html) file.path: file};
     var total = 0;
     for (final section in book.readingOrder) {
       if (!section.isHtml) continue;
       final file = filesByPath[section.name];
       if (file != null) total += documentTextOf(file).length;
+      if (total > limits.maxTextCodeUnits) {
+        throw const ReadiumPositionLimitException(
+          'Position text scan exceeds its code-unit budget',
+        );
+      }
     }
 
     return total;

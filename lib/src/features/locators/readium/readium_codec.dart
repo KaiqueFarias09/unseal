@@ -22,7 +22,11 @@ ReadiumLocator readiumLocatorFromJson(
   final String source, {
   final ReadiumLocatorLimits limits = const ReadiumLocatorLimits(),
 }) {
-  return _decodeBounded(source, limits, _requireLocator);
+  return _decodeBounded(
+    source,
+    limits,
+    (final document) => decodeReadiumLocatorStrict(document, limits: limits),
+  );
 }
 
 /// Parses [source] as a Readium position-list service document
@@ -97,12 +101,6 @@ T _decodeBounded<T>(
         ? const ReadiumLocatorLimitException('Readium payload crosses a declared bound.')
         : const ReadiumLocatorFormatException('Not a structurally valid Readium document');
   }
-}
-
-ReadiumLocator _requireLocator(final Map<Object?, Object?> document) {
-  // The strict decode propagates classified rejections; the surrounding
-  // try/catch turns them into the typed limit/format failures.
-  return decodeReadiumLocatorStrict(document);
 }
 
 /// Counts structure, decoded string lengths, and approximate byte size

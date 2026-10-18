@@ -101,7 +101,11 @@ final class ReadiumLocatorLimits {
 /// Resource bounds for position-list generation.
 final class ReadiumPositionLimits {
   /// Creates a limit set; [maxPositions] must be positive.
-  const ReadiumPositionLimits({this.maxPositions = defaultMaxPositions}) : assert(maxPositions > 0);
+  const ReadiumPositionLimits({
+    this.maxPositions = defaultMaxPositions,
+    this.maxTextCodeUnits = 64 * 1024 * 1024,
+  }) : assert(maxPositions > 0),
+       assert(maxTextCodeUnits > 0);
 
   /// Default cap on emitted positions per list.
   static const int defaultMaxPositions = 100000;
@@ -109,6 +113,9 @@ final class ReadiumPositionLimits {
   /// Cap on emitted positions per list; crossing it fails typed instead of
   /// truncating silently.
   final int maxPositions;
+
+  /// Cumulative canonical UTF-16 units visited per pass, including repeated occurrences.
+  final int maxTextCodeUnits;
 }
 
 /// Base of the Readium feature's typed failures.
