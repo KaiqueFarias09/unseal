@@ -1632,6 +1632,54 @@
       "landmarks": 84
     },
     {
+      "path": "test/resources/page/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 2569,
+      "sha256": "fae30a72b5b4f1184a3c0d117b511c55156290b8258cb14c310817429d3ba53d",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/page/clauren-mimil-1815-0023.xml",
+      "format": "xml-sidecar",
+      "bytes": 55633,
+      "sha256": "8062fcd32e9b29da116e8b94093ce55d009454ed78570c8f6b72c00239e4b003",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/page/hilbert-zahlkoerper-1897-0370.xml",
+      "format": "xml-sidecar",
+      "bytes": 36777,
+      "sha256": "c84a13f642c33cee3eac2fce5c2ea0f3491a7add4583ef6ca78a505e713f5d09",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/page/kant-0017-derived-alternatives.xml",
+      "format": "xml-sidecar",
+      "bytes": 66472,
+      "sha256": "da5a9e759b85650f33549a6d59ac50f05b5e3f62fe4a4a1999561941d24f4e50",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/page/kant-aufklaerung-1784-0017.xml",
+      "format": "xml-sidecar",
+      "bytes": 66159,
+      "sha256": "4a92747331018bdb11244a44854778b59757ed10c39913fa5bad67bf08f937cc",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/page/petrarca-psalmi-1506-0016.xml",
+      "format": "xml-sidecar",
+      "bytes": 12511,
+      "sha256": "cce1e5631350f7eac1558f07d164dc267685a9618c6e3893c889cb7fea59a43d",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
       "path": "test/resources/pdf/dickens-sample.pdf",
       "format": "pdf",
       "bytes": 14946,
@@ -2809,11 +2857,11 @@
     }
   ],
   "counts": {
-    "total": 345,
-    "totalBytes": 89823748,
+    "total": 351,
+    "totalBytes": 90063869,
     "byFormat": {
-      "manifest": 20,
-      "xml-sidecar": 9,
+      "manifest": 21,
+      "xml-sidecar": 14,
       "chm": 4,
       "cbr": 20,
       "cbz": 3,
