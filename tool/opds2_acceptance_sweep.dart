@@ -272,10 +272,7 @@ void main(final List<String> arguments) {
     <Object?, Object?>{
       'id': 'OJ04',
       'verdict': caseVerdict('OJ04', uriLog),
-      'evidenceArtifacts': <String>[
-        _relative(uriLog!),
-        'test/resources/opds/expected/resolution.json',
-      ],
+      'evidenceArtifacts': <String>[_relative(uriLog!), sharedCheckLog],
       'detail':
           'self/pagination/search/acquisition, rel lists, explicit base resolution, templates; no external fetch exists in the API',
     },
