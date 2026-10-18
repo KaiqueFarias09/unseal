@@ -57,7 +57,7 @@ Future<void> main(final List<String> arguments) async {
     failures.add('RL01: the existing locator codec regressed');
   }
   _writeCase('$evidenceDir/cases/rl01-public-api.json', 'RL01', rl01, [
-    'cases/rl01-public-api.json',
+    '$evidenceDir/cases/rl01-public-api.json',
   ], caseArtifacts);
 
   // ---- RL02: toolkit interchange over the pinned corpus ----------------
@@ -97,9 +97,9 @@ Future<void> main(final List<String> arguments) async {
     }
   }
   _writeCase('$evidenceDir/cases/rl02-toolkit-interchange.json', 'RL02', rl02, [
-    'cases/rl02-toolkit-interchange.json',
-    'cases/rl02-reference.json',
-    'cases/rl02-schema-check.json',
+    '$evidenceDir/cases/rl02-toolkit-interchange.json',
+    '$evidenceDir/cases/rl02-reference.json',
+    '$evidenceDir/cases/rl02-schema-check.json',
   ], caseArtifacts);
 
   // ---- RL03 + RL04: conversions over the fixed books -------------------
@@ -107,7 +107,7 @@ Future<void> main(final List<String> arguments) async {
   final rl04 = <String, Object?>{};
   _runConversions(rl03, rl04, failures);
   _writeCase('$evidenceDir/cases/rl03-resource-resolution.json', 'RL03', rl03, [
-    'cases/rl03-resource-resolution.json',
+    '$evidenceDir/cases/rl03-resource-resolution.json',
   ], caseArtifacts);
   _writeCase('$evidenceDir/cases/rl04-outcomes-reuse.json', 'RL04', rl04, [
     'cases/rl04-outcomes-reuse.json',
@@ -126,7 +126,7 @@ Future<void> main(final List<String> arguments) async {
   final rl06 = <String, Object?>{};
   await _runLimitsAndCancellation(rl06, failures);
   _writeCase('$evidenceDir/cases/rl06-limits-cancellation.json', 'RL06', rl06, [
-    'cases/rl06-limits-cancellation.json',
+    '$evidenceDir/cases/rl06-limits-cancellation.json',
   ], caseArtifacts);
 
   // ---- RL07: VM + Chrome suite evidence --------------------------------
@@ -136,7 +136,7 @@ Future<void> main(final List<String> arguments) async {
     final suites = jsonDecode(File(suitesPath).readAsStringSync()) as Map<String, Object?>;
     rl07['suites'] = suites;
     for (final entry in suites.entries) {
-      rl07Artifacts.add('cases/${entry.key}-suite.log');
+      rl07Artifacts.add('$evidenceDir/cases/${entry.key}-suite.log');
       final record = entry.value as Map<String, Object?>;
       if (record['exit'] != 0) {
         failures.add('RL07: ${entry.key} suite exited ${record['exit']}');
@@ -164,7 +164,7 @@ Future<void> main(final List<String> arguments) async {
       if (report['parity'] != true) {
         failures.add('RL08: benchmark parity broken in $name');
       }
-      rl08Artifacts.add(name);
+      rl08Artifacts.add('$evidenceDir/$name');
     } else {
       failures.add('RL08: benchmark artifact missing: $name');
     }
@@ -812,8 +812,8 @@ void _comparePositions(
         '${const JsonEncoder.withIndent('  ').convert(evidenceJson)}\n',
       );
       artifacts
-        ..add('positions-$kind.json')
-        ..add('positions-$kind-evidence.json');
+        ..add('$evidenceDir/positions-$kind.json')
+        ..add('$evidenceDir/positions-$kind-evidence.json');
 
       final reportFile = File('$evidenceDir/verifier-$kind.json');
       final verifier = Process.runSync(python, [
@@ -827,7 +827,7 @@ void _comparePositions(
         '--report',
         reportFile.path,
       ]);
-      artifacts.add('verifier-$kind.json');
+      artifacts.add('$evidenceDir/verifier-$kind.json');
       if (verifier.exitCode != 0) {
         failures.add(
           'position case $kind: independent verifier failed '
