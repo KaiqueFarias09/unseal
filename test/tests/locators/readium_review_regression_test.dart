@@ -78,6 +78,10 @@ void main() {
     expect(book.toBookLocator(locator), isA<ReadiumUnsupported<BookLocator>>());
     final session = await BookSession.open(bytes);
     addTearDown(session.dispose);
+    final direct = await session.toReadiumLocator(CfiLocator(cfi));
+    expect(direct, isA<ReadiumExact<ReadiumLocator>>());
+    expect((direct as ReadiumExact<ReadiumLocator>).locator.href, 'b.xhtml');
+    expect(direct.locator.locations.fragments, [cfi]);
     expect(await session.toBookLocator(locator), isA<ReadiumUnsupported<BookLocator>>());
     expect(
       await session.toBookLocator(

@@ -66,7 +66,22 @@ extension ReadiumSessionLocatorConversion on BookSession {
       case final PageLocator page:
         return book.toReadiumLocator(page, documentUri: documentUri);
       case final CfiLocator cfi:
-        return book.toReadiumLocator(cfi);
+        if (book is! EpubBook) return book.toReadiumLocator(cfi);
+        final resolved = await resolveCfi(cfi.cfi);
+        if (resolved == null) {
+          return const ReadiumUnsupported(
+            ReadiumUnsupportedReason.unresolvedFragment,
+            detail: 'The CFI does not resolve against this session',
+          );
+        }
+        return ReadiumExact(
+          ReadiumLocator(
+            href: resolved.contentPath,
+            type: readiumMediaTypeOf(book, resolved.contentIndex),
+            locations: ReadiumLocations(fragments: [cfi.cfi]),
+          ),
+          evidence: 'Session transport resolved the CFI to occurrence ${resolved.contentIndex}',
+        );
     }
   }
 

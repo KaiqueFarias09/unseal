@@ -128,6 +128,9 @@ void main() {
     expect(locator.href, 'chapter.xhtml');
     expect(locator.locations.fragments.single, startsWith('epubcfi('));
 
+    final direct = await session.toReadiumLocator(CfiLocator(locator.locations.fragments.single));
+    expect(direct, isA<ReadiumExact<ReadiumLocator>>());
+    expect((direct as ReadiumExact<ReadiumLocator>).locator.href, locator.href);
     final foreignOccurrence = await session.toBookLocator(locator, occurrenceHint: 1);
     expect(foreignOccurrence, isA<ReadiumUnsupported<BookLocator>>());
     final back = await session.toBookLocator(locator);
