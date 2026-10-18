@@ -33,7 +33,8 @@ Uint8List spacedPdfRangeFixture({final bool indirectFilter = false}) {
       );
     }
     for (var page = 0; page < 22; page++) {
-      final content = 'BT /F1 12 Tf 72 720 Td (Content page ${String.fromCharCode(65 + page)}) Tj ET';
+      final content =
+          'BT /F1 12 Tf 72 720 Td (Content page ${String.fromCharCode(65 + page)}) Tj ET';
       objects[26 + page] = text('<< /Length ${content.length} >>\nstream\n$content\nendstream');
     }
   }
