@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import '../../foundation/entities/entities.dart';
-import '../../foundation/images/bmp_encoder.dart';
 import '../../foundation/images/image_dimensions.dart';
 import '../../foundation/images/image_type_sniffer.dart';
 import 'tiff_book.dart';
@@ -15,10 +14,11 @@ import 'tiff_page_decoder.dart';
 ///
 /// Supported codecs are explicit — baseline none, PackBits, LZW and
 /// Deflate (with horizontal differencing), CCITT modified Huffman,
-/// Group 3, and Group 4, plus single self-contained JPEG strips — and
-/// everything else fails with [TiffUnsupportedCodecException]. Malformed
-/// or excessive input fails with [TiffException] before any allocation
-/// its declared sizes would trigger.
+/// Group 3, and Group 4 in strips or tiles, plus single self-contained
+/// JPEG strips — and everything else fails with
+/// [TiffUnsupportedCodecException]. Malformed or excessive input fails
+/// with [TiffException] before any allocation its declared sizes would
+/// trigger.
 TiffBook parseTiffBook(final Uint8List bytes) {
   final container = _openContainer(bytes);
   final budget = TiffDecodeBudget();
@@ -35,9 +35,7 @@ TiffBook parseTiffBook(final Uint8List bytes) {
         height: image.height,
         dpi: image.dpi,
         image: BinaryFile(
-          content: isJpeg
-              ? image.jpeg!
-              : encodeRgb24Bmp(width: image.width, height: image.height, rgb: image.rgb!),
+          content: isJpeg ? image.jpeg! : image.bmp!,
           name: 'page-$pageNumber.$extension',
           type: extension,
           path: 'images/page-$pageNumber.$extension',

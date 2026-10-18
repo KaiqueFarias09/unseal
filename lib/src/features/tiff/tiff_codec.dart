@@ -129,21 +129,111 @@ Uint8List decodeTiffSegment(
   }
 }
 
-/// Decodes a Deflate/AdobeDeflate strip and validates the size.
+/// Decodes a Deflate/AdobeDeflate segment into exactly [expectedBytes].
+///
+/// Inflation writes straight into a buffer of the segment's footprint and
+/// stops the moment it is full, the way libtiff's `ZIPDecode` stops at
+/// the strip size: a stream that would expand far past its geometry never
+/// gets the chance to, and trailing bytes after the footprint are ignored.
 Uint8List _decodeTiffDeflate(final Uint8List encoded, {required final int expectedBytes}) {
-  final Uint8List decoded;
+  final sink = _TiffInflateSink(expectedBytes);
   try {
-    decoded = Uint8List.fromList(const ZLibDecoder().decodeBytes(encoded));
-  } on FormatException catch (error) {
-    throw TiffException('TIFF Deflate strip failed to decompress: ${error.message}.');
+    const ZLibDecoder().decodeStream(InputMemoryStream(encoded), sink);
+  } on _TiffSegmentFilled {
+    return sink.bytes;
+  } on TiffException {
+    rethrow;
+  } on Object catch (error) {
+    throw TiffException('TIFF Deflate strip failed to decompress: ${error.runtimeType}.');
   }
-  if (decoded.length < expectedBytes) {
+  if (sink.length < expectedBytes) {
     throw TiffException(
-      'TIFF Deflate strip decompressed to ${decoded.length} bytes; '
+      'TIFF Deflate strip decompressed to ${sink.length} bytes; '
       'its geometry needs $expectedBytes.',
     );
   }
-  return Uint8List.sublistView(decoded, 0, expectedBytes);
+  return sink.bytes;
+}
+
+/// Raised by [_TiffInflateSink] once the footprint is full, so inflation
+/// ends without visiting the rest of the stream.
+final class _TiffSegmentFilled implements Exception {
+  const _TiffSegmentFilled();
+}
+
+/// An inflation sink pre-sized to one segment footprint. Writes past the
+/// footprint are cut; reaching it ends the decode through
+/// [_TiffSegmentFilled].
+final class _TiffInflateSink extends OutputStream {
+  _TiffInflateSink(this.capacity)
+    : bytes = Uint8List(capacity),
+      super(byteOrder: ByteOrder.littleEndian);
+
+  /// The segment footprint.
+  final int capacity;
+
+  /// The decoded bytes; complete once [length] reaches [capacity].
+  final Uint8List bytes;
+
+  @override
+  int length = 0;
+
+  void _stopWhenFull() {
+    if (length >= capacity) throw const _TiffSegmentFilled();
+  }
+
+  @override
+  void writeByte(final int value) {
+    _stopWhenFull();
+    bytes[length++] = value;
+    _stopWhenFull();
+  }
+
+  @override
+  void writeBytes(final List<int> bytes, {final int? length}) {
+    _stopWhenFull();
+    final count = length ?? bytes.length;
+    final take = count < capacity - this.length ? count : capacity - this.length;
+    this.bytes.setRange(this.length, this.length + take, bytes);
+    this.length += take;
+    _stopWhenFull();
+  }
+
+  @override
+  void writeStream(final InputStream stream) => writeBytes(stream.toUint8List());
+
+  @override
+  void writeBackReference(final int distance, final int count) {
+    _stopWhenFull();
+    if (distance <= 0 || distance > length) {
+      throw const TiffException('TIFF Deflate strip references data before its start.');
+    }
+    final take = count < capacity - length ? count : capacity - length;
+    final source = length - distance;
+    if (distance >= take) {
+      bytes.setRange(length, length + take, bytes, source);
+    } else {
+      for (var index = 0; index < take; index++) {
+        bytes[length + index] = bytes[source + index];
+      }
+    }
+    length += take;
+    _stopWhenFull();
+  }
+
+  @override
+  void clear() => length = 0;
+
+  @override
+  void flush() {}
+
+  @override
+  Uint8List subset(int start, [int? end]) {
+    if (start < 0) start = length + start;
+    end ??= length;
+    if (end < 0) end = length + end;
+    return Uint8List.sublistView(bytes, start, end);
+  }
 }
 
 /// Decodes one CCITT strip through the strict decoder and validates
@@ -379,16 +469,14 @@ TiffCcittPlan tiffCcittPlan({
         ),
       );
     case tiffCompressionCcittG4:
-      if (t6Options & 0x1 != 0) {
+      // T6Options bit 1 (0x2) allows the uncompressed-mode extension;
+      // bit 0 is reserved. Group 4 rows are never byte aligned.
+      if (t6Options & 0x2 != 0) {
         throw const TiffUnsupportedCodecException(
-          'TIFF Group 4 page declares the uncompressed-mode extension (T6Options bit 0).',
+          'TIFF Group 4 page declares the uncompressed-mode extension (T6Options bit 1).',
         );
       }
-      return TiffCcittPlan(
-        mode: TiffCcittMode.g4,
-        byteAlignedRows: t6Options & 0x2 != 0,
-        endOfLine: false,
-      );
+      return const TiffCcittPlan(mode: TiffCcittMode.g4, byteAlignedRows: false, endOfLine: false);
     default:
       throw TiffUnsupportedCodecException(
         'TIFF page needs the unsupported ${tiffCompressionName(compression)} codec.',
@@ -412,22 +500,36 @@ void requireSelfContainedTiffJpeg(final Uint8List encoded, {required final int s
 }
 
 /// Applies TIFF horizontal differencing (Predictor 2) over a decoded
-/// segment in place.
-///
-/// Byte-wise accumulation with the already-accumulated left neighbor
-/// is carry-correct for every byte-aligned sample size (8 and 16 bit),
-/// in both byte orders. Non-byte-aligned depths never reach here; the
-/// page decoder rejects them typed.
+/// segment in place, the way libtiff's `horAcc8`/`horAcc16` do: every
+/// sample adds the same channel of the pixel to its left, modulo the
+/// sample width. 16-bit samples accumulate as words in the file byte
+/// order, so a carry from the low byte reaches the high byte; a
+/// byte-wise sum would silently drop it. Non-byte-aligned depths never
+/// reach here; the page decoder rejects them typed.
 void applyTiffPredictor(
   final Uint8List data, {
   required final int rows,
   required final int rowBytes,
-  required final int sampleBytes,
+  required final int samplesPerPixel,
+  required final int bytesPerSample,
+  required final Endian endian,
 }) {
+  final stride = samplesPerPixel * bytesPerSample;
+  if (bytesPerSample == 1) {
+    for (var row = 0; row < rows; row++) {
+      final base = row * rowBytes;
+      for (var index = base + stride; index < base + rowBytes; index++) {
+        data[index] = (data[index] + data[index - stride]) & 0xFF;
+      }
+    }
+    return;
+  }
+  final view = ByteData.sublistView(data);
   for (var row = 0; row < rows; row++) {
     final base = row * rowBytes;
-    for (var index = base + sampleBytes; index < base + rowBytes; index++) {
-      data[index] = (data[index] + data[index - sampleBytes]) & 0xFF;
+    for (var index = base + stride; index + 1 < base + rowBytes; index += 2) {
+      final sum = view.getUint16(index, endian) + view.getUint16(index - stride, endian);
+      view.setUint16(index, sum & 0xFFFF, endian);
     }
   }
 }

@@ -55,7 +55,7 @@ void main() {
       'rgb-packbits.tif': ['2fd30770f6c2eca0e5bd5449c737803eb00ce89484411d87b853a414a2313357'],
       'rgb-lzw-predictor.tif': ['2fd30770f6c2eca0e5bd5449c737803eb00ce89484411d87b853a414a2313357'],
       'gray16-deflate-predictor.tif': [
-        '30b38e52b2e7a1933c885189e28f595b2eabd9c2abc5a72f519da3bef0a0f1bb',
+        '8e8f5a904fa343524f9b92c8e891ca5b695b1f8449e8d8d0a9acf11683191a59',
       ],
       'g4-text-2page-be.tif': [
         'cc92122824b4596f61f2e4a3bca0dfb345fe445665aec0c07c1a573285be34e3',
@@ -81,9 +81,20 @@ void main() {
     final bmp = page.image.content;
     // BMP rows are bottom-up: the file's first pixel is the image's
     // bottom-left corner, ramp v = (0*13 + 63*97) = 6111 → 6111 >> 8 = 23.
-    expect(bmp[bmpHeaderBytesOf(bmp)], 23);
-    // The Predictor-2 inversion is verified through the golden hash.
-    _expectGolden(book, const ['30b38e52b2e7a1933c885189e28f595b2eabd9c2abc5a72f519da3bef0a0f1bb']);
+    final header = bmpHeaderBytesOf(bmp);
+    expect(bmp[header], 23);
+    // Every pixel follows the generator ramp `(x*13 + y*97) & 0xFFFF`
+    // reduced to its high byte. The +13 steps cross a byte boundary every
+    // ~20 pixels, so a predictor that summed bytes instead of 16-bit words
+    // would lose the carry (x=20, row 0: 260 → 1, not 0).
+    final stride = bmpRowBytesOf(bmp);
+    for (var y = 0; y < 64; y++) {
+      for (var x = 0; x < 96; x++) {
+        final expected = ((x * 13 + y * 97) & 0xFFFF) >> 8;
+        expect(bmp[header + (63 - y) * stride + x * 3], expected, reason: 'pixel ($x, $y)');
+      }
+    }
+    _expectGolden(book, const ['8e8f5a904fa343524f9b92c8e891ca5b695b1f8449e8d8d0a9acf11683191a59']);
   });
 
   test('decodes real libtiff images against their PBM/PGM oracles', () {

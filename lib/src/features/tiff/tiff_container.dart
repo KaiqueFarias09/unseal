@@ -24,10 +24,14 @@ final class TiffIfdEntry {
 
 /// One image file directory: the tags of a single TIFF page.
 final class TiffIfd {
-  TiffIfd._(this.offset, this.entries);
+  TiffIfd._(this.offset, this.entries, this.tableBytes);
 
   /// The file offset of this directory.
   final int offset;
+
+  /// The byte length of the directory table itself: entry count, entries,
+  /// and the next-IFD pointer. Image data never lives inside it.
+  final int tableBytes;
 
   final Map<int, TiffIfdEntry> _byTag = {};
 
@@ -36,8 +40,6 @@ final class TiffIfd {
 
   /// The entry for [tag], when present.
   TiffIfdEntry? operator [](final int tag) => _byTag[tag];
-
-  /// Every entry of this directory, in file order.
 
   void _index() {
     for (final entry in entries) {
@@ -186,6 +188,9 @@ final class TiffContainer {
   /// Whether the file uses 64-bit BigTIFF offsets.
   late bool isBigTiff;
 
+  /// The byte length of the file header (8 classic, 16 BigTIFF).
+  int get headerBytes => isBigTiff ? 16 : 8;
+
   /// The offset of the first IFD.
   late int firstIfdOffset;
 
@@ -235,12 +240,14 @@ final class TiffContainer {
       }
       final headerBytes = isBigTiff ? 8 : 2;
       final entryBytes = isBigTiff ? 20 : 12;
+      final pointerBytes = isBigTiff ? 8 : 4;
       requireTiffRange(bytes, offset, headerBytes + count * entryBytes);
       final entries = <TiffIfdEntry>[
         for (var index = 0; index < count; index++)
           _readEntry(offset + headerBytes + index * entryBytes),
       ];
-      final ifd = TiffIfd._(offset, entries).._index();
+      final tableBytes = headerBytes + count * entryBytes + pointerBytes;
+      final ifd = TiffIfd._(offset, entries, tableBytes).._index();
       directories.add(ifd);
       final nextPosition = offset + headerBytes + count * entryBytes;
       offset = isBigTiff

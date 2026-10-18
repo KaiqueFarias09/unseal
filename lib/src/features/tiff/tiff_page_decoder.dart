@@ -11,7 +11,7 @@ import 'tiff_limits.dart';
 /// posture).
 const _maxJpegBytes = 32 * 1024 * 1024;
 
-/// The decoded visual content of one TIFF page: an RGB raster, or the
+/// The decoded visual content of one TIFF page: a BMP raster, or the
 /// original JPEG bytes when the page passes through.
 final class TiffPageImage {
   /// Creates a raster page.
@@ -19,7 +19,7 @@ final class TiffPageImage {
     required this.width,
     required this.height,
     required this.dpi,
-    required Uint8List this.rgb,
+    required Uint8List this.bmp,
   }) : jpeg = null;
 
   /// Creates a JPEG passthrough page.
@@ -28,7 +28,7 @@ final class TiffPageImage {
     required this.height,
     required this.dpi,
     required Uint8List this.jpeg,
-  }) : rgb = null;
+  }) : bmp = null;
 
   /// Page geometry in pixels.
   final int width;
@@ -39,14 +39,14 @@ final class TiffPageImage {
   /// Horizontal resolution in dots per inch (0 when undeclared).
   final int dpi;
 
-  /// Top-down row-major RGB888 raster for raster pages.
-  final Uint8List? rgb;
+  /// The 24-bit BMP (top-left orientation) for raster pages.
+  final Uint8List? bmp;
 
   /// The self-contained JPEG stream for passthrough pages.
   final Uint8List? jpeg;
 }
 
-/// The compression ids whose strips decode to a byte-aligned raster.
+/// The compression ids whose segments decode to a byte-aligned raster.
 const _rasterCompressions = <int>{
   tiffCompressionNone,
   tiffCompressionCcittModifiedHuffman,
@@ -142,6 +142,12 @@ TiffPageImage decodeTiffPage(
   if (bits < 8 && samplesPerPixel > 1) {
     throw const TiffException('TIFF sub-byte samples must be single-sample.');
   }
+  if (_optionalUint(container, ifd, 266, fallback: 1) == 2) {
+    throw const TiffUnsupportedCodecException(
+      'TIFF page uses reversed bit fill order (FillOrder 2), not decoded.',
+    );
+  }
+  final orientation = _orientation(container, ifd);
 
   final dpi = _pageDpi(container, ifd);
   return _rasterizePage(
@@ -154,6 +160,7 @@ TiffPageImage decodeTiffPage(
     photometric: photometric,
     compression: compression,
     predictor: predictor,
+    orientation: orientation,
     dpi: dpi,
     budget: budget,
   );
@@ -179,14 +186,31 @@ int _bitsPerSample(final TiffContainer container, final TiffIfd ifd, final int s
   return values.first;
 }
 
+/// Accepts SampleFormat 1 (unsigned) and 4 (void): libtiff reads both as
+/// plain integer samples, and `tiffcp` emits 4 for files carrying the
+/// obsolete SGI DataType tag.
 void _requireUintSampleFormat(final TiffContainer container, final TiffIfd ifd) {
   final entry = ifd[339];
   if (entry == null) return;
   for (final value in container.readUintList(entry)) {
-    if (value != 1) {
+    if (value != 1 && value != 4) {
       throw TiffUnsupportedCodecException('TIFF page uses the unsupported SampleFormat $value.');
     }
   }
+}
+
+/// Reads Orientation (274): 1-4 are honored by flipping the finished
+/// raster, 5-8 (transposed) fail typed, and values libtiff ignores as
+/// invalid fall back to top-left the way libtiff does.
+int _orientation(final TiffContainer container, final TiffIfd ifd) {
+  final value = _optionalUint(container, ifd, 274, fallback: 1);
+  if (value >= 5 && value <= 8) {
+    throw TiffUnsupportedCodecException(
+      'TIFF page uses the transposed Orientation $value, which the display '
+      'raster does not decode.',
+    );
+  }
+  return value >= 1 && value <= 4 ? value : 1;
 }
 
 int _pageDpi(final TiffContainer container, final TiffIfd ifd) {
@@ -240,21 +264,61 @@ List<int> _requiredUintList(
   return container.readUintList(entry);
 }
 
-/// Validates one segment (strip or tile) byte range against the file
-/// bounds before any view or buffer is created.
-void _validateSegmentRange(
-  final TiffContainer container, {
-  required final int offset,
-  required final int byteCount,
-  required final int index,
+/// Reads a tile address array, falling back to the strip tag when the
+/// tile tag is absent: libtiff stores both pairs in one field, and the
+/// Silicon Graphics Image Library wrote tiled files with the strip tags.
+List<int> _tileSegmentList(
+  final TiffContainer container,
+  final TiffIfd ifd, {
+  required final int tileTag,
+  required final int stripTag,
+  required final String label,
 }) {
-  if (offset < 0 || byteCount <= 0) {
-    throw TiffException('TIFF segment $index declares an invalid offset or byte count.');
+  final entry = ifd[tileTag] ?? ifd[stripTag];
+  if (entry == null) {
+    throw TiffException('TIFF tiled page is missing the $label tag.');
   }
-  if (offset > container.bytes.length || byteCount > container.bytes.length - offset) {
-    throw TiffException(
-      'TIFF segment $index ($offset + $byteCount bytes) lies beyond the file bounds.',
-    );
+  return container.readUintList(entry);
+}
+
+/// Validates every segment (strip or tile) address of one page before any
+/// buffer exists: file bounds, no overlap with the file header or the
+/// page's own directory table, and no overlap between segments.
+void _validateSegmentLayout(
+  final TiffContainer container,
+  final TiffIfd ifd,
+  final List<int> offsets,
+  final List<int> byteCounts,
+) {
+  final fileLength = container.bytes.length;
+  final tableStart = ifd.offset;
+  final tableEnd = ifd.offset + ifd.tableBytes;
+  for (var index = 0; index < offsets.length; index++) {
+    final offset = offsets[index];
+    final byteCount = byteCounts[index];
+    if (offset < 0 || byteCount <= 0) {
+      throw TiffException('TIFF segment $index declares an invalid offset or byte count.');
+    }
+    if (offset > fileLength || byteCount > fileLength - offset) {
+      throw TiffException(
+        'TIFF segment $index ($offset + $byteCount bytes) lies beyond the file bounds.',
+      );
+    }
+    if (offset < container.headerBytes) {
+      throw TiffException('TIFF segment $index overlaps the file header.');
+    }
+    if (offset < tableEnd && byteCount > tableStart - offset) {
+      throw TiffException('TIFF segment $index overlaps its own directory table.');
+    }
+  }
+  final order = List<int>.generate(offsets.length, (final index) => index)
+    ..sort((final a, final b) => offsets[a].compareTo(offsets[b]));
+  for (var position = 1; position < order.length; position++) {
+    final previous = order[position - 1];
+    final current = order[position];
+    if (byteCounts[previous] > offsets[current] - offsets[previous]) {
+      throw TiffException('TIFF segments $previous and $current overlap.');
+    }
   }
 }
 
@@ -265,7 +329,7 @@ TiffPageImage _decodeJpegPage(
   required final int height,
   required final TiffDecodeBudget budget,
 }) {
-  if (ifd[322] != null) {
+  if (ifd[322] != null || ifd[323] != null) {
     throw const TiffUnsupportedCodecException(
       'TIFF JPEG page is tiled; tiled JPEG is not decoded.',
     );
@@ -289,7 +353,7 @@ TiffPageImage _decodeJpegPage(
       'JPEGTables tag; abbreviated strip streams are not decoded.',
     );
   }
-  _validateSegmentRange(container, offset: offset, byteCount: byteCount, index: 0);
+  _validateSegmentLayout(container, ifd, offsets, byteCounts);
   final encoded = Uint8List.sublistView(container.bytes, offset, offset + byteCount);
   requireSelfContainedTiffJpeg(encoded, strips: 1);
   budget.reserve(pixels: 0, rasterBytes: encoded.length);
@@ -318,19 +382,23 @@ TiffPageImage _rasterizePage(
   required final int photometric,
   required final int compression,
   required final int predictor,
+  required final int orientation,
   required final int dpi,
   required final TiffDecodeBudget budget,
 }) {
-  final isTiled = ifd[322] != null;
+  final isTiled = ifd[322] != null || ifd[323] != null;
   final sampleBytes = samplesPerPixel * (bits ~/ 8);
-  final rowBytes = bits >= 8 ? width * sampleBytes : (width * bits * samplesPerPixel + 7) ~/ 8;
+  int rowBytesFor(final int pixels) =>
+      bits >= 8 ? pixels * sampleBytes : (pixels * bits * samplesPerPixel + 7) ~/ 8;
+  final rowBytes = rowBytesFor(width);
 
+  // The page is a grid of segments: tiles, or strips as a one-column grid.
   final List<int> segmentOffsets;
   final List<int> segmentByteCounts;
-  var segmentsAcross = 1;
-  var segmentsDown = 1;
-  var segmentRows = height;
-  var segmentRowBytes = rowBytes;
+  final int segmentsAcross;
+  final int segmentsDown;
+  final int segmentRows;
+  final int segmentWidth;
   if (isTiled) {
     final tileWidth = _requiredUint(container, ifd, 322, 'TileWidth');
     final tileLength = _requiredUint(container, ifd, 323, 'TileLength');
@@ -340,25 +408,42 @@ TiffPageImage _rasterizePage(
         tileLength > tiffMaxPagePixels) {
       throw const TiffException('Invalid TIFF tile dimensions.');
     }
+    if (tileWidth * tileLength > tiffMaxPagePixels) {
+      throw const TiffException('TIFF tile exceeds the 256-megapixel limit.');
+    }
     segmentsAcross = (width + tileWidth - 1) ~/ tileWidth;
     segmentsDown = (height + tileLength - 1) ~/ tileLength;
     segmentRows = tileLength;
-    segmentRowBytes = bits >= 8
-        ? tileWidth * sampleBytes
-        : (tileWidth * bits * samplesPerPixel + 7) ~/ 8;
-    segmentOffsets = _requiredUintList(container, ifd, 324, 'TileOffsets');
-    segmentByteCounts = _requiredUintList(container, ifd, 325, 'TileByteCounts');
+    segmentWidth = tileWidth;
+    segmentOffsets = _tileSegmentList(
+      container,
+      ifd,
+      tileTag: 324,
+      stripTag: 273,
+      label: 'TileOffsets',
+    );
+    segmentByteCounts = _tileSegmentList(
+      container,
+      ifd,
+      tileTag: 325,
+      stripTag: 279,
+      label: 'TileByteCounts',
+    );
   } else {
     final declaredRowsPerStrip = _optionalUint(container, ifd, 278, fallback: height);
     if (declaredRowsPerStrip < 1) {
       throw const TiffException('TIFF RowsPerStrip must be positive.');
     }
     segmentRows = declaredRowsPerStrip > height ? height : declaredRowsPerStrip;
+    segmentsAcross = 1;
+    segmentsDown = (height + segmentRows - 1) ~/ segmentRows;
+    segmentWidth = width;
     segmentOffsets = _requiredUintList(container, ifd, 273, 'StripOffsets');
     segmentByteCounts = _requiredUintList(container, ifd, 279, 'StripByteCounts');
   }
+  final segmentRowBytes = rowBytesFor(segmentWidth);
 
-  final segmentCount = isTiled ? segmentsAcross * segmentsDown : _stripCount(height, segmentRows);
+  final segmentCount = segmentsAcross * segmentsDown;
   if (segmentCount > tiffMaxSegmentsPerPage) {
     throw const TiffException('TIFF page exceeds the strip count limit.');
   }
@@ -368,139 +453,100 @@ TiffPageImage _rasterizePage(
       '${segmentByteCounts.length} byte counts for $segmentCount segments.',
     );
   }
+  _validateSegmentLayout(container, ifd, segmentOffsets, segmentByteCounts);
 
-  final expectedSegmentBytes = segmentRows * segmentRowBytes;
-  final rasterBytes = rowBytes * height;
+  // Every tile decodes at its full footprint; only the last strip is
+  // shorter. The budget takes the kept BMP, then the live scratch (RGB
+  // conversion plus the decoded segment, which LZW and PackBits hold
+  // twice while their chunks are joined), then the total decode work,
+  // each before the matching allocation.
+  final segmentBytes = segmentRows * segmentRowBytes;
+  final rgbBytes = width * height * 3;
   final bmpBytes = bmpHeaderBytes + bmpRowStride(width) * height;
-  budget.reserve(pixels: width * height, rasterBytes: rasterBytes + bmpBytes);
+  budget.reserve(pixels: width * height, rasterBytes: bmpBytes);
+  final scratchCopies = switch (compression) {
+    tiffCompressionNone => predictor == 2 ? 1 : 0,
+    tiffCompressionLzw || tiffCompressionPackbits => 2,
+    _ => 1,
+  };
+  final scratchBytes = rgbBytes + segmentBytes * scratchCopies;
+  budget.reserveScratch(scratchBytes);
+  budget.reserveWork(isTiled ? segmentCount * segmentBytes : rowBytes * height);
 
-  final rgb = Uint8List(width * height * 3);
+  final rgb = Uint8List(rgbBytes);
   final isCcitt =
       compression == tiffCompressionCcittModifiedHuffman ||
       compression == tiffCompressionCcittG3 ||
       compression == tiffCompressionCcittG4;
+  final ccittPlan = isCcitt
+      ? tiffCcittPlan(
+          compression: compression,
+          t4Options: _optionalUint(container, ifd, 292, fallback: 0),
+          t6Options: _optionalUint(container, ifd, 293, fallback: 0),
+          fillOrder: _optionalUint(container, ifd, 266, fallback: 1),
+        )
+      : null;
 
   for (var segment = 0; segment < segmentCount; segment++) {
     final offset = segmentOffsets[segment];
     final byteCount = segmentByteCounts[segment];
-    _validateSegmentRange(container, offset: offset, byteCount: byteCount, index: segment);
     final encoded = Uint8List.sublistView(container.bytes, offset, offset + byteCount);
-
-    final expectedBytes = isTiled || segment + 1 < segmentCount
-        ? expectedSegmentBytes
-        : (height - (segmentCount - 1) * segmentRows) * segmentRowBytes;
-    final ccittPlan = isCcitt
-        ? tiffCcittPlan(
-            compression: compression,
-            t4Options: _optionalUint(container, ifd, 292, fallback: 0),
-            t6Options: _optionalUint(container, ifd, 293, fallback: 0),
-            fillOrder: _optionalUint(container, ifd, 266, fallback: 1),
-          )
-        : null;
-    final decoded = decodeTiffSegment(
+    final gridRow = segment ~/ segmentsAcross;
+    final gridColumn = segment % segmentsAcross;
+    final rowStart = gridRow * segmentRows;
+    final columnStart = gridColumn * segmentWidth;
+    final rows = isTiled || segmentRows < height - rowStart ? segmentRows : height - rowStart;
+    final expectedBytes = rows * segmentRowBytes;
+    var decoded = decodeTiffSegment(
       encoded,
       compression: compression,
       expectedBytes: expectedBytes,
       ccittPlan: ccittPlan,
-      ccittColumns: isCcitt ? width : 0,
-      ccittRowBytes: isCcitt ? (width + 7) ~/ 8 : 1,
+      ccittColumns: isCcitt ? segmentWidth : 0,
+      ccittRowBytes: isCcitt ? segmentRowBytes : 1,
     );
     if (predictor == 2) {
+      // Uncompressed segments are views of the source; differencing must
+      // not write into the bytes the book keeps.
+      if (compression == tiffCompressionNone) decoded = Uint8List.fromList(decoded);
       applyTiffPredictor(
         decoded,
-        rows: expectedBytes ~/ segmentRowBytes,
+        rows: rows,
         rowBytes: segmentRowBytes,
-        sampleBytes: sampleBytes,
+        samplesPerPixel: samplesPerPixel,
+        bytesPerSample: bits ~/ 8,
+        endian: container.endian,
       );
     }
-
-    if (isTiled) {
-      final tileRow = segment ~/ segmentsAcross;
-      final tileColumn = segment % segmentsAcross;
-      _copyTile(
+    final visibleRows = rows < height - rowStart ? rows : height - rowStart;
+    final visibleColumns = segmentWidth < width - columnStart ? segmentWidth : width - columnStart;
+    for (var row = 0; row < visibleRows; row++) {
+      _unpackSamples(
         decoded,
+        row * segmentRowBytes,
         rgb,
-        tileRow: tileRow,
-        tileColumn: tileColumn,
-        segmentRowBytes: segmentRowBytes,
-        segmentRows: segmentRows,
-        width: width,
-        height: height,
-        segmentsAcross: segmentsAcross,
+        (rowStart + row) * width + columnStart,
+        samples: visibleColumns,
         bits: bits,
         samplesPerPixel: samplesPerPixel,
         photometric: photometric,
         endian: container.endian,
       );
-    } else {
-      final rows = expectedBytes ~/ segmentRowBytes;
-      for (var row = 0; row < rows; row++) {
-        _unpackSamples(
-          decoded,
-          row * segmentRowBytes,
-          rgb,
-          (segment * segmentRows + row) * width,
-          startSample: 0,
-          samples: width,
-          bits: bits,
-          samplesPerPixel: samplesPerPixel,
-          photometric: photometric,
-          endian: container.endian,
-        );
-      }
     }
   }
 
-  return TiffPageImage.raster(width: width, height: height, dpi: dpi, rgb: rgb);
+  _applyOrientation(rgb, width: width, height: height, orientation: orientation);
+  final bmp = encodeRgb24Bmp(width: width, height: height, rgb: rgb);
+  budget.releaseScratch(scratchBytes);
+  return TiffPageImage.raster(width: width, height: height, dpi: dpi, bmp: bmp);
 }
 
-int _stripCount(final int height, final int rowsPerStrip) =>
-    (height + rowsPerStrip - 1) ~/ rowsPerStrip;
-
-void _copyTile(
-  final Uint8List decoded,
-  final Uint8List rgb, {
-  required final int tileRow,
-  required final int tileColumn,
-  required final int segmentRowBytes,
-  required final int segmentRows,
-  required final int width,
-  required final int height,
-  required final int segmentsAcross,
-  required final int bits,
-  required final int samplesPerPixel,
-  required final int photometric,
-  required final Endian endian,
-}) {
-  final tileWidth = segmentRowBytes * 8 ~/ (bits * samplesPerPixel);
-  final rowStart = tileRow * segmentRows;
-  final columnStart = tileColumn * tileWidth;
-  final rows = segmentRows < height - rowStart ? segmentRows : height - rowStart;
-  final columns = tileWidth < width - columnStart ? tileWidth : width - columnStart;
-  for (var row = 0; row < rows; row++) {
-    _unpackSamples(
-      decoded,
-      row * segmentRowBytes,
-      rgb,
-      (rowStart + row) * width + columnStart,
-      startSample: 0,
-      samples: columns,
-      bits: bits,
-      samplesPerPixel: samplesPerPixel,
-      photometric: photometric,
-      endian: endian,
-    );
-  }
-}
-
-/// Unpacks [samples] consecutive pixel samples starting at absolute
-/// sample index [startSample] within the source row into RGB bytes.
+/// Unpacks [samples] consecutive pixels of one source row into RGB bytes.
 void _unpackSamples(
   final Uint8List source,
   final int sourceBase,
   final Uint8List rgb,
   final int rgbSampleBase, {
-  required final int startSample,
   required final int samples,
   required final int bits,
   required final int samplesPerPixel,
@@ -508,8 +554,7 @@ void _unpackSamples(
   required final Endian endian,
 }) {
   final data = ByteData.sublistView(source);
-  for (var sample = 0; sample < samples; sample++) {
-    final x = startSample + sample;
+  for (var x = 0; x < samples; x++) {
     final sourceIndex = sourceBase + x * samplesPerPixel * (bits ~/ 8);
     int red;
     int green;
@@ -520,15 +565,15 @@ void _unpackSamples(
         green = source[sourceIndex + 1];
         blue = source[sourceIndex + 2];
       } else {
-        red = _u16Sample(data, sourceIndex, endian) >> 8;
-        green = _u16Sample(data, sourceIndex + 2, endian) >> 8;
-        blue = _u16Sample(data, sourceIndex + 4, endian) >> 8;
+        red = data.getUint16(sourceIndex, endian) >> 8;
+        green = data.getUint16(sourceIndex + 2, endian) >> 8;
+        blue = data.getUint16(sourceIndex + 4, endian) >> 8;
       }
     } else {
       // Gray: scale the sample to the 0..255 display range, then map
       // the photometric convention (0 = WhiteIsZero inverts).
       var value = bits == 16
-          ? _u16Sample(data, sourceIndex, endian) >> 8
+          ? data.getUint16(sourceIndex, endian) >> 8
           : bits == 8
           ? source[sourceIndex]
           : _subByteSample(source, sourceBase, x, bits) * 255 ~/ ((1 << bits) - 1);
@@ -537,15 +582,12 @@ void _unpackSamples(
       green = value;
       blue = value;
     }
-    final target = (rgbSampleBase + sample) * 3;
+    final target = (rgbSampleBase + x) * 3;
     rgb[target] = red;
     rgb[target + 1] = green;
     rgb[target + 2] = blue;
   }
 }
-
-int _u16Sample(final ByteData data, final int offset, final Endian endian) =>
-    data.getUint16(offset, endian);
 
 /// Reads one 1/2/4-bit sample, most significant bit first.
 int _subByteSample(final Uint8List source, final int sourceBase, final int x, final int bits) {
@@ -553,4 +595,46 @@ int _subByteSample(final Uint8List source, final int sourceBase, final int x, fi
   final byte = source[sourceBase + (bitOffset >> 3)];
   final shift = 8 - bits - (bitOffset & 7);
   return (byte >> shift) & ((1 << bits) - 1);
+}
+
+/// Brings a stored raster to top-left orientation in place: 2 mirrors
+/// rows, 3 rotates 180 degrees, 4 mirrors columns.
+void _applyOrientation(
+  final Uint8List rgb, {
+  required final int width,
+  required final int height,
+  required final int orientation,
+}) {
+  void swapPixels(final int a, final int b) {
+    for (var channel = 0; channel < 3; channel++) {
+      final value = rgb[a * 3 + channel];
+      rgb[a * 3 + channel] = rgb[b * 3 + channel];
+      rgb[b * 3 + channel] = value;
+    }
+  }
+
+  switch (orientation) {
+    case 2:
+      for (var y = 0; y < height; y++) {
+        final row = y * width;
+        for (var x = 0; x < width ~/ 2; x++) {
+          swapPixels(row + x, row + width - 1 - x);
+        }
+      }
+    case 3:
+      final total = width * height;
+      for (var index = 0; index < total ~/ 2; index++) {
+        swapPixels(index, total - 1 - index);
+      }
+    case 4:
+      final rowBytes = width * 3;
+      final line = Uint8List(rowBytes);
+      for (var y = 0; y < height ~/ 2; y++) {
+        final top = y * rowBytes;
+        final bottom = (height - 1 - y) * rowBytes;
+        line.setRange(0, rowBytes, rgb, top);
+        rgb.setRange(top, top + rowBytes, rgb, bottom);
+        rgb.setRange(bottom, bottom + rowBytes, line);
+      }
+  }
 }

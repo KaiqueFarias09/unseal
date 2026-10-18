@@ -27,6 +27,7 @@ storage, synchronization, OCR execution, and audio playback.
 | [Codebase guide](unseal-codebase-guide.md) | Find the implementation of a format or reading feature. |
 | [Development](development.md) | Run checks, reproduce measurements, and prepare a release. |
 | [Parser references](format-parser-references.md) | Format specifications, reference implementations, and fixture provenance. |
+| [TIFF tiles](tiff-tiles.md) | The tiled TIFF/BigTIFF contract, decode budgets, and the libtiff comparison. |
 | [Roadmap](roadmap.md) | The single list of pending work and proposals. |
 
 The README describes the current public contract. The roadmap describes

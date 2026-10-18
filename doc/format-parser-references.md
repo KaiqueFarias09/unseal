@@ -18,7 +18,7 @@ and validation gaps.
 | Sony LRF and LRX | [Calibre LRF implementation](https://github.com/kovidgoyal/calibre/tree/master/src/calibre/ebooks/lrf) and [Sony format guidance](https://www.sony.com/electronics/support/articles/S1F0504) | LRF behavior and the distinction between unprotected BBeB and protected content. LRX support is plaintext metadata only. |
 | PDF | [PDF.js](https://github.com/mozilla/pdf.js) and [Poppler](https://poppler.freedesktop.org/) | Independent extraction and bitmap behavior references. Unseal is not a complete PDF renderer. |
 | DjVu | [DjVu 3 specification](https://www.sndjvu.org/spec.html), [djvu-rs](https://github.com/matyushkin/djvu-rs), and [DjVuLibre](https://djvu.sourceforge.net/) tools | Container/codec semantics, ZP constants, text output from `djvutxt`, and reference pixels from `ddjvu`. |
-| TIFF and BigTIFF | [TIFF 6.0](https://download.osgeo.org/libtiff/doc/TIFF6.pdf), [BigTIFF](https://libtiff.gitlab.io/libtiff/specification/bigtiff.html), and [libtiff](https://libtiff.gitlab.io/libtiff/) | IFD/offset semantics, strip codecs, and `tiffcp`/`tiffcmp` pixel comparisons. |
+| TIFF and BigTIFF | [TIFF 6.0](https://download.osgeo.org/libtiff/doc/TIFF6.pdf), [BigTIFF](https://libtiff.gitlab.io/libtiff/specification/bigtiff.html), and [libtiff](https://libtiff.gitlab.io/libtiff/) | IFD/offset semantics, strip and tile codecs, and `tiffcp`/`tiffinfo`/libtiff sample comparisons. |
 | CBR (RAR 5) | [RAR 5 format technote](https://www.rarlab.com/technote.htm), [rardecode](https://github.com/nwaples/rardecode) at `ad22ba91a2ab`, and [libarchive](https://github.com/libarchive/libarchive) at `87dec938` | Container grammar, the version-0 LZ stream, and the two byte-for-byte extraction oracles (`tool/rar5_compare.dart`). |
 
 | JPEG 2000 | [ISO/IEC 15444-1](https://www.itu.int/rec/T-REC-T.800) and [OpenJPEG](https://github.com/uclouvain/openjpeg) (C, BSD-2-Clause, pinned revision 8314119b) | Codestream/JP2 marker semantics, MQ coder state table, tier-1 passes, 5/3 and 9/7 lifting, and oracle payload comparison. |
@@ -48,9 +48,12 @@ compatibility evidence. Label the distinction explicitly.
   match `ddjvu`; composed pages use Unseal's hard-mask convention and their
   own raster goldens. `FGbz` colors are not reproduced. A successful parse
   does not establish full DjVu v3 conformance.
-- TIFF pages are compared with libtiff output and pinned raster hashes.
-  The corpus contains libtiff test images and generated cases, not proof of
-  compatibility with every scanner or TIFF layout.
+- TIFF pages are compared sample by sample with libtiff 4.7.2 output
+  (`TIFFReadTile`/`TIFFReadScanline` and `TIFFReadRGBAImageOriented`) and
+  pinned raster hashes. The corpus contains libtiff test images, the
+  Silicon Graphics tiled samples of libtiff's `pics-3.8.0` set, and
+  generated cases, not proof of compatibility with every scanner or TIFF
+  layout; `doc/tiff-tiles.md` lists what the tiled contract covers.
 - A derived indirect DjVu fixture checks component resolution. It does not
   substitute for a third-party indirect document.
 - A file rejected by both the reference and Unseal is not evidence that

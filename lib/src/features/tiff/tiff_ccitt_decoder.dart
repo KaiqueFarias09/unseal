@@ -355,10 +355,11 @@ final class _CcittBitReader {
 
   bool get hasBits => !_exhausted || _bufferedBits > 0;
 
-  void alignToByte() {
-    _bufferedBits = 0;
-    _buffer = 0;
-  }
+  /// Skips to the next byte boundary: only the unread bits of the byte
+  /// currently being consumed are dropped, never the whole bytes the
+  /// 12/13-bit lookahead has already buffered (libtiff's
+  /// `ClrBits(BitsAvail % 8)` at the end of a modified Huffman row).
+  void alignToByte() => eatBits(_bufferedBits & 7);
 
   /// The next [count] bits, most significant first; exhausted input
   /// contributes zero bits (row termination guards catch truncation).
