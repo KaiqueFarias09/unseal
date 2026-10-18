@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../features/alto/bind_alto_snapshot.dart';
 import '../features/cfi/epub_cfi_resolver.dart';
 import '../features/djvu/djvu_page_structure.dart';
+import '../features/page/bind_page_snapshot.dart';
 import '../features/search/book_search.dart';
 import '../features/search/entities/search_mode.dart';
 import '../features/search/entities/search_results.dart';
@@ -91,6 +92,22 @@ abstract final class UnsealWorker {
   }) {
     return WorkerClient.instance.bindAltoInWorker(
       altoBytes: altoBytes,
+      pageIndex: pageIndex,
+      identity: identity,
+    );
+  }
+
+  /// Worker-backed fast path for `bindPageToSnapshot`: parses [pageBytes]
+  /// inside the worker and binds them onto the resident DjVu page's
+  /// hidden-text snapshot. Returns `null` when the worker or its
+  /// resident book is unavailable — bind inline as the fallback.
+  static Future<PageXmlBoundSpatialText?> bindPageXmlInWorker({
+    required final Uint8List pageBytes,
+    required final int pageIndex,
+    required final PublicationRevision identity,
+  }) {
+    return WorkerClient.instance.bindPageXmlInWorker(
+      pageBytes: pageBytes,
       pageIndex: pageIndex,
       identity: identity,
     );

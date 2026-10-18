@@ -10,6 +10,7 @@ import '../../../features/fb2/exceptions/fb2_exception.dart';
 import '../../../features/html/exceptions/html_exception.dart';
 import '../../../features/mobi/exceptions/mobi_exception.dart';
 import '../../../features/odt/exceptions/odt_exception.dart';
+import '../../../features/page/page_exception.dart';
 import '../../../features/pdf/exceptions/pdf_exception.dart';
 import '../../../features/progressive/byte_source.dart';
 import '../../../features/progressive/session_policy.dart';
@@ -113,6 +114,10 @@ Object decodeErrorWire(final String type, final String message) {
       return AltoUnsupportedFeatureException(message);
     case 'AltoUnitConversionException':
       return AltoUnitConversionException(message);
+    case 'PageXmlException':
+      return PageXmlException(message);
+    case 'PageXmlUnsupportedFeatureException':
+      return PageXmlUnsupportedFeatureException(message);
     case 'TiffException':
       return TiffException(message);
     case 'TiffUnsupportedCodecException':
