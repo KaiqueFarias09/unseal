@@ -1,3 +1,21 @@
+## Unreleased
+
+### Added
+
+- CBR: RAR 5 declared BLAKE2sp data digests verify before any payload
+  or solid-chain dependency is published, through the eager parse and
+  sessions alike. The extra-area hash record is parsed per the RAR 5.0
+  technote (hash type 0, 32 bytes): a digest of 32 zero bytes is a
+  present digest, absence of the record keeps the CRC-32-only contract,
+  unknown hash types, truncated or oversized records, and conflicting
+  duplicate digests reject typed. When an entry declares both a header
+  CRC-32 and a BLAKE2sp digest, both verify and each failure names its
+  cause; BLAKE2s-256 is never accepted as BLAKE2sp. Verification is
+  integrity only — the hash is unauthenticated. The incremental hasher
+  is pure Dart with identical VM/dart2js integer semantics
+  (`doc/rar5-blake2sp.md` fixes the contract; the corpus comes from the
+  real RAR 7.23 producer with `-htb`).
+
 ## 1.3.0 - October 18, 2026
 
 ### Added
