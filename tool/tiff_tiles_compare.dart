@@ -51,7 +51,9 @@ void main(final List<String> arguments) {
 
   final selfChecks = _selfChecks(cases, outDir);
   for (final check in selfChecks) {
-    log.writeln('self-check\t${check['name']}\t${check['behaved'] == true ? 'behaved' : 'FAILED'}\t${check['detail']}');
+    log.writeln(
+      'self-check\t${check['name']}\t${check['behaved'] == true ? 'behaved' : 'FAILED'}\t${check['detail']}',
+    );
   }
 
   final totals = <String, int>{
@@ -62,7 +64,10 @@ void main(final List<String> arguments) {
     'diverged': results.where((final r) => r['verdict'] == 'diverged').length,
     'pagesCompared': results.fold(0, (final sum, final r) => sum + (r['pagesCompared']! as int)),
     'pixelsCompared': results.fold(0, (final sum, final r) => sum + (r['pixelsCompared']! as int)),
-    'rgbaPixelsCompared': results.fold(0, (final sum, final r) => sum + (r['rgbaPixelsCompared']! as int)),
+    'rgbaPixelsCompared': results.fold(
+      0,
+      (final sum, final r) => sum + (r['rgbaPixelsCompared']! as int),
+    ),
   };
   final selfChecksBehaved = selfChecks.every((final check) => check['behaved'] == true);
   final head = Process.runSync('git', ['rev-parse', 'HEAD']).stdout.toString().trim();
@@ -87,13 +92,18 @@ void main(final List<String> arguments) {
     'selfChecksBehaved': selfChecksBehaved,
     'cases': results,
   };
-  File('$outDir/report.json').writeAsStringSync('${const JsonEncoder.withIndent('  ').convert(report)}\n');
+  File(
+    '$outDir/report.json',
+  ).writeAsStringSync('${const JsonEncoder.withIndent('  ').convert(report)}\n');
   File('$outDir/cases.log').writeAsStringSync(log.toString());
   stdout.writeln(json.encode({'totals': totals, 'selfChecksBehaved': selfChecksBehaved}));
   exitCode = totals['diverged'] == 0 && selfChecksBehaved && totals['cases']! > 0 ? 0 : 1;
 }
 
-Map<String, Object?> _compareCase(final Map<String, Object?> record, {final Map<String, Object?>? referenceOverride}) {
+Map<String, Object?> _compareCase(
+  final Map<String, Object?> record, {
+  final Map<String, Object?>? referenceOverride,
+}) {
   final id = record['id'] as String? ?? record['name'] as String;
   final expectation = record['expectation']! as String;
   final result = <String, Object?>{
@@ -116,13 +126,17 @@ Map<String, Object?> _compareCase(final Map<String, Object?> record, {final Map<
   final bytes = Uint8List.fromList(file.readAsBytesSync());
   final digest = sha256.convert(bytes).toString();
   if (digest != record['sha256']) {
-    return result..addAll({'verdict': 'diverged', 'detail': 'input hash differs from the reference record'});
+    return result
+      ..addAll({'verdict': 'diverged', 'detail': 'input hash differs from the reference record'});
   }
   final dump = record['dump'] as Map<String, Object?>?;
   final reference = referenceOverride ?? record['reference'] as Map<String, Object?>?;
   final referenceStatus = reference == null
       ? 'missing'
-      : (reference['directories'] as List?)?.map((final d) => (d as Map)['nativeStatus']).join(',') ?? 'empty';
+      : (reference['directories'] as List?)
+                ?.map((final d) => (d as Map)['nativeStatus'])
+                .join(',') ??
+            'empty';
   result['libtiffStatus'] = referenceStatus;
 
   TiffBook book;
@@ -133,24 +147,39 @@ Map<String, Object?> _compareCase(final Map<String, Object?> record, {final Map<
     if (expectation.startsWith('reject:')) {
       final wanted = expectation.substring(7);
       final accepted = switch (wanted) {
-        'TiffUnsupportedCodecException' => {'TiffUnsupportedCodecException', 'FormatNotSupportedException'},
+        'TiffUnsupportedCodecException' => {
+          'TiffUnsupportedCodecException',
+          'FormatNotSupportedException',
+        },
         'TiffException' => {'TiffException', 'InvalidBookException'},
         _ => {wanted},
       };
       final matched = accepted.contains(type);
       return result..addAll({
         'verdict': matched ? 'expected-rejection' : 'diverged',
-        'detail': matched ? 'rejected typed as $type: $error' : 'rejected as $type, expected $wanted: $error',
+        'detail': matched
+            ? 'rejected typed as $type: $error'
+            : 'rejected as $type, expected $wanted: $error',
         'exception': type,
       });
     }
-    return result..addAll({'verdict': 'diverged', 'detail': 'unexpected failure $type: $error', 'exception': type});
+    return result..addAll({
+      'verdict': 'diverged',
+      'detail': 'unexpected failure $type: $error',
+      'exception': type,
+    });
   }
   if (expectation.startsWith('reject:')) {
-    return result..addAll({'verdict': 'diverged', 'detail': 'decoded ${book.pageCount} pages but a typed rejection was expected'});
+    return result..addAll({
+      'verdict': 'diverged',
+      'detail': 'decoded ${book.pageCount} pages but a typed rejection was expected',
+    });
   }
   if (dump != null && dump['exitCode'] != 0) {
-    return result..addAll({'verdict': 'diverged', 'detail': 'reference dump command failed (exit ${dump['exitCode']})'});
+    return result..addAll({
+      'verdict': 'diverged',
+      'detail': 'reference dump command failed (exit ${dump['exitCode']})',
+    });
   }
   if (reference == null) {
     return result..addAll({'verdict': 'diverged', 'detail': 'reference dump missing'});
@@ -159,7 +188,8 @@ Map<String, Object?> _compareCase(final Map<String, Object?> record, {final Map<
   if (directories.length != book.pageCount) {
     return result..addAll({
       'verdict': 'diverged',
-      'detail': 'Unseal decoded ${book.pageCount} pages, libtiff read ${directories.length} directories',
+      'detail':
+          'Unseal decoded ${book.pageCount} pages, libtiff read ${directories.length} directories',
     });
   }
   final compareRgba = expectation == 'compare';
@@ -182,14 +212,17 @@ Map<String, Object?> _compareCase(final Map<String, Object?> record, {final Map<
       details.add('page ${index + 1}: ${pageResult['nativeDiffs']} native pixel differences');
     }
     if (compareRgba) {
-      result['rgbaPixelsCompared'] = (result['rgbaPixelsCompared']! as int) + (pageResult['pixels']! as int);
+      result['rgbaPixelsCompared'] =
+          (result['rgbaPixelsCompared']! as int) + (pageResult['pixels']! as int);
       if (pageResult['rgbaDiffs'] != 0) {
         verdict = 'diverged';
         details.add('page ${index + 1}: ${pageResult['rgbaDiffs']} RGBA pixel differences');
       }
     } else if (pageResult['rgbaDiffs'] != 0 && verdict == 'pass') {
       verdict = 'expected-difference';
-      details.add('page ${index + 1}: RGBA lane differs in ${pageResult['rgbaDiffs']} pixels (libtiff rounds 16-bit RGB)');
+      details.add(
+        'page ${index + 1}: RGBA lane differs in ${pageResult['rgbaDiffs']} pixels (libtiff rounds 16-bit RGB)',
+      );
     }
   }
   result['verdict'] = verdict;
@@ -228,7 +261,8 @@ Map<String, Object?> _comparePage(
     return result..['status'] = 'libtiff RGBA dump unavailable (${directory['rgbaStatus']})';
   }
   if (page.width != width || page.height != height) {
-    return result..['status'] = 'dimensions ${page.width}x${page.height} differ from libtiff ${width}x$height';
+    return result
+      ..['status'] = 'dimensions ${page.width}x${page.height} differ from libtiff ${width}x$height';
   }
   if (page.image.type != 'bmp') {
     return result..['status'] = 'page is not a BMP raster (${page.image.type})';
@@ -241,7 +275,9 @@ Map<String, Object?> _comparePage(
   final native = File(nativePath).readAsBytesSync();
   final expectedNativeBytes = width * height * samplesPerPixel * (bits == 16 ? 2 : 1);
   if (native.length != expectedNativeBytes) {
-    return result..['status'] = 'native dump holds ${native.length} bytes, geometry needs $expectedNativeBytes';
+    return result
+      ..['status'] =
+          'native dump holds ${native.length} bytes, geometry needs $expectedNativeBytes';
   }
   Uint8List? rgba;
   if (compareRgba || rgbaPath != null) {
@@ -250,7 +286,9 @@ Map<String, Object?> _comparePage(
     } else {
       rgba = File(rgbaPath).readAsBytesSync();
       if (rgba.length != width * height * 4) {
-        return result..['status'] = 'RGBA dump holds ${rgba.length} bytes, geometry needs ${width * height * 4}';
+        return result
+          ..['status'] =
+              'RGBA dump holds ${rgba.length} bytes, geometry needs ${width * height * 4}';
       }
     }
   }
@@ -265,6 +303,7 @@ Map<String, Object?> _comparePage(
     final index = (y * width + x) * samplesPerPixel + channel;
     return bits == 16 ? nativeView.getUint16(index * 2, Endian.little) : native[index];
   }
+
   int gray(final int value) {
     var level = bits == 16
         ? value >> 8
@@ -307,7 +346,9 @@ Map<String, Object?> _comparePage(
       if (red != expectedRed || green != expectedGreen || blue != expectedBlue) nativeDiffs++;
       if (rgba != null) {
         final rgbaAt = (y * width + x) * 4;
-        if (red != rgba[rgbaAt] || green != rgba[rgbaAt + 1] || blue != rgba[rgbaAt + 2]) rgbaDiffs++;
+        if (red != rgba[rgbaAt] || green != rgba[rgbaAt + 1] || blue != rgba[rgbaAt + 2]) {
+          rgbaDiffs++;
+        }
       }
       pixels++;
     }
@@ -322,7 +363,10 @@ Map<String, Object?> _comparePage(
 /// Proves the comparator refuses when it must: a reference that is
 /// missing, a dump whose bytes were altered, and a reference command that
 /// failed all have to come back as `diverged`.
-List<Map<String, Object?>> _selfChecks(final List<Map<String, Object?>> cases, final String outDir) {
+List<Map<String, Object?>> _selfChecks(
+  final List<Map<String, Object?>> cases,
+  final String outDir,
+) {
   final checks = <Map<String, Object?>>[];
   final sample = cases.cast<Map<String, Object?>?>().firstWhere(
     (final c) => c!['expectation'] == 'compare' && c['reference'] != null,
@@ -352,7 +396,10 @@ List<Map<String, Object?>> _selfChecks(final List<Map<String, Object?>> cases, f
   altered['nativeFile'] = tamperedPath;
   final alteredReference = Map<String, Object?>.from(reference)
     ..['directories'] = [altered, ...directories.skip(1)];
-  final alteredResult = _compareCase(Map<String, Object?>.from(sample), referenceOverride: alteredReference);
+  final alteredResult = _compareCase(
+    Map<String, Object?>.from(sample),
+    referenceOverride: alteredReference,
+  );
   checks.add({
     'name': 'altered-dump',
     'behaved': alteredResult['verdict'] == 'diverged',
@@ -360,7 +407,11 @@ List<Map<String, Object?>> _selfChecks(final List<Map<String, Object?>> cases, f
   });
 
   final failedCommand = Map<String, Object?>.from(sample)
-    ..['dump'] = <String, Object?>{'exitCode': 1, 'argv': <String>['tiff_oracle_dump'], 'log': 'synthetic'};
+    ..['dump'] = <String, Object?>{
+      'exitCode': 1,
+      'argv': <String>['tiff_oracle_dump'],
+      'log': 'synthetic',
+    };
   final failedResult = _compareCase(failedCommand);
   checks.add({
     'name': 'failed-reference-command',
