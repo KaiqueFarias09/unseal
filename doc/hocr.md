@@ -248,6 +248,11 @@ carry none because the format declares none there.
 
 ## Limits
 
+Raw nesting tracks matching open tag names: unmatched closing tags do not
+release depth, and `/>` on a non-void HTML tag still opens that tag, as the
+HTML parser does. Alternative containers above lines retain their ambiguity;
+`del` subtrees are excluded before their lines can enter the model.
+
 Checked before the DOM is built (a linear scan over the decoded text that
 counts tags, nesting, attributes and the `title`/`class` lengths) and again
 while walking the tree, all failing typed with `HocrException`:

@@ -15,6 +15,36 @@ String _document(final String body, {final String head = ''}) =>
     '<html><head><meta name="ocr-system" content="test 1"/>$head</head><body>$body</body></html>';
 
 void main() {
+  test('transparent hOCR containers cannot silently request another reading order', () {
+    for (final property in ['order 1', 'cflow "column"']) {
+      expect(
+        () => parseHocrDocument(
+          _bytes(
+            _document(
+              '<div class="ocr_page" title="bbox 0 0 10 10">'
+              "<section class='ocr_section' title='$property'></section></div>",
+            ),
+          ),
+        ),
+        throwsA(isA<HocrUnsupportedFeatureException>()),
+      );
+    }
+  });
+
+  test('HTML self-closing non-void tags cannot bypass the raw depth limit', () {
+    expect(
+      () => parseHocrDocument(_bytes('${'<div/>' * 130}<div class="ocr_page"></div>')),
+      throwsA(isA<HocrException>()),
+    );
+  });
+
+  test('unmatched closing tags cannot release the raw depth budget', () {
+    expect(
+      () => parseHocrDocument(_bytes('${'<div></bogus>' * 130}<div class="ocr_page"></div>')),
+      throwsA(isA<HocrException>()),
+    );
+  });
+
   group('real producers', () {
     test('Tesseract 5.5.3 phototest: full hierarchy, baselines, confidence', () {
       final document = parseHocrDocument(_fixture('tesseract/phototest.hocr'));

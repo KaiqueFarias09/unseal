@@ -40,6 +40,21 @@ String _tesseractBody(final List<List<String>> lines) {
 }
 
 void main() {
+  test('alternative ancestors stay ambiguous and deleted lines are excluded', () {
+    final binding = _bind(
+      '<div class="ocr_page" title="bbox 0 0 100 40">'
+      '<div class="alternatives"><ins>'
+      '<span class="ocr_line" title="bbox 0 0 100 20">chosen</span></ins>'
+      '<del><span class="ocr_line" title="bbox 0 20 100 40">discarded</span></del>'
+      '</div></div>',
+      target: 'chosen discarded',
+    );
+    expect(binding.document.pages.single.lines.single.text, 'chosen');
+    expect(binding.wordsAmbiguous, 1);
+    expect(binding.wordsResolved, 0);
+    expect(binding.wordsMissing, 0);
+  });
+
   test('words bind onto exact UTF-16 ranges across astral and diacritics', () {
     final binding = _bind(
       '<div class="ocr_page" title="bbox 0 0 100 40"><span class="ocr_line" title="bbox 0 0 100 20">'

@@ -106,7 +106,7 @@ HocrDocument parseHocrDocument(final Uint8List bytes) {
 void _preflight(final String text) {
   final n = text.length;
   var i = 0;
-  var depth = 0;
+  final openTags = <String>[];
   var elements = 0;
   var pageDepth = -1;
   var pageElements = 0;
@@ -137,9 +137,11 @@ void _preflight(final String text) {
       final end = text.indexOf('>', i);
       if (end < 0) return;
       i = end + 1;
-      if (depth > 0) {
-        depth--;
-        if (depth == pageDepth) pageDepth = -1;
+      final closingName = text.substring(lt + 2, end).trim().toLowerCase();
+      final matching = openTags.lastIndexOf(closingName);
+      if (matching >= 0) {
+        openTags.removeRange(matching, openTags.length);
+        if (openTags.length <= pageDepth) pageDepth = -1;
       }
       continue;
     }
@@ -152,11 +154,10 @@ void _preflight(final String text) {
     if (++elements > _maxElements) {
       throw const HocrException('hOCR markup exceeds the element limit.');
     }
-    if (depth >= _maxDepth) {
+    if (openTags.length >= _maxDepth) {
       throw const HocrException('hOCR markup exceeds the nesting depth limit.');
     }
     var attributes = 0;
-    var selfClosing = false;
     var isPage = false;
     while (i < n) {
       final unit = text.codeUnitAt(i);
@@ -171,7 +172,6 @@ void _preflight(final String text) {
       if (unit == 0x2F) {
         i++;
         if (i < n && text.codeUnitAt(i) == 0x3E) {
-          selfClosing = true;
           i++;
           break;
         }
@@ -224,20 +224,22 @@ void _preflight(final String text) {
       }
     }
     if (isPage && pageDepth < 0) {
-      pageDepth = depth;
+      pageDepth = openTags.length;
       pageElements = 0;
     }
     if (pageDepth >= 0 && ++pageElements > _maxElementsPerPage) {
       throw const HocrException('hOCR page exceeds the element budget.');
     }
-    if (!_voidElements.contains(name) && !selfClosing) {
-      depth++;
+    // HTML ignores the self-closing flag on non-void elements, including
+    // XHTML input parsed through this same HTML parser. Count them as open.
+    if (!_voidElements.contains(name)) {
+      openTags.add(name);
       if (name == 'script' || name == 'style') {
         final close = _indexOfCloseTag(text, name, i);
         if (close < 0) return;
         i = close;
       }
-    } else if (isPage && pageDepth == depth) {
+    } else if (isPage && pageDepth == openTags.length) {
       pageDepth = -1;
     }
   }
@@ -359,7 +361,26 @@ enum _Role { page, block, paragraph, line, word }
     role = candidate;
     roleToken = token;
   }
-  if (role == null) return null;
+  if (role == null) {
+    if (_tokens(
+      classValue,
+    ).any((final token) => token.startsWith('ocr_') || token.startsWith('ocrx_'))) {
+      final properties = parseHocrTitle(
+        _attribute(element, 'title') ?? '',
+        maxProperties: _maxPropertiesPerElement,
+        maxTokens: _maxTokensPerProperty,
+      );
+      for (final property in properties) {
+        if (property.name == 'order' || property.name == 'cflow') {
+          throw HocrUnsupportedFeatureException(
+            'hOCR ${property.name} asks for a reading order Unseal does not reconstruct.',
+          );
+        }
+      }
+    }
+
+    return null;
+  }
 
   return (roleToken!, role);
 }
@@ -385,6 +406,7 @@ void _findPages(
   final List<HocrPage> pages,
   final _ParseContext context,
 ) {
+  if (element.localName == 'del') return;
   final classified = _classify(element);
   if (classified == null) {
     for (final child in element.children) {
@@ -529,6 +551,7 @@ void _walkContainer(
   final _ParseContext context,
 ) {
   for (final child in parent.children) {
+    if (child.localName == 'del') continue;
     final classified = _classify(child);
     if (classified == null) {
       _walkContainer(child, parentRole, into, counters, context);
@@ -639,9 +662,17 @@ HocrLine _parseLine(
     baseline: attributes.baseline,
     hasHardBreak: attributes.hasHardBreak,
     text: text.toString(),
-    hasAlternativeReadings: text.hasAlternatives,
+    hasAlternativeReadings: text.hasAlternatives || _hasAlternativeAncestor(element),
     words: words,
   );
+}
+
+bool _hasAlternativeAncestor(final dom.Element element) {
+  for (var ancestor = element.parent; ancestor != null; ancestor = ancestor.parent) {
+    if (ancestor.localName == 'ins' || ancestor.classes.contains('alternatives')) return true;
+  }
+
+  return false;
 }
 
 /// Walks a line's subtree: collects words (through transparent containers)
