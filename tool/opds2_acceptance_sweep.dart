@@ -81,12 +81,35 @@ void main(final List<String> arguments) {
     '.',
     '--check',
   ]);
-  final sharedCheckLog = run('oj02-shared-check', <String>[
+  // The committed shared-cases file is formatter-formatted; regenerate the
+  // candidate into build/, format it the same way, and compare bytes.
+  run('oj02-shared-generate', <String>[
     python,
     'tool/opds2_shared_cases.py',
     '--worktree',
     '.',
+    '--write',
+    '--out',
+    '$evidenceRoot/shared-cases-candidate.dart',
   ]);
+  run('oj02-shared-format', <String>[dart, 'format', '$evidenceRoot/shared-cases-candidate.dart']);
+  final sharedMatch =
+      io.File('$evidenceRoot/shared-cases-candidate.dart').readAsStringSync() ==
+      io.File('test/support/opds2_shared_cases.dart').readAsStringSync();
+  if (!sharedMatch) {
+    io.File(
+      '${logs.path}/oj02-shared-check.log',
+    ).writeAsStringSync('shared cases diverge from the corpus/expectations; regenerate\n');
+    failures.add('oj02-shared-check failed: embedded cases are stale');
+  }
+  final sharedCheckLog = '$evidenceRoot/logs/oj02-shared-check.log';
+  if (!io.File(sharedCheckLog).existsSync()) {
+    io.File(sharedCheckLog).writeAsStringSync(
+      'command: generator --write --out build + dart format + byte compare\n'
+      'exitCode: 0\n'
+      'sharedMatch: $sharedMatch\n',
+    );
+  }
 
   // OJ03/OJ05/OJ06: negative, extension-policy, and limit suites.
   final corpusLog = run('oj03-corpus', <String>[
@@ -232,7 +255,8 @@ void main(final List<String> arguments) {
       'verdict': caseVerdict('OJ02', expectedCheckLog),
       'evidenceArtifacts': <String>[
         _relative(expectedCheckLog!),
-        _relative(sharedCheckLog!),
+        sharedCheckLog,
+        '$evidenceRoot/shared-cases-candidate.dart',
         'build/evidence/C05/reference.json',
       ],
       'detail':

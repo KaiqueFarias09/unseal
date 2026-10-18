@@ -31,6 +31,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worktree", required=True)
     parser.add_argument("--write", action="store_true")
+    parser.add_argument(
+        "--out",
+        help="override the output path (check mode compares against this file)",
+    )
     args = parser.parse_args()
 
     worktree = Path(args.worktree).resolve()
@@ -96,14 +100,16 @@ const List<Opds2SharedCase> opds2SharedCases = <Opds2SharedCase>[
 const String opds2SharedResolutionJson = {dart_string((resources / 'expected/resolution.json').read_text(encoding='utf-8'))};
 """
 
-    target = worktree / "test/support/opds2_shared_cases.dart"
+    target = Path(args.out) if args.out else worktree / "test/support/opds2_shared_cases.dart"
     if args.write:
         target.write_text(content, encoding="utf-8")
         print(f"wrote {target} ({len(content)} bytes, {len(rows)} cases)")
     else:
+        if not target.is_file():
+            raise SystemExit(f"missing {target}")
         if target.read_text(encoding="utf-8") != content:
-            raise SystemExit("shared cases are stale; regenerate with --write")
-        print("shared cases are current")
+            raise SystemExit(f"shared cases are stale against {target}; regenerate with --write")
+        print("shared cases match the corpus and expectations")
 
 
 if __name__ == "__main__":
