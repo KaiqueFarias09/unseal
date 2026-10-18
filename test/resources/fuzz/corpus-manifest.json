@@ -260,6 +260,14 @@
       "landmarks": 0
     },
     {
+      "path": "test/resources/books/comic/rar5/rar5-hash-conflicting-duplicate.cbr",
+      "format": "cbr",
+      "bytes": 33545,
+      "sha256": "9d9a757186346e805f9c3ee5e0d08d6e56430cf77dece56283b923a4a1abcc31",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/books/comic/rar5/rar5-hash-empty.cbr",
       "format": "cbr",
       "bytes": 192,
@@ -304,6 +312,14 @@
       "format": "cbr",
       "bytes": 33475,
       "sha256": "798bcb7eecca17e8dd88dc8dccc9d6b02935bf334bb9d13f5bcbcc529337d9ac",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/books/comic/rar5/rar5-hash-solid-corrupt-middle.cbr",
+      "format": "cbr",
+      "bytes": 3281,
+      "sha256": "06e7160beeb1aeb0bd2d0d466203c915092df2c741686b1791d5e28a080a63a2",
       "container": "unknown",
       "landmarks": 0
     },
@@ -4793,13 +4809,13 @@
     }
   ],
   "counts": {
-    "total": 593,
-    "totalBytes": 93415934,
+    "total": 595,
+    "totalBytes": 93452760,
     "byFormat": {
       "manifest": 97,
       "xml-sidecar": 14,
       "chm": 4,
-      "cbr": 35,
+      "cbr": 37,
       "cbz": 3,
       "comic": 8,
       "cbc": 1,
