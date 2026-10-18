@@ -77,7 +77,9 @@ A node's alternatives are ordered by declared `index`; the chosen
 text is the first alternative with the lowest index, document order
 breaking ties. That rule is deterministic and applies identically at
 region, line and word level. The chosen `Unicode` content is what
-binds; alternatives and confidences stay queryable on the model.
+binds; alternatives and confidences stay queryable on the model. Distinct
+alternative readings on the node or its ancestors make the binding ambiguous,
+even when the chosen reading has only one matching target range.
 
 ## Binding to a host-confirmed snapshot
 
@@ -131,8 +133,7 @@ OCR-D `gt_structure_text` corpus (CC-BY-SA-4.0, four works printed
 1506–1897, German and Latin, including Fraktur long-s and combining
 marks), each with its target image. Every file validates against the
 pinned official XSD with lxml/libxml2, and an independent lxml
-extractor (`build/c02/reference/extract_page_xml.py` in the mission
-workspace) produces the field/geometry/text records the Dart parser
+extractor (`tool/reference/page_xml/extract_page_xml.py`) produces the field/geometry/text records the Dart parser
 is diffed against. Synthetic documents are identified as derived and
 complement — never replace — the licensed corpus. Schema validity
 does not certify reference integrity: libxml2 does not resolve

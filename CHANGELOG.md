@@ -1,4 +1,4 @@
-## Unreleased
+## 1.3.0 - October 18, 2026
 
 ### Added
 
@@ -78,24 +78,6 @@
   straight into their footprint and stop there.
 - `SampleFormat` 4 (void) is read as unsigned integer samples, as libtiff
   reads the obsolete SGI `DataType` tag that `tiffcp` re-emits.
-
-### Changed
-
-- TIFF `FillOrder` 2 now fails typed under every codec; only the CCITT path
-  checked it before, and sub-byte samples under other codecs would have been
-  read bit-reversed. Transposed Orientation 5-8 and JPEG tiles fail typed.
-
-### Fixed
-
-- TIFF Predictor 2 on 16-bit samples accumulated bytes instead of 16-bit
-  words and lost every carry; gray and RGB 16-bit pages with horizontal
-  differencing now match libtiff (the previous `gray16-deflate-predictor.tif`
-  golden pinned the wrong raster).
-- TIFF modified Huffman (compression 2) dropped whole buffered bytes when
-  aligning rows and failed on libtiff-written files; rows now align the way
-  `Fax3DecodeRLE` does.
-- TIFF Group 4 read `T6Options` bit 1 as a row-alignment flag; it is the
-  uncompressed-mode extension flag (bit 0 is reserved) and now fails typed.
 - JPEG 2000 `JPXDecode` decoding of unsigned 8- to 16-bit components and
   subsampled component grids: per-component `XRsiz`/`YRsiz` sample grids with
   image origins, odd sizes and partial edge tiles upsampled to the reference
@@ -109,16 +91,6 @@
   behaviour, typed refusals and existing public APIs are unchanged; signed,
   mixed-precision, palette, alpha, ICC and Part 2 inputs still fail typed.
 
-### Fixed
-
-- JPEG 2000 base-subset defects found by the precision corpus: COC markers
-  were parsed with a non-existent SGcod section; QCD/QCC band tables were
-  sized from the COD decomposition levels instead of the segment length and
-  scalar-derived quantization ignored equation E-5; the 5/3 inverse lifting
-  lacked the odd-start one- and two-sample cases and touched zero-length
-  lines of empty resolutions; the 9/7 lifting missed the left mirror of the
-  first odd-start high-pass sample and never wrote back a trailing
-  high-pass sample; and tile origins were not clamped to the image origin.
 - PDF progressive sessions over host byte sources:
   `BookSession.openSource` opens a PDF through the host's
   `UnsealByteSource` (with a `password` for encrypted documents), and
@@ -128,24 +100,20 @@
   content stays a small fraction of a normally shaped document
   (measured: ~13% of a 2.3 MB scanned fixture, ~35% of a 1.9 MB
   designed fixture, against a 50% ceiling fixed before
-  implementation). Nothing is read ahead of demand, the resident
-  range cache is bounded to half the source, and recovery scans on
+  implementation). Nothing is read ahead of demand, retained ranges obey the
+  cache working-set budget, and recovery scans on
   damaged documents keep the eager parse's semantics with every
   scanned window a counted range. `session.metrics()` exposes the
   wire ledger (fetches, wire bytes, unique bytes, resident peak,
   resumes, queued-step peak) as the public evidence channel; EPUB,
   CBZ, CBR, MOBI 6 and AZW3/KF8 sessions and all bytes/file opens are
   unchanged. The acceptance matrix compares against MuPDF 1.26.5
-  under the fixed fold + Dice policy (declared expected difference on
-  the multi-column Byrne Euclid plates), executes the real
-  VM/Chrome/fuzz/corpus lanes, and measures open, first content,
+  under the fixed fold + Dice policy (a pinned per-page digest profile
+  records known extraction differences on the Byrne Euclid plates),
+  executes the real VM/Chrome/fuzz/corpus lanes, and measures open, first content,
   distant jump and peak RSS per process
   (`tool/pdf_mupdf_reference.py`, `tool/pdf_range_compare.dart`,
   `tool/pdf_session_bench.dart`).
-
-## 1.3.0 - October 17, 2026
-
-### Added
 
 - EPUB structural diagnostics through `diagnoseEpub` and
   `diagnoseEpubArchive`: deterministic findings with stable rule IDs,
@@ -232,6 +200,9 @@
 
 ### Changed
 
+- TIFF `FillOrder` 2 now fails typed under every codec; only the CCITT path
+  checked it before, and sub-byte samples under other codecs would have been
+  read bit-reversed. Transposed Orientation 5-8 and JPEG tiles fail typed.
 - Progressive CBR sessions decode solid chains sequentially at open
   (the page sniff walks the chain — the documented open cost) and serve
   backward access by replaying from bounded dictionary checkpoints
@@ -271,10 +242,37 @@
   versioned `byteSource.v1` isolate bridge; browser sessions through
   the same protocol over the configured Web Worker, with per-session
   isolation so concurrent books never exchange bytes. Bytes, file,
-  CBR, and PDF opens are unchanged.
+  and local CBR/PDF opens are unchanged.
 
 ### Fixed
 
+- PDF byte-source sessions keep coverage as offsets without retaining fetched
+  payloads, bound each parser working set before fetching, preserve missing-range
+  control flow through optional-content recovery, and cancel queued operations.
+- PAGE rejects foreign descendant namespaces and malformed alternative indexes;
+  distinct OCR alternatives remain ambiguous through parent/child bindings,
+  with every projection scan charged before execution.
+- OPDS 2 rejects non-finite numbers and invalid calendar timestamps with typed
+  failures, and recognizes query parameters after earlier URI-template expressions.
+- TIFF orientation flips avoid an unbudgeted row copy; CCITT current/reference
+  run buffers are fixed-size, reused and reserved before decoding.
+- TIFF Predictor 2 on 16-bit samples accumulated bytes instead of 16-bit
+  words and lost every carry; gray and RGB 16-bit pages with horizontal
+  differencing now match libtiff (the previous `gray16-deflate-predictor.tif`
+  golden pinned the wrong raster).
+- TIFF modified Huffman (compression 2) dropped whole buffered bytes when
+  aligning rows and failed on libtiff-written files; rows now align the way
+  `Fax3DecodeRLE` does.
+- TIFF Group 4 read `T6Options` bit 1 as a row-alignment flag; it is the
+  uncompressed-mode extension flag (bit 0 is reserved) and now fails typed.
+- JPEG 2000 base-subset defects found by the precision corpus: COC markers
+  were parsed with a non-existent SGcod section; QCD/QCC band tables were
+  sized from the COD decomposition levels instead of the segment length and
+  scalar-derived quantization ignored equation E-5; the 5/3 inverse lifting
+  lacked the odd-start one- and two-sample cases and touched zero-length
+  lines of empty resolutions; the 9/7 lifting missed the left mirror of the
+  first odd-start high-pass sample and never wrote back a trailing
+  high-pass sample; and tile origins were not clamped to the image origin.
 - DjVu spatial regions follow their own native subtree, including sibling
   paragraphs without explicit regions and a return from nested regions.
 - Mixed literal Unicode and percent-escaped EPUB paths resolve correctly.

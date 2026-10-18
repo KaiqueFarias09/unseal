@@ -1,9 +1,10 @@
 # Proposal: PDF sessions over host byte sources — C01
 
-Status: proposal registered before implementation for coordinator review,
-as the campaign protocol requires. C01 implements it on
-`codex/unseal-pdf-byte-ranges`, from base `cdd16acc` (1.3.0). C04 does not
-depend on it; no other mission consumes the PDF range loader.
+Status: implemented for Unseal 1.3.0, with integration-review corrections.
+The original proposal preceded implementation on
+`codex/unseal-pdf-byte-ranges`, from base `cdd16acc`. C04 is independent.
+This document retains the declared acceptance policy and its explicit
+amendments; current behavior is summarized in the README.
 
 Architectural reference: MuPDF's progressive loading chapter — the
 document is parsed against a random-access source that serves only the
@@ -46,8 +47,8 @@ against a **resident range cache with explicit resume**:
 - `PdfRangeLoader` owns the async side. Every range the parser demands
   and does not hold is one exact, budget-checked read through the
   session gate — the same `ByteSourceGate` EPUB/CBZ source sessions
-  use, on the thread that owns the host source. Fetched ranges merge
-  into a disjoint interval store; reads are served from it and always
+  use, on the thread that owns the host source. Fetched ranges enter
+  a disjoint resident store without copying adjacent payloads; reads are served from it and always
   copied out, so stream bodies survive later eviction.
 - A step driver runs the synchronous parse steps (`PdfDocument.parse`,
   page tree, metadata, outline, per-page extraction) inside a resume
@@ -67,10 +68,17 @@ against a **resident range cache with explicit resume**:
 - Eviction between steps keeps the resident store under a budget
   (default: the session policy's cache budget clamped to at most half
   the source length; never below 1 MiB). Pinned step working sets may
-  exceed it; the store never evicts inside a step.
+  exceed the eviction target, but the total pinned working set cannot
+  exceed `SessionPolicy.cacheBytes`; an excessive step fails typed.
+  Unpinned ranges can be evicted before fetching more bytes. Failed and
+  canceled steps release pins too. The all-time coverage ledger stores
+  interval offsets only and is cleared on disposal.
 - Budgets are enforced before allocation: a demand above the policy's
   per-request cap fails typed (`ByteSourceLimitExceededException`),
-  bounds violations fail `RangeError`, in-flight caps queue
+  a parser step's retained ranges cannot exceed `cacheBytes`, and each
+  temporary copy is limited to the minimum of `rangeRequestBytes`,
+  `rangeBytesInFlight`, and `cacheBytes` (separate from retained storage).
+  Bounds violations fail `RangeError`, in-flight caps queue
   (backpressure), and gate failures surface as the typed
   `ByteSource*` hierarchy.
 
@@ -131,7 +139,7 @@ object streams), `jbig2_huffman_2.pdf` (xref stream + object streams),
 
 ## Files this mission owns or touches
 
-- New: `lib/src/features/pdf/reader/pdf_range_loader.dart` (loader,
+- New: `lib/src/features/progressive/pdf_range_loader.dart` (loader,
   resident source, demand type, step driver), the async open entry
   used by `SessionEngine.openRemote`.
 - Changed: `SessionEngine.openRemote` (PDF branch),
@@ -145,31 +153,30 @@ object streams), `jbig2_huffman_2.pdf` (xref stream + object streams),
 
 ## Amendment: expected content difference on Byrne's Euclid (PR02)
 
-The strict text policy (fold + whitespace collapse + casefold, Dice
-over character bigrams, page aligned at ≥ 0.90) passes every corpus
-page except `elements-of-euclid-pg.pdf`: MuPDF walks the multi-column
-Byrne plates in its own reading order and expands their display
-symbols differently from the canonical reflow. A pre-implementation
-probe measured the divergence as order-sensitive dice ≈ 0.78–0.86 with
-character-sorted dice ≈ 0.93–0.95 on the failing pages — a genuine
-cross-parser difference on heavily designed plates, not a transport or
-extraction defect. The acceptance records PR02 as
-`expected-difference` with the per-page measurements in
-`build/evidence/C01/cases/pr02.json`; every other corpus page must
-align or the case fails.
+The original broad Euclid exception did not constrain the content being
+accepted. Integration review replaced it with a pinned profile in
+`tool/reference/pdf/euclid-text-profile.json`: exact normalized local and
+MuPDF per-page hashes captured from the unchanged C01 branch `8d5f287`.
+For the 228-page fixture, 216 pages fall below the 0.90 Dice threshold
+(the minimum is approximately 0.6562). This corpus therefore does **not**
+prove the declared semantic text parity on those pages. It records a
+bounded, known extraction difference; current remote output must match
+local session output exactly, and both the local and MuPDF text must
+match their recorded hashes. New or altered differences fail. Other
+fixtures retain the original threshold.
+
+Navigation compares titles, target pages and tree depth, including a
+MuPDF-generated three-page fixture with a nested, non-empty outline.
+Comparator negatives alter text and navigation and remove reference data;
+none may be classified as a passing comparison.
 
 ## Known base limitations discovered (pre-existing, not introduced here)
 
-- Session extraction on dart2js: the first extraction a browser
-  context performs for a synthetic multi-page PDF can return zero
-  lines, and a two-page document fails `loadPdfPageStructure`
-  outright (`Bad state: No element`). Both reproduce on 1.3.0
-  (`BookSession.open` in Chrome on commit `cdd16ac`) and are
-  independent of the byte-source transport; the browser suites pin
-  content parity on pages 2+ and leave the page-1 pin to the VM
-  suites. Recipe: build the proposal's synthetic three-page PDF
-  (`test/web/pdf_source_worker_test.dart`), open it in Chrome, and
-  compare `pageTexts[0]` against the VM result.
+- Integration review traced the claimed first-page dart2js failure to the
+  synthetic fixture: its first page referenced a page object as `/Contents`
+  instead of the content stream. The corrected fixture verifies first-page,
+  reverse-order, concurrent and canceled reads in Chrome, inline and in a
+  freshly compiled worker. There is no first-page parity waiver.
 - Reflow degenerate layouts: pages whose lines all sit at the same
   baseline canonicalize to empty text under the session's sampled
   plan (VM included). Real fixtures are unaffected; the synthetic

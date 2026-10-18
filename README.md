@@ -250,12 +250,22 @@ whose revision changes under an open session fails its reads with
 `ByteSourceRevisionChangedException` instead of mixing file states.
 The source is closed when the session is disposed.
 
+`cancelPending` fails queued and active requests and ignores their late
+answers. A host read already in progress still occupies its in-flight slot
+and bytes until it settles: `UnsealByteSource` has no abort operation. New
+requests can use remaining capacity; with a one-request cap, an unresponsive
+host read must settle before another physical read starts.
+
 PDF sessions over byte sources expose their read ledger through
 `session.metrics()`: `pdfRangeFetches`, `pdfRangeFetchBytes` and
-`pdfRangeUniqueBytes` report exactly what crossed the wire,
-`pdfRangeResidentPeak` shows the bounded range cache (never the whole
-file), and `pdfRangeQueuedStepsPeak` shows the parser queue absorbing
-concurrent page loads. Recovery scans on damaged documents keep their
+`pdfRangeUniqueBytes` report completed range reads.
+`pdfRangeResidentPeak` shows retained range payloads. Between parser steps,
+the eviction target is at most half the source (with a 1 MiB floor); pinned
+ranges within a step cannot exceed `cacheBytes`. Temporary read copies are
+separately limited to the minimum of `rangeRequestBytes`,
+`rangeBytesInFlight`, and `cacheBytes`. The coverage ledger stores offsets,
+without retaining fetched payloads. `pdfRangeQueuedStepsPeak` reports the
+parser queue absorbing concurrent page loads. Recovery scans on damaged documents keep their
 eager-parse semantics — each scanned window is a real, counted range.
 
 PDF sessions derive their reflow plan from up to 20 sampled pages. For longer

@@ -47,6 +47,7 @@ Links map `href`, `rel` as string or list (`rels`), `templated`, `type`,
   (`metadata.title`, `links`, link `href`, group `metadata`, acquisition
   object `type`) reject when missing.
 - **Invalid** values — a wrong type, an unparseable `modified` timestamp,
+  an invalid calendar date, a non-finite numeric value, or
   a publication without an acquisition relation — throw
   `Opds2MalformedException` carrying a JSON pointer to the offending
   value.
@@ -73,7 +74,7 @@ The parser applies both, and where they disagree the parsing rule is:
 | Search links are templates with `{?query}` | **not enforced** | "always expressed using a URI template with at least one query parameter" | rejects |
 | Publication has an acquisition link | enforced via `contains` | must | rejects |
 | Images include one jpeg/avif/webp/jxl/png/gif | enforced via `contains` | must | rejects |
-| `modified` is RFC 3339 date-time | `format` is an annotation | must | rejects unparseable values |
+| `modified` is RFC 3339 date-time | `format` is an annotation | must | validates calendar date, time and offset; leap-second `:60` values are outside the supported subset and reject typed |
 | Price object carries `value` | **not enforced** | price "provides the decimal value" | rejects missing value |
 | Currency is a current ISO 4217 code | enum of codes | — | checks three-letter shape only (documented subset) |
 | Language tags are BCP 47 | full pattern | must | lightweight subtag shape check (documented subset) |

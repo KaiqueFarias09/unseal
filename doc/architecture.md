@@ -158,13 +158,15 @@ positions over bounded built-byte windows, and keep their linked-aid set
 complete from open so any part finalizes in any order with the eager
 markup outcome.
 
-EPUB and CBZ sessions can also open over a host-owned byte source
+EPUB, CBZ and PDF sessions can also open over a host-owned byte source
 (`UnsealByteSource`: length, revision identity, exact `readRange`,
-close). The engine reads through an asynchronous container layer — one
+close). For EPUB and CBZ, the engine uses an asynchronous container layer: one
 end-of-central-directory tail scan, bounded central-directory windows,
 then one local header and one compressed payload per entry, a Deflate
-entry's whole compressed payload being its real decompression unit —
-and pulls those ranges from the host through a versioned
+entry's whole compressed payload being its real decompression unit.
+PDF instead drives the synchronous parser through bounded resident ranges
+and explicit resume on cache misses. Each format
+pulls its ranges from the host through a versioned
 (`byteSource.v1`) bridge over the VM isolate or the Web Worker. The
 host-side gate enforces the source contract, the session's in-flight
 budgets, and the revision identity on the thread that owns the source;
@@ -177,7 +179,10 @@ reads, decode work, and materialized content, which is how progressive
 delivery stays a measured property instead of an assertion.
 Comic pages have no searchable text, and sessions do not perform OCR.
 
-Cancellation fails pending requests while keeping the session usable.
+Cancellation fails pending requests while keeping the session usable. Host
+reads that cannot be aborted retain their in-flight budget until settlement;
+late answers cannot refill a canceled parser step. A one-request budget
+therefore needs a pending physical read to settle before fetching again.
 Disposal releases the transport and fails pending and subsequent requests.
 Unsupported session formats fail explicitly; callers can use the eager APIs.
 

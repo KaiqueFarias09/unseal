@@ -76,7 +76,7 @@ CCITT extensions, and every other compression id.
 | Counter | Limit | What it counts |
 | --- | --- | --- |
 | decoded pixels | 256,000,000 | width x height of every decoded page |
-| resident bytes | 128 MiB | materialized BMP pages plus the live RGB conversion buffer and the live tile or strip scratch buffer; scratch and conversion bytes are released when the page completes |
+| resident bytes | 128 MiB | materialized BMP pages plus the live RGB conversion buffer and the live tile or strip scratch buffer, including fixed CCITT current/reference run arrays; scratch and conversion bytes are released when the page completes |
 | decode work | 512 MiB | every decoded segment at its full footprint, padding included, never released |
 | JPEG passthrough | 32 MiB per page | counted in resident bytes |
 
@@ -86,8 +86,7 @@ so nine such pages fail typed even though their BMPs are 58 bytes each.
 
 ## Comparison contract
 
-Reference: libtiff 4.7.2 (`/opt/homebrew/Cellar/libtiff/4.7.2`,
-`TIFFLIB_VERSION 20260627`). `tiffinfo` records the layout of every
+Reference: libtiff 4.7.2 (`TIFFLIB_VERSION 20260627`). `tiffinfo` records the layout of every
 fixture, `tiffcp` derives identified variants, and
 `tool/reference/tiff_oracle_dump/tiff_oracle_dump.c` extracts pixels at
 two levels:
@@ -97,12 +96,18 @@ two levels:
   one per byte, no orientation applied);
 - rgba: `TIFFReadRGBAImageOriented(ORIENTATION_TOPLEFT)`.
 
-Unit of comparison: one RGB888 pixel of the page image Unseal emits,
+The native lane also compares every decoded sample before RGB quantization,
+using the production decoder's internal segment observer after codec and
+Predictor 2 processing. Sixteen-bit values compare at full precision after interpreting each
+side's declared byte order, including the low byte, with no tolerance; visible samples exclude
+edge-tile padding. The observer is development-only, unexported and read-only.
+
+For the rendered lanes, the unit of comparison is one RGB888 pixel of the page image Unseal emits,
 rows reordered top-down from the BMP. Tolerance: zero. A case passes only
 when every pixel of every page matches and the pixel count equals
 `width x height` per page.
 
-Normalization applied to the native samples before the comparison:
+Normalization applied to native samples for the additional RGB projection comparison:
 
 | Layout | Native sample `v` to expected RGB |
 | --- | --- |

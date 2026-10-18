@@ -836,7 +836,7 @@ snapshot.
 | `features/alto/alto_document.dart` | The document model: version, unit, provenance, pages, blocks (text, composed, illustration, graphical element), lines, and strings with confidence figures. |
 | `features/alto/parse_alto_document.dart` | Parses namespaces v2/v3/v4 under input and structure bounds; unknown units, namespaces without a supported version, and strings without content fail typed. Extension elements carry no positioned words and are ignored. |
 | `features/alto/alto_scale.dart` | The verified conversion from document units to pixels: from a declared dpi or page-dimension agreement (1% aspect tolerance); a physical unit without evidence has no scale and refuses. |
-| `features/alto/bind_alto_snapshot.dart` | The snapshot binding: a reading cursor maps each string to the first target occurrence at or after it, repeated quotes stay ambiguous with bounded candidate lists, absent words report missing, line and block spans aggregate with min/max because real blocks do not map monotonically, and a projection budget stops quadratic work. The binding preserves the target identity tuple, OCR origin, software, and confidence. |
+| `features/alto/bind_alto_snapshot.dart` | The snapshot binding: a reading cursor maps each string to the first target occurrence at or after it, repeated quotes and distinct inherited OCR alternatives stay ambiguous with bounded candidate lists, absent words report missing, line and block spans aggregate with min/max because real blocks do not map monotonically, and a projection budget stops quadratic work. The binding preserves the target identity tuple, OCR origin, software, and confidence. |
 | `features/alto/alto_exception.dart` | Malformed/out-of-subset refusals and the unverifiable-conversion error. |
 
 ## PAGE XML: import the PRImA OCR vocabulary into the spatial contract
@@ -859,7 +859,7 @@ independent lxml extraction of a licensed real corpus (OCR-D
 | `lib/page.dart` | The public import entry point, with the shared spatial types its signatures use. |
 | `features/page/page_document.dart` | The document model: metadata, page identity and dimensions, all region kinds, text lines and words, native polygons with derived bounding boxes, baselines, reading-order groups, and TextEquiv content with the deterministic lowest-index choice. |
 | `features/page/parse_page_document.dart` | Parses the 2019-07-15 subset under event-level bounds checked before the DOM; points, confidence ranges, id collisions, reading-order references, duplicate indexes, cycles and schema-required metadata fail typed. Extension elements travel nowhere; descriptive enumeration tokens stay verbatim. |
-| `features/page/bind_page_snapshot.dart` | The snapshot binding at the finest declared granularity (words, then lines, then regions): a reading cursor maps chosen TextEquiv content, repeated quotes stay ambiguous with bounded candidate lists, absent text reports missing, parents aggregate with min/max, and a projection budget stops quadratic work. The binding preserves the target identity tuple, OCR origin, creator, and confidence presence. |
+| `features/page/bind_page_snapshot.dart` | The snapshot binding at the finest declared granularity (words, then lines, then regions): a reading cursor maps chosen TextEquiv content, repeated quotes and distinct inherited OCR alternatives stay ambiguous with bounded candidate lists, absent text reports missing, parents aggregate with min/max, and a projection budget stops quadratic work. The binding preserves the target identity tuple, OCR origin, creator, and confidence presence. |
 | `features/page/page_exception.dart` | Malformed/out-of-subset refusals. |
 
 ## TIFF and BigTIFF: decode multi-page raster books
@@ -893,7 +893,7 @@ before any declared allocation. Documents are capped at 128 MiB of input,
 1,024 pages, 65,536 IFD entries, 4 samples per pixel, a 256-megapixel page
 or tile footprint, a million segments per page, 256 million decoded pixels
 per book, 128 MiB of resident decoded bytes (page images plus the live
-conversion and segment scratch), and 512 MiB of decode work counted at full
+conversion, segment scratch and fixed CCITT row buffers), and 512 MiB of decode work counted at full
 footprints. `doc/tiff-tiles.md` fixes the tiled contract, the budgets, and
 the libtiff comparison.
 
@@ -1145,7 +1145,7 @@ Palm databases throw `SessionUnsupportedFormatException`.
 | `features/progressive/transport/session_transport_io.dart` | Keeps a session in a long-lived VM isolate, reads file sources there, and serves the engine's `byteSource.v1` range requests through the host gate. |
 | `features/progressive/transport/session_transport_web.dart` | Routes requests to the configured browser worker, registers the served source for the `byteSource.v1` bridge, and falls back to inline execution when unavailable. |
 | `platform/web/byte_source_bridge.dart` | The worker-side half of the bridge: pure request/reply correlation a test can drive without browser types. |
-| `features/progressive/pdf_range_loader.dart` | The PDF session's demand-driven resident range store: exact budget-checked reads over the session gate, span-merging with eviction under a half-source budget, the resume loop that replays a synchronous parser step on a miss, and the `PdfResidentByteSource` the unchanged PDF parser reads through. |
+| `features/progressive/pdf_range_loader.dart` | The PDF session's demand-driven resident range store: exact budget-checked reads over the session gate, disjoint payload spans without merging copies, interval-only coverage accounting, bounded pinned working sets and eviction toward a half-source target, the resume loop that replays a synchronous parser step on a miss, and the `PdfResidentByteSource` the unchanged PDF parser reads through. |
 | `features/progressive/pdf_session_header.dart` | Builds the PDF session header — the complete structure book, the sampled reflow plan and the seeded extractions — synchronously for bytes/file opens and through the range loader for byte-source opens. |
 | `features/progressive/mobi_session_header.dart` | Builds MOBI/AZW3 session headers and their serving state: the open pass over records, MOBI 6 section materialization (anchor-chain splices, body-range clamping, wrapper stripping), KF8 per-part assembly with bounded position resolution, and the lazy resource walk. |
 | `features/progressive/session_metrics.dart` | The shared session counter (source reads, decoded units and bytes, materialized content), the counting byte source, and the `SessionMetrics` snapshot behind `BookSession.metrics`. |
