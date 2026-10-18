@@ -164,7 +164,27 @@ ReadiumLocator? tryDecodeReadiumLocator(
   final Map<Object?, Object?> json, {
   final ReadiumLocatorLimits limits = const ReadiumLocatorLimits(),
 }) {
-  return _decodeLocator(json, limits);
+  try {
+    return _decodeLocator(json, limits);
+  } on ReadiumStructuralRejection {
+    return null;
+  }
+}
+
+/// Decodes a Readium Locator from an already-parsed JSON map under the
+/// strict contract: structural malformations and bound breaches surface
+/// as [ReadiumStructuralRejection] for the string codec to classify.
+/// Feature internal; hosts use [tryDecodeReadiumLocator] or the codec.
+ReadiumLocator decodeReadiumLocatorStrict(
+  final Map<Object?, Object?> json, {
+  final ReadiumLocatorLimits limits = const ReadiumLocatorLimits(),
+}) {
+  final locator = _decodeLocator(json, limits);
+  if (locator == null) {
+    throw const ReadiumStructuralRejection(false);
+  }
+
+  return locator;
 }
 
 ReadiumLocator? _decodeLocator(
@@ -247,17 +267,23 @@ ReadiumLocations? _decodeLocations(
   final legacyValue = json['fragment'];
   if (fragmentsValue != null) {
     if (fragmentsValue is! List<Object?>) return null;
-    if (fragmentsValue.length > limits.maxFragments) return null;
+    if (fragmentsValue.length > limits.maxFragments) {
+      throw const ReadiumStructuralRejection(true);
+    }
     for (final fragment in fragmentsValue) {
       if (fragment is! String) return null;
-      if (fragment.length > limits.maxFragmentLength) return null;
+      if (fragment.length > limits.maxFragmentLength) {
+        throw const ReadiumStructuralRejection(true);
+      }
       fragments.add(fragment);
     }
   } else if (legacyValue != null) {
     // The legacy singular spelling the official position-list example
     // uses; the toolkit folds it in only when `fragments` is absent.
     if (legacyValue is! String) return null;
-    if (legacyValue.length > limits.maxFragmentLength) return null;
+    if (legacyValue.length > limits.maxFragmentLength) {
+      throw const ReadiumStructuralRejection(true);
+    }
     fragments.add(legacyValue);
   }
 
@@ -265,19 +291,13 @@ ReadiumLocations? _decodeLocations(
   // dropped (the toolkit's drop-and-keep semantics).
   double? decodeUnitInterval(final Object? value) {
     if (value == null) return null;
-    if (value is! num || value.isNaN) throw const _StructuralException();
+    if (value is! num || value.isNaN) throw const ReadiumStructuralRejection(false);
 
     return (value >= 0 && value <= 1) ? value.toDouble() : null;
   }
 
-  final double? progression;
-  final double? totalProgression;
-  try {
-    progression = decodeUnitInterval(json['progression']);
-    totalProgression = decodeUnitInterval(json['totalProgression']);
-  } on _StructuralException {
-    return null;
-  }
+  final progression = decodeUnitInterval(json['progression']);
+  final totalProgression = decodeUnitInterval(json['totalProgression']);
 
   final positionValue = json['position'];
   int? position;
@@ -302,10 +322,16 @@ ReadiumLocations? _decodeLocations(
   for (final entry in json.entries) {
     final key = entry.key;
     if (key is! String || knownKeys.contains(key)) continue;
-    if (extensions.length >= limits.maxExtensions) return null;
-    if (key.isEmpty || key.length > limits.maxExtensionKeyLength) return null;
+    if (extensions.length >= limits.maxExtensions) {
+      throw const ReadiumStructuralRejection(true);
+    }
+    if (key.isEmpty || key.length > limits.maxExtensionKeyLength) {
+      throw const ReadiumStructuralRejection(true);
+    }
     final value = entry.value;
-    if (!_isBoundedJsonValue(value, limits)) return null;
+    if (!_isBoundedJsonValue(value, limits)) {
+      throw const ReadiumStructuralRejection(true);
+    }
     extensions[key] = value;
   }
 
@@ -318,9 +344,17 @@ ReadiumLocations? _decodeLocations(
   );
 }
 
-/// Signals a structurally wrong value type inside a tolerated field.
-final class _StructuralException implements Exception {
-  const _StructuralException();
+/// Signals a rejected payload: a structurally wrong value type, or a
+/// bound breach the caller surfaces as a typed limit failure. Feature
+/// internal: the map-level decode turns it into `null`, the strict string
+/// codec turns it into the typed limit/format failures.
+final class ReadiumStructuralRejection implements Exception {
+  /// Creates the rejection.
+  const ReadiumStructuralRejection(this.isLimit);
+
+  /// Whether the rejection was a resource bound (true) or a value-type
+  /// malformation (false).
+  final bool isLimit;
 }
 
 bool _isInteger(final num value) => value.isFinite && value == value.truncate();
@@ -365,7 +399,9 @@ ReadiumTextContext? _decodeText(
   String? field(final Object? value) {
     if (value == null) return null;
     if (value is! String) return null;
-    if (value.length > limits.maxTextContextLength) return null;
+    if (value.length > limits.maxTextContextLength) {
+      throw const ReadiumStructuralRejection(true);
+    }
 
     return value;
   }

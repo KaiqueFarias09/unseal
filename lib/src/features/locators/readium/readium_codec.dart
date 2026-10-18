@@ -90,16 +90,19 @@ T _decodeBounded<T>(
     throw const ReadiumLocatorFormatException('Readium JSON source is not a JSON object');
   }
 
-  return decode(document);
+  try {
+    return decode(document);
+  } on ReadiumStructuralRejection catch (rejection) {
+    throw rejection.isLimit
+        ? const ReadiumLocatorLimitException('Readium payload crosses a declared bound.')
+        : const ReadiumLocatorFormatException('Not a structurally valid Readium document');
+  }
 }
 
 ReadiumLocator _requireLocator(final Map<Object?, Object?> document) {
-  final locator = tryDecodeReadiumLocator(document);
-  if (locator == null) {
-    throw const ReadiumLocatorFormatException('Not a structurally valid Readium Locator');
-  }
-
-  return locator;
+  // The strict decode propagates classified rejections; the surrounding
+  // try/catch turns them into the typed limit/format failures.
+  return decodeReadiumLocatorStrict(document);
 }
 
 /// Counts structure, decoded string lengths, and approximate byte size
