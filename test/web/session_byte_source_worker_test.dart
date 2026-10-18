@@ -251,21 +251,17 @@ void main() {
     await expectLater(sessionA.loadResource(pathA), throwsA(isA<SessionClosedException>()));
   });
 
-  test('a source refusal crosses the bridge typed in the browser', () async {
-    // A PDF through a source is refused before any bridge traffic.
+  test('a truncated PDF fails typed across the bridge in the browser', () async {
+    // A %PDF header with no body is parse-time corruption now that the
+    // format opens over sources; the typed parse failure crosses the
+    // bridge instead of an unsupported-format refusal.
     await expectLater(
       BookSession.openSource(
         RecordingByteSource(
           Uint8List.fromList(<int>[0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]),
         ),
       ),
-      throwsA(
-        isA<SessionUnsupportedFormatException>().having(
-          (final error) => error.message,
-          'message',
-          contains('PDF'),
-        ),
-      ),
+      throwsA(isA<UnsealException>()),
     );
   });
 
