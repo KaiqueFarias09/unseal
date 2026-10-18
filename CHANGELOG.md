@@ -1,3 +1,31 @@
+## Unreleased
+
+### Added
+
+- hOCR OCR import (`lib/hocr.dart`): pages, content areas, paragraphs,
+  lines and words in the nesting the producer declared — Tesseract
+  (including its 4/5 `ocr_header`/`ocr_caption`/`ocr_textfloat`
+  line-role classes), ABBYY, ocropy, OCRopus, kraken and gcv2hocr
+  shapes — with producer metadata, integer pixel boxes, the native
+  baseline polynomial with named page-space projections, text angles
+  that never rotate coordinates, scan resolution, and every unconsumed
+  `title` property verbatim. The 0..100 `x_wconf` scale converts
+  explicitly to the shared 0..1; absent, unknown and zero confidence
+  stay distinct. `order` and `cflow` refuse typed.
+- `bindHocrToSnapshot`: binds hOCR text onto a host-provided canonical
+  snapshot with the shared reading cursor, bounded ambiguity candidates
+  and projection budget; a line's region zone is its nearest boxed
+  ancestor and frameless pages bind without a spatial projection.
+  `UnsealWorker.bindHocrInWorker` serves the same binding in the browser
+  worker. Bounded preflight before any DOM: 32 MiB input, 128 tag
+  levels, one million elements, per-page/line/word budgets, title and
+  attribute caps; corruption fails typed. Subset, title grammar,
+  producer policies, TSV normalization, corpus and limits are specified
+  in `doc/hocr.md`, and the executed reference lane (Tesseract 5.5.3
+  hOCR+TSV same-pass runs over Apache-2.0 images, eight CC0 sidecars
+  from ocr-fileformat-samples, and an independent lxml extractor the
+  Dart parser is diffed against) lives in `tool/hocr_*`.
+
 ## 1.3.0 - October 18, 2026
 
 ### Added
