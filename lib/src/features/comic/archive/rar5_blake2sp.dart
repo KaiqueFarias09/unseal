@@ -1,4 +1,4 @@
-/// Incremental BLAKE2sp (RFC 7693 parallel hash, 32-byte output) for the
+/// Incremental BLAKE2sp (official reference tree hash, 32-byte output) for the
 /// RAR 5 extra-area data hash.
 ///
 /// A direct port of the reference C implementation (`blake2s-ref.c` and

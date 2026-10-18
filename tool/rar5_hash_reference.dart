@@ -327,10 +327,14 @@ Future<int> _runReference(final String out, final String? rarPath) async {
         '$_resourceDir/$fixture',
       ], stdoutEncoding: const convert.Utf8Codec(allowMalformed: true));
       final listingText = listing.stdout.toString();
-      final versionCut = listingText
+      final compressionLines = listingText
           .split('\n')
           .where((final line) => line.trim().startsWith('Compression:'))
-          .every((final line) => line.contains('RAR 5.0(v50)'));
+          .toList();
+      final versionCut =
+          listing.exitCode == 0 &&
+          compressionLines.length == pinned.length &&
+          compressionLines.every((final line) => line.contains('RAR 5.0(v50)'));
       if (!versionCut) rarFailures++;
       rarChecks.add({
         'fixture': fixture,

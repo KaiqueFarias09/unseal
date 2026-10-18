@@ -10,8 +10,9 @@ Dart and never calls them at runtime):
 
 - BLAKE2 reference C package, pinned revision
   `ed1974ea83433eba7b2d95c5dcd9ac33cb847913` (CC0 / OpenSSL / Apache-2.0
-  tri-license), files `ref/blake2s-ref.c` and `ref/blake2sp-ref.c`. The
-  unkeyed key-value tests (input lengths 0..255 of the standard buffer
+  tri-license), files `ref/blake2s-ref.c` and `ref/blake2sp-ref.c` in the
+  [official source revision](https://github.com/BLAKE2/BLAKE2/tree/ed1974ea83433eba7b2d95c5dcd9ac33cb847913/ref).
+  The unkeyed known-answer tests (input lengths 0..255 of the standard buffer
   `buf[i] = i`) and the block/chunk boundary probes compare bit for bit
   against this implementation. BLAKE2s (the sequential hash) is never a
   substitute for BLAKE2sp (the 8-lane parallel tree); a digest that is
@@ -36,8 +37,7 @@ The RAR 5 file-header extra area may carry one or more records
   BLAKE2sp instead of the header CRC-32 (WinRAR/RAR `-htb`), so a `-htb`
   entry commonly declares no file-header CRC-32 at all.
 - A digest of 32 zero bytes is a present digest (it verifies against the
-  computed hash and will normally fail, because no payload's BLAKE2sp is
-  all-zero). Absence of the record is absence: entries without the record
+  computed hash and fails unless that actual digest matches). Absence of the record is absence: entries without the record
   keep the CRC-32-only contract, and the public APIs keep their shapes.
 - Two hash records on one entry must agree when both declare a BLAKE2sp
   digest; conflicting digests are a typed failure. A repeated identical
@@ -49,8 +49,8 @@ The RAR 5 file-header extra area may carry one or more records
 
 ## Verification contract
 
-- The hasher is an incremental pure-Dart BLAKE2sp (RFC 7693 parallel
-  variant): 8 BLAKE2s leaves (fanout 8, depth 2, node offset 0..7, leaf 7
+- The hasher is an incremental pure-Dart BLAKE2sp, defined by the pinned
+  official BLAKE2 reference sources above: 8 BLAKE2s leaves (fanout 8, depth 2, node offset 0..7, leaf 7
   and the root carry the last-node flag), a 512-byte shared tail buffer,
   64-byte blocks, 10 rounds, and 32-byte output. All state is fixed size.
   Integer arithmetic is masked to 32 bits so the VM and compiled
@@ -66,7 +66,12 @@ The RAR 5 file-header extra area may carry one or more records
   stand as dependencies for later members; backward replay and checkpoint
   restores re-verify every entry they re-decode, and a failure poisons the
   chain exactly like a failed decode (reset/poison/reopen follow the
-  base solid contract).
+  base solid contract). Directly requested compressed targets use the
+  same verification window as intermediate members: neither the cursor
+  nor a reusable checkpoint advances until all declared checksums pass.
+  A regression requests a corrupt middle target directly, then verifies
+  both forward continuation and backward reuse refuse until reopening.
+  Independently stored payloads do not consume the poisoned dictionary.
 - When an entry declares both a header CRC-32 and a BLAKE2sp digest, both
   verify; a correct checksum never excuses the other. Failures name their
   cause: a digest failure says BLAKE2sp, a CRC failure says checksum, a
