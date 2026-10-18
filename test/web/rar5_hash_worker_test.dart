@@ -58,8 +58,7 @@ void main() {
     final book = await Unseal.read(bytes) as ComicBook;
     expect(book.pages.length, 2);
     final digests = {
-      for (final page in book.pages)
-        page.path: crypto.sha256.convert(page.content).toString(),
+      for (final page in book.pages) page.path: crypto.sha256.convert(page.content).toString(),
     };
     expect(
       digests['z-tiny.jpg'],

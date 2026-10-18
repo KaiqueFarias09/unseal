@@ -49,7 +49,8 @@ import 'package:unseal/src/foundation/archive/zip_byte_source.dart';
 /// `hashlib.blake2s` (OpenSSL) and pinned here: an implementation that
 /// accepts BLAKE2s in the RAR 5 hash record would wrongly verify this
 /// archive.
-const String blake2sOfMMediumHex = '5c0162bb7e58279f155f1178409ff498f5356b1339becedcdd82eccfd2d3172f';
+const String blake2sOfMMediumHex =
+    '5c0162bb7e58279f155f1178409ff498f5356b1339becedcdd82eccfd2d3172f';
 
 const String _resourceDir = 'test/resources/books/comic/rar5';
 
@@ -132,14 +133,13 @@ Map<String, Uint8List> _buildDerivations() {
     }),
     'rar5-hash-both-checksums.cbr': _injectHeaderCrcs(stored),
     'rar5-hash-both-wrong-crc.cbr': _corruptDeclaredCrcs(_injectHeaderCrcs(stored)),
-    'rar5-hash-both-corrupt-digest.cbr': _rewriteDigests(
-      _injectHeaderCrcs(stored),
-      (final digest) {
-        final flipped = Uint8List.fromList(digest);
-        flipped[1] ^= 0x20;
-        return flipped;
-      },
-    ),
+    'rar5-hash-both-corrupt-digest.cbr': _rewriteDigests(_injectHeaderCrcs(stored), (final digest) {
+      final flipped = Uint8List.fromList(digest);
+      flipped[1] ^= 0x20;
+      return flipped;
+    }),
+    'rar5-hash-conflicting-duplicate.cbr': _duplicateHashRecordWithConflict(stored),
+    'rar5-hash-solid-corrupt-middle.cbr': _corruptSolidMiddle(_readPrimary('rar5-hash-solid.cbr')),
   };
 }
 
@@ -316,9 +316,9 @@ void _repairHeaderCrc(final Uint8List bytes, final int blockStart) {
 }
 
 /// Corrupts every declared header CRC-32 (file flag 0x0004 field) of
-/// [bytes] to a wrong value while the payload and BLAKE2sp digest stay
-/// correct — the negative that isolates a checksum failure from a hash
-/// failure.
+/// [primary] to a wrong value while the payload and BLAKE2sp digest
+/// stay correct — the negative that isolates a checksum failure from a
+/// hash failure.
 Uint8List _corruptDeclaredCrcs(final Uint8List primary) {
   final bytes = Uint8List.fromList(primary);
   final blocks = _fileBlocks(bytes);
@@ -336,7 +336,81 @@ Uint8List _corruptDeclaredCrcs(final Uint8List primary) {
     cursor += _readVint(body, cursor).$2; // unpacked size
     cursor += _readVint(body, cursor).$2; // attributes
     final crc = getCrc32(Uint8List.sublistView(bytes, block.end, block.end + block.dataSize));
-    ByteData.sublistView(bytes).setUint32(block.bodyStart + cursor, crc ^ 0xA5A5A5A5, Endian.little);
+    ByteData.sublistView(
+      bytes,
+    ).setUint32(block.bodyStart + cursor, crc ^ 0xA5A5A5A5, Endian.little);
+    _repairHeaderCrc(bytes, block.start);
+  }
+  return bytes;
+}
+
+/// Rebuilds [primary] with the first file header's hash record
+/// duplicated: the duplicate carries a flipped digest, so the entry
+/// declares two conflicting BLAKE2sp digests. The extra area and header
+/// grow by 35 bytes (one-byte vints in the primaries stay one byte).
+Uint8List _duplicateHashRecordWithConflict(final Uint8List primary) {
+  final bytes = Uint8List.fromList(primary);
+  final blocks = _fileBlocks(bytes);
+  if (blocks.isEmpty) _fail('no hash records found in primary');
+  final block = blocks.first;
+  final record = block.hashRecords.first;
+  if (record.recordSizeWidth != 1 || record.recordSize + 35 > 127) {
+    _fail('one-byte record sizes expected');
+  }
+  final (extraSize, extraSizeWidth) = _readVint(bytes, block.bodyStart + 2);
+  final (headerSize, headerSizeWidth) = _readVint(bytes, block.start + 4);
+  if (extraSizeWidth != 1 || headerSizeWidth != 1 || headerSize + 35 > 127) {
+    _fail('one-byte block sizes expected');
+  }
+
+  final duplicate = BytesBuilder();
+  duplicate.add(bytes.sublist(record.start, record.digestOffset));
+  final flipped = Uint8List.fromList(bytes.sublist(record.digestOffset, record.digestOffset + 32));
+  flipped[2] ^= 0x11;
+  duplicate.add(flipped);
+  final recordBytes = duplicate.toBytes();
+
+  final insertion = record.start + 1 + record.recordSize;
+  final out = BytesBuilder();
+  out.add(bytes.sublist(0, insertion));
+  out.add(recordBytes);
+  out.add(bytes.sublist(insertion));
+  final grown = out.toBytes();
+
+  // Re-encode the extra-area size and the header size; the record size
+  // vints themselves stay untouched.
+  final extraSizeOffset = block.bodyStart + 2;
+  grown[extraSizeOffset] = extraSize + 35;
+  grown[block.start + 4] = headerSize + 35;
+  _repairHeaderCrc(grown, block.start);
+
+  final result = BytesBuilder()
+    ..add(grown.sublist(0, block.start + 4 + 1 + headerSize + 35))
+    ..add(grown.sublist(block.start + 4 + 1 + headerSize));
+  final shifted = result.toBytes();
+
+  // Self-check: the shared walk must name the conflict.
+  try {
+    readRar5Structure(MemoryZipByteSource(shifted));
+    _fail('conflicting duplicate still parses cleanly');
+  } on FormatException {
+    _fail('conflicting duplicate failed structurally instead of typed');
+  } on Object {
+    // Expected typed rejection.
+  }
+  return shifted;
+}
+
+/// Flips a byte of the MIDDLE chain member's digest in the solid
+/// fixture — the negative that proves a chain dependency's hash failure
+/// poisons the chain before later members publish.
+Uint8List _corruptSolidMiddle(final Uint8List primary) {
+  final bytes = Uint8List.fromList(primary);
+  final blocks = _fileBlocks(bytes);
+  if (blocks.length < 3) _fail('solid primary expected at least three file headers');
+  final middle = blocks[1].hashRecords.first;
+  bytes[middle.digestOffset] ^= 0x08;
+  for (final block in blocks) {
     _repairHeaderCrc(bytes, block.start);
   }
   return bytes;

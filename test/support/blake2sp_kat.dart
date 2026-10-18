@@ -1,9 +1,9 @@
 /// Official unkeyed BLAKE2sp key-value tests, computed by the pinned
 /// C reference oracle in `tool/rar5_hash_blake2sp/` (BLAKE2 package
 /// revision ed1974ea83433eba7b2d95c5dcd9ac33cb847913, CC0 / OpenSSL /
-/// Apache-2.0). KAT input [n] is the first n bytes of the periodic
-/// buffer bytes[i] = i & 0xFF; the 0..255 digests are exactly the
-/// official KAT buffer prefixes. The reference stage of the D05
+/// Apache-2.0). KAT input of length n is the first n bytes of the
+/// periodic buffer whose byte at position i is i & 0xFF; the 0..255
+/// digests are exactly the official KAT buffer prefixes. The reference stage of the D05
 /// comparator recomputes every value from the pinned C sources.
 library;
 
