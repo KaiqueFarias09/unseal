@@ -87,6 +87,13 @@ final class SessionMetrics {
     required this.bytesDecoded,
     required this.contentBytesMaterialized,
     required this.cacheBytesResident,
+    this.pdfRangeFetches,
+    this.pdfRangeFetchBytes,
+    this.pdfRangeUniqueBytes,
+    this.pdfRangeResidentPeak,
+    this.pdfRangeResumes,
+    this.pdfRangeEvicted,
+    this.pdfRangeQueuedStepsPeak,
   });
 
   /// Decodes a snapshot from the transport wire.
@@ -98,6 +105,13 @@ final class SessionMetrics {
         bytesDecoded: wire['bytesDecoded'] as int? ?? 0,
         contentBytesMaterialized: wire['contentBytesMaterialized'] as int? ?? 0,
         cacheBytesResident: wire['cacheBytesResident'] as int? ?? 0,
+        pdfRangeFetches: wire['pdfRangeFetches'] as int?,
+        pdfRangeFetchBytes: wire['pdfRangeFetchBytes'] as int?,
+        pdfRangeUniqueBytes: wire['pdfRangeUniqueBytes'] as int?,
+        pdfRangeResidentPeak: wire['pdfRangeResidentPeak'] as int?,
+        pdfRangeResumes: wire['pdfRangeResumes'] as int?,
+        pdfRangeEvicted: wire['pdfRangeEvicted'] as int?,
+        pdfRangeQueuedStepsPeak: wire['pdfRangeQueuedStepsPeak'] as int?,
       );
 
   /// Raw reads the container byte source served.
@@ -119,14 +133,43 @@ final class SessionMetrics {
   /// Current resident cache weight in bytes.
   final int cacheBytesResident;
 
+  /// Byte-source PDF sessions only: range fetches issued to the host.
+  final int? pdfRangeFetches;
+
+  /// Wire bytes those fetches carried (re-demands included).
+  final int? pdfRangeFetchBytes;
+
+  /// Merged unique wire bytes — the partial-reading number.
+  final int? pdfRangeUniqueBytes;
+
+  /// Peak resident range bytes — the no-complete-buffer channel.
+  final int? pdfRangeResidentPeak;
+
+  /// Resume replays the range loop has run.
+  final int? pdfRangeResumes;
+
+  /// Resident bytes dropped by between-step eviction.
+  final int? pdfRangeEvicted;
+
+  /// Peak of parser steps admitted but not finished — the
+  /// backpressure channel for concurrent session ops.
+  final int? pdfRangeQueuedStepsPeak;
+
   /// The wire-ready map, symmetric with [SessionMetrics.fromWire].
-  Map<String, int> toWire() => <String, int>{
+  Map<String, Object?> toWire() => <String, Object?>{
     'containerReads': containerReads,
     'sourceBytesRead': sourceBytesRead,
     'unitsDecoded': unitsDecoded,
     'bytesDecoded': bytesDecoded,
     'contentBytesMaterialized': contentBytesMaterialized,
     'cacheBytesResident': cacheBytesResident,
+    if (pdfRangeFetches != null) 'pdfRangeFetches': pdfRangeFetches,
+    if (pdfRangeFetchBytes != null) 'pdfRangeFetchBytes': pdfRangeFetchBytes,
+    if (pdfRangeUniqueBytes != null) 'pdfRangeUniqueBytes': pdfRangeUniqueBytes,
+    if (pdfRangeResidentPeak != null) 'pdfRangeResidentPeak': pdfRangeResidentPeak,
+    if (pdfRangeResumes != null) 'pdfRangeResumes': pdfRangeResumes,
+    if (pdfRangeEvicted != null) 'pdfRangeEvicted': pdfRangeEvicted,
+    if (pdfRangeQueuedStepsPeak != null) 'pdfRangeQueuedStepsPeak': pdfRangeQueuedStepsPeak,
   };
 
   @override

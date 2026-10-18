@@ -258,8 +258,13 @@ _sessionOpen(
   );
   final session = payload?[wireKeyByteSource] == true
       // The host's byte source stays on the main thread; the engine
-      // pulls exact ranges through the byteSource.v1 bridge.
-      ? await SessionEngine.openRemote(byteBridge!, password: '', policy: policy)
+      // pulls exact ranges through the byteSource.v1 bridge. The
+      // password rides the payload for encrypted PDF documents.
+      ? await SessionEngine.openRemote(
+          byteBridge!,
+          password: (payload?[wireKeyPassword] as String?) ?? '',
+          policy: policy,
+        )
       : await SessionEngine.openBytes(
           bytes!,
           password: (payload?[wireKeyPassword] as String?) ?? '',

@@ -14,6 +14,7 @@ import '../pdf/reader/pdf_metadata.dart';
 import '../pdf/reader/pdf_outline.dart';
 import '../pdf/reader/pdf_page_tree.dart';
 import '../pdf/reflow/pdf_reflow.dart';
+import 'pdf_range_loader.dart';
 import 'session_policy.dart';
 
 /// Pages sampled for the reflow plan at open — the same bound the
@@ -93,6 +94,56 @@ PdfSessionHeader buildPdfSessionHeader(
     for (var i = 0; i < sampleCount; i++) extractor.extract(pages[i], onImage: _discardImage),
   ];
   final plan = PdfReflowPlan.scan(sampledPageTexts, pages.sublist(0, sampleCount));
+
+  final pageFiles = <TextFile>[
+    for (var i = 1; i <= pages.length; i++)
+      TextFile(content: '', name: 'page_$i.html', type: 'html', path: 'page_$i.html'),
+  ];
+  final book = PdfBook(
+    bytes: Uint8List(0),
+    metadata: metadata,
+    pages: pages,
+    pageFiles: pageFiles,
+    navigation: navigation,
+    canonicalTextProfile: TextProfile.of(
+      algorithm: 'pdf.reflow',
+      options: const {'scope': 'session-sample'},
+      planRevision: pdfPlanRevision(plan),
+    ),
+  );
+
+  return PdfSessionHeader._(book, source, document, extractor, plan, sampledPageTexts);
+}
+
+/// Builds the same session header over a [PdfRangeLoader]: the parser
+/// runs unchanged against the loader's resident byte source, and every
+/// step — document structure, page tree, metadata, outline, each
+/// sampled page's extraction — replays through the resume loop, so a
+/// miss fetches the demanded range through the host's byte source
+/// instead of touching a resident file. See
+/// `doc/proposals/C01-pdf-byte-source.md` for the boundary contract.
+Future<PdfSessionHeader> buildPdfSessionHeaderAsync(
+  final PdfRangeLoader loader, {
+  final String password = '',
+  final SessionPolicy policy = const SessionPolicy(),
+}) async {
+  final source = PdfResidentByteSource(loader);
+  final document = await loader.drive(() => PdfDocument.parse(source, password: password));
+  final pages = await loader.drive(() => PdfPageTree.parse(document));
+  if (pages.isEmpty) throw const PdfException('PDF document has no pages.');
+
+  final metadata = await loader.drive(() => PdfMetadataReader.read(document));
+  final navigation = await loader.drive(() => PdfOutlineReader.read(document, pages));
+
+  final extractor = PdfTextExtractor(document);
+  final sampleCount = math.min(_reflowSamplePages, pages.length);
+  final sampledPageTexts = <PdfPageText>[
+    for (var i = 0; i < sampleCount; i++)
+      await loader.drive(() => extractor.extract(pages[i], onImage: _discardImage)),
+  ];
+  final plan = await loader.drive(
+    () => PdfReflowPlan.scan(sampledPageTexts, pages.sublist(0, sampleCount)),
+  );
 
   final pageFiles = <TextFile>[
     for (var i = 1; i <= pages.length; i++)

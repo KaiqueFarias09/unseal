@@ -251,6 +251,7 @@ final class WorkerClient {
   /// closes nothing else.
   Future<({Book book, int sessionId, int byteLength, String? revision})?> sessionOpenSourceInWorker(
     final UnsealByteSource source, {
+    final String password = '',
     final SessionPolicy policy = const SessionPolicy(),
   }) async {
     final sessionId = _nextSessionId++;
@@ -267,6 +268,7 @@ final class WorkerClient {
                   wireKeyByteSource: true,
                   wireKeySourceLength: source.length,
                   if (gate.revisionAtOpen != null) wireKeyRevision: gate.revisionAtOpen,
+                  if (password.isNotEmpty) wireKeyPassword: password,
                   ..._policyWire(policy),
                 },
               )

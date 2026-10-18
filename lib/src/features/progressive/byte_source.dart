@@ -7,7 +7,7 @@ import '../../foundation/exceptions/unseal_exception.dart';
 /// The host keeps every transport concern — HTTP, authentication,
 /// storage, retries, caching. Unseal orders byte ranges against this
 /// contract, validates every answer, and enforces budgets; it never
-/// opens connections itself. Implement it to open an EPUB or CBZ
+/// opens connections itself. Implement it to open an EPUB, CBZ or PDF
 /// through the `BookSession.openSource` entry point without handing
 /// Unseal the whole file:
 ///
@@ -32,13 +32,17 @@ import '../../foundation/exceptions/unseal_exception.dart';
 /// }
 /// ```
 ///
-/// [readRange] is the only read primitive. Unseal requests the
-/// end-of-central-directory tail and the central directory at open,
-/// then per entry the local header and the compressed payload — the
-/// whole compressed payload for Deflate entries, whose real
-/// decompression unit is the entry. Stored entries can be served from
-/// an exact sub-slice. Open and first-content requests stay a small
-/// fraction of [length] for any normally shaped book.
+/// [readRange] is the only read primitive. For EPUB and CBZ, Unseal
+/// requests the end-of-central-directory tail and the central
+/// directory at open, then per entry the local header and the
+/// compressed payload — the whole compressed payload for Deflate
+/// entries, whose real decompression unit is the entry; stored entries
+/// can be served from an exact sub-slice. For PDF, Unseal parses
+/// demand-driven: the header and `startxref` tails, the xref chain
+/// windows, the object windows the structure walk touches and each
+/// materialized page's streams arrive as separate exact ranges, so
+/// open and first-content requests stay a small fraction of [length]
+/// for any normally shaped document.
 abstract interface class UnsealByteSource {
   /// Total container length in bytes.
   int get length;
