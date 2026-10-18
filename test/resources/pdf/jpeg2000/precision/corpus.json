@@ -1,0 +1,1256 @@
+{
+  "protocol": "doc/jpeg2000-precision.md",
+  "reference": {
+    "library": "openjp2 2.5.4",
+    "source": "https://github.com/uclouvain/openjpeg/tree/v2.5.4",
+    "commit": "6c4a29b00211eb0430fa0e5e890f1ce5c80f409f",
+    "independentProducer": "ffmpeg 9.0.2 native jpeg2000 encoder"
+  },
+  "fixtures": [
+    {
+      "name": "synth-gray9-lossless",
+      "file": "synth-gray9-lossless.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 9,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-gray10-lossless-odd",
+      "file": "synth-gray10-lossless-odd.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 10,
+      "x0": 0,
+      "y0": 0,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-gray12-lossless-tiles",
+      "file": "synth-gray12-lossless-tiles.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 12,
+      "x0": 0,
+      "y0": 0,
+      "width": 100,
+      "height": 67,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 100,
+          "height": 67
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": [
+        32,
+        32,
+        0,
+        0
+      ],
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-gray12-lossless-coc-qcc",
+      "file": "synth-gray12-lossless-coc-qcc.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4) + redundant COC/QCC insertion",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 12,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-gray16-lossless",
+      "file": "synth-gray16-lossless.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-gray16-lossy",
+      "file": "synth-gray16-lossy.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "9/7",
+      "lossless": false,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-gray16-lossless-origin-tiles",
+      "file": "synth-gray16-lossless-origin-tiles.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 5,
+      "y0": 3,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": [
+        32,
+        32,
+        4,
+        2
+      ],
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-gray12-sub2x2-odd",
+      "file": "synth-gray12-sub2x2-odd.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 12,
+      "x0": 0,
+      "y0": 0,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 23
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "upsample"
+      ]
+    },
+    {
+      "name": "synth-gray16-sub2x2-odd-lossless",
+      "file": "synth-gray16-sub2x2-odd-lossless.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 23
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "upsample"
+      ]
+    },
+    {
+      "name": "synth-gray16-sub2x2-odd-lossy",
+      "file": "synth-gray16-sub2x2-odd-lossy.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 23
+        }
+      ],
+      "colr": null,
+      "transform": "9/7",
+      "lossless": false,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "upsample"
+      ]
+    },
+    {
+      "name": "synth-gray8-sub2x1-origin",
+      "file": "synth-gray8-sub2x1-origin.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 8,
+      "x0": 3,
+      "y0": 0,
+      "width": 63,
+      "height": 48,
+      "components": [
+        {
+          "dx": 2,
+          "dy": 1,
+          "width": 31,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "upsample"
+      ]
+    },
+    {
+      "name": "synth-gray12-sub1x3-tiles",
+      "file": "synth-gray12-sub1x3-tiles.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 12,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 50,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 3,
+          "width": 64,
+          "height": 17
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": [
+        40,
+        24,
+        0,
+        0
+      ],
+      "lanes": [
+        "native",
+        "upsample"
+      ]
+    },
+    {
+      "name": "synth-rgb12-rct-lossless",
+      "file": "synth-rgb12-rct-lossless.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 12,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 1,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-rgb16-rct-lossless-odd",
+      "file": "synth-rgb16-rct-lossless-odd.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 1,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-rgb16-ict-lossy-odd",
+      "file": "synth-rgb16-ict-lossy-odd.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        }
+      ],
+      "colr": null,
+      "transform": "9/7",
+      "lossless": false,
+      "mct": 1,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-rgb12-rct-lossless-jp2",
+      "file": "synth-rgb12-rct-lossless-jp2.jp2",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "jp2",
+      "precision": 12,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": 16,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 1,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "synth-rgb8-sub-dy2",
+      "file": "synth-rgb8-sub-dy2.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 8,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 2,
+          "width": 64,
+          "height": 24
+        },
+        {
+          "dx": 1,
+          "dy": 2,
+          "width": 64,
+          "height": 24
+        },
+        {
+          "dx": 1,
+          "dy": 2,
+          "width": 64,
+          "height": 24
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "upsample"
+      ]
+    },
+    {
+      "name": "synth-rgb10-sub2x2-all",
+      "file": "synth-rgb10-sub2x2-all.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 10,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "upsample"
+      ]
+    },
+    {
+      "name": "synth-sycc8-444-lossless",
+      "file": "synth-sycc8-444-lossless.jp2",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "jp2",
+      "precision": 8,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "synth-sycc8-420-lossless",
+      "file": "synth-sycc8-420-lossless.jp2",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "jp2",
+      "precision": 8,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "synth-sycc8-420-lossless-odd",
+      "file": "synth-sycc8-420-lossless-odd.jp2",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "jp2",
+      "precision": 8,
+      "x0": 0,
+      "y0": 0,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 23
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 23
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "synth-sycc12-420-lossless-origin-tiles",
+      "file": "synth-sycc12-420-lossless-origin-tiles.jp2",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "jp2",
+      "precision": 12,
+      "x0": 1,
+      "y0": 1,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 31,
+          "height": 22
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 31,
+          "height": 22
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": [
+        32,
+        32,
+        0,
+        0
+      ],
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "synth-sycc10-422-lossless-odd",
+      "file": "synth-sycc10-422-lossless-odd.jp2",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "jp2",
+      "precision": 10,
+      "x0": 0,
+      "y0": 0,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        },
+        {
+          "dx": 2,
+          "dy": 1,
+          "width": 32,
+          "height": 45
+        },
+        {
+          "dx": 2,
+          "dy": 1,
+          "width": 32,
+          "height": 45
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "synth-sycc8-422-lossless-origin",
+      "file": "synth-sycc8-422-lossless-origin.jp2",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "jp2",
+      "precision": 8,
+      "x0": 1,
+      "y0": 0,
+      "width": 63,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 1,
+          "width": 31,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 1,
+          "width": 31,
+          "height": 48
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "synth-sycc16-420-lossless",
+      "file": "synth-sycc16-420-lossless.jp2",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "jp2",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "synth-sycc16-420-lossy",
+      "file": "synth-sycc16-420-lossy.jp2",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "jp2",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        }
+      ],
+      "colr": 18,
+      "transform": "9/7",
+      "lossless": false,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "synth-3comp-420-bare-lossless",
+      "file": "synth-3comp-420-bare-lossless.j2k",
+      "producer": "opj_oracle encode (libopenjp2 2.5.4)",
+      "content": "synthetic LCG",
+      "container": "j2k",
+      "precision": 8,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "real-gray16-lossless-ffmpeg",
+      "file": "real-gray16-lossless-ffmpeg.j2k",
+      "producer": "ffmpeg 9.0.2 jpeg2000 (dwt53, gray16be)",
+      "content": "NASA Apollo 17 derivative (public domain)",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "real-rgb16-lossless-ffmpeg",
+      "file": "real-rgb16-lossless-ffmpeg.j2k",
+      "producer": "ffmpeg 9.0.2 jpeg2000 (dwt53, rgb48be)",
+      "content": "NASA Apollo 17 derivative (public domain)",
+      "container": "j2k",
+      "precision": 16,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        }
+      ],
+      "colr": null,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native"
+      ]
+    },
+    {
+      "name": "real-sycc8-420-lossless-odd-ffmpeg",
+      "file": "real-sycc8-420-lossless-odd-ffmpeg.jp2",
+      "producer": "ffmpeg 9.0.2 jpeg2000 (dwt53, yuv420p)",
+      "content": "NASA Apollo 17 derivative (public domain)",
+      "container": "jp2",
+      "precision": 8,
+      "x0": 0,
+      "y0": 0,
+      "width": 63,
+      "height": 45,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 63,
+          "height": 45
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 23
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 23
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "real-sycc8-422-lossless-ffmpeg",
+      "file": "real-sycc8-422-lossless-ffmpeg.jp2",
+      "producer": "ffmpeg 9.0.2 jpeg2000 (dwt53, yuv422p)",
+      "content": "NASA Apollo 17 derivative (public domain)",
+      "container": "jp2",
+      "precision": 8,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 1,
+          "width": 32,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 1,
+          "width": 32,
+          "height": 48
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "real-sycc10-420-lossless-ffmpeg",
+      "file": "real-sycc10-420-lossless-ffmpeg.jp2",
+      "producer": "ffmpeg 9.0.2 jpeg2000 (dwt53, yuv420p10be)",
+      "content": "NASA Apollo 17 derivative (public domain)",
+      "container": "jp2",
+      "precision": 10,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "real-sycc12-420-lossless-ffmpeg",
+      "file": "real-sycc12-420-lossless-ffmpeg.jp2",
+      "producer": "ffmpeg 9.0.2 jpeg2000 (dwt53, yuv420p12be)",
+      "content": "NASA Apollo 17 derivative (public domain)",
+      "container": "jp2",
+      "precision": 12,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        }
+      ],
+      "colr": 18,
+      "transform": "5/3",
+      "lossless": true,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    },
+    {
+      "name": "real-sycc12-420-lossy-ffmpeg",
+      "file": "real-sycc12-420-lossy-ffmpeg.jp2",
+      "producer": "ffmpeg 9.0.2 jpeg2000 (dwt97int, yuv420p12be)",
+      "content": "NASA Apollo 17 derivative (public domain)",
+      "container": "jp2",
+      "precision": 12,
+      "x0": 0,
+      "y0": 0,
+      "width": 64,
+      "height": 48,
+      "components": [
+        {
+          "dx": 1,
+          "dy": 1,
+          "width": 64,
+          "height": 48
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        },
+        {
+          "dx": 2,
+          "dy": 2,
+          "width": 32,
+          "height": 24
+        }
+      ],
+      "colr": 18,
+      "transform": "9/7",
+      "lossless": false,
+      "mct": 0,
+      "tiles": null,
+      "lanes": [
+        "native",
+        "rgb"
+      ]
+    }
+  ]
+}
