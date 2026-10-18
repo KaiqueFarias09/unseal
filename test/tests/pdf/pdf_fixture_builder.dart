@@ -307,7 +307,11 @@ PdfFixtureBuilder imagePageFixture(final List<int> jpegBytes) {
 /// its own authoritative dimensions); [components] selects the default
 /// PDF family (DeviceGray/DeviceRGB), [ascii85] wraps the codestream
 /// in an `/ASCII85Decode /JPXDecode` chain and [indirectColorSpace]
-/// moves the colorspace to an indirect object.
+/// moves the colorspace to an indirect object. [bitsPerComponent] is
+/// written as given (null omits the entry; the PDF specification makes
+/// it optional and ignored for JPXDecode), [colorSpace] overrides the
+/// family name and [drawTwice] places the image a second time so the
+/// extraction dedup is observable.
 PdfFixtureBuilder jpxImagePageFixture(
   final List<int> jpxBytes, {
   required final int width,
@@ -315,12 +319,16 @@ PdfFixtureBuilder jpxImagePageFixture(
   final int components = 1,
   final bool ascii85 = false,
   final bool indirectColorSpace = false,
+  final int? bitsPerComponent = 8,
+  final String? colorSpace,
+  final bool drawTwice = false,
 }) {
-  final pdfColorSpace = components == 3 ? 'DeviceRGB' : 'DeviceGray';
+  final pdfColorSpace = colorSpace ?? (components == 3 ? 'DeviceRGB' : 'DeviceGray');
   final filter = ascii85 ? '[/ASCII85Decode /JPXDecode]' : '/JPXDecode';
   final colorspaceEntry = indirectColorSpace
       ? ' /ColorSpace 10 0 R'
       : ' /ColorSpace /$pdfColorSpace';
+  final bitsEntry = bitsPerComponent == null ? '' : ' /BitsPerComponent $bitsPerComponent';
   return PdfFixtureBuilder()
     ..addObject(1, '<< /Type /Catalog /Pages 2 0 R >>')
     ..addObject(2, '<< /Type /Pages /Kids [5 0 R] /Count 1 >>')
@@ -332,13 +340,14 @@ PdfFixtureBuilder jpxImagePageFixture(
     ..addStreamObject(
       7,
       '',
-      'BT /F1 12 Tf 72 720 Td (A page with one drawn image) Tj ET\n'
+      ('BT /F1 12 Tf 72 720 Td (A page with one drawn image) Tj ET\n'
               'q 200 0 0 150 72 500 cm /Im0 Do Q\n'
+              '${drawTwice ? 'q 100 0 0 75 300 300 cm /Im0 Do Q\n' : ''}')
           .codeUnits,
     )
     ..addStreamObject(
       8,
-      ' /Subtype /Image /Width $width /Height $height /BitsPerComponent 8'
+      ' /Subtype /Image /Width $width /Height $height$bitsEntry'
       '$colorspaceEntry /Filter $filter',
       ascii85 ? ascii85Encode(jpxBytes) : jpxBytes,
     )
