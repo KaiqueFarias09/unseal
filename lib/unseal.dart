@@ -11,6 +11,7 @@ export 'docx.dart';
 export 'epub.dart';
 export 'ereader.dart';
 export 'fb2.dart';
+export 'hocr.dart';
 export 'html.dart';
 export 'lrf.dart';
 export 'lrx.dart';

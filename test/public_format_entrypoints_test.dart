@@ -8,6 +8,7 @@ import 'package:unseal/comic7.dart' as comic7;
 import 'package:unseal/docx.dart' as docx;
 import 'package:unseal/epub.dart' as epub;
 import 'package:unseal/fb2.dart' as fb2;
+import 'package:unseal/hocr.dart' as hocr;
 import 'package:unseal/html.dart' as html;
 import 'package:unseal/mobi.dart' as mobi;
 import 'package:unseal/odt.dart' as odt;
@@ -31,6 +32,108 @@ void main() {
     expect(unseal.PageXmlBindLimits.new, isNotNull);
     expect(() => parsePage(Uint8List(0)), throwsA(isA<unseal.PageXmlException>()));
     expect(() => parsePage(Uint8List(0)), throwsA(isA<unseal.InvalidBookException>()));
+  });
+
+  test('main entrypoint exposes hOCR parsing and snapshot binding', () {
+    final unseal.HocrDocument Function(Uint8List) parseHocr = unseal.parseHocrDocument;
+    expect(parseHocr, isNotNull);
+    expect(unseal.bindHocrToSnapshot, isNotNull);
+    expect(unseal.HocrBindLimits.new, isNotNull);
+    expect(() => parseHocr(Uint8List(0)), throwsA(isA<unseal.HocrException>()));
+    expect(() => parseHocr(Uint8List(0)), throwsA(isA<unseal.InvalidBookException>()));
+  });
+
+  test('the hOCR narrow entry point exposes its full signature surface', () {
+    final hocr.HocrDocument Function(Uint8List) parseDocument = hocr.parseHocrDocument;
+    final hocr.HocrSnapshotBinding Function({
+      required hocr.HocrDocument document,
+      required hocr.CanonicalTextSnapshot target,
+      hocr.HocrBindLimits limits,
+    })
+    bindDocument = hocr.bindHocrToSnapshot;
+    final List<hocr.HocrTitleProperty> Function(
+      String, {
+      required int maxProperties,
+      required int maxTokens,
+    })
+    parseTitle = hocr.parseHocrTitle;
+
+    // Every type the public signatures mention is exported here.
+    final hocr.HocrDocument? document = null;
+    final hocr.HocrPage? hocrPage = null;
+    final hocr.HocrContainer? container = null;
+    final hocr.HocrBlock? block = null;
+    final hocr.HocrParagraph? paragraph = null;
+    final hocr.HocrLine? line = null;
+    final hocr.HocrWord? word = null;
+    final hocr.HocrBox? box = null;
+    final hocr.HocrBaseline? baseline = null;
+    final hocr.HocrConfidence? confidence = null;
+    final hocr.HocrFrameSource? frameSource = null;
+    final hocr.HocrSnapshotBinding? binding = null;
+    final hocr.HocrBoundSpatialText? boundText = null;
+    final hocr.HocrAmbiguousUnit? ambiguousUnit = null;
+    final hocr.HocrUnitPlace? place = null;
+    final hocr.HocrBindLimits? limits = null;
+    final hocr.HocrTitleProperty? titleProperty = null;
+    final hocr.HocrException? exception = null;
+    final hocr.HocrUnsupportedFeatureException? unsupported = null;
+    final hocr.SpatialRect? rect = null;
+    final hocr.SpatialUnit? unit = null;
+    final hocr.SpatialTextZone? zone = null;
+    final hocr.SpatialZoneKind? zoneKind = null;
+    final hocr.SpatialTextPage? spatialPage = null;
+    final hocr.SpatialTextProvenance? provenance = null;
+    final hocr.SpatialTextOrigin? origin = null;
+    final hocr.SpatialZoneLookup? lookup = null;
+
+    final snapshot = hocr.CanonicalTextSnapshot(
+      identity: hocr.PublicationRevision(publicationId: 'test:hocr-public'),
+      occurrence: hocr.SectionOccurrence(
+        sectionIndex: 0,
+        resourcePath: 'page-1',
+        readingOrderRevision: null,
+      ),
+      profile: hocr.TextProfile.of(
+        algorithm: 'test.hocr',
+        options: const {},
+        planRevision: 'sha256:${'0' * 64}',
+      ),
+      text: 'word',
+    );
+    expect(snapshot.identity.sourceEvidence, hocr.SourceEvidence.unverified);
+    expect(<Object?>[
+      parseDocument,
+      bindDocument,
+      parseTitle,
+      document,
+      hocrPage,
+      container,
+      block,
+      paragraph,
+      line,
+      word,
+      box,
+      baseline,
+      confidence,
+      frameSource,
+      binding,
+      boundText,
+      ambiguousUnit,
+      place,
+      limits,
+      titleProperty,
+      exception,
+      unsupported,
+      rect,
+      unit,
+      zone,
+      zoneKind,
+      spatialPage,
+      provenance,
+      origin,
+      lookup,
+    ], isNotNull);
   });
 
   test('the PAGE narrow entry point exposes its full signature surface', () {

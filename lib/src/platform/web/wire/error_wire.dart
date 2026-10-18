@@ -7,6 +7,7 @@ import '../../../features/docx/exceptions/docx_exception.dart';
 import '../../../features/epub/exceptions/empty_bytes_exception.dart';
 import '../../../features/epub/exceptions/epub_exception.dart';
 import '../../../features/fb2/exceptions/fb2_exception.dart';
+import '../../../features/hocr/hocr_exception.dart';
 import '../../../features/html/exceptions/html_exception.dart';
 import '../../../features/mobi/exceptions/mobi_exception.dart';
 import '../../../features/odt/exceptions/odt_exception.dart';
@@ -118,6 +119,10 @@ Object decodeErrorWire(final String type, final String message) {
       return PageXmlException(message);
     case 'PageXmlUnsupportedFeatureException':
       return PageXmlUnsupportedFeatureException(message);
+    case 'HocrException':
+      return HocrException(message);
+    case 'HocrUnsupportedFeatureException':
+      return HocrUnsupportedFeatureException(message);
     case 'TiffException':
       return TiffException(message);
     case 'TiffUnsupportedCodecException':

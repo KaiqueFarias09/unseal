@@ -862,6 +862,36 @@ independent lxml extraction of a licensed real corpus (OCR-D
 | `features/page/bind_page_snapshot.dart` | The snapshot binding at the finest declared granularity (words, then lines, then regions): a reading cursor maps chosen TextEquiv content, repeated quotes and distinct inherited OCR alternatives stay ambiguous with bounded candidate lists, absent text reports missing, parents aggregate with min/max, and a projection budget stops quadratic work. The binding preserves the target identity tuple, OCR origin, creator, and confidence presence. |
 | `features/page/page_exception.dart` | Malformed/out-of-subset refusals. |
 
+## hOCR: import the HTML OCR vocabulary into the spatial contract
+
+hOCR is OCR output embedded in HTML: a class vocabulary
+(`ocr_page`/`ocr_carea`/`ocr_par`/`ocr_line`/`ocrx_word` plus Tesseract's
+`ocr_header`/`ocr_caption`/`ocr_textfloat` line-role classes) over free
+HTML nesting, geometry in a `title` attribute grammar, and producer
+metadata in `head`. The subset keeps the producer's own nesting
+(whichever of page > block > paragraph > line > word levels actually
+appear), integer pixel boxes, native baseline polynomials with named
+page-space projections, text angles that never rotate coordinates, and
+the 0..100 word confidence converted explicitly to the shared 0..1 where
+absent, unknown and zero stay distinct. `order`/`cflow` refuse typed.
+`doc/hocr.md` fixes the title grammar (including the comma rule kraken
+needs), the transparent-container policy, the derived page-frame rule,
+the TSV normalization for the same-pass comparison, and the limits; the
+reference lane runs Tesseract 5.5.3 (hOCR and TSV from one pass over
+Apache-2.0 images), diffs the parser field by field against an
+independent lxml extraction of those outputs plus eight CC0 sidecars
+(ABBYY, ocropy, OCRopus, gcv2hocr, kraken, tesseract 3.x), and verifies
+the committed Tesseract fixtures are byte-identical to fresh outputs.
+
+| File | What it does and why it exists |
+| --- | --- |
+| `lib/hocr.dart` | The public import entry point, with the shared spatial types its signatures use. |
+| `features/hocr/hocr_document.dart` | The document model: producer metadata, pages with declared/derived/none frames, a sealed container hierarchy (page, block, paragraph), lines with baselines and their own text, words with the three-state confidence, boxes, and verbatim unconsumed title properties. |
+| `features/hocr/hocr_title.dart` | The `title` attribute grammar: `;`-separated properties with the comma rule, quoted strings, letter-first names, duplicate and budget refusals. |
+| `features/hocr/parse_hocr_document.dart` | Preflights bytes, raw-tag depth, element/attribute/title budgets over the markup before any DOM, then classifies roles, flattens transparent containers, refuses inverted nesting, and applies the per-property grammars; corruption fails typed. |
+| `features/hocr/bind_hocr_snapshot.dart` | The snapshot binding: a reading cursor across pages maps trimmed unit content, repeats and alternatives stay ambiguous with bounded candidates, absence reports missing, a line's region zone is its nearest boxed ancestor, frameless pages bind without a spatial projection, and a projection budget stops quadratic work. Preserves the target identity tuple, OCR origin, system name, and confidence presence. |
+| `features/hocr/hocr_exception.dart` | Malformed/out-of-subset refusals. |
+
 ## TIFF and BigTIFF: decode multi-page raster books
 
 TIFF pages live in IFD chains: the header points at the first image file
@@ -1133,7 +1163,7 @@ CB7 and CBC are exceptions. `BookDispatch.openFromBytes` detects them and calls 
 | `platform/web/wire/mobi_wire.dart` | Selects the MOBI or KF8 record zero data needed to rebuild MOBI-specific state on the receiving side. |
 | `platform/web/wire/search_wire.dart` | Encodes and decodes `SearchResults` and individual matches. |
 | `platform/web/wire/cfi_wire.dart` | Encodes and decodes resolved EPUB CFI locations. |
-| `platform/web/wire/spatial_wire.dart` | Encodes one DjVu page structure (flat depth-first zone records plus the page text blob) and one bound ALTO spatial text as structured-clone-safe maps; rebuilds both on the receiving side. |
+| `platform/web/wire/spatial_wire.dart` | Encodes one DjVu page structure (flat depth-first zone records plus the page text blob) and one bound ALTO, PAGE XML and hOCR spatial text as structured-clone-safe maps; rebuilds both on the receiving side. |
 | `platform/web/wire/error_wire.dart` | Translates known package exceptions across the worker boundary so the caller receives useful error types and messages. |
 | `platform/web/wire/json_wire.dart` | Converts the protocol's small map structures to and from JSON. Large payloads stay outside JSON. |
 | `web/unseal_worker.dart` | Compiles as the JavaScript worker entry point, accepts browser messages, keeps the last parsed book resident, calls `runWorkerOp`, and posts structured replies. |

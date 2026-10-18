@@ -1,0 +1,118 @@
+{
+ "tesseract": {
+  "banner": "tesseract 5.5.3",
+  "leptonica": "leptonica-1.87.0",
+  "model": "/opt/homebrew/share/tessdata/eng.traineddata",
+  "modelSha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+ },
+ "lxml": [
+  6,
+  1,
+  1
+ ],
+ "spec": {
+  "hocr-1.2-spec.md": {
+   "file": "hocr-1.2-spec.md",
+   "url": "https://raw.githubusercontent.com/kba/hocr-spec/master/1.2/spec.md",
+   "sha256": "48b7e5f325629d7d0a2219a475d8ae68a2e0463d68c328cbe09ddd51e5986093"
+  },
+  "defs.yml": {
+   "file": "defs.yml",
+   "url": "https://raw.githubusercontent.com/kba/hocr-spec/master/1.2/defs.yml",
+   "sha256": "78b7ef805e310dd227973c047e7085514bf07e7a6751003dba697e99bb7b272d"
+  }
+ },
+ "images": {
+  "phototest.tif": {
+   "path": "test/resources/hocr/images/phototest.tif",
+   "sha256": "d2241a1eb6d6cd2eb6544b8e228c2862c852b7467d16ed636caa32179b780692",
+   "license": "Apache-2.0",
+   "source": "https://github.com/tesseract-ocr/test/blob/main/testing/phototest.tif"
+  },
+  "eurotext.tif": {
+   "path": "test/resources/hocr/images/eurotext.tif",
+   "sha256": "7b9bd14aba7d5e30df686fbb6f71782a97f48f81b32dc201a1b75afe6de747d6",
+   "license": "Apache-2.0",
+   "source": "https://github.com/tesseract-ocr/test/blob/main/testing/eurotext.tif"
+  },
+  "unlv-8071_093.3B.tif": {
+   "path": "test/resources/hocr/images/unlv-8071_093.3B.tif",
+   "sha256": "d4f01cba19c99f8894d94a6d43eb8ed8013f8cf17fc08af9346bb9fb3697d452",
+   "license": "Apache-2.0",
+   "source": "https://github.com/tesseract-ocr/test/blob/main/testing/8071_093.3B.tif"
+  },
+  "unlv-8087_054.3B.tif": {
+   "path": "test/resources/hocr/images/unlv-8087_054.3B.tif",
+   "sha256": "dab6db0f4c32296f313c7f1e7e139b13d7c69be65c64d6016f85ea67ebca9102",
+   "license": "Apache-2.0",
+   "source": "https://github.com/tesseract-ocr/test/blob/main/testing/8087_054.3B.tif"
+  }
+ },
+ "external": {
+  "060.hocr": {
+   "path": "test/resources/hocr/external/060.hocr",
+   "sha256": "ce540bdba083f2b2ac2c78b512bdb1e67a4d44dd478df9a0586883b7634d17eb",
+   "license": "CC0-1.0",
+   "producer": "Tesseract 3.04.01",
+   "source": "https://github.com/kba/ocr-fileformat-samples/blob/master/samples/hocr/1.1/060.hocr"
+  },
+  "417576986_0012.hocr": {
+   "path": "test/resources/hocr/external/417576986_0012.hocr",
+   "sha256": "f4dccd2e47cb70aa978943a7d47d1c05b97f90ee77eced1328cc847811689d70",
+   "license": "CC0-1.0",
+   "producer": "ABBYY FineReader Engine 11",
+   "source": "https://github.com/kba/ocr-fileformat-samples/blob/master/samples/hocr/1.1/417576986_0012.hocr"
+  },
+  "417576986_0013.hocr": {
+   "path": "test/resources/hocr/external/417576986_0013.hocr",
+   "sha256": "875c37a26cf6904ecedda8b3e23a1ddd5ddcbd99a58e68efb38da703dceef03a",
+   "license": "CC0-1.0",
+   "producer": "tesseract 3.05.00dev",
+   "source": "https://github.com/kba/ocr-fileformat-samples/blob/master/samples/hocr/1.1/417576986_0013.hocr"
+  },
+  "433934212_0017.html": {
+   "path": "test/resources/hocr/external/433934212_0017.html",
+   "sha256": "26d6e8e66abbe6e4fbd1d36fa34272cf7f9555a21ecf84e3bfad3e46a2202fbb",
+   "license": "CC0-1.0",
+   "producer": "ocropy 1.0 (commit 97ace55, 2016-09-13); ocr-system ocropus-0.4",
+   "source": "https://github.com/kba/ocr-fileformat-samples/blob/master/samples/hocr/1.1/433934212_0017.html"
+  },
+  "alice.hocr": {
+   "path": "test/resources/hocr/external/alice.hocr",
+   "sha256": "ed5b96b6834830380a16efcb4366fda0ced0659d916c94367a114b42455919a3",
+   "license": "CC0-1.0",
+   "producer": "OCRopus Revision 312 (hOCR 2007 shape)",
+   "source": "https://github.com/kba/ocr-fileformat-samples/blob/master/samples/hocr/v2007/alice.hocr"
+  },
+  "jp_vert.hocr": {
+   "path": "test/resources/hocr/external/jp_vert.hocr",
+   "sha256": "ce3ed271ec3c88ce3708d60997c52ac039dc86524751ce3c33610601c0a76ccd",
+   "license": "CC0-1.0",
+   "producer": "gcv2hocr over Google Cloud Vision",
+   "source": "https://github.com/kba/ocr-fileformat-samples/blob/master/samples/hocr/1.1/jp_vert.hocr"
+  },
+  "kraken_bw_example.hocr": {
+   "path": "test/resources/hocr/external/kraken_bw_example.hocr",
+   "sha256": "a4002a787fa9a1763c971934b282f778355f1418bf07e56a14ec15318e035b44",
+   "license": "CC0-1.0",
+   "producer": "kraken 0.8.0",
+   "source": "https://github.com/kba/ocr-fileformat-samples/blob/master/samples/hocr/1.1/kraken_bw_example.hocr"
+  },
+  "wetzel_reisebegleiter_1901_0021.hocr": {
+   "path": "test/resources/hocr/external/wetzel_reisebegleiter_1901_0021.hocr",
+   "sha256": "5c5aff9a1b38c8296d281bb1241a06ba23e3c2f18fb9faebdd12fe0f08c5565d",
+   "license": "CC0-1.0",
+   "producer": "tesseract 3.03",
+   "source": "https://github.com/kba/ocr-fileformat-samples/blob/master/samples/hocr/1.1/wetzel_reisebegleiter_1901_0021.hocr"
+  }
+ },
+ "derived": {
+  "features.hocr": {
+   "path": "test/resources/hocr/derived/features.hocr",
+   "sha256": "ad9c5f2d6e4c27b7db59ab5318737c8cca2896f6f987ec583c7b8b3b6c3f4613",
+   "license": "derived, project-authored",
+   "producer": "unseal-derived 1 (hand-written)",
+   "source": "doc/hocr.md"
+  }
+ }
+}

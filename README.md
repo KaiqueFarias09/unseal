@@ -630,6 +630,30 @@ reports missing, and a work budget stops hostile scans, exactly like the
 ALTO binding. Workers serve `UnsealWorker.bindPageXmlInWorker` against a
 resident DjVu page. Unseal does not run OCR.
 
+## hOCR import
+
+hOCR (HTML with an OCR class vocabulary; Tesseract's default rich output)
+imports through `parseHocrDocument` and `bindHocrToSnapshot`;
+`package:unseal/hocr.dart` is the narrow entry point. The supported
+reading subset is pages, content areas, paragraphs, lines and words in
+whatever nesting the producer declared — Tesseract, ABBYY, ocropy, kraken
+and gcv2hocr shapes all import with the ancestors that are actually
+present — plus the producer metadata. Boxes stay integer pixels in the
+top-left space; the baseline polynomial, the text angle and every
+unconsumed `title` property stay native on the model, with named
+projections and no silent rotation. The 0..100 `x_wconf` scale converts
+explicitly to the shared 0..1, and a confidence that is absent, unknown
+or zero stays three different states. `order` and `cflow` refuse typed:
+document order is the only reading order Unseal reconstructs.
+
+`bindHocrToSnapshot` follows the same ambiguity, budget and cursor rules
+as ALTO and PAGE XML; a line's region zone is its nearest boxed ancestor
+(paragraph, block or page frame), and pages without a usable frame bind
+their text but emit no spatial page. Workers serve
+`UnsealWorker.bindHocrInWorker` against a resident DjVu page. Unseal does
+not run OCR. The subset, title grammar, producer policies, TSV
+normalization and limits are specified in `doc/hocr.md`.
+
 ## Durable annotations and W3C exchange
 
 Highlights survive edition changes through durable anchors: an additive
@@ -999,6 +1023,9 @@ input from corrupted or protected content. Common types include:
 - `PageXmlException` for malformed, excessive, or inconsistent PAGE XML
   and `PageXmlUnsupportedFeatureException` for namespaces or versions
   outside the 2019-07-15 subset.
+- `HocrException` for malformed, excessive, or inconsistent hOCR input
+  and `HocrUnsupportedFeatureException` for an `order` or `cflow`
+  reading order.
 - `EpubException`, `MobiException`, and `Fb2Exception` for parser-specific
   errors.
 

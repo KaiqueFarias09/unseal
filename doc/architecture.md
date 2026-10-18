@@ -42,7 +42,7 @@ format-specific contracts.
 
 Files such as `lib/epub.dart`, `lib/pdf.dart`, `lib/markdown.dart`,
 `lib/rtf.dart`, `lib/palmdoc.dart`, `lib/chm.dart`, `lib/djvu.dart`,
-`lib/tiff.dart`, `lib/lrf.dart`, `lib/alto.dart`, `lib/page.dart`, and
+`lib/tiff.dart`, `lib/lrf.dart`, `lib/alto.dart`, `lib/page.dart`, `lib/hocr.dart`, and
 `lib/comic.dart` are narrow entry points for consumers that need one
 format. Public signatures must use
 types exported by the same public entry point. Consumers must not import
@@ -129,6 +129,16 @@ deterministic lowest-index choice. Orientation stays a display-space hint
 that never rotates coordinates. Binding maps the chosen text at the finest
 declared granularity — words, then lines, then regions — onto a
 host-confirmed snapshot with the same ambiguity and budget rules.
+
+hOCR sidecars (the HTML class vocabulary Tesseract and other engines
+emit) import the same way: pages, content areas, paragraphs, lines and
+words in the producer's own nesting, integer pixel boxes, native
+baselines with named projections, and the 0..100 word confidence
+converted explicitly to the shared scale where absent, unknown and zero
+stay distinct. An `order` or `cflow` reading order refuses typed;
+document order is the only reconstruction Unseal offers. Binding follows
+the same ambiguity and budget rules, with each line's region zone taken
+from its nearest boxed ancestor.
 
 ## Progressive session flow
 
