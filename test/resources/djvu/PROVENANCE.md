@@ -136,3 +136,28 @@ The full 12-page indirect derivation (13 components) stays out of git at
 own hashes and djvudump record. `parseDjvuBook` keeps rejecting indirect
 directories over bytes with `DjvuUnsupportedCodecException`; only the
 file-based open path resolves sibling components.
+
+## FGbz derived fixtures (D04)
+
+`tool/djvu_fgbz_fixtures.py <repo-root> <native-extractor>` generates these fixtures with DjVuLibre 3.5.29 (`cjb2`, `c44`, `bzz`, `djvuextract`, `djvumake`, `djvm`, `djvmcvt`). The PBM/PPM inputs are drawn by the generator and dedicated to the public domain under CC0. The inverted-order fixture reuses the original `spec-bundled.djvu` page 21 Sjbz/BG44 under the Unlicense attribution above; its `.origin.json` identifies the overlap pair and generation parameters. Indirect components are verbatim producer output. No existing binary source fixture was rewritten.
+
+| File | SHA-256 |
+| --- | --- |
+| `derived/fgbz-budget-page.djvu` | `106ff91a576b9f2aabbb5410bcd905d8bccd6524b81d91d17527a1df603e7a4c` |
+| `derived/fgbz-bundled.djvu` | `79c822acf294110096080ead26b0c94295ffd1c3d9389d841f6e41de15e7c7b7` |
+| `derived/fgbz-colors-absent.djvu` | `c503d4e2c22e065fe619c492d12ae609f9895a3f7ebe52dddf4e23008e1d74c4` |
+| `derived/fgbz-index-shift.djvu` | `4460a97446023b16f78125c8cb8eeff6d0d1e627b04bbbbd4b1565a8e521f0a4` |
+| `derived/fgbz-indirect/fgbz-overlap-bg.djvu` | `069cc510c14bebc9dd8ded25b590973f6fc7f7af331d2b59cb48bb3a3c565473` |
+| `derived/fgbz-indirect/fgbz-repeat-colors.djvu` | `b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8` |
+| `derived/fgbz-indirect/fgbz-shifted-base.djvu` | `b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8` |
+| `derived/fgbz-inverted-order.djvu` | `fef37a579c698ad797d21a5f3a24618f1a4f63616f4b5373c97316283cc31d1f` |
+| `derived/fgbz-inverted-order.origin.json` | `907874a7b1c1c6f13b9878f01bf45aa7916b9ee6d3beb92cc17de2e0b7aa9d46` |
+| `derived/fgbz-overlap-bg.djvu` | `069cc510c14bebc9dd8ded25b590973f6fc7f7af331d2b59cb48bb3a3c565473` |
+| `derived/fgbz-palette-only.djvu` | `b1c4128f34d68bb19e6752d0f31aa2c95cf70db1009d829683a0ae26526fcd26` |
+| `derived/fgbz-repeat-colors.djvu` | `b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8` |
+| `derived/fgbz-shifted-b.djvu` | `21226c8d30cf28013ae703a40546d788eb598f16a62c3a4c6dac3779aa44729d` |
+| `derived/fgbz-shifted-base.djvu` | `b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8` |
+| `derived/fgbz-indirect/fgbz-overlap-bg.djvu` | `069cc510c14bebc9dd8ded25b590973f6fc7f7af331d2b59cb48bb3a3c565473` |
+| `derived/fgbz-indirect/fgbz-repeat-colors.djvu` | `b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8` |
+| `derived/fgbz-indirect/fgbz-shifted-base.djvu` | `b3de16d1a3686e7df3b82adc468f4eae88e48fd65023d4a88cdc96ef189c6ad8` |
+| `derived/fgbz-indirect/index.djvu` | `fe27b4d867c15902bd77c103c3427843178d4b5a5ecf09759614eae086cb892c` |

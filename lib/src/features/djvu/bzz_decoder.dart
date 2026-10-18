@@ -51,7 +51,10 @@ Uint8List decodeDjvuBzz(
     if (declaredSize > _maxBzzBlockSize) {
       throw const DjvuException('DjVu BZZ block exceeds the 4 MiB declared-size limit.');
     }
-    if (declaredSize > maxOutputBytes - produced) {
+    // Each block's declaration carries its trailing marker byte, so a block
+    // produces declaredSize - 1 bytes. The limit bounds the materialized
+    // output, not the declarations.
+    if (declaredSize - 1 > maxOutputBytes - produced) {
       throw const DjvuException('DjVu BZZ stream exceeds its output limit.');
     }
     final block = _decodeBlock(zp, contexts, declaredSize, truncatedMessage);

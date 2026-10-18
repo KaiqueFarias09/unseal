@@ -73,7 +73,7 @@ Uint8List reconstructDjvuIw44Plane(
     final outputOffset = outputRow * width;
     for (var column = 0; column < width; column++) {
       final q6 = reconstructed[inputOffset + column];
-      final signedSample = ((q6 + 32) >> 6).clamp(-128, 127);
+      final signedSample = _shr(q6 + 32, 6).clamp(-128, 127);
       output[outputOffset + column] = signedSample + 128;
     }
   }
@@ -107,7 +107,7 @@ void _inverseLine(
     final after3 = index + 3 <= last ? data[start + (index + 3) * step] : 0;
     final neighbor1 = before1 + after1;
     final neighbor3 = before3 + after3;
-    final delta = ((9 * neighbor1 - neighbor3 + 16) >> 5);
+    final delta = _shr(9 * neighbor1 - neighbor3 + 16, 5);
     final offset = start + index * step;
     data[offset] = _wrapInt16(data[offset] - delta);
   }
@@ -125,7 +125,7 @@ void _inverseLine(
     final before1 = data[start + (index - 1) * step];
     final after1 = data[start + (index + 1) * step];
     if (index == 1 || index + 3 > last) {
-      data[offset] = _wrapInt16(current + ((before1 + after1 + 1) >> 1));
+      data[offset] = _wrapInt16(current + _shr(before1 + after1 + 1, 1));
       continue;
     }
 
@@ -133,10 +133,16 @@ void _inverseLine(
     final after3 = data[start + (index + 3) * step];
     final neighbor1 = before1 + after1;
     final neighbor3 = before3 + after3;
-    final delta = ((9 * neighbor1 - neighbor3 + 8) >> 4);
+    final delta = _shr(9 * neighbor1 - neighbor3 + 8, 4);
     data[offset] = _wrapInt16(current + delta);
   }
 }
+
+/// Arithmetic right shift whose result stays a signed 32-bit value on every
+/// platform: compiled JavaScript leaves non-negative remainders for negative
+/// operands, so the sign must be restored explicitly (the same normalization
+/// the JPEG 2000 decoder applies).
+int _shr(final int value, final int bits) => (value >> bits).toSigned(32);
 
 int _wrapInt16(final int value) {
   final lowWord = value & 0xffff;

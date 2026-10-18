@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
+import 'djvu_decode_budget.dart';
 import 'djvu_exception.dart';
+import 'fgbz_decoder.dart';
 import 'zp_decoder.dart';
 
 const _maxJb2PagePixels = 16 * 1000 * 1000;
@@ -12,6 +14,16 @@ const _maxJb2Records = 65536;
 const _maxJb2ContextNodes = 1024 * 1024;
 const _maxJb2CommentBytes = 64 * 1024;
 const _maxSyntheticBytes = 16;
+
+/// Work cap for the FGbz color pass's group scan. Real pages stay orders of
+/// magnitude below it (their passes equal their palette sizes); the cap turns
+/// a hostile left-regressing blit sequence into a typed refusal.
+const _maxJb2ColorScanSteps = 64 * 1000 * 1000;
+
+/// Conservative page-local placement, chain and color-pass bookkeeping cap.
+/// The record limit bounds placements to 65536; shared symbol pixels have
+/// their separate ledger and the JB2 decoder bounds local symbol storage.
+const djvuFgbzPlacementBudgetBytes = 65536 * 128;
 
 /// The bilevel mask produced by the supported subset of a JB2 image stream.
 final class DjvuJb2Mask {
@@ -26,6 +38,58 @@ final class DjvuJb2Mask {
 
   /// One byte per pixel in top-to-bottom order. One means black ink.
   final Uint8List pixels;
+}
+
+/// One JB2 blit's native placement: bottom-left pixel coordinates in the
+/// spec's bottom-origin space, plus the blitted symbol.
+final class DjvuJb2BlitPlacement {
+  /// Creates one blit placement from its decoded parts.
+  const DjvuJb2BlitPlacement({
+    required this.left,
+    required this.bottom,
+    required this.symbol,
+    required this.shapeNumber,
+  });
+
+  /// Left edge of the symbol, in pixels.
+  final int left;
+
+  /// Bottom edge of the symbol, in the spec's bottom-origin coordinates.
+  final int bottom;
+
+  /// Native combined dictionary/image shape number.
+  final int shapeNumber;
+
+  /// The blitted symbol bitmap, cropped to its ink bounds.
+  final DjvuJb2Symbol symbol;
+}
+
+/// A page mask whose ink pixels carry one FGbz palette index each.
+///
+/// [colorMap] holds one 16-bit value per pixel in top-to-bottom order: zero
+/// is paper, and `index + 1` means the ink pixel takes the FGbz palette
+/// entry at that zero-based index. This single page-sized map is the color
+/// state — no per-color or per-blit buffer exists at any point.
+final class DjvuJb2ColorizedMask {
+  /// Creates a colorized page mask around its decoded map and palette.
+  const DjvuJb2ColorizedMask({
+    required this.width,
+    required this.height,
+    required this.colorMap,
+    required this.palette,
+  });
+
+  /// Page width in pixels.
+  final int width;
+
+  /// Page height in pixels.
+  final int height;
+
+  /// One value per pixel; zero is paper, otherwise palette index plus one.
+  final Uint16List colorMap;
+
+  /// The FGbz palette the color map indexes into.
+  final DjvuFgbzPalette palette;
 }
 
 /// Cumulative cap on retained shared-dictionary symbol pixels across one
@@ -179,9 +243,93 @@ DjvuJb2Mask decodeDjvuJb2Mask(
   required final int expectedWidth,
   required final int expectedHeight,
   final DjvuJb2SharedDictionary? inherited,
+}) => decodeDjvuJb2Page(
+  encoded,
+  expectedWidth: expectedWidth,
+  expectedHeight: expectedHeight,
+  inherited: inherited,
+  collectBlits: false,
+).mask;
+
+/// Decodes local-symbol JB2 records into a page color map, applying
+/// [colors] to every blit.
+///
+/// The chunk's color sequence must name exactly the page's blits; the paint
+/// order reproduces the native two-layer rendering (`DjVuImage::stencil`):
+/// color groups run in first-appearance order and the last pass covering a
+/// pixel wins.
+DjvuJb2ColorizedMask decodeDjvuJb2ColorizedMask(
+  final Uint8List encoded, {
+  required final int expectedWidth,
+  required final int expectedHeight,
+  final DjvuJb2SharedDictionary? inherited,
+  required final DjvuFgbzPalette colors,
+  final DjvuDecodeBudget? budget,
+}) {
+  final colorIndices = colors.colorIndices;
+  if (colorIndices == null) {
+    throw const DjvuException('DjVu FGbz palette carries no per-blit color data.');
+  }
+  final page = decodeDjvuJb2Page(
+    encoded,
+    expectedWidth: expectedWidth,
+    expectedHeight: expectedHeight,
+    inherited: inherited,
+    collectBlits: true,
+    budget: budget,
+  );
+  final blits = page.blits!;
+  if (blits.length != colorIndices.length) {
+    throw DjvuException(
+      'DjVu FGbz colors ${colorIndices.length} blits, but the page places ${blits.length}.',
+    );
+  }
+  return DjvuJb2ColorizedMask(
+    width: page.width,
+    height: page.height,
+    colorMap: _paintBlitColors(blits, colorIndices, page.width, page.height),
+    palette: colors,
+  );
+}
+
+/// The full decode of one JB2 page stream: the bilevel mask plus, when
+/// `collectBlits` is set, the native placement of every blit in decode
+/// order. Ordinary parsing uses the two wrappers above; the comparison
+/// tools read the blit list to check FGbz color association against the
+/// native blit order.
+final class DjvuJb2Page {
+  /// Creates a decoded page result.
+  const DjvuJb2Page({
+    required this.width,
+    required this.height,
+    required this.mask,
+    required this.blits,
+  });
+
+  /// Page width in pixels.
+  final int width;
+
+  /// Page height in pixels.
+  final int height;
+
+  /// The decoded bilevel mask.
+  final DjvuJb2Mask mask;
+
+  /// Every blit's placement in decode order, or null when not collected.
+  final List<DjvuJb2BlitPlacement>? blits;
+}
+
+/// Decodes one JB2 page stream into [DjvuJb2Page].
+DjvuJb2Page decodeDjvuJb2Page(
+  final Uint8List encoded, {
+  required final int expectedWidth,
+  required final int expectedHeight,
+  final DjvuJb2SharedDictionary? inherited,
+  required final bool collectBlits,
+  final DjvuDecodeBudget? budget,
 }) {
   final zp = DjvuZpDecoder(encoded, truncatedMessage: 'Truncated DjVu JB2 arithmetic stream.');
-  final nodeBudget = _ContextNodeBudget();
+  final nodeBudget = _ContextNodeBudget(budget);
   final recordType = _NumberContext(nodeBudget);
   final imageSize = _NumberContext(nodeBudget);
   final symbolWidth = _NumberContext(nodeBudget);
@@ -234,12 +382,17 @@ DjvuJb2Mask decodeDjvuJb2Mask(
   }
 
   final page = Uint8List(pagePixels);
+  // Native placements of every blit, in decode order, for the FGbz color
+  // pass. Null keeps ordinary mask decodes from retaining them.
+  final blits = collectBlits ? <DjvuJb2BlitPlacement>[] : null;
   // The combined dictionary is the inherited shared slice followed by the
   // symbols this page adds; match records index across the whole list and
   // page-local additions never flow back into the shared dictionary.
   final symbols = inheritedCount == 0
       ? <DjvuJb2Symbol>[]
       : List<DjvuJb2Symbol>.of(inherited!.symbols.sublist(0, inheritedCount));
+  final shapeNumbers = List<int>.generate(inheritedCount, (final i) => i);
+  var nextShapeNumber = inheritedCount;
   var storedDictionaryPixels = 0;
   var decodedSymbolPixels = 0;
   var blitPixels = 0;
@@ -267,8 +420,10 @@ DjvuJb2Mask decodeDjvuJb2Mask(
           symbolWidth,
           symbolHeight,
           decodedSymbolPixels,
+          budget: budget,
         );
         decodedSymbolPixels += symbol.width * symbol.height;
+        final shapeNumber = nextShapeNumber++;
 
         if (type == 1 || type == 3) {
           final (x, y) = _decodeSymbolCoordinates(
@@ -283,6 +438,9 @@ DjvuJb2Mask decodeDjvuJb2Mask(
             throw const DjvuException('DjVu JB2 page exceeds the 64-megapixel blit-work limit.');
           }
           _blit(page, width, height, symbol, x, y);
+          blits?.add(
+            DjvuJb2BlitPlacement(left: x, bottom: y, symbol: symbol, shapeNumber: shapeNumber),
+          );
         } else if (type == 8) {
           final left = _decodeNumber(zp, absoluteLeft, 1, width) - 1;
           final top = _decodeNumber(zp, absoluteTop, 1, height) - symbol.height;
@@ -291,10 +449,14 @@ DjvuJb2Mask decodeDjvuJb2Mask(
             throw const DjvuException('DjVu JB2 page exceeds the 64-megapixel blit-work limit.');
           }
           _blit(page, width, height, symbol, left, top);
+          blits?.add(
+            DjvuJb2BlitPlacement(left: left, bottom: top, symbol: symbol, shapeNumber: shapeNumber),
+          );
         }
 
         if (type == 1 || type == 2) {
           storedDictionaryPixels = _addStoredSymbol(symbols, symbol, storedDictionaryPixels);
+          shapeNumbers.add(shapeNumber);
         }
       case 4:
       case 5:
@@ -311,8 +473,10 @@ DjvuJb2Mask decodeDjvuJb2Mask(
           symbolHeightValue,
           reference,
           decodedSymbolPixels,
+          budget: budget,
         );
         decodedSymbolPixels += symbol.width * symbol.height;
+        final shapeNumber = nextShapeNumber++;
 
         if (type == 4 || type == 6) {
           final (x, y) = _decodeSymbolCoordinates(
@@ -327,10 +491,14 @@ DjvuJb2Mask decodeDjvuJb2Mask(
             throw const DjvuException('DjVu JB2 page exceeds the 64-megapixel blit-work limit.');
           }
           _blit(page, width, height, symbol, x, y);
+          blits?.add(
+            DjvuJb2BlitPlacement(left: x, bottom: y, symbol: symbol, shapeNumber: shapeNumber),
+          );
         }
 
         if (type == 4 || type == 5) {
           storedDictionaryPixels = _addStoredSymbol(symbols, symbol, storedDictionaryPixels);
+          shapeNumbers.add(shapeNumber);
         }
       case 7:
         if (symbols.isEmpty) {
@@ -341,6 +509,7 @@ DjvuJb2Mask decodeDjvuJb2Mask(
           throw const DjvuException('DjVu JB2 copy record references an invalid symbol.');
         }
         final symbol = symbols[index];
+        final shapeNumber = shapeNumbers[index];
         final (x, y) = _decodeSymbolCoordinates(
           zp,
           coordinates,
@@ -353,6 +522,9 @@ DjvuJb2Mask decodeDjvuJb2Mask(
           throw const DjvuException('DjVu JB2 page exceeds the 64-megapixel blit-work limit.');
         }
         _blit(page, width, height, symbol, x, y);
+        blits?.add(
+          DjvuJb2BlitPlacement(left: x, bottom: y, symbol: symbol, shapeNumber: shapeNumber),
+        );
       case 9:
         throw const DjvuException(
           'DjVu JB2 page records that reset or inherit a shared dictionary are '
@@ -373,7 +545,12 @@ DjvuJb2Mask decodeDjvuJb2Mask(
     }
   }
 
-  return DjvuJb2Mask(width: width, height: height, pixels: page);
+  return DjvuJb2Page(
+    width: width,
+    height: height,
+    mask: DjvuJb2Mask(width: width, height: height, pixels: page),
+    blits: blits,
+  );
 }
 
 /// Encodes a bilevel mask as a bottom-up, 1-bit BMP for reader display.
@@ -416,11 +593,12 @@ DjvuJb2Symbol _decodeDirectSymbol(
   final Uint8List contexts,
   final _NumberContext widthContext,
   final _NumberContext heightContext,
-  final int priorPixels,
-) {
+  final int priorPixels, {
+  final DjvuDecodeBudget? budget,
+}) {
   final width = _decodeNumber(zp, widthContext, 0, 262142);
   final height = _decodeNumber(zp, heightContext, 0, 262142);
-  return _chargedDirectBitmap(zp, contexts, width, height, priorPixels, null);
+  return _chargedDirectBitmap(zp, contexts, width, height, priorPixels, null, budget: budget);
 }
 
 /// Decodes a direct symbol bitmap after its dimensions are known.
@@ -433,8 +611,9 @@ DjvuJb2Symbol _chargedDirectBitmap(
   final int width,
   final int height,
   final int priorPixels,
-  final DjvuSharedDictionaryLedger? ledger,
-) {
+  final DjvuSharedDictionaryLedger? ledger, {
+  final DjvuDecodeBudget? budget,
+}) {
   final pixelCount = width * height;
   if (width < 0 || height < 0 || pixelCount > _maxJb2SymbolPixels) {
     throw const DjvuException('DjVu JB2 symbol dimensions exceed the 4-megapixel limit.');
@@ -443,6 +622,7 @@ DjvuJb2Symbol _chargedDirectBitmap(
     throw const DjvuException('DjVu JB2 page exceeds the 64-megapixel symbol-work limit.');
   }
   if (ledger != null) ledger.charge(pixelCount);
+  budget?.reserve(pixels: 0, rasterBytes: 2 * pixelCount);
 
   if (pixelCount == 0) {
     return DjvuJb2Symbol(width: width, height: height, pixels: Uint8List(0));
@@ -481,8 +661,18 @@ DjvuJb2Symbol _decodeRefinedSymbol(
   final int width,
   final int height,
   final DjvuJb2Symbol reference,
-  final int priorPixels,
-) => _chargedRefinedBitmap(zp, contexts, width, height, reference, priorPixels, null);
+  final int priorPixels, {
+  final DjvuDecodeBudget? budget,
+}) => _chargedRefinedBitmap(
+  zp,
+  contexts,
+  width,
+  height,
+  reference,
+  priorPixels,
+  null,
+  budget: budget,
+);
 
 /// Decodes a refined symbol bitmap after its dimensions are known.
 ///
@@ -495,8 +685,9 @@ DjvuJb2Symbol _chargedRefinedBitmap(
   final int height,
   final DjvuJb2Symbol reference,
   final int priorPixels,
-  final DjvuSharedDictionaryLedger? ledger,
-) {
+  final DjvuSharedDictionaryLedger? ledger, {
+  final DjvuDecodeBudget? budget,
+}) {
   final pixelCount = width * height;
   if (width < 0 || height < 0 || pixelCount > _maxJb2SymbolPixels) {
     throw const DjvuException('DjVu JB2 refinement dimensions exceed the 4-megapixel limit.');
@@ -505,6 +696,7 @@ DjvuJb2Symbol _chargedRefinedBitmap(
     throw const DjvuException('DjVu JB2 page exceeds the 64-megapixel symbol-work limit.');
   }
   if (ledger != null) ledger.charge(pixelCount);
+  budget?.reserve(pixels: 0, rasterBytes: 2 * pixelCount);
 
   if (pixelCount == 0) {
     return DjvuJb2Symbol(width: width, height: height, pixels: Uint8List(0));
@@ -568,6 +760,91 @@ void _blit(
     for (var column = 0; column < endX - startX; column++) {
       if (symbol.pixels[sourceStart + column] != 0) {
         page[destinationStart + column] = 1;
+      }
+    }
+  }
+}
+
+/// Paints every blit's palette color into a page color map.
+///
+/// The pass order mirrors the native foreground renderer: repeatedly take
+/// the first remaining blit as its color group's leader, walk forward while
+/// the blits' left coordinates never regress, and paint the gathered blits
+/// of the leader's color. Later passes overwrite earlier ones, so a pixel
+/// takes the color of the last pass covering it. The native loop spins when
+/// a pass leader sits left of x=0; this pass paints that leader alone and
+/// keeps making progress instead.
+Uint16List _paintBlitColors(
+  final List<DjvuJb2BlitPlacement> blits,
+  final List<int> colorIndices,
+  final int pageWidth,
+  final int pageHeight,
+) {
+  final colorMap = Uint16List(pageWidth * pageHeight);
+  final previous = List<int>.generate(blits.length + 1, (final i) => i - 1);
+  final next = List<int>.generate(blits.length + 1, (final i) => i + 1);
+  int head = 0;
+  var steps = 0;
+  while (head != blits.length) {
+    final color = colorIndices[head];
+    final painted = <int>[];
+    var lastx = 0;
+    var paintedLeader = false;
+    var cursor = head;
+    while (cursor != blits.length) {
+      if (++steps > _maxJb2ColorScanSteps) {
+        throw const DjvuException('DjVu FGbz color pass exceeds its 64-million-step work limit.');
+      }
+      final following = next[cursor];
+      final left = blits[cursor].left;
+      if (left < lastx) break;
+      lastx = left;
+      if (colorIndices[cursor] == color) {
+        // Splice the blit out of the live chain and paint it with its group.
+        painted.add(cursor);
+        if (cursor == head) {
+          head = following;
+          paintedLeader = true;
+        } else {
+          next[previous[cursor]] = following;
+          if (following != blits.length) previous[following] = previous[cursor];
+        }
+      }
+      cursor = following;
+    }
+    if (!paintedLeader) {
+      // A pass leader left of x=0 paints alone so the walk always advances.
+      painted.add(head);
+      head = next[head];
+    }
+    for (final blitNo in painted) {
+      _stampColor(colorMap, pageWidth, pageHeight, blits[blitNo], colorIndices[blitNo] + 1);
+    }
+  }
+  return colorMap;
+}
+
+/// Writes a blit's palette color over its ink pixels, clipped to the page.
+void _stampColor(
+  final Uint16List colorMap,
+  final int pageWidth,
+  final int pageHeight,
+  final DjvuJb2BlitPlacement blit,
+  final int colorValue,
+) {
+  final symbol = blit.symbol;
+  final y = pageHeight - blit.bottom - symbol.height;
+  final startX = blit.left < 0 ? 0 : blit.left;
+  final startY = y < 0 ? 0 : y;
+  final endX = blit.left + symbol.width > pageWidth ? pageWidth : blit.left + symbol.width;
+  final endY = y + symbol.height > pageHeight ? pageHeight : y + symbol.height;
+  if (startX >= endX || startY >= endY) return;
+  for (var row = startY; row < endY; row++) {
+    final sourceStart = (row - y) * symbol.width + startX - blit.left;
+    final destinationStart = row * pageWidth + startX;
+    for (var column = 0; column < endX - startX; column++) {
+      if (symbol.pixels[sourceStart + column] != 0) {
+        colorMap[destinationStart + column] = colorValue;
       }
     }
   }
@@ -793,12 +1070,15 @@ final class _Baseline {
 }
 
 final class _ContextNodeBudget {
+  _ContextNodeBudget([this.budget]);
+  final DjvuDecodeBudget? budget;
   var count = 2;
 
   void addNode() {
     if (count >= _maxJb2ContextNodes) {
       throw const DjvuException('DjVu JB2 arithmetic contexts exceed the allocation limit.');
     }
+    budget?.reserve(pixels: 0, rasterBytes: 64);
     count++;
   }
 }

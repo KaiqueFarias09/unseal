@@ -30,31 +30,48 @@ final class DjvuRgbRaster {
 ///
 /// Black mask pixels select [foreground]; white pixels select [background].
 /// The foreground must always come with its mask; a mask without a foreground
-/// is a valid page whose FGbz color layer is ignored, and its ink renders
-/// black over the background. A page without mask or foreground is a photo
-/// whose BG44 layer is expanded to the INFO dimensions. MRC color layers and
-/// reduced photo layers are expanded with deterministic bilinear interpolation
-/// on a grid spaced by their validated integer sub-sampling factor. Samples
-/// outside the last grid point clamp to the layer edge.
+/// is a valid monochrome page, and its ink renders black over the background. A [colorizedMask] instead paints its FGbz
+/// palette color over the background wherever the map has ink. A page without
+/// mask or foreground is a photo whose BG44 layer is expanded to the INFO
+/// dimensions. MRC color layers and reduced photo layers are expanded with
+/// deterministic bilinear interpolation on a grid spaced by their validated
+/// integer sub-sampling factor. Samples outside the last grid point clamp to
+/// the layer edge.
 ///
 /// [budget] reserves the output page before its BMP bytes are allocated.
 Uint8List composeDjvuLayersBmp({
   required final DjvuRgbRaster background,
   final DjvuRgbRaster? foreground,
   final DjvuJb2Mask? mask,
+  final DjvuJb2ColorizedMask? colorizedMask,
   required final int pageWidth,
   required final int pageHeight,
   required final DjvuDecodeBudget budget,
 }) {
+  if (mask != null && colorizedMask != null) {
+    throw const DjvuException('DjVu composition accepts one selection mask.');
+  }
   final pagePixels = _checkedPixelCount(pageWidth, pageHeight, 'page');
   final backgroundFactor = _validateRaster(background, pageWidth, pageHeight, 'background');
 
-  if (foreground != null && mask == null) {
+  if (foreground != null && mask == null && colorizedMask == null) {
     throw const DjvuException('DjVu foreground color needs a selection mask.');
   }
   var foregroundFactor = 1;
-  if (mask != null) {
-    if (mask.width != pageWidth || mask.height != pageHeight || mask.pixels.length != pagePixels) {
+  final selectionMask = mask;
+  if (selectionMask != null) {
+    if (selectionMask.width != pageWidth ||
+        selectionMask.height != pageHeight ||
+        selectionMask.pixels.length != pagePixels) {
+      throw const DjvuException('DjVu selection mask dimensions do not match the INFO chunk.');
+    }
+    if (foreground != null) {
+      foregroundFactor = _validateRaster(foreground, pageWidth, pageHeight, 'foreground');
+    }
+  } else if (colorizedMask != null) {
+    if (colorizedMask.width != pageWidth ||
+        colorizedMask.height != pageHeight ||
+        colorizedMask.colorMap.length != pagePixels) {
       throw const DjvuException('DjVu selection mask dimensions do not match the INFO chunk.');
     }
     if (foreground != null) {
@@ -67,8 +84,8 @@ Uint8List composeDjvuLayersBmp({
   final outputBytes = bmpHeaderBytes + pixelBytes;
   budget.reserve(pixels: pagePixels, rasterBytes: outputBytes);
 
-  if (mask != null) {
-    for (final pixel in mask.pixels) {
+  if (selectionMask != null) {
+    for (final pixel in selectionMask.pixels) {
       if (pixel > 1) {
         throw const DjvuException(
           'DjVu selection mask contains a pixel outside the bilevel range.',
@@ -83,24 +100,68 @@ Uint8List composeDjvuLayersBmp({
   final foregroundSampler = foreground == null
       ? null
       : _RasterSampler(foreground, foregroundFactor);
-  final selection = mask?.pixels;
+  final selection = selectionMask?.pixels;
+  final colors = colorizedMask?.colorMap;
+  final palette = colorizedMask?.palette.rgb;
   final bottomUpBase = bmpHeaderBytes;
 
   for (var y = 0; y < pageHeight; y++) {
     final sourceRow = (pageHeight - 1 - y) * rowStride;
     for (var x = 0; x < pageWidth; x++) {
       final destinationPixel = y * pageWidth + x;
-      final selectInk = selection != null && selection[destinationPixel] == 1;
+      final colorValue = colors == null ? 0 : colors[destinationPixel];
+      final selectInk = (selection != null && selection[destinationPixel] == 1) || colorValue != 0;
       final byteOffset = bottomUpBase + sourceRow + x * 3;
       if (selectInk && foregroundSampler == null) {
-        // The color layer is ignored: mask ink renders black.
-        output[byteOffset] = 0;
-        output[byteOffset + 1] = 0;
-        output[byteOffset + 2] = 0;
+        if (palette == null || colorValue == 0) {
+          // The color layer is ignored: mask ink renders black.
+          output[byteOffset] = 0;
+          output[byteOffset + 1] = 0;
+          output[byteOffset + 2] = 0;
+        } else {
+          final entry = (colorValue - 1) * 3;
+          output[byteOffset] = palette[entry + 2];
+          output[byteOffset + 1] = palette[entry + 1];
+          output[byteOffset + 2] = palette[entry];
+        }
         continue;
       }
       final source = selectInk ? foregroundSampler! : backgroundSampler;
       source.writeBgr(output, byteOffset, x, y);
+    }
+  }
+  return output;
+}
+
+/// Encodes an FGbz colorized mask as a bottom-up 24-bit BMP: white paper and
+/// each ink pixel in its blit's palette color — the standalone mask page's
+/// colored rendering contract.
+Uint8List encodeDjvuColoredMaskBmp(final DjvuJb2ColorizedMask mask) {
+  final pagePixels = _checkedPixelCount(mask.width, mask.height, 'page');
+  if (mask.colorMap.length != pagePixels) {
+    throw const DjvuException('DjVu color map length does not match its dimensions.');
+  }
+  final rowStride = bmpRowStride(mask.width);
+  final pixelBytes = rowStride * mask.height;
+  final output = Uint8List(bmpHeaderBytes + pixelBytes);
+  writeBmpHeader(output, mask.width, mask.height, pixelBytes);
+  final palette = mask.palette.rgb;
+  for (var y = 0; y < mask.height; y++) {
+    final sourceRow = y * mask.width;
+    final destination = bmpHeaderBytes + (mask.height - 1 - y) * rowStride;
+    for (var x = 0; x < mask.width; x++) {
+      final colorValue = mask.colorMap[sourceRow + x];
+      final byteOffset = destination + x * 3;
+      if (colorValue == 0) {
+        output[byteOffset] = 0xFF;
+        output[byteOffset + 1] = 0xFF;
+        output[byteOffset + 2] = 0xFF;
+      } else {
+        final entry = (colorValue - 1) * 3;
+        output[byteOffset] = palette[entry + 2];
+        output[byteOffset + 1] = palette[entry + 1];
+        output[byteOffset + 2] = palette[entry];
+      }
     }
   }
   return output;

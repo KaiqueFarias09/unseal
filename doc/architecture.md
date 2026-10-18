@@ -293,7 +293,8 @@ bytes and provenance unless the change intentionally updates the fixture.
   mixed layers through a hard JB2 mask, reads compressed hidden text and
   bookmark navigation, and resolves indirect files only through filesystem
   reads. Chained shared dictionaries and replacement visual codecs remain
-  unsupported. `FGbz` palette recoloring is ignored.
+  unsupported. `FGbz` version 0 palettes color each JB2 blit occurrence through
+  a bounded page color map; composed output keeps the existing hard-mask contract.
 - TIFF/BigTIFF produces page images rather than reflowed text. Strip,
   tiled, planar, and palette pages share the codecs documented in the
   README and are compared sample by sample with libtiff
