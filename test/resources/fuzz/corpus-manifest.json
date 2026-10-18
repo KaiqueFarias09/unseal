@@ -1608,6 +1608,198 @@
       "generated": true
     },
     {
+      "path": "test/resources/hocr/PROVENANCE.md",
+      "format": "manifest",
+      "bytes": 3324,
+      "sha256": "cb780eb58127b08826f4c7d27410c30bc5ccd09da7adbb9fa8684f52142dffe6",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/derived/features.hocr",
+      "format": "html",
+      "bytes": 5427,
+      "sha256": "ad9c5f2d6e4c27b7db59ab5318737c8cca2896f6f987ec583c7b8b3b6c3f4613",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/external/060.hocr",
+      "format": "html",
+      "bytes": 48676,
+      "sha256": "ce540bdba083f2b2ac2c78b512bdb1e67a4d44dd478df9a0586883b7634d17eb",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/external/417576986_0012.hocr",
+      "format": "html",
+      "bytes": 17068,
+      "sha256": "f4dccd2e47cb70aa978943a7d47d1c05b97f90ee77eced1328cc847811689d70",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/external/417576986_0013.hocr",
+      "format": "html",
+      "bytes": 25724,
+      "sha256": "875c37a26cf6904ecedda8b3e23a1ddd5ddcbd99a58e68efb38da703dceef03a",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/external/433934212_0017.html",
+      "format": "html",
+      "bytes": 3421,
+      "sha256": "26d6e8e66abbe6e4fbd1d36fa34272cf7f9555a21ecf84e3bfad3e46a2202fbb",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/external/alice.hocr",
+      "format": "html",
+      "bytes": 5393,
+      "sha256": "ed5b96b6834830380a16efcb4366fda0ced0659d916c94367a114b42455919a3",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/external/jp_vert.hocr",
+      "format": "html",
+      "bytes": 290355,
+      "sha256": "ce3ed271ec3c88ce3708d60997c52ac039dc86524751ce3c33610601c0a76ccd",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/external/kraken_bw_example.hocr",
+      "format": "html",
+      "bytes": 68734,
+      "sha256": "a4002a787fa9a1763c971934b282f778355f1418bf07e56a14ec15318e035b44",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/external/wetzel_reisebegleiter_1901_0021.hocr",
+      "format": "html",
+      "bytes": 37216,
+      "sha256": "5c5aff9a1b38c8296d281bb1241a06ba23e3c2f18fb9faebdd12fe0f08c5565d",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/images/eurotext.tif",
+      "format": "tiff",
+      "bytes": 102598,
+      "sha256": "7b9bd14aba7d5e30df686fbb6f71782a97f48f81b32dc201a1b75afe6de747d6",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/images/phototest.tif",
+      "format": "tiff",
+      "bytes": 38668,
+      "sha256": "d2241a1eb6d6cd2eb6544b8e228c2862c852b7467d16ed636caa32179b780692",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/images/unlv-8071_093.3B.tif",
+      "format": "tiff",
+      "bytes": 112194,
+      "sha256": "d4f01cba19c99f8894d94a6d43eb8ed8013f8cf17fc08af9346bb9fb3697d452",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/images/unlv-8087_054.3B.tif",
+      "format": "tiff",
+      "bytes": 86066,
+      "sha256": "dab6db0f4c32296f313c7f1e7e139b13d7c69be65c64d6016f85ea67ebca9102",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/tesseract/eurotext.hocr",
+      "format": "html",
+      "bytes": 9154,
+      "sha256": "516b85331a4f72195d7fc871c6ce91991455890479abec6dee26daa1dac09984",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/tesseract/eurotext.tsv",
+      "format": "txt",
+      "bytes": 3386,
+      "sha256": "4ea5b10b8d2d7847ba55b91c7dae4274f7fd17302ba500f9912b0c9a806ba233",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/tesseract/multipage.hocr",
+      "format": "html",
+      "bytes": 16497,
+      "sha256": "f6550508e4bf3ae06a48803c5fc543a4931b22e6a1ca8b7cc859ff24d99251dd",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/tesseract/multipage.tsv",
+      "format": "txt",
+      "bytes": 6175,
+      "sha256": "c0d6be5256a7ceb60057cb4c5170ca1c6897a3bd51efc48e99ac36d391384a0e",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/tesseract/phototest.hocr",
+      "format": "html",
+      "bytes": 7880,
+      "sha256": "a55bad891ab8947e3bc452420794bc65e9c763ed637cfccafa6ad3784e66d009",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/tesseract/phototest.tsv",
+      "format": "txt",
+      "bytes": 2872,
+      "sha256": "c694df23dbd040a589d54a24f3aedf1e16b42d8cf0c5cf094edaae837c6e6b9a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/tesseract/unlv-8071.hocr",
+      "format": "html",
+      "bytes": 88662,
+      "sha256": "cc54bd6711655f7d10336f7d73c8afbbcf7b3fa65b320ee01dbcae1cf90dda03",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/tesseract/unlv-8071.tsv",
+      "format": "txt",
+      "bytes": 36702,
+      "sha256": "b78872a4d2fbbcdf5d105b3d6199394d0185a280e9f82acba4676c33602a7202",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/hocr/tesseract/unlv-8087.hocr",
+      "format": "html",
+      "bytes": 91592,
+      "sha256": "4a375c23bfbde41fd6f42d6be45e4ba32355d703d15a2a5cfe461bc275e46a34",
+      "container": "unknown",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/hocr/tesseract/unlv-8087.tsv",
+      "format": "txt",
+      "bytes": 35502,
+      "sha256": "eda087cee6944844729f0588f26a758669f702075ebc7c65b1fe7e0f50313e21",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
       "path": "test/resources/mobi/alice-joint.mobi",
       "format": "mobi",
       "bytes": 3748946,
@@ -4673,10 +4865,10 @@
     }
   ],
   "counts": {
-    "total": 578,
-    "totalBytes": 93101392,
+    "total": 602,
+    "totalBytes": 94244678,
     "byFormat": {
-      "manifest": 97,
+      "manifest": 98,
       "xml-sidecar": 14,
       "chm": 4,
       "cbr": 20,
@@ -4689,20 +4881,20 @@
       "epub": 68,
       "fb2": 4,
       "rtf": 2,
-      "html": 7,
+      "html": 21,
       "ereader": 2,
       "image": 10,
       "palmdoc": 1,
       "plucker": 6,
       "htmlz": 1,
-      "txt": 64,
+      "txt": 69,
       "lrf": 2,
       "azw3": 2,
       "mobi": 5,
       "azw4": 1,
       "odt": 1,
       "pdf": 31,
-      "tiff": 80,
+      "tiff": 84,
       "txtz": 1,
       "resource": 126
     }
