@@ -12,6 +12,8 @@
 ///
 /// Exit codes: 0 every document matches and every negative rejects
 /// typed; 1 any difference or unexpected acceptance.
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -27,9 +29,7 @@ Future<void> main(final List<String> arguments) async {
     if (arguments[i] == '--out') outPath = arguments[i + 1];
   }
   final reference = jsonDecode(File(referencePath).readAsStringSync()) as Map<String, Object?>;
-  final inputs = reference['inputs']! as Map<String, Object?>;
   final documents = reference['documents']! as Map<String, Object?>;
-  final corpusDir = Directory('build/c02/corpus');
   final negativesDir = Directory('build/c02/negatives');
 
   final compared = <Map<String, Object?>>[];
@@ -93,9 +93,8 @@ Future<void> main(final List<String> arguments) async {
     final role = documents.containsKey(name)
         ? 'schema-valid (positive or declared parser-negative)'
         : 'schema-invalid';
-    final Object? parsed;
     try {
-      parsed = parsePageXmlDocument(entity.readAsBytesSync());
+      parsePageXmlDocument(entity.readAsBytesSync());
     } on PageXmlUnsupportedFeatureException catch (error) {
       negatives.add({
         'file': name,
@@ -134,10 +133,10 @@ Future<void> main(final List<String> arguments) async {
     'compared': compared,
     'negatives': negatives,
   };
-  File(outPath).writeAsStringSync(const JsonEncoder.withIndent(' ').convert(report) + '\n');
+  File(outPath).writeAsStringSync('${const JsonEncoder.withIndent(' ').convert(report)}\n');
   stdout.writeln(
     'compare: $failures failures over ${compared.length} documents, '
-    '${negatives.length} negatives',
+    '${negatives.length} negatives, $totalFields fields',
   );
   if (failures > 0) exit(1);
 }
@@ -164,9 +163,9 @@ void _diffDocument(
     count();
     final matches = switch (expectedValue) {
       null => actual == null,
-      String text => _matchesScalar(actual, text),
-      num number => actual is num && (actual as num).toDouble() == number.toDouble(),
-      bool flag => actual == flag,
+      final String text => _matchesScalar(actual, text),
+      final num number => actual is num && actual.toDouble() == number.toDouble(),
+      final bool flag => actual == flag,
       _ => actual.toString() == expectedValue.toString(),
     };
     if (!matches) into.add('$what: dart=${actual ?? 'null'} reference=$expectedValue');
@@ -261,9 +260,9 @@ void _diffRegion(
     count();
     final matches = switch (expectedValue) {
       null => actual == null,
-      String text => _matchesScalar(actual, text),
-      num number => actual is num && (actual as num).toDouble() == number.toDouble(),
-      bool flag => actual == flag,
+      final String text => _matchesScalar(actual, text),
+      final num number => actual is num && actual.toDouble() == number.toDouble(),
+      final bool flag => actual == flag,
       _ => actual.toString() == expectedValue.toString(),
     };
     if (!matches) into.add('$prefix.$what: dart=${actual ?? 'null'} reference=$expectedValue');

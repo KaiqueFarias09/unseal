@@ -7,6 +7,8 @@
 /// dart run tool/page_xml_bench.dart [--iterations=20] \
 ///   [--out=build/c02/outputs/bench.json]
 /// ```
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -29,7 +31,6 @@ Future<void> main(final List<String> arguments) async {
     ])
       name: File('test/resources/page/$name').readAsBytesSync(),
   };
-  final identity = PublicationRevision(publicationId: 'bench:page');
   // The binding target a host would prepare: the sidecar's own
   // transcription as the reading text, one word per line.
   final kantDocument = parsePageXmlDocument(fixtures['kant-aufklaerung-1784-0017.xml']!);
@@ -50,7 +51,7 @@ Future<void> main(final List<String> arguments) async {
 
   for (final entry in fixtures.entries) {
     final parseTimes = <int>[];
-    var bindTimes = <int>[];
+    final bindTimes = <int>[];
     PageXmlDocument document = parsePageXmlDocument(entry.value);
     // Warmup.
     for (var i = 0; i < 3; i++) {
@@ -61,7 +62,7 @@ Future<void> main(final List<String> arguments) async {
       document = parsePageXmlDocument(entry.value);
       parseTimes.add(watch.elapsedMicroseconds);
     }
-    final bound = bindPageToSnapshot(document: document!, target: target);
+    final bound = bindPageToSnapshot(document: document, target: target);
     for (var i = 0; i < iterations; i++) {
       final watch = Stopwatch()..start();
       bindPageToSnapshot(document: document, target: target);
@@ -91,7 +92,7 @@ Future<void> main(final List<String> arguments) async {
   };
   final out = File(outPath);
   if (out.parent.existsSync()) {
-    out.writeAsStringSync(const JsonEncoder.withIndent(' ').convert(report) + '\n');
+    out.writeAsStringSync('${const JsonEncoder.withIndent(' ').convert(report)}\n');
   }
   stdout.writeln(const JsonEncoder.withIndent(' ').convert(report));
 }
