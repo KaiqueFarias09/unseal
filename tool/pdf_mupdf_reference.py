@@ -84,7 +84,17 @@ def main():
     parser.add_argument("fixtures", nargs="+", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--password", action="append", default=[])
+    parser.add_argument("--navigation-fixture", type=Path, help="Generate a declared synthetic 3-page outline with MuPDF")
     args = parser.parse_args()
+    if args.navigation_fixture:
+        args.navigation_fixture.parent.mkdir(parents=True, exist_ok=True)
+        with fitz.open() as doc:
+            for number in range(1, 4):
+                page = doc.new_page()
+                page.insert_text((72, 72), f"Navigation fixture page {number}")
+            doc.set_toc([[1, "Opening", 1], [2, "Nested chapter", 2], [1, "Final chapter", 3]])
+            doc.save(str(args.navigation_fixture))
+        args.fixtures.append(args.navigation_fixture)
 
     passwords = {}
     for pair in args.password:

@@ -215,7 +215,7 @@ void main(final List<String> arguments) {
     'libtiff 4.7.2 native samples and RGBA compared on ${totals['cases']} cases '
         '(${totals['pass']} pass, ${totals['expectedRejection']} expected rejections, '
         '${totals['expectedDifference']} expected differences, ${totals['diverged']} diverged): '
-        '${totals['pagesCompared']} pages, ${totals['pixelsCompared']} native pixels and '
+        '${totals['pagesCompared']} pages, ${totals['pixelsCompared']} projected pixels, ${totals['native16SamplesCompared']} native16 samples and '
         '${totals['rgbaPixelsCompared']} RGBA pixels with zero differences; comparator self-checks behaved',
     compareArtifacts,
   );

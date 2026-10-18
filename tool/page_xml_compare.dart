@@ -24,29 +24,36 @@ import 'package:unseal/unseal.dart';
 Future<void> main(final List<String> arguments) async {
   var referencePath = 'build/c02/outputs/reference.json';
   var outPath = 'build/c02/outputs/comparison-diff.json';
+  var inputs = 'build/c02';
   for (var i = 0; i < arguments.length - 1; i++) {
     if (arguments[i] == '--reference') referencePath = arguments[i + 1];
     if (arguments[i] == '--out') outPath = arguments[i + 1];
+    if (arguments[i] == '--inputs') inputs = arguments[i + 1];
   }
   final reference = jsonDecode(File(referencePath).readAsStringSync()) as Map<String, Object?>;
   final documents = reference['documents']! as Map<String, Object?>;
-  final negativesDir = Directory('build/c02/negatives');
+  final negativesDir = Directory('$inputs/negatives');
 
   final compared = <Map<String, Object?>>[];
   var failures = 0;
   var totalFields = 0;
+  if (documents.isEmpty) throw StateError('Reference contains no documents');
 
   for (final entry in documents.entries) {
     final name = entry.key;
     final expected = entry.value as Map<String, Object?>;
-    final file = File('build/c02/corpus/$name');
+    final file = File('$inputs/corpus/$name');
     final Uint8List bytes;
     if (file.existsSync()) {
       bytes = file.readAsBytesSync();
     } else {
-      bytes = File('build/c02/negatives/$name').readAsBytesSync();
+      bytes = File('$inputs/negatives/$name').readAsBytesSync();
     }
     final differences = <String>[];
+    final inputHashes = reference['inputs']! as Map<String, Object?>;
+    if (sha256.convert(bytes).toString() != inputHashes[name]) {
+      throw StateError('Reference/input digest differs for $name');
+    }
     var documentFields = 0;
     final PageXmlDocument document;
     try {

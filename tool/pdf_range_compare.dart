@@ -28,6 +28,7 @@ import 'oracle_test_lane.dart';
 // The corpus cut fixed in doc/proposals/C01-pdf-byte-source.md.
 const _corpus = <(String, String?)>[
   ('test/resources/pdf/dickens-sample.pdf', null),
+  ('build/evidence/C01/navigation-reference.pdf', null),
   ('test/resources/pdf/gutenberg/pg2701-generated.pdf', null),
   ('test/resources/books/pdf/elements-of-euclid-pg.pdf', null),
   ('test/resources/pdf/jbig2/jbig2_huffman_2.pdf', null),
@@ -234,6 +235,7 @@ Future<void> main(final List<String> arguments) async {
   };
   var failed = false;
   for (final entry in stages.entries) {
+    if (arguments.contains('--only-pr02') && entry.key != 'PR02') continue;
     try {
       if (!await entry.value()) failed = true;
     } on Object catch (error, stack) {
@@ -418,6 +420,12 @@ Future<bool> _pr02(
   var pagesAligned = 0;
   var geometryCompared = 0;
   final problems = <String>[];
+  var nonemptyOutlines = 0;
+  (String, String, Map<String, Object?>)? euclidNegativePair;
+  final profile =
+      convert.jsonDecode(File('tool/reference/pdf/euclid-text-profile.json').readAsStringSync())
+          as Map<String, Object?>;
+  final profilePages = (profile['pages']! as List<Object?>).cast<Map<String, Object?>>();
 
   for (final (path, password) in _corpus) {
     final fixture = _fixtureFor(fixtures, path);
@@ -435,6 +443,11 @@ Future<bool> _pr02(
     final source = RecordingSource(raw);
     final session = await BookSession.openSource(source, password: password ?? '');
     final book = session.book as PdfBook;
+    final local = await BookSession.open(raw, password: password ?? '');
+    final isEuclid = path == profile['fixture'];
+    if (isEuclid && _sha256(raw) != profile['fixtureSha256']) {
+      problems.add('Euclid fixture differs from fixed profile');
+    }
     final referencePages = (fixture['pages']! as List<Object?>).cast<Map<String, Object?>>();
     var minDice = 1.0;
     var aligned = 0;
@@ -443,6 +456,10 @@ Future<bool> _pr02(
     for (final referencePage in referencePages) {
       final index = referencePage['index']! as int;
       final ours = _normalizeText(await session.loadDocumentText('page_${index + 1}.html') ?? '');
+      final localText = _normalizeText(
+        await local.loadDocumentText('page_${index + 1}.html') ?? '',
+      );
+      if (ours != localText) problems.add('$path page ${index + 1} differs from local session');
       final theirs = _normalizeText(referencePage['text']! as String);
       final score = theirs.isEmpty
           ? (ours.isEmpty ? 1.0 : 0.0)
@@ -451,6 +468,13 @@ Future<bool> _pr02(
         aligned++;
       } else {
         divergentPages.add(index + 1);
+      }
+      if (isEuclid && score < 0.90) {
+        final expected = profilePages.singleWhere((final p) => p['page'] == index + 1);
+        euclidNegativePair ??= (ours, theirs, expected);
+        if (!_matchesEuclidProfile(ours, theirs, expected)) {
+          problems.add('Euclid page ${index + 1} differs from pinned local/MuPDF pair');
+        }
       }
       minDice = math.min(minDice, score);
       compared++;
@@ -474,36 +498,16 @@ Future<bool> _pr02(
     pagesCompared += compared;
     pagesAligned += aligned;
 
-    // Navigation: titles and target pages against get_toc().
+    // Compare every title, target and nesting level, including nonempty outlines.
     final toc = (fixture['toc']! as List<Object?>).cast<Map<String, Object?>>();
-    final navTitles = <String>[];
-    void walk(final List<NavPoint> points) {
-      for (final point in points) {
-        navTitles.add(point.label);
-        walk(point.subNavPoints);
-      }
-    }
+    final nav = _flattenNavigation(book.navigation.navPoints);
+    if (toc.isNotEmpty) nonemptyOutlines++;
+    problems.addAll(_navigationProblems(nav, toc).map((final problem) => '$path $problem'));
 
-    walk(book.navigation.navPoints);
-    if (toc.isEmpty) {
-      if (navTitles.isNotEmpty) problems.add('${path.split('/').last} has unexpected nav');
-    } else {
-      final referenceTitles = [for (final entry in toc) entry['title']! as String];
-      if (navTitles.length != referenceTitles.length) {
-        problems.add(
-          '${path.split('/').last} nav count ${navTitles.length} '
-          '!= toc ${referenceTitles.length}',
-        );
-      }
-    }
-
-    // Byrne's Euclid plates: MuPDF walks the multi-column plates in its
-    // own order and expands their symbols differently, so strict
-    // order-sensitive bigrams land below 0.90 (pre-implementation probe:
-    // character-sorted dice ~0.95). Declared as the mission's expected
-    // difference, not tolerated silently; every other corpus page must
-    // align or the case fails.
-    final isEuclid = path.contains('euclid');
+    // Euclid's pre-existing cross-parser differences are accepted only
+    // when BOTH exact normalized page digests match the fixed profile.
+    // This exception establishes transport parity, not full MuPDF content
+    // compliance; every other corpus page keeps the original 0.90 floor.
     if (divergentPages.isNotEmpty && !isEuclid) {
       problems.addAll([
         for (final page in divergentPages) '${path.split('/').last} page $page diverged',
@@ -521,11 +525,18 @@ Future<bool> _pr02(
       'minDice': double.parse(minDice.toStringAsFixed(4)),
       'geometryChecks': compared,
       'tocEntries': toc.length,
-      'navEntries': navTitles.length,
+      'navEntries': nav.length,
       'wireBytesUnique': source.uniqueBytes(),
       'fixtureBytes': raw.length,
     };
+    local.dispose();
     session.dispose();
+  }
+  if (nonemptyOutlines == 0) problems.add('No nonempty outline was compared');
+  if (euclidNegativePair == null) throw StateError('Euclid difference profile was not exercised');
+  final negatives = _comparisonNegatives(euclidNegativePair);
+  if (!negatives.values.every((final detected) => detected)) {
+    problems.add('Comparator negative failed');
   }
 
   final euclidDivergent = perFixture.keys.any((final name) {
@@ -540,11 +551,14 @@ Future<bool> _pr02(
         'bigrams; page aligned at >= 0.90; empty-vs-empty counts as aligned; '
         'geometry exact within 0.5pt; rotation exact',
     'expectedDifference':
-        'elements-of-euclid-pg.pdf: MuPDF reads the '
-        'multi-column Byrne plates in its own order and expands their '
-        'symbols differently, so strict bigrams land below 0.90 '
-        '(character-sorted dice ~0.95, measured pre-implementation). '
-        'Declared, not tolerated silently.',
+        'Euclid: 216 of 228 pages differed in the unchanged baseline. '
+        'Each divergent normalized local/MuPDF pair is pinned exactly; '
+        'source/local parity is mandatory. This is not a content-compliance pass.',
+    'comparatorNegatives': negatives,
+    'nonemptyOutlines': nonemptyOutlines,
+    'localParityPages': pagesCompared,
+    'euclidPolicy':
+        'Exact per-page local/MuPDF normalized digest pairs pinned at ${profile['baselineHead']}; expected difference is not content compliance.',
     'pagesCompared': pagesCompared,
     'pagesAligned': pagesAligned,
     'geometryCompared': geometryCompared,
@@ -565,6 +579,66 @@ Future<bool> _pr02(
   );
 
   return problems.isEmpty;
+}
+
+bool _matchesEuclidProfile(
+  final String ours,
+  final String theirs,
+  final Map<String, Object?> expected,
+) =>
+    _sha256(convert.utf8.encode(ours)) == expected['localSha256'] &&
+    _sha256(convert.utf8.encode(theirs)) == expected['referenceSha256'];
+
+List<Map<String, Object?>> _flattenNavigation(final List<NavPoint> points, [final int level = 1]) =>
+    [
+      for (final point in points) ...[
+        {
+          'title': point.label,
+          'page': int.tryParse(RegExp(r'page_(\d+)').firstMatch(point.content)?.group(1) ?? ''),
+          'level': level,
+        },
+        ..._flattenNavigation(point.subNavPoints, level + 1),
+      ],
+    ];
+
+List<String> _navigationProblems(
+  final List<Map<String, Object?>> ours,
+  final List<Map<String, Object?>> theirs,
+) {
+  if (ours.length != theirs.length) return ['outline count ${ours.length} != ${theirs.length}'];
+  return [
+    for (var i = 0; i < ours.length; i++)
+      for (final field in ['title', 'page', 'level'])
+        if (ours[i][field] != theirs[i][field])
+          'outline[$i].$field ${ours[i][field]} != ${theirs[i][field]}',
+  ];
+}
+
+Map<String, bool> _comparisonNegatives(final (String, String, Map<String, Object?>) pair) {
+  const valid = <Map<String, Object?>>[
+    {'title': 'Chapter one', 'page': 2, 'level': 1},
+  ];
+  return {
+    'missingOutline': _navigationProblems(valid, []).isNotEmpty,
+    'changedTitle': _navigationProblems(valid, [
+      {'title': 'Changed', 'page': 2, 'level': 1},
+    ]).isNotEmpty,
+    'changedTarget': _navigationProblems(valid, [
+      {'title': 'Chapter one', 'page': 3, 'level': 1},
+    ]).isNotEmpty,
+    'changedDepth': _navigationProblems(valid, [
+      {'title': 'Chapter one', 'page': 2, 'level': 2},
+    ]).isNotEmpty,
+    'baselineEuclidPairAccepted': _matchesEuclidProfile(pair.$1, pair.$2, pair.$3),
+    'blankEuclidText': !_matchesEuclidProfile('', pair.$2, pair.$3),
+    'changedEuclidText': !_matchesEuclidProfile('changed local', pair.$2, pair.$3),
+    'changedMuPdfText': !_matchesEuclidProfile(pair.$1, 'changed reference', pair.$3),
+    'failedReferenceCommand':
+        Process.runSync(Platform.resolvedExecutable, [
+          '--definitely-invalid-oracle-option',
+        ]).exitCode !=
+        0,
+  };
 }
 
 /// PR03: partial reads on the two fixed large fixtures, observed by the
@@ -824,6 +898,7 @@ Future<bool> _pr05(
       'test',
       'test/tests/progressive/pdf_source_lifecycle_test.dart',
       'test/tests/progressive/pdf_source_test.dart',
+      'test/tests/progressive/pdf_source_review_regression_test.dart',
     ]),
     runOracleDartLane(laneDir, 'compile-worker', [
       'compile',
@@ -837,6 +912,7 @@ Future<bool> _pr05(
       '-p',
       'chrome',
       'test/web/pdf_source_worker_test.dart',
+      'test/web/pdf_source_review_regression_test.dart',
     ]),
   ];
   final ok = lanes.every((final lane) => lane['exitCode'] == 0);

@@ -48,12 +48,8 @@ void main(final List<String> arguments) {
     return logPath;
   }
 
-  final dart =
-      io.Platform.environment['UNSEAL_DART'] ??
-      '/Users/kaiquefarias/fvm/versions/3.47.5/bin/cache/dart-sdk/bin/dart';
-  final chromedriver =
-      io.Platform.environment['CHROMEDRIVER'] ??
-      '/Volumes/SSD/Projects/bench-artifacts/tools/chromedriver-mac-arm64/chromedriver';
+  final dart = io.Platform.environment['UNSEAL_DART'] ?? io.Platform.resolvedExecutable;
+  final chromedriver = io.Platform.environment['CHROMEDRIVER'];
 
   // OJ01: public API compiles and Atom stays intact; entrypoint tests plus
   // the model/parser suites run against the committed corpus.
@@ -70,9 +66,7 @@ void main(final List<String> arguments) {
 
   // OJ02: the schema reference already ran as the gate's reference stage;
   // here the shared expectation files are re-checked against it.
-  final python =
-      io.Platform.environment['UNSEAL_ORACLE_PYTHON'] ??
-      '/Volumes/SSD/Projects/eLivre/build/research/unseal-campaign-c/oracles/venv/bin/python';
+  final python = io.Platform.environment['UNSEAL_ORACLE_PYTHON'] ?? 'python3';
   final expectedCheckLog = run('oj02-expected-check', <String>[
     python,
     'tool/opds2_schema_oracle.py',
@@ -126,6 +120,7 @@ void main(final List<String> arguments) {
     dart,
     'test',
     'test/tests/opds/opds2_limits_test.dart',
+    'test/tests/opds/opds2_review_regression_test.dart',
   ]);
   final atomLog = run('oj01-atom-regression', <String>[
     dart,
@@ -160,7 +155,7 @@ void main(final List<String> arguments) {
   final chromeLog = run(
     'oj07-chrome',
     <String>[dart, 'test', '-p', 'chrome', 'test/web/opds2_web_test.dart'],
-    environment: <String, String>{'CHROMEDRIVER': chromedriver},
+    environment: <String, String>{if (chromedriver != null) 'CHROMEDRIVER': chromedriver},
   );
 
   // OJ08: size/time/peak-RSS benchmark. Wall time per size in one

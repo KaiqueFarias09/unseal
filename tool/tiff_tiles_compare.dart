@@ -21,6 +21,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:unseal/src/features/tiff/tiff_container.dart';
+import 'package:unseal/src/features/tiff/tiff_limits.dart';
+import 'package:unseal/src/features/tiff/tiff_page_decoder.dart';
 import 'package:unseal/unseal.dart';
 
 void main(final List<String> arguments) {
@@ -64,6 +67,10 @@ void main(final List<String> arguments) {
     'diverged': results.where((final r) => r['verdict'] == 'diverged').length,
     'pagesCompared': results.fold(0, (final sum, final r) => sum + (r['pagesCompared']! as int)),
     'pixelsCompared': results.fold(0, (final sum, final r) => sum + (r['pixelsCompared']! as int)),
+    'native16SamplesCompared': results.fold(
+      0,
+      (final sum, final r) => sum + (r['native16SamplesCompared'] as int? ?? 0),
+    ),
     'rgbaPixelsCompared': results.fold(
       0,
       (final sum, final r) => sum + (r['rgbaPixelsCompared']! as int),
@@ -84,7 +91,7 @@ void main(final List<String> arguments) {
       'tolerance': 0,
       'gray16': 'high byte (v >> 8), inverted for photometric 0',
       'subByte': 'v * 255 ~/ (2^bits - 1), inverted for photometric 0',
-      'rgb16': 'high byte per channel (native lane only; libtiff RGBA rounds)',
+      'rgb16': 'native16 samples exact; projected RGB high byte; libtiff RGBA rounds',
       'orientation': 'native raster flipped for 2/3/4; 5-8 are expected rejections',
     },
     'totals': totals,
@@ -116,6 +123,7 @@ Map<String, Object?> _compareCase(
     'pagesCompared': 0,
     'pixelsCompared': 0,
     'rgbaPixelsCompared': 0,
+    'native16SamplesCompared': 0,
     'pages': <Map<String, Object?>>[],
   };
   final path = record['path']! as String;
@@ -193,12 +201,29 @@ Map<String, Object?> _compareCase(
     });
   }
   final compareRgba = expectation == 'compare';
+  final container = TiffContainer(bytes);
+  final nativeBudget = TiffDecodeBudget();
   var verdict = 'pass';
   final details = <String>[];
   for (var index = 0; index < book.pageCount; index++) {
     final page = book.pages[index];
     final directory = directories[index];
     final pageResult = _comparePage(page, directory, compareRgba: compareRgba);
+    if (directory['bitsPerSample'] == 16) {
+      final native16 = _compareNative16(
+        container,
+        container.pageDirectories[index],
+        directory,
+        nativeBudget,
+      );
+      pageResult['native16'] = native16;
+      result['native16SamplesCompared'] =
+          (result['native16SamplesCompared']! as int) + native16['samplesCompared']!;
+      if (native16['differences'] != 0 || native16['samplesCompared'] == 0) {
+        verdict = 'diverged';
+        details.add('page ${index + 1}: native16 comparison $native16');
+      }
+    }
     (result['pages']! as List).add(pageResult);
     if (pageResult['status'] != 'ok') {
       verdict = 'diverged';
@@ -228,6 +253,52 @@ Map<String, Object?> _compareCase(
   result['verdict'] = verdict;
   result['detail'] = details.isEmpty ? 'every pixel matches libtiff' : details.join('; ');
   return result;
+}
+
+/// Observe the production decoder's post-predictor samples before its
+/// documented RGB888 projection; every low bit is compared with libtiff.
+Map<String, int> _compareNative16(
+  final TiffContainer container,
+  final TiffIfd ifd,
+  final Map<String, Object?> directory,
+  final TiffDecodeBudget budget,
+) {
+  final width = directory['width']! as int;
+  final height = directory['height']! as int;
+  final spp = directory['samplesPerPixel']! as int;
+  final reference = ByteData.sublistView(
+    File(directory['nativeFile']! as String).readAsBytesSync(),
+  );
+  var compared = 0;
+  var differences = 0;
+  decodeTiffPage(
+    container,
+    ifd,
+    budget: budget,
+    onDecodedSegment: (final segment) {
+      if (segment.bits != 16 || segment.samplesPerPixel != spp) {
+        throw StateError('Native sample layout differs from libtiff');
+      }
+      final actual = ByteData.sublistView(segment.bytes);
+      for (var y = 0; y < segment.height; y++) {
+        for (var x = 0; x < segment.width; x++) {
+          for (var channel = 0; channel < spp; channel++) {
+            final at = y * segment.rowBytes + (x * spp + channel) * 2;
+            final expectedAt =
+                (((segment.rowStart + y) * width + segment.columnStart + x) * spp + channel) * 2;
+            if (actual.getUint16(at, segment.endian) !=
+                reference.getUint16(expectedAt, Endian.little)) {
+              differences++;
+            }
+            compared++;
+          }
+        }
+      }
+    },
+  );
+  final expected = width * height * spp;
+  if (compared != expected) throw StateError('Native sample coverage $compared != $expected');
+  return {'samplesCompared': compared, 'differences': differences};
 }
 
 Map<String, Object?> _comparePage(
@@ -404,6 +475,38 @@ List<Map<String, Object?>> _selfChecks(
     'name': 'altered-dump',
     'behaved': alteredResult['verdict'] == 'diverged',
     'detail': 'one flipped byte in the libtiff dump must diverge (${alteredResult['detail']})',
+  });
+
+  final native16Case = cases.firstWhere((final record) {
+    final reference = record['reference'] as Map<String, Object?>?;
+    return (record['expectation']! as String).startsWith('compare') &&
+        reference != null &&
+        ((reference['directories']! as List).first as Map)['bitsPerSample'] == 16;
+  });
+  final native16Reference = Map<String, Object?>.from(
+    native16Case['reference']! as Map<String, Object?>,
+  );
+  final native16Directories = (native16Reference['directories']! as List)
+      .cast<Map<String, Object?>>();
+  final native16Directory = Map<String, Object?>.from(native16Directories.first);
+  final lowBitChanged = Uint8List.fromList(
+    File(native16Directory['nativeFile']! as String).readAsBytesSync(),
+  );
+  lowBitChanged[0] ^= 1; // little-endian native dump: the discarded low bit.
+  final lowBitPath = '$outDir/self-check-low-bit.native';
+  File(lowBitPath).writeAsBytesSync(lowBitChanged);
+  native16Directory['nativeFile'] = lowBitPath;
+  native16Reference['directories'] = [native16Directory, ...native16Directories.skip(1)];
+  final lowBitResult = _compareCase(native16Case, referenceOverride: native16Reference);
+  final lowBitPage = (lowBitResult['pages']! as List).first as Map;
+  checks.add({
+    'name': 'native16-low-bit-altered',
+    'behaved':
+        lowBitResult['verdict'] == 'diverged' &&
+        lowBitPage['nativeDiffs'] == 0 &&
+        (lowBitPage['native16'] as Map)['differences'] == 1,
+    'detail':
+        'a low-bit change invisible in RGB888 must diverge in the prequantization sample lane',
   });
 
   final failedCommand = Map<String, Object?>.from(sample)

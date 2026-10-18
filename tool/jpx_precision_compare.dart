@@ -23,10 +23,14 @@ import 'jpx_precision/lanes.dart';
 /// the same code the VM suite uses. A lane that exits non-zero fails every
 /// acceptance row that cites it; the tool exits 1 unless all eight pass.
 ///
-/// `--skip-full` leaves out the full VM and browser suites (development
-/// shortcut; the acceptance run never uses it).
+/// `--skip-full` is refused: incomplete lanes cannot emit an acceptance report.
 void main(final List<String> arguments) {
   final out = _option(arguments, '--out') ?? 'build/evidence/C04';
+  if (arguments.contains('--skip-full')) {
+    stderr.writeln('--skip-full cannot produce an acceptance report; run focused tests directly.');
+    exitCode = 64;
+    return;
+  }
   final skipFull = arguments.contains('--skip-full');
   final runner = _Runner(out);
   final head = runner.git(<String>['rev-parse', 'HEAD']);
