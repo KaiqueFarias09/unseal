@@ -559,6 +559,49 @@ void main() {
   });
 
   group('TC06 cumulative budget', () {
+    test('ColorMap requires SHORT samples instead of narrowing larger values', () {
+      final indices = Uint8List.fromList([0, 1]);
+      final bytes = buildSyntheticTiff(
+        data: indices,
+        pages: (final dataOffset) => [
+          [
+            SyntheticTiffTag.long(256, 2),
+            SyntheticTiffTag.long(257, 1),
+            SyntheticTiffTag.short(258, 8),
+            SyntheticTiffTag.short(259, 1),
+            SyntheticTiffTag.short(262, 3),
+            SyntheticTiffTag.short(277, 1),
+            SyntheticTiffTag.long(273, dataOffset),
+            SyntheticTiffTag.long(279, indices.length),
+            SyntheticTiffTag(320, 4, List<int>.filled(768, 0x10000)),
+          ],
+        ],
+      );
+      expect(() => Unseal.parse(bytes), _throwsTiff('SHORT'));
+    });
+
+    test('native ColorMap storage is reserved before the observer sees allocation', () {
+      final container = TiffContainer(_fixture('palette8-none-t16-le.tif'));
+      final budget = TiffDecodeBudget();
+      const nativePaletteBytes = 3 * 256 * 2;
+      budget.reserve(
+        pixels: 0,
+        rasterBytes: tiffMaxDecodedRasterBytesPerBook - nativePaletteBytes + 1,
+      );
+      var observed = false;
+      expect(
+        () => decodeTiffPage(
+          container,
+          container.pageDirectories.first,
+          budget: budget,
+          onDecodedPalette: (final palette) => observed = true,
+        ),
+        _throwsTiff('scratch buffers'),
+      );
+      expect(observed, isFalse, reason: 'palette must not be allocated above the resident cap');
+      expect(budget.scratchBytes, 0);
+    });
+
     test('band scratch, decode work, and materialized pages are independent guards', () {
       final budget = TiffDecodeBudget();
       budget.reserve(pixels: 0, rasterBytes: tiffMaxDecodedRasterBytesPerBook - 1024);

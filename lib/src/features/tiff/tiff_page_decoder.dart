@@ -391,35 +391,47 @@ TiffPageImage _decodePalettePage(
       'TIFF page uses reversed bit fill order (FillOrder 2), not decoded.',
     );
   }
-  final palette = _readColormap(container, ifd, bits);
-  onDecodedPalette?.call(palette);
-  final orientation = _orientation(container, ifd);
-  final dpi = _pageDpi(container, ifd);
-  return _rasterizePage(
-    container,
-    ifd,
-    width: width,
-    height: height,
-    bits: bits,
-    samplesPerPixel: samplesPerPixel,
-    photometric: 3,
-    compression: compression,
-    predictor: predictor,
-    orientation: orientation,
-    dpi: dpi,
-    budget: budget,
-    onDecodedSegment: onDecodedSegment,
-    palette: palette,
-  );
+  final palette = _readColormap(container, ifd, bits, budget);
+  try {
+    onDecodedPalette?.call(palette);
+    final orientation = _orientation(container, ifd);
+    final dpi = _pageDpi(container, ifd);
+    return _rasterizePage(
+      container,
+      ifd,
+      width: width,
+      height: height,
+      bits: bits,
+      samplesPerPixel: samplesPerPixel,
+      photometric: 3,
+      compression: compression,
+      predictor: predictor,
+      orientation: orientation,
+      dpi: dpi,
+      budget: budget,
+      onDecodedSegment: onDecodedSegment,
+      palette: palette,
+    );
+  } finally {
+    budget.releaseScratch(3 * (1 << bits) * Uint16List.bytesPerElement);
+  }
 }
 
 /// Reads ColorMap (320): three 16-bit tables with exactly
 /// 3 * 2^bits entries. The entry count is validated before the list is
 /// allocated, so a hostile count never allocates.
-TiffDecodedPalette _readColormap(final TiffContainer container, final TiffIfd ifd, final int bits) {
+TiffDecodedPalette _readColormap(
+  final TiffContainer container,
+  final TiffIfd ifd,
+  final int bits,
+  final TiffDecodeBudget budget,
+) {
   final entry = ifd[320];
   if (entry == null) {
     throw const TiffException('TIFF palette page is missing the ColorMap tag.');
+  }
+  if (entry.type != 3) {
+    throw const TiffException('TIFF ColorMap must use unsigned 16-bit SHORT values.');
   }
   final tableLength = 1 << bits;
   final expected = 3 * tableLength;
@@ -428,11 +440,13 @@ TiffDecodedPalette _readColormap(final TiffContainer container, final TiffIfd if
       'TIFF ColorMap holds ${entry.count} entries; a $bits-bit palette needs $expected.',
     );
   }
-  final values = container.readUintList(entry);
+  // Charge the native tables before allocating them. Read directly into
+  // each band instead of keeping a second, unbudgeted integer list.
+  budget.reserveScratch(expected * Uint16List.bytesPerElement);
   Uint16List table(final int base) {
     final result = Uint16List(tableLength);
     for (var index = 0; index < tableLength; index++) {
-      result[index] = values[base + index];
+      result[index] = container.readUint(entry, base + index);
     }
     return result;
   }
@@ -760,9 +774,9 @@ TiffPageImage _rasterizePage(
       rgbBytes +
       segmentBytes * scratchCopies +
       (isCcitt ? tiffCcittRunBufferBytes(segmentWidth) : 0) +
-      // The native 16-bit ColorMap lists (2 bytes per entry) and the
-      // derived 8-bit display lookup (1 byte per entry).
-      paletteEntries * 3;
+      // Native tables were reserved before construction; this reserve
+      // covers only the derived 8-bit display lookup.
+      paletteEntries;
   budget.reserveScratch(scratchBytes);
   budget.reserveWork(isTiled ? segmentCount * segmentBytes : rowBytes * height);
 

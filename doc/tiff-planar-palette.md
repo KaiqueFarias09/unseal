@@ -154,3 +154,9 @@ dart run tool/tiff_planar_palette_compare.dart --reference build/evidence/D03/re
 dart run tool/tiff_planar_palette_evidence.dart --out build/evidence/D03
 dart run benchmark/tiff_planar_palette_benchmarks.dart --out build/evidence/D03/bench.json
 ```
+
+ColorMap entries must use the TIFF SHORT field type. Native tables are charged
+against the resident budget before allocation and read directly into their
+16-bit bands; decoding does not retain an additional integer-list copy.
+The native reservation is released when palette decoding exits, including
+observer failures. Display lookup tables have a separate scratch reservation.
