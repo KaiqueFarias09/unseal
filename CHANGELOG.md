@@ -96,6 +96,29 @@
   `Fax3DecodeRLE` does.
 - TIFF Group 4 read `T6Options` bit 1 as a row-alignment flag; it is the
   uncompressed-mode extension flag (bit 0 is reserved) and now fails typed.
+- JPEG 2000 `JPXDecode` decoding of unsigned 8- to 16-bit components and
+  subsampled component grids: per-component `XRsiz`/`YRsiz` sample grids with
+  image origins, odd sizes and partial edge tiles upsampled to the reference
+  grid, JP2 sYCC converted to RGB with the reference's 4:4:4/4:2:2/4:2:0
+  rules, and 16-bit PNG extraction (bit replication with an `sBIT` chunk
+  declaring the native precision) for images above 8 bits. The accepted
+  contract, the upsampling/colour/lossy policies and the three comparison
+  lanes against libopenjp2 2.5.4 are fixed in `doc/jpeg2000-precision.md`;
+  every lossless fixture matches the reference byte-exactly and ffmpeg 9.0.2
+  serves as the independent producer for the `real-*` fixtures. 8-bit
+  behaviour, typed refusals and existing public APIs are unchanged; signed,
+  mixed-precision, palette, alpha, ICC and Part 2 inputs still fail typed.
+
+### Fixed
+
+- JPEG 2000 base-subset defects found by the precision corpus: COC markers
+  were parsed with a non-existent SGcod section; QCD/QCC band tables were
+  sized from the COD decomposition levels instead of the segment length and
+  scalar-derived quantization ignored equation E-5; the 5/3 inverse lifting
+  lacked the odd-start one- and two-sample cases and touched zero-length
+  lines of empty resolutions; the 9/7 lifting missed the left mirror of the
+  first odd-start high-pass sample and never wrote back a trailing
+  high-pass sample; and tile origins were not clamped to the image origin.
 
 ## 1.3.0 - October 17, 2026
 

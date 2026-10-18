@@ -86,11 +86,17 @@ final class _Resolution {
 final class _TileComponent {
   _TileComponent(this.x0, this.y0, this.x1, this.y1);
 
+  /// Tile-component bounds on the component's own sample grid
+  /// (equation B-12: the reference-grid tile divided by dx/dy, ceiled).
   final int x0;
   final int y0;
   final int x1;
   final int y1;
   final List<_Resolution> resolutions = <_Resolution>[];
+
+  int get width => x1 - x0;
+  int get height => y1 - y0;
+  bool get isEmpty => x1 <= x0 || y1 <= y0;
 }
 
 /// One body write scheduled while reading a packet header, resolved
@@ -104,17 +110,48 @@ final class _PendingBody {
   final int passes;
 }
 
-/// Decodes one tile into per-component 8-bit sample buffers covering
-/// the tile's clipped region of the image.
+/// The decoded samples of one tile-component: native precision, clipped
+/// to the component's tile bounds, row-major.
+final class JpxTileComponentSamples {
+  /// Wraps [samples] covering [x0]..[x1] by [y0]..[y1] on the
+  /// component grid.
+  const JpxTileComponentSamples({
+    required this.x0,
+    required this.y0,
+    required this.x1,
+    required this.y1,
+    required this.samples,
+  });
+
+  /// Left edge on the component grid.
+  final int x0;
+
+  /// Top edge on the component grid.
+  final int y0;
+
+  /// Right edge (exclusive) on the component grid.
+  final int x1;
+
+  /// Bottom edge (exclusive) on the component grid.
+  final int y1;
+
+  /// `Uint8List` up to 8 bits, `Uint16List` above; `(x1-x0)*(y1-y0)`
+  /// entries.
+  final TypedDataList<int> samples;
+
+  /// Columns covered.
+  int get width => x1 - x0;
+
+  /// Rows covered.
+  int get height => y1 - y0;
+}
+
+/// Decodes one tile into per-component native sample buffers covering
+/// the tile's clipped region of each component grid.
 final class JpxTileDecoder {
   /// Binds the decoder to one tile of [codestream] whose marker scan
-  /// produced [info]; [imagePrecision] drives dequantization scaling.
-  JpxTileDecoder({
-    required this.info,
-    required this.codestream,
-    required this.tileIndex,
-    required this.imagePrecision,
-  });
+  /// produced [info].
+  JpxTileDecoder({required this.info, required this.codestream, required this.tileIndex});
 
   /// The marker scan result this tile belongs to.
   final JpxCodestreamInfo info;
@@ -125,23 +162,19 @@ final class JpxTileDecoder {
   /// Zero-based tile index within the tile grid.
   final int tileIndex;
 
-  /// Declared bit depth used by dequantization and level shift.
-  final int imagePrecision;
-
   late int _tileX0;
   late int _tileY0;
   late int _tileX1;
   late int _tileY1;
-  late int _tileWidth;
   late int _componentCount;
   final List<_TileComponent> _components = <_TileComponent>[];
 
   late Uint8List _data;
   int _cursor = 0;
 
-  /// Decodes the tile; returns one clipped sample buffer per component
-  /// (row-major, tile-local coordinates).
-  List<Uint8List> decode() {
+  /// Decodes the tile; returns one clipped native sample buffer per
+  /// component (row-major, tile-component coordinates).
+  List<JpxTileComponentSamples> decode() {
     _computeGeometry();
     _assembleTileData();
     _runPackets();
@@ -152,25 +185,33 @@ final class JpxTileDecoder {
 
   int _floorDivPow2(final int value, final int power) => value >> power;
 
+  int _ceilDiv(final int value, final int divisor) => (value + divisor - 1) ~/ divisor;
+
   void _computeGeometry() {
     final image = info.image;
     final tilesX = image.tileCountX;
     final column = tileIndex % tilesX;
     final row = tileIndex ~/ tilesX;
-    _tileX0 = image.tileX0 + column * image.tileWidth;
-    _tileY0 = image.tileY0 + row * image.tileHeight;
+    // Reference-grid tile bounds (B-7 to B-10), clipped to the image.
+    _tileX0 = (image.tileX0 + column * image.tileWidth).clamp(image.x0, image.width);
+    _tileY0 = (image.tileY0 + row * image.tileHeight).clamp(image.y0, image.height);
     _tileX1 = (image.tileX0 + (column + 1) * image.tileWidth).clamp(image.x0, image.width);
     _tileY1 = (image.tileY0 + (row + 1) * image.tileHeight).clamp(image.y0, image.height);
     if (_tileX1 <= _tileX0 || _tileY1 <= _tileY0) {
       throw const JpxException('JPEG 2000 tile is empty.');
     }
-    _tileWidth = _tileX1 - _tileX0;
     _componentCount = image.componentCount;
 
     var totalBufferSamples = 0;
     for (var component = 0; component < _componentCount; component++) {
       final coding = info.componentCoding[component];
-      final tileComponent = _TileComponent(_tileX0, _tileY0, _tileX1, _tileY1);
+      final grid = image.components[component];
+      final tileComponent = _TileComponent(
+        _ceilDiv(_tileX0, grid.dx),
+        _ceilDiv(_tileY0, grid.dy),
+        _ceilDiv(_tileX1, grid.dx),
+        _ceilDiv(_tileY1, grid.dy),
+      );
       final numres = coding.decompositionLevels + 1;
       for (var resno = 0; resno < numres; resno++) {
         final levelNo = numres - 1 - resno;
@@ -246,8 +287,12 @@ final class JpxTileDecoder {
             throw const JpxException('JPEG 2000 band bit-plane count is out of range.');
           }
           if (coding.transform == kTransformIrreversible) {
-            band.stepSize =
-                (1.0 + band.stepMantissa / 2048.0) * _pow2(imagePrecision - band.stepExponent);
+            // OpenJPEG opj_tcd_init_tile: Rb = prec (log2 gain 0 for the
+            // decoder's 9/7), stepsize = (1 + mant/2^11) * 2^(Rb - expn)
+            // stored as float32.
+            band.stepSize = _toFloat32(
+              (1.0 + band.stepMantissa / 2048.0) * _pow2(grid.precision - band.stepExponent),
+            );
           }
           if (!band.isEmpty) {
             _buildPrecincts(band, resolution, coding, pdx, pdy, resno);
@@ -262,6 +307,25 @@ final class JpxTileDecoder {
     }
     if (totalBufferSamples * 4 > kJpxMaxTileBufferBytes) {
       throw JpxException(kJpxBudgetMessage);
+    }
+    if (info.componentCoding[0].multiComponentTransform != 0 && _componentCount >= 3) {
+      // Annex G applies the transform to the first three components,
+      // which must share one grid; OpenJPEG aborts the tile otherwise.
+      final first = _components[0];
+      for (var component = 1; component < 3; component++) {
+        final other = _components[component];
+        final firstGrid = image.components[0];
+        final otherGrid = image.components[component];
+        if (other.width != first.width ||
+            other.height != first.height ||
+            otherGrid.dx != firstGrid.dx ||
+            otherGrid.dy != firstGrid.dy) {
+          throw const JpxException(
+            'JPEG 2000 multiple component transform needs the first three '
+            'components on one sample grid.',
+          );
+        }
+      }
     }
   }
 
@@ -367,9 +431,19 @@ final class JpxTileDecoder {
   int _bodyReserve = 0;
 
   void _runPackets() {
+    // SGcod (progression, layers) and the SOP/EPH flags live in COD
+    // only; a COC cannot change them, so component 0 speaks for all.
     final shared = info.componentCoding[0];
     final layerCount = shared.layerCount;
-    final numres = shared.decompositionLevels + 1;
+    // Components may carry different decomposition level counts (COC);
+    // the progression iterates to the largest and skips the resolutions
+    // a component lacks, as OpenJPEG's packet iterator does.
+    var numres = 0;
+    for (final tileComponent in _components) {
+      if (tileComponent.resolutions.length > numres) {
+        numres = tileComponent.resolutions.length;
+      }
+    }
     final byRlcp = shared.progressionOrder == kProgressionRlcp;
     final useSop = shared.usesSop;
     final useEph = shared.usesEph;
@@ -505,7 +579,11 @@ final class JpxTileDecoder {
       for (var resno = 0; resno < numres; resno++) {
         for (var layer = 0; layer < layerCount; layer++) {
           for (var component = 0; component < _componentCount; component++) {
-            final resolution = _components[component].resolutions[resno];
+            final resolutions = _components[component].resolutions;
+            if (resno >= resolutions.length) {
+              continue;
+            }
+            final resolution = resolutions[resno];
             for (var precinctNo = 0; precinctNo < resolution.pw * resolution.ph; precinctNo++) {
               runPrecinctPacket(layer, resno, component, precinctNo);
             }
@@ -516,7 +594,11 @@ final class JpxTileDecoder {
       for (var layer = 0; layer < layerCount; layer++) {
         for (var resno = 0; resno < numres; resno++) {
           for (var component = 0; component < _componentCount; component++) {
-            final resolution = _components[component].resolutions[resno];
+            final resolutions = _components[component].resolutions;
+            if (resno >= resolutions.length) {
+              continue;
+            }
+            final resolution = resolutions[resno];
             for (var precinctNo = 0; precinctNo < resolution.pw * resolution.ph; precinctNo++) {
               runPrecinctPacket(layer, resno, component, precinctNo);
             }
@@ -593,7 +675,7 @@ final class JpxTileDecoder {
 
   // -- Tier 1, dequantization, DWT, MCT, level shift -----------------------
 
-  List<Uint8List> _decodeTile() {
+  List<JpxTileComponentSamples> _decodeTile() {
     final buffers = <TypedData>[];
     final flags = <bool>[];
     for (var component = 0; component < _componentCount; component++) {
@@ -607,26 +689,41 @@ final class JpxTileDecoder {
       final irreversible = coding.transform == kTransformIrreversible;
       final buffer = irreversible ? Float32List(samples) : Int32List(samples);
 
-      _decodeComponentCodeblocks(coding, tileComponent, buffer, irreversible);
-      if (numres > 1) {
-        JpxDwt.inverse(
-          buffer: buffer,
-          irreversible: irreversible,
-          resolutionBounds: <(int, int, int, int)>[
-            for (final r in tileComponent.resolutions) (r.x0, r.y0, r.x1, r.y1),
-          ],
-          width: width,
-        );
+      if (samples > 0) {
+        _decodeComponentCodeblocks(coding, tileComponent, buffer, irreversible);
+        if (numres > 1) {
+          JpxDwt.inverse(
+            buffer: buffer,
+            irreversible: irreversible,
+            resolutionBounds: <(int, int, int, int)>[
+              for (final r in tileComponent.resolutions) (r.x0, r.y0, r.x1, r.y1),
+            ],
+            width: width,
+          );
+        }
       }
       buffers.add(buffer);
       flags.add(irreversible);
     }
-    if (info.componentCoding[0].multiComponentTransform != 0 && buffers.length == 3) {
-      JpxMct.inverse(buffers, flags[0]);
+    if (info.componentCoding[0].multiComponentTransform != 0 && buffers.length >= 3) {
+      JpxMct.inverse(buffers.sublist(0, 3), flags[0]);
     }
-    final output = <Uint8List>[];
+    final output = <JpxTileComponentSamples>[];
     for (var component = 0; component < buffers.length; component++) {
-      output.add(_levelShiftAndClip(buffers[component], flags[component]));
+      final tileComponent = _components[component];
+      output.add(
+        JpxTileComponentSamples(
+          x0: tileComponent.x0,
+          y0: tileComponent.y0,
+          x1: tileComponent.x1,
+          y1: tileComponent.y1,
+          samples: _levelShiftAndClip(
+            buffers[component],
+            flags[component],
+            info.image.components[component].precision,
+          ),
+        ),
+      );
     }
     return output;
   }
@@ -637,6 +734,7 @@ final class JpxTileDecoder {
     final TypedData buffer,
     final bool irreversible,
   ) {
+    final tileWidth = tileComponent.width;
     final numres = tileComponent.resolutions.length;
     for (var resno = 0; resno < numres; resno++) {
       final resolution = tileComponent.resolutions[resno];
@@ -699,12 +797,11 @@ final class JpxTileDecoder {
               cblkStyle: coding.codeblockStyle,
               roiShift: 0,
             );
-            final rowBase =
-                (cblk.y0 - band.y0 + extraY) * _tileWidth + (cblk.x0 - band.x0 + extraX);
+            final rowBase = (cblk.y0 - band.y0 + extraY) * tileWidth + (cblk.x0 - band.x0 + extraX);
             if (irreversible) {
               final target = buffer as Float32List;
               for (var row = 0; row < cblkHeight; row++) {
-                final targetBase = rowBase + row * _tileWidth;
+                final targetBase = rowBase + row * tileWidth;
                 final sourceBase = row * cblkWidth;
                 for (var column = 0; column < cblkWidth; column++) {
                   target[targetBase + column] = _toFloat32(
@@ -715,7 +812,7 @@ final class JpxTileDecoder {
             } else {
               final target = buffer as Int32List;
               for (var row = 0; row < cblkHeight; row++) {
-                final targetBase = rowBase + row * _tileWidth;
+                final targetBase = rowBase + row * tileWidth;
                 final sourceBase = row * cblkWidth;
                 for (var column = 0; column < cblkWidth; column++) {
                   final value = coefficients[sourceBase + column];
@@ -734,20 +831,25 @@ final class JpxTileDecoder {
     return f32[0];
   }
 
-  Uint8List _levelShiftAndClip(final TypedData buffer, final bool irreversible) {
+  /// OpenJPEG `opj_tcd_dc_level_shift_decode`: add back the DC shift
+  /// `1 << (prec - 1)` of unsigned components (rounding the 9/7 floats
+  /// half to even first) and clamp to `[0, 2^prec - 1]`.
+  static TypedDataList<int> _levelShiftAndClip(
+    final TypedData buffer,
+    final bool irreversible,
+    final int precision,
+  ) {
     final samples = buffer is Float32List ? buffer.length : (buffer as Int32List).length;
-    final out = Uint8List(samples);
-    // Unsigned components carry a DC level shift the decoder adds back
-    // (OpenJPEG sets m_dc_level_shift = 1 << (prec - 1)).
-    const dcShift = 1 << 7;
+    final dcShift = 1 << (precision - 1);
+    final maxValue = (1 << precision) - 1;
+    final TypedDataList<int> out = precision <= 8 ? Uint8List(samples) : Uint16List(samples);
     for (var index = 0; index < samples; index++) {
-      int value;
-      if (irreversible) {
-        value = _roundHalfEven((buffer as Float32List)[index]) + dcShift;
-      } else {
-        value = (buffer as Int32List)[index] + dcShift;
-      }
-      out[index] = value < 0 ? 0 : (value > 255 ? 255 : value);
+      final value =
+          (irreversible
+              ? _roundHalfEven((buffer as Float32List)[index])
+              : (buffer as Int32List)[index]) +
+          dcShift;
+      out[index] = value < 0 ? 0 : (value > maxValue ? maxValue : value);
     }
     return out;
   }

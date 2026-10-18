@@ -710,26 +710,37 @@ accepted against its decoded output, not merely structurally.
 | `features/pdf/codec/jpeg2000/jpx_tier1.dart` | Decodes significance-propagation, magnitude-refinement, and cleanup passes over MQ segments with per-pass context reset and segmentation symbols. |
 | `features/pdf/codec/jpeg2000/jpx_mq.dart` | The MQ arithmetic decoder with the reference's 32-bit code-register semantics shared by VM and compiled JS. |
 | `features/pdf/codec/jpeg2000/jpx_tagtree.dart` | Inclusion and missing-significance-bits tag trees reusable across quality layers. |
-| `features/pdf/codec/jpeg2000/jpx_dwt.dart` | The exact integer 5/3 lifting (with `toSigned(32)` shift normalization) and the float32 9/7 pipeline. |
+| `features/pdf/codec/jpeg2000/jpx_dwt.dart` | The exact integer 5/3 lifting (with `toSigned(32)` shift normalization, the reference's odd-start one- and two-sample cases and its empty-resolution skips) and the float32 9/7 pipeline. |
 | `features/pdf/codec/jpeg2000/jpx_mct.dart` | Inverse RCT and ICT component transforms. |
-| `features/pdf/codec/jpeg2000/jpx_decoder.dart` | Tile assembly into planar 8-bit images, JP2 colorspace checks, and PNG encoding. |
+| `features/pdf/codec/jpeg2000/jpx_color.dart` | The reference-grid projections: `-upsample` nearest-neighbour replication and the `color.c` sYCC 4:4:4/4:2:2/4:2:0 conversions, including the odd-origin `Cb = Cr = 0` rule and the exact fused multiply-add the pinned arm64 build applies to the G channel. |
+| `features/pdf/codec/jpeg2000/jpx_decoder.dart` | Tile assembly into native per-component planes on their own grids, the colour-model decision, the budgeted reference-grid projection, and 8-bit or 16-bit (bit replication plus `sBIT`) PNG encoding. |
 | `features/pdf/codec/jpeg2000/jpx_limits.dart` | Every buffer budget (input, raster, tile buffers, components, tiles) checked before allocation. |
 | `features/pdf/codec/jpeg2000/jpx_exception.dart` | `JpxException` (corrupt input) and `JpxUnsupportedException` (out-of-subset feature), both `PdfException`. |
 | `features/pdf/codec/jpeg2000/pdf_jpx.dart` | The `JPXDecode` adapter: filter chaining, PDF colorspace/dimension validation, typed conflicts. |
 
-Acceptance runs every committed fixture against its OpenJPEG oracle payload:
-byte-exact for lossless, inside pre-fixed ceilings for lossy
-(`tool/compare_jpx_oracle.dart` re-runs it). Arithmetic bypass, Part 2
-extensions, palettes, CMYK, and packed packet headers fail typed; the browser
-build must produce pixels identical to the VM (`test/web/jpx_wire_test.dart`
-pins the decoded-pixel hash).
+Components are unsigned 8- to 16-bit on per-component grids
+(`XRsiz`/`YRsiz`, image origins, odd sizes, tiles); `JpxImage` exposes the
+native planes plus a budgeted reference-grid projection whose contract,
+colour policies and comparison lanes are fixed in `doc/jpeg2000-precision.md`.
+
+Acceptance runs the 8-bit corpus and the 37-fixture precision corpus against
+their OpenJPEG oracle payloads: byte-exact for lossless on the native,
+upsample and rgb lanes, inside pre-fixed ceilings for lossy
+(`tool/compare_jpx_oracle.dart`, `tool/jpx_precision_compare.dart`). The
+reference itself (`tool/jpx_oracle/opj_oracle`, libopenjp2 2.5.4) and the
+independent ffmpeg producer regenerate everything
+(`tool/generate_jpx_precision_fixtures.dart`). Arithmetic bypass, Part 2
+extensions, palettes, CMYK, signed or mixed-precision components, cross-grid
+component transforms and packed packet headers fail typed; the browser build
+must produce pixels identical to the VM (`test/web/jpx_wire_test.dart` and
+`test/web/jpx_precision_wire_test.dart` pin the decoded-scanline hashes).
 
 ### Current PDF limits
 
 The PDF feature aims for useful extraction, not full rendering-engine parity:
 
 - it supports the Standard password security handler, not certificate-based public-key handlers;
-- it preserves bytes only for indirect JPEG image XObjects reached by `Do`, and converts supported CCITT or JBIG2 bitmaps to grayscale PNG;
+- it preserves bytes only for indirect JPEG image XObjects reached by `Do`, and converts supported CCITT, JBIG2, and JPEG 2000 bitmaps to grayscale or truecolor PNG (16-bit with `sBIT` above 8 bits);
 - inline images, direct image objects, and Form XObjects remain unextracted or geometry-only; JPEG 2000 follows the documented Part 1 subset;
 - a Type0 composite font without `/ToUnicode` produces no recovered text even when glyph geometry is available;
 - metadata strings outside UTF-16 use an approximate byte-for-byte PDFDocEncoding path, so rare high-byte characters can decode incorrectly;

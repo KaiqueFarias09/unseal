@@ -1,0 +1,12 @@
+{
+  "library": "2.5.4",
+  "container": "jp2",
+  "x0": 0, "y0": 0, "x1": 64, "y1": 48,
+  "colorSpace": 3,
+  "numcomps": 3,
+  "comps": [
+    {"dx": 1, "dy": 1, "w": 64, "h": 48, "x0": 0, "y0": 0, "prec": 8, "sgnd": 0, "alpha": 0, "bytesPerSample": 1},
+    {"dx": 2, "dy": 1, "w": 32, "h": 48, "x0": 0, "y0": 0, "prec": 8, "sgnd": 0, "alpha": 0, "bytesPerSample": 1},
+    {"dx": 2, "dy": 1, "w": 32, "h": 48, "x0": 0, "y0": 0, "prec": 8, "sgnd": 0, "alpha": 0, "bytesPerSample": 1}
+  ]
+}

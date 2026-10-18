@@ -255,6 +255,25 @@ final class JpxComponentCoding {
   int roiShift = 0;
 }
 
+/// One SIZ component record: sample precision and the component's grid
+/// step on the reference grid (ISO/IEC 15444-1 B.2).
+final class JpxComponentInfo {
+  /// Captures Ssiz (already decoded to bits), XRsiz and YRsiz.
+  const JpxComponentInfo({required this.precision, required this.dx, required this.dy});
+
+  /// Unsigned sample precision in bits (8 to 16 in this subset).
+  final int precision;
+
+  /// Horizontal separation of component samples on the reference grid.
+  final int dx;
+
+  /// Vertical separation of component samples on the reference grid.
+  final int dy;
+
+  /// Largest sample value, `2^precision - 1`.
+  int get maxValue => (1 << precision) - 1;
+}
+
 /// Parsed SIZ marker.
 final class JpxImageInfo {
   /// Left edge of the image grid (Xsiz).
@@ -263,10 +282,10 @@ final class JpxImageInfo {
   /// Top edge of the image grid (Ysiz).
   int y0 = 0;
 
-  /// Image width in samples (Xsiz - XOsiz).
+  /// Right edge of the image area on the reference grid (Xsiz).
   int width = 0;
 
-  /// Image height in samples (Ysiz - YOsiz).
+  /// Bottom edge of the image area on the reference grid (Ysiz).
   int height = 0;
 
   /// Left edge of the first tile grid point (XTOsiz).
@@ -284,6 +303,12 @@ final class JpxImageInfo {
   /// Component count (Csiz).
   int componentCount = 0;
 
+  /// Per-component precision and grid, in SIZ order.
+  final List<JpxComponentInfo> components = <JpxComponentInfo>[];
+
+  /// Sample precision shared by every component.
+  int get precision => components.first.precision;
+
   /// Tiles per row of the tile grid.
   int get tileCountX =>
       width <= tileX0 || tileWidth <= 0 ? 0 : ((width - tileX0) + tileWidth - 1) ~/ tileWidth;
@@ -291,7 +316,32 @@ final class JpxImageInfo {
   /// Tiles per column of the tile grid.
   int get tileCountY =>
       height <= tileY0 || tileHeight <= 0 ? 0 : ((height - tileY0) + tileHeight - 1) ~/ tileHeight;
+
+  /// Reference-grid width of the decoded image (Xsiz - XOsiz).
+  int get gridWidth => width - x0;
+
+  /// Reference-grid height of the decoded image (Ysiz - YOsiz).
+  int get gridHeight => height - y0;
+
+  /// First sample column of [component] on its own grid: ceil(XOsiz / dx).
+  int componentX0(final int component) => _ceilDiv(x0, components[component].dx);
+
+  /// First sample row of [component] on its own grid: ceil(YOsiz / dy).
+  int componentY0(final int component) => _ceilDiv(y0, components[component].dy);
+
+  /// Sample columns of [component]: ceil(Xsiz / dx) - ceil(XOsiz / dx).
+  int componentWidth(final int component) =>
+      _ceilDiv(width, components[component].dx) - componentX0(component);
+
+  /// Sample rows of [component]: ceil(Ysiz / dy) - ceil(YOsiz / dy).
+  int componentHeight(final int component) =>
+      _ceilDiv(height, components[component].dy) - componentY0(component);
+
+  /// Whether every component sits on the reference grid (dx = dy = 1).
+  bool get isFullResolution => components.every((final c) => c.dx == 1 && c.dy == 1);
 }
+
+int _ceilDiv(final int value, final int divisor) => (value + divisor - 1) ~/ divisor;
 
 /// One tile-part of one tile: the byte range after SOD that carries
 /// packets.
@@ -373,15 +423,35 @@ void _parseSiz(final JpxReader reader, final JpxCodestreamInfo info) {
       throw const JpxException('JPEG 2000 coordinates exceed 31 bits.');
     }
   }
+  int? precision;
   for (var component = 0; component < image.componentCount; component++) {
     final precisionByte = reader.readByte();
-    if ((precisionByte & 0x7F) + 1 != 8 || precisionByte & 0x80 != 0) {
-      throw const JpxUnsupportedException(
-        'JPEG 2000 components must be unsigned 8-bit in this subset.',
+    final dx = reader.readByte();
+    final dy = reader.readByte();
+    final bits = (precisionByte & 0x7F) + 1;
+    if (precisionByte & 0x80 != 0) {
+      throw const JpxUnsupportedException('JPEG 2000 signed components are not supported.');
+    }
+    if (bits < kJpxMinPrecision || bits > kJpxMaxPrecision) {
+      throw JpxUnsupportedException(
+        'JPEG 2000 component precision $bits is outside the unsigned '
+        '$kJpxMinPrecision-$kJpxMaxPrecision bit subset.',
       );
     }
-    if (reader.readByte() != 1 || reader.readByte() != 1) {
-      throw const JpxUnsupportedException('JPEG 2000 component subsampling is not supported.');
+    if (precision != null && bits != precision) {
+      throw const JpxUnsupportedException(
+        'JPEG 2000 components with mixed precisions are not supported.',
+      );
+    }
+    precision = bits;
+    if (dx < 1 || dy < 1 || dx > kJpxMaxSubsampling || dy > kJpxMaxSubsampling) {
+      throw const JpxException('JPEG 2000 component subsampling factor is invalid.');
+    }
+    image.components.add(JpxComponentInfo(precision: bits, dx: dx, dy: dy));
+  }
+  for (var component = 0; component < image.componentCount; component++) {
+    if (image.componentWidth(component) <= 0 || image.componentHeight(component) <= 0) {
+      throw const JpxException('JPEG 2000 component grid holds no samples.');
     }
   }
 }
@@ -422,12 +492,13 @@ void _validateCoding(final JpxComponentCoding coding) {
   }
 }
 
-/// Parses the SPcoc body of a COC (already past Lcoc and Ccoc).
+/// Parses the Scoc/SPcoc body of a COC (already past Lcoc and Ccoc).
+/// Unlike COD, a COC carries no SGcod: progression order, layer count
+/// and the MCT flag stay what COD established (A.6.2).
 void _parseCocBody(final JpxReader body, final JpxComponentCoding coding) {
-  coding.segmentStyle = body.readByte();
-  coding.progressionOrder = body.readByte();
-  coding.layerCount = body.readUint16();
-  coding.multiComponentTransform = body.readByte();
+  final scoc = body.readByte();
+  coding.segmentStyle =
+      (coding.segmentStyle & ~kSegmentStylePrecincts) | (scoc & kSegmentStylePrecincts);
   coding.decompositionLevels = body.readByte();
   coding.codeblockWidthExp = body.readByte() + 2;
   coding.codeblockHeightExp = body.readByte() + 2;
@@ -442,30 +513,45 @@ void _parseCocBody(final JpxReader body, final JpxComponentCoding coding) {
   }
 }
 
-/// Parses the body of a QCC (already past Lqcc and Cqcc).
-void _parseQccBody(final JpxReader body, final JpxComponentCoding coding) {
+/// Parses the body of a QCD or QCC (already past the length and, for
+/// QCC, the component index). The band count comes from the segment
+/// length, as in OpenJPEG, so a later COC that changes the
+/// decomposition level count still finds every entry the encoder wrote.
+/// Scalar-derived quantization expands band 0 with equation E-5.
+void _parseQuantizationBody(final JpxReader body, final JpxComponentCoding coding) {
   final styleByte = body.readByte();
   coding.guardBits = (styleByte >> 5) & 0x03;
   coding.quantizationStyle = styleByte & 0x1F;
-  final bands = coding.decompositionLevels == 0 ? 1 : coding.decompositionLevels * 3 + 1;
   coding.stepExponents.clear();
   coding.stepMantissas.clear();
   switch (coding.quantizationStyle) {
     case kQuantizationNone:
+      final bands = body.remaining;
+      if (bands < 1 || bands > kJpxMaxBands) {
+        throw const JpxException('JPEG 2000 quantization table size is invalid.');
+      }
       for (var band = 0; band < bands; band++) {
         coding.stepExponents.add(body.readByte() >> 3);
         coding.stepMantissas.add(0);
       }
     case kQuantizationScalarDerived:
+      if (body.remaining < 2) {
+        throw const JpxException('JPEG 2000 quantization table size is invalid.');
+      }
       final high = body.readByte();
       final low = body.readByte();
       final exponent = high >> 3;
       final mantissa = ((high & 0x07) << 8) | low;
-      for (var band = 0; band < bands; band++) {
-        coding.stepExponents.add(exponent);
+      for (var band = 0; band < kJpxMaxBands; band++) {
+        final derived = band == 0 ? exponent : exponent - (band - 1) ~/ 3;
+        coding.stepExponents.add(derived > 0 ? derived : 0);
         coding.stepMantissas.add(mantissa);
       }
     case kQuantizationScalarExpounded:
+      final bands = body.remaining ~/ 2;
+      if (bands < 1 || bands > kJpxMaxBands || body.remaining.isOdd) {
+        throw const JpxException('JPEG 2000 quantization table size is invalid.');
+      }
       for (var band = 0; band < bands; band++) {
         final high = body.readByte();
         final low = body.readByte();
@@ -546,41 +632,10 @@ JpxCodestreamInfo parseCodestream(final Uint8List bytes) {
         final bodyLength = reader.readUint16() - 2;
         final bodyOffset = reader.cursor;
         for (final coding in info.componentCoding) {
-          // Each component may carry a different decomposition-level
-          // count, so the shared QCD body is re-read per component to
-          // validate its declared band count.
-          final body = JpxReader(reader.data, bodyOffset, bodyOffset + bodyLength);
-          final styleByte = body.readByte();
-          coding.guardBits = (styleByte >> 5) & 0x03;
-          coding.quantizationStyle = styleByte & 0x1F;
-          final bands = coding.decompositionLevels == 0 ? 1 : coding.decompositionLevels * 3 + 1;
-          coding.stepExponents.clear();
-          coding.stepMantissas.clear();
-          switch (coding.quantizationStyle) {
-            case kQuantizationNone:
-              for (var band = 0; band < bands; band++) {
-                coding.stepExponents.add(body.readByte() >> 3);
-                coding.stepMantissas.add(0);
-              }
-            case kQuantizationScalarDerived:
-              final high = body.readByte();
-              final low = body.readByte();
-              final exponent = high >> 3;
-              final mantissa = ((high & 0x07) << 8) | low;
-              for (var band = 0; band < bands; band++) {
-                coding.stepExponents.add(exponent);
-                coding.stepMantissas.add(mantissa);
-              }
-            case kQuantizationScalarExpounded:
-              for (var band = 0; band < bands; band++) {
-                final high = body.readByte();
-                final low = body.readByte();
-                coding.stepExponents.add(high >> 3);
-                coding.stepMantissas.add(((high & 0x07) << 8) | low);
-              }
-            default:
-              throw const JpxException('JPEG 2000 quantization style is invalid.');
-          }
+          _parseQuantizationBody(
+            JpxReader(reader.data, bodyOffset, bodyOffset + bodyLength),
+            coding,
+          );
         }
         reader.skip(bodyLength);
         seenQcd = true;
@@ -593,7 +648,7 @@ JpxCodestreamInfo parseCodestream(final Uint8List bytes) {
         if (component < 0 || component >= info.image.componentCount) {
           throw const JpxException('QCC names a component outside the image.');
         }
-        _parseQccBody(body, info.componentCoding[component]);
+        _parseQuantizationBody(body, info.componentCoding[component]);
       case kMarkerRgn:
         throw const JpxUnsupportedException('JPEG 2000 ROI (RGn) markers are not supported.');
       case kMarkerPoc:
@@ -686,7 +741,7 @@ final class JpxPayload {
   /// Whether [codestream] was extracted from a JP2 wrapper.
   final bool isJp2;
 
-  /// JP2 `colr` enumerated colorspace: 16 sYCC, 17 sRGB, 18 gray.
+  /// JP2 `colr` enumerated colourspace: 16 sRGB, 17 greyscale, 18 sYCC.
   /// Null for bare codestreams and non-enumerated methods.
   final int? enumcs;
 
@@ -865,16 +920,14 @@ void _readJp2HeaderBox(
               bytes[bodyStart + 7]) &
           0xFFFFFFFF;
       final componentCount = (bytes[bodyStart + 8] << 8) | bytes[bodyStart + 9];
-      final bitsPerComponent = bytes[bodyStart + 10];
       final compressionType = bytes[bodyStart + 11];
       if (compressionType != 7) {
         throw const JpxUnsupportedException('JP2 wrap compression type is not JPEG 2000.');
       }
-      if ((bitsPerComponent & 0x7F) + 1 != 8 || bitsPerComponent & 0x80 != 0) {
-        throw const JpxUnsupportedException(
-          'JP2 image header precision is outside the 8-bit unsigned subset.',
-        );
-      }
+      // The ihdr BPC byte is informative only: the SIZ marker is the
+      // authoritative precision (OpenJPEG ignores ihdr here too), and
+      // real producers disagree on it — ffmpeg 9.0.2 writes the depth
+      // instead of depth - 1.
       if (width == 0 || height == 0 || componentCount == 0) {
         throw const JpxException('JP2 image header declares an empty image.');
       }
@@ -902,6 +955,8 @@ void _readJp2HeaderBox(
       throw const JpxUnsupportedException(
         'JP2 component definitions (alpha channels) are not supported.',
       );
+    } else if (type == 'pclr' || type == 'cmap') {
+      throw const JpxUnsupportedException('JP2 palette color spaces are not supported.');
     }
     cursor = bodyEnd;
   }

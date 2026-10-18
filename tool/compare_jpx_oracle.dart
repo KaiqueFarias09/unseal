@@ -53,7 +53,7 @@ void main() {
     final oracle = oracleFile.readAsBytesSync();
     try {
       final image = decodeJpxImage(Uint8List.fromList(File(path).readAsBytesSync()));
-      final actual = <int>[for (final plane in image.samples) ...plane];
+      final actual = <int>[for (final plane in image.components) ...plane.samples];
       if (actual.length != oracle.length) {
         stderr.writeln('$name: FAIL (size ${actual.length} vs oracle ${oracle.length})');
         failures++;

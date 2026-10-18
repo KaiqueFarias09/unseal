@@ -1,0 +1,10 @@
+{
+  "library": "2.5.4",
+  "container": "j2k",
+  "x0": 5, "y0": 3, "x1": 69, "y1": 51,
+  "colorSpace": 0,
+  "numcomps": 1,
+  "comps": [
+    {"dx": 1, "dy": 1, "w": 64, "h": 48, "x0": 5, "y0": 3, "prec": 16, "sgnd": 0, "alpha": 0, "bytesPerSample": 2}
+  ]
+}

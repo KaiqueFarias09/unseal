@@ -1,0 +1,19 @@
+{
+  "protocol": "Fixed before any Dart decode (doc/jpeg2000-precision.md). Lossless fixtures compare exactly on every lane. Lossy native and upsample lanes allow max |err| 3 and RMSE 0.5 per component in absolute sample levels at any precision; the rgb lane allows 4 / 1.0 for the propagation of one-level native differences through the integer sYCC conversion. Loosening invalidates acceptance.",
+  "globalMaxAbsError": 4,
+  "globalRmse": 1.0,
+  "lanes": {
+    "native": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "upsample": {
+      "maxAbsError": 3,
+      "rmse": 0.5
+    },
+    "rgb": {
+      "maxAbsError": 4,
+      "rmse": 1.0
+    }
+  }
+}

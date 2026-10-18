@@ -83,7 +83,7 @@ void main() {
           final oracle = File('$_fixturesDir/oracle/$name.raw').readAsBytesSync();
           final extension = name.contains('jp2') ? '.jp2' : '.j2k';
           final image = decodeJpxImage(File('$_fixturesDir/$name$extension').readAsBytesSync());
-          final actual = <int>[for (final plane in image.samples) ...plane];
+          final actual = <int>[for (final plane in image.components) ...plane.samples];
           expect(actual, hasLength(oracle.length), reason: name);
           if (ceiling == null) {
             expect(actual, oracle, reason: name);
@@ -143,7 +143,7 @@ void main() {
       ('gray53-lossless-jp2', 16),
       ('gray53-lossless-jp2', 18),
       ('rgb53-lossless-nomct-jp2', 17),
-      ('rgb53-lossless-nomct-jp2', 18),
+      ('rgb53-lossless-nomct-jp2', 20),
     ]) {
       test('$fixtureName refuses incompatible or unsupported EnumCS $enumcs', () async {
         final bytes = File('$_fixturesDir/$fixtureName.jp2').readAsBytesSync();
@@ -154,6 +154,22 @@ void main() {
         expect(() => decodeJpxImage(bytes), throwsA(isA<JpxUnsupportedException>()));
       });
     }
+
+    test('EnumCS 18 on a 4:4:4 three-component codestream decodes as sYCC', () async {
+      // doc/jpeg2000-precision.md rules 4 and 5: colr 18 selects the
+      // OpenJPEG sycc444_to_rgb conversion; the native planes stay the
+      // codestream's.
+      final bytes = File('$_fixturesDir/rgb53-lossless-nomct-jp2.jp2').readAsBytesSync();
+      final boxTypeOffset = latin1.decode(bytes).indexOf('colr');
+      ByteData.sublistView(bytes).setUint32(boxTypeOffset + 7, 18);
+      final image = decodeJpxImage(bytes);
+      expect(image.colorModel, JpxColorModel.sycc);
+      expect(image.enumcs, 18);
+      final native = File('$_fixturesDir/oracle/rgb53-lossless-nomct-jp2.raw').readAsBytesSync();
+      expect(<int>[for (final plane in image.components) ...plane.samples], native);
+      expect(image.outputPlanes, hasLength(3));
+      expect(image.outputPlanes[0], isNot(equals(image.components[0].samples)));
+    });
   });
 
   group('corruption normalizes to typed failures', () {

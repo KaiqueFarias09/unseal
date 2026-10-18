@@ -28,11 +28,24 @@ void runJpxBenchmarks() {
       return;
     }
     final bytes = Uint8List.fromList(fixture.readAsBytesSync());
-    decodeJpxImage(bytes); // Warm-up: JIT and code-page touch.
-    group.add('decodeJpxImage — $name', () => decodeJpxImage(bytes), inputBytes: bytes.length);
+    decodeJpxImage(bytes).outputPlanes; // Warm-up: JIT and code-page touch.
+    group.add(
+      'decodeJpxImage — $name',
+      () => decodeJpxImage(bytes).outputPlanes,
+      inputBytes: bytes.length,
+    );
   }
 
   addFixture('gray 64x64 5/3 lossless', 'gray53-lossless-lrcp.j2k');
   addFixture('rgb 64x64 5/3 RCT lossless', 'rgb53-lossless-rct.j2k');
   addFixture('gray 256x256 9/7 lossy', 'gray97-lossy-256.j2k');
+  // Precision and subsampling (doc/jpeg2000-precision.md); the
+  // isolated per-process numbers come from tool/jpx_precision_bench.dart.
+  addFixture('gray16 64x48 5/3 lossless', 'precision/synth-gray16-lossless.j2k');
+  addFixture('rgb16 63x45 RCT lossless', 'precision/synth-rgb16-rct-lossless-odd.j2k');
+  addFixture(
+    'sYCC 4:2:0 8-bit 63x45 JP2 + RGB',
+    'precision/real-sycc8-420-lossless-odd-ffmpeg.jp2',
+  );
+  addFixture('sYCC 4:2:0 16-bit 64x48 JP2 + RGB', 'precision/synth-sycc16-420-lossless.jp2');
 }

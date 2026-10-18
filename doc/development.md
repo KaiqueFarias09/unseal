@@ -50,10 +50,25 @@ Fixture bytes are source data. Keep their license, provenance, hashes, and
 expected results together under `test/resources/`. Do not rewrite a fixture
 to hide a parser regression. See [parser references](format-parser-references.md).
 
-The JPEG 2000 fixtures carry their own acceptance tooling: regenerate them
-with `tool/generate_jpx_fixtures.dart` (requires the pinned OpenJPEG builds)
-and re-run the oracle comparison any time with `dart run tool/compare_jpx_oracle.dart`.
-Decoder latency (p50/mean/p95, VM and compiled JS) comes from `dart run tool/measure_jpx.dart`.
+The JPEG 2000 fixtures carry their own acceptance tooling: regenerate the
+8-bit corpus with `tool/generate_jpx_fixtures.dart` (requires the pinned
+OpenJPEG builds) and re-run its oracle comparison any time with
+`dart run tool/compare_jpx_oracle.dart`. The precision/subsampling corpus
+(8-16 bit, per-component grids, sYCC) regenerates with
+`dart run tool/generate_jpx_precision_fixtures.dart --write` after
+`sh tool/jpx_oracle/build.sh` (libopenjp2 2.5.4) and verifies without the
+flag; `dart run tool/jpx_precision_reference.dart --out=build/evidence/C04`
+executes the reference over read-only fixture copies and
+`dart run tool/jpx_precision_compare.dart --out=build/evidence/C04` runs the
+full acceptance matrix (format, analysis, VM, freshly compiled worker and
+browser suites, fuzz, corpus inventory, pub dry-run, isolated benchmark).
+Decoder latency (p50/mean/p95, VM and compiled JS) comes from
+`dart run tool/measure_jpx.dart`; per-process time and peak RSS for the
+precision cases come from `dart run tool/jpx_precision_bench.dart`. Note that
+`dart format .` resolves `example/analysis_options.yaml` (page width 100)
+through the example's own package resolution: run `flutter pub get` in
+`example/` once per checkout, then `git checkout -- example/` if the upgrade
+step touched tracked files.
 
 ## Measure performance
 

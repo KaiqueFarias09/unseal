@@ -44,6 +44,26 @@ const int kJpxMaxCodeblockSamples = 4096;
 /// Sub-band exponent cap (SIZ coordinates live in 31 bits).
 const int kJpxMaxCoordinate = (1 << 31) - 1;
 
+/// Lowest unsigned sample precision the codec decodes.
+const int kJpxMinPrecision = 8;
+
+/// Highest unsigned sample precision the codec decodes; 16 bits keeps
+/// every native plane inside a Uint16List and the 2x coefficient
+/// convention inside 32-bit integers.
+const int kJpxMaxPrecision = 16;
+
+/// Largest XRsiz/YRsiz the standard allows (one byte each).
+const int kJpxMaxSubsampling = 255;
+
+/// Quantization entries a QCD/QCC may carry: 3 bands per decomposition
+/// level plus LL, for the 32-level cap (OpenJPEG's OPJ_J2K_MAXBANDS).
+const int kJpxMaxBands = 3 * (kJpxMaxDecompositionLevels + 1) - 2;
+
+/// Cap on the bytes of each decoded stage that the image keeps
+/// resident — native planes, reference-grid planes (upsampled or RGB
+/// converted) and PNG scanlines — checked before the stage allocates.
+const int kJpxMaxImageBytes = 256 << 20;
+
 /// [kJpxMaxTileBufferBytes] is generous for work buffers; the raster
 /// the PDF layer turns into a PNG also respects the codec-wide cap.
 const int kJpxMaxPngBytes = 256 << 20;
