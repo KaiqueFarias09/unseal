@@ -48,9 +48,7 @@ void main(final List<String> arguments) async {
   final vmProgressive = runner.lane('vm-progressive', ['test', 'test/tests/progressive/']);
   // The full VM suite gates the report unless --skip-full is passed
   // during iteration; the acceptance run always executes it.
-  if (!skipFull) {
-    runner.lane('vm-full', ['test', '--exclude-tags', 'fuzz']);
-  }
+  final vmFull = skipFull ? null : runner.lane('vm-full', ['test', '--exclude-tags', 'fuzz']);
   final worker = runner.lane('worker-build', [
     'compile',
     'js',
@@ -254,7 +252,12 @@ void main(final List<String> arguments) async {
           'and a wrong digest; the fixture tool reproduces committed bytes; '
           'benchmarks record throughput, verification cost and RSS; docs, '
           'matrix and the publish dry-run are clean.',
-      ok(fixtures) && ok(publish) && negativesOk && ok(format) && benchCases.length == 7,
+      ok(fixtures) &&
+          ok(publish) &&
+          negativesOk &&
+          ok(format) &&
+          ok(vmFull) &&
+          benchCases.length == 7,
       [
         laneLog('fixture-reproduction'),
         '$out/bench.json',

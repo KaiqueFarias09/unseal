@@ -10,7 +10,9 @@ import 'package:unseal/src/features/comic/archive/rar_random_access.dart';
 import 'package:unseal/src/foundation/archive/zip_byte_source.dart';
 import 'package:unseal/unseal.dart';
 
+import '../../../tool/rar5_stream_encoder.dart';
 import '../../support/blake2sp_kat.dart';
+import '../../support/rar_fixtures.dart';
 
 const String _dir = 'test/resources/books/comic/rar5';
 
@@ -271,6 +273,46 @@ void main() {
   });
 
   group('RAR 5 sessions verify the hash chain (RH05)', () {
+    test('a directly requested corrupt target poisons forward and backward reuse', () {
+      final bytes = buildRar5Archive(
+        entries: [
+          FixtureEntry('a.jpg', tinyJpegPage),
+          FixtureEntry('b.jpg', tinyJpegPage),
+          FixtureEntry('c.jpg', tinyJpegPage),
+        ],
+        method: 3,
+        dictExp: 0,
+        archiveSolid: true,
+        blake2spHashes: true,
+        corruptDigestIndex: 1,
+      );
+      final rar = RarRandomAccess.open(MemoryZipByteSource(bytes));
+      addTearDown(rar.close);
+      expect(
+        () => rar.inflate(rar.find('b.jpg')!),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.toString(),
+            'message',
+            contains('BLAKE2sp data hash'),
+          ),
+        ),
+      );
+      for (final name in ['c.jpg', 'a.jpg']) {
+        expect(
+          () => rar.inflate(rar.find(name)!),
+          throwsA(
+            isA<ComicException>().having(
+              (final error) => error.toString(),
+              'message',
+              contains('reopen the archive'),
+            ),
+          ),
+          reason: 'failed targets must not publish a reusable checkpoint for $name',
+        );
+      }
+    });
+
     test('forward, backward and interleaved access verify every member', () async {
       final bytes = _bytes('rar5-hash-solid.cbr');
       final session = await BookSession.open(bytes);

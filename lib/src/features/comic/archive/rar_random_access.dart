@@ -459,20 +459,14 @@ final class RarRandomAccess implements ArchiveRandomAccess {
         // replays.
         _chargeReplay(_cursor, index);
         for (var i = _cursor; i < index; i++) {
-          _decodeChainEntry(_records[i], verify: true);
+          _decodeChainEntry(_records[i]);
         }
         _chargeReplay(index, index + 1);
-        decoded = _decodeChainEntry(entry, verify: false);
+        decoded = _decodeChainEntry(entry);
       } else {
         decoded = _replayTo(entry);
       }
       if (index > _highWater) _highWater = index;
-      // Stored and method-29 targets verified inside inflate; the
-      // compressed target verifies here, once, on the published bytes.
-      if (_modeOf(entry) == _PayloadMode.rar5) {
-        _verifyPayload(entry, decoded);
-      }
-
       return decoded;
     } on UnsealException {
       rethrow;
@@ -488,11 +482,9 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
   // Decodes the compressed entry at [record]'s position, advancing the
   // cursor and checkpointing the boundary. Returns the entry's output.
-  // [verify] checks the declared CRC-32 and BLAKE2sp digest of the
-  // decoded output inside the poisoned-on-failure window: chain
-  // dependencies verify before their bytes stand as dependencies, while
-  // the served target verifies once in the caller.
-  Uint8List _decodeChainEntry(final RarEntryRecord record, {required final bool verify}) {
+  // Both targets and intermediate dependencies verify inside the
+  // poisoned-on-failure window, before advancing or checkpointing.
+  Uint8List _decodeChainEntry(final RarEntryRecord record) {
     if (!record.isFile) {
       _cursor = record.recordIndex + 1;
       return Uint8List(0);
@@ -514,9 +506,7 @@ final class RarRandomAccess implements ArchiveRandomAccess {
         windowSize: record.rar5DictSize,
         solid: record.solid,
       );
-      if (verify) {
-        _verifyPayload(record, decoded);
-      }
+      _verifyPayload(record, decoded);
     } on Object {
       _poisoned = true;
       rethrow;
@@ -552,10 +542,10 @@ final class RarRandomAccess implements ArchiveRandomAccess {
 
     for (var i = from; i < index; i++) {
       final record = _records[i];
-      _decodeChainEntry(record, verify: true);
+      _decodeChainEntry(record);
     }
 
-    return _decodeChainEntry(entry, verify: false);
+    return _decodeChainEntry(entry);
   }
 
   // Charges the cumulative budget for re-decoding the compressed

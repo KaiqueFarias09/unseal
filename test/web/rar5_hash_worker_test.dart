@@ -6,6 +6,8 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:test/test.dart';
+import 'package:unseal/src/features/comic/archive/rar_random_access.dart';
+import 'package:unseal/src/foundation/archive/zip_byte_source.dart';
 import 'package:unseal/src/platform/web/worker_client.dart';
 import 'package:unseal/unseal.dart';
 
@@ -108,6 +110,36 @@ void main() {
       final content = await session.loadResource(page.path);
       expect(content, isNotNull);
       expect(crypto.sha256.convert(content!).toString(), expected, reason: page.path);
+    }
+  });
+
+  test('browser solid state cannot continue after a requested target fails its hash', () {
+    final bytes = buildRar5Archive(
+      entries: [
+        FixtureEntry('a.jpg', tinyJpegPage),
+        FixtureEntry('b.jpg', tinyJpegPage),
+        FixtureEntry('c.jpg', tinyJpegPage),
+      ],
+      method: 3,
+      dictExp: 0,
+      archiveSolid: true,
+      blake2spHashes: true,
+      corruptDigestIndex: 1,
+    );
+    final rar = RarRandomAccess.open(MemoryZipByteSource(bytes));
+    addTearDown(rar.close);
+    expect(() => rar.inflate(rar.find('b.jpg')!), throwsA(isA<ComicException>()));
+    for (final name in ['c.jpg', 'a.jpg']) {
+      expect(
+        () => rar.inflate(rar.find(name)!),
+        throwsA(
+          isA<ComicException>().having(
+            (final error) => error.toString(),
+            'message',
+            contains('reopen the archive'),
+          ),
+        ),
+      );
     }
   });
 
