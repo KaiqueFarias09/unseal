@@ -42,8 +42,9 @@ format-specific contracts.
 
 Files such as `lib/epub.dart`, `lib/pdf.dart`, `lib/markdown.dart`,
 `lib/rtf.dart`, `lib/palmdoc.dart`, `lib/chm.dart`, `lib/djvu.dart`,
-`lib/tiff.dart`, `lib/lrf.dart`, and `lib/comic.dart` are narrow
-entry points for consumers that need one format. Public signatures must use
+`lib/tiff.dart`, `lib/lrf.dart`, `lib/alto.dart`, `lib/page.dart`, and
+`lib/comic.dart` are narrow entry points for consumers that need one
+format. Public signatures must use
 types exported by the same public entry point. Consumers must not import
 `lib/src/`.
 
@@ -119,6 +120,15 @@ declared subset (namespaces v2–v4, pixel/`mm10`/`inch1200` units, positioned
 blocks, lines, strings with confidence) and binds its words onto a canonical
 snapshot. Coordinate conversion requires a verified scale; repeated quotes
 stay ambiguous with bounded candidate lists. Unseal does not run OCR.
+
+PAGE XML sidecars (the PRImA vocabulary, exactly the 2019-07-15 namespace)
+import the same way: metadata, page identity, all fifteen region kinds,
+native polygons with explicitly derived bounding boxes, baselines, nested
+reading order, and TextEquiv alternatives with confidence, language and a
+deterministic lowest-index choice. Orientation stays a display-space hint
+that never rotates coordinates. Binding maps the chosen text at the finest
+declared granularity — words, then lines, then regions — onto a
+host-confirmed snapshot with the same ambiguity and budget rules.
 
 ## Progressive session flow
 
