@@ -1,0 +1,889 @@
+{
+  "schemaVersion": 1,
+  "kind": "tiff-tiled-corpus",
+  "libtiff": "4.7.2",
+  "files": [
+    {
+      "name": "bilevel-g3-2d-fill-t32x16.tif",
+      "bytes": 1616,
+      "sha256": "80f5329053500a010a304d79e5fe15152eb19e40607447fa69125f95718f71c6",
+      "producer": "tiffcp (libtiff 4.7.2) from bilevel-128x96.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "16",
+        "-c",
+        "g3:2d:fill"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel Group 3 2D with EOL padding, 32x16"
+    },
+    {
+      "name": "bilevel-g3-t32x16-be.tif",
+      "bytes": 1602,
+      "sha256": "3af181e7942cee295475bd71c2842709c784ba6427ba0bb1a0510477a1b03640",
+      "producer": "tiffcp (libtiff 4.7.2) from bilevel-128x96.tif",
+      "arguments": [
+        "-B",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "16",
+        "-c",
+        "g3"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel Group 3 1D, 32x16 BE"
+    },
+    {
+      "name": "bilevel-g4-o2-t32x16.tif",
+      "bytes": 742,
+      "sha256": "49a8f2c524d95545ac834ee051ecc1859f06d462b48ac21876d8539d9638dedc",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from bilevel-128x96.tif",
+      "arguments": [
+        "--tile",
+        "32x16",
+        "--compression",
+        "g4",
+        "--orientation",
+        "2"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel Group 4 32x16, Orientation 2"
+    },
+    {
+      "name": "bilevel-g4-t16-edge-be.tif",
+      "bytes": 866,
+      "sha256": "21a6ed45f376d0ca45accace0e31656a574ed6ba6ef5d12f45753bd815a759fb",
+      "producer": "tiffcp (libtiff 4.7.2) from bilevel-100x75.tif",
+      "arguments": [
+        "-B",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "g4"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel Group 4, 16x16 BE (edge tiles)"
+    },
+    {
+      "name": "bilevel-g4-t32x16.tif",
+      "bytes": 742,
+      "sha256": "1fdb4e439d1e9be1c4d3aba4d8c30b3da215af6a3061610c6995ff776566c17f",
+      "producer": "tiffcp (libtiff 4.7.2) from bilevel-128x96.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "16",
+        "-c",
+        "g4"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel Group 4, 32x16 tiles"
+    },
+    {
+      "name": "bilevel-lzw-t64-be.tif",
+      "bytes": 764,
+      "sha256": "0d4f22b75ef47498722a7a41b8154e1e66466447bf1bfc4b1fe6d0f58362bd87",
+      "producer": "tiffcp (libtiff 4.7.2) from bilevel-100x75.tif",
+      "arguments": [
+        "-B",
+        "-t",
+        "-w",
+        "64",
+        "-l",
+        "64",
+        "-c",
+        "lzw"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel LZW 64x64 BE (edge tiles)"
+    },
+    {
+      "name": "bilevel-mh-strips.tif",
+      "bytes": 704,
+      "sha256": "26f4f204f29eb48120a1e35f5a66463c566fcf79433c74fa047b8c243d3f52d4",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from bilevel-128x96.tif",
+      "arguments": [
+        "--rows",
+        "8",
+        "--compression",
+        "ccittrle"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel modified Huffman (2) strips of 8 rows"
+    },
+    {
+      "name": "bilevel-mh-t16-edge.tif",
+      "bytes": 1254,
+      "sha256": "9abd12e3946239a171b7298f23a379e012b28d94a5cdf51c594f5fed166de12c",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from bilevel-100x75.tif",
+      "arguments": [
+        "--tile",
+        "16x16",
+        "--compression",
+        "ccittrle",
+        "--big-endian"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel modified Huffman (2), 16x16 BE (edge tiles)"
+    },
+    {
+      "name": "bilevel-mh-t32x16.tif",
+      "bytes": 1026,
+      "sha256": "11a66ecbc42edad762a0c29c440902d6b64d14a2aa9af5b65742b694a8825cab",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from bilevel-128x96.tif",
+      "arguments": [
+        "--tile",
+        "32x16",
+        "--compression",
+        "ccittrle"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel modified Huffman (2), 32x16 tiles"
+    },
+    {
+      "name": "bilevel-none-fill2-t32.tif",
+      "bytes": 1818,
+      "sha256": "25ef922fa08968fe6da7f268c9fb56bef51aeff1961ab5b0442d1d4fe9250077",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from bilevel-128x96.tif",
+      "arguments": [
+        "--tile",
+        "32x32",
+        "--compression",
+        "none",
+        "--fillorder",
+        "2"
+      ],
+      "expectation": "reject:TiffUnsupportedCodecException",
+      "layout": "bilevel none with FillOrder 2 (typed rejection)"
+    },
+    {
+      "name": "bilevel-none-t32.tif",
+      "bytes": 1818,
+      "sha256": "67403ee1541ccff05f3456b5d0e9fc61b2f6fbbc8237f8a4bc51c58d3ebbd977",
+      "producer": "tiffcp (libtiff 4.7.2) from bilevel-128x96.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "32",
+        "-c",
+        "none"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel none 32x32"
+    },
+    {
+      "name": "bilevel-packbits-t16.tif",
+      "bytes": 1714,
+      "sha256": "279726a54f7961893f149600a47a74b4c2b390a3553f18006aa0e4ba776d8af2",
+      "producer": "tiffcp (libtiff 4.7.2) from bilevel-100x75.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "packbits"
+      ],
+      "expectation": "compare",
+      "layout": "bilevel PackBits 16x16 (edge tiles)"
+    },
+    {
+      "name": "cramps-lzw2-t64.tif",
+      "bytes": 114852,
+      "sha256": "0c07ae24d7b3e80efb797c3030cd02a638cc6e7fb5d45cf73f7ee35b048c8402",
+      "producer": "tiffcp (libtiff 4.7.2) from cramps-tile.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "64",
+        "-l",
+        "64",
+        "-c",
+        "lzw:2"
+      ],
+      "expectation": "compare",
+      "layout": "cramps gray8 min-is-white LZW predictor 2, 64x64, SampleFormat 4"
+    },
+    {
+      "name": "cramps-tile.tif",
+      "bytes": 786758,
+      "sha256": "cd14f8e22fc486f501fd4cdc9d9911e3582f7ac46972e71d4942c73e16ba3d7a",
+      "producer": "libtiffpic pics-3.8.0 (independent)",
+      "expectation": "compare",
+      "layout": "SGI Image Library; gray 8-bit min-is-white, uncompressed, 800x607 in 256x256 tiles addressed by StripOffsets/StripByteCounts (edge tiles on both axes)"
+    },
+    {
+      "name": "cramps.tif",
+      "bytes": 194176,
+      "sha256": "d9fb9600d745cb33a82a5448ef6cf9d6933c9462b90d3887475039ae2485af40",
+      "producer": "libtiffpic pics-3.8.0 (independent)",
+      "expectation": "compare",
+      "layout": "strip PackBits twin of cramps-tile.tif, gray 8-bit 800x607"
+    },
+    {
+      "name": "fax2d-g3-2d-t64.tif",
+      "bytes": 102296,
+      "sha256": "6938fab56fce4bf61097c27731a493d5fb57372c9e6973e22784c7682e59c9f4",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from fax2d.tif",
+      "arguments": [
+        "--tile",
+        "64x64",
+        "--compression",
+        "g3-2d"
+      ],
+      "expectation": "compare",
+      "layout": "fax2d bilevel Group 3 2D, 64x64"
+    },
+    {
+      "name": "fax2d-g4-t64.tif",
+      "bytes": 37776,
+      "sha256": "0dd401b8a1d4f1ac819ea435b50ef0956a16835e84095b34d0b24638062f1209",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from fax2d.tif",
+      "arguments": [
+        "--tile",
+        "64x64",
+        "--compression",
+        "g4"
+      ],
+      "expectation": "compare",
+      "layout": "fax2d bilevel Group 4, 64x64 tiles (real fax content, FillOrder 1)"
+    },
+    {
+      "name": "fax2d-mh-t128x64-be.tif",
+      "bytes": 57508,
+      "sha256": "b4efbf94956a30ce89f1be75744cda6181fa12c2bb696953aa13351f0c3a36f7",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from fax2d.tif",
+      "arguments": [
+        "--tile",
+        "128x64",
+        "--compression",
+        "ccittrle",
+        "--big-endian"
+      ],
+      "expectation": "compare",
+      "layout": "fax2d bilevel modified Huffman, 128x64 BE"
+    },
+    {
+      "name": "fax2d.tif",
+      "bytes": 32817,
+      "sha256": "4e497620740a6c192ac9523817c9e51ba3596d5ab8b4ac1a15e8cc58e9a49b3f",
+      "producer": "libtiffpic pics-3.8.0 (independent)",
+      "expectation": "reject:TiffUnsupportedCodecException",
+      "layout": "Group 3 2D bilevel 1728x1082 with FillOrder 2 (typed rejection; derivation source)"
+    },
+    {
+      "name": "gray16-lzw2-t16-le.tif",
+      "bytes": 2672,
+      "sha256": "e7136dba61b06b79da0e399d35de5a4f8eb525f0cd4f8370c38362d491dd4507",
+      "producer": "tiffcp (libtiff 4.7.2) from gray16-96x64.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "lzw:2"
+      ],
+      "expectation": "compare",
+      "layout": "gray16 LZW predictor 2, 16x16 LE"
+    },
+    {
+      "name": "gray16-none-t16-be.tif",
+      "bytes": 12642,
+      "sha256": "8b9c9b6c66f6ab588f2f2a4d2b07e936a2486852068a85983298ece32a7079bb",
+      "producer": "tiffcp (libtiff 4.7.2) from gray16-96x64.tif",
+      "arguments": [
+        "-B",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "none"
+      ],
+      "expectation": "compare",
+      "layout": "gray16 none 16x16 BE"
+    },
+    {
+      "name": "gray16-zip2-t16-big-be.tif",
+      "bytes": 2206,
+      "sha256": "179530a95720ebb07a266a2f8587b484b9876b39f1001151b6944877d09ff475",
+      "producer": "tiffcp (libtiff 4.7.2) from gray16-96x64.tif",
+      "arguments": [
+        "-8",
+        "-B",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "zip:2"
+      ],
+      "expectation": "compare",
+      "layout": "gray16 Deflate predictor 2, 16x16 BigTIFF BE"
+    },
+    {
+      "name": "gray2-lzw-t16-be.tif",
+      "bytes": 1610,
+      "sha256": "1c34361136a77a86085b7444a8cba495c613d433271ee62a2d026f2091a83b36",
+      "producer": "tiffcp (libtiff 4.7.2) from gray2-100x75.tif",
+      "arguments": [
+        "-B",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "lzw"
+      ],
+      "expectation": "compare",
+      "layout": "gray2 min-is-white LZW 16x16 BE"
+    },
+    {
+      "name": "gray4-none-t16.tif",
+      "bytes": 4900,
+      "sha256": "e6c1e1b00923cb4e6c42de509818bbd05898f36b1be711bda2c29986bfbb8e55",
+      "producer": "tiffcp (libtiff 4.7.2) from gray4-100x75.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "none"
+      ],
+      "expectation": "compare",
+      "layout": "gray4 none 16x16"
+    },
+    {
+      "name": "gray8-1x1-t16-big.tif",
+      "bytes": 344,
+      "sha256": "0a318143720ee35368231c8d50d005c19c240e7122483d8b4324385a534cdfe3",
+      "producer": "tiffcp (libtiff 4.7.2) from gray8-1x1.tif",
+      "arguments": [
+        "-8",
+        "-B",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "zip"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 1x1 image inside one 16x16 tile, BigTIFF BE"
+    },
+    {
+      "name": "gray8-lzw-t32.tif",
+      "bytes": 8660,
+      "sha256": "b9c14349f3b2d9e3f39023a245aa2f37157a97b12246e83058ab0d1066c3db28",
+      "producer": "tiffcp (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "32",
+        "-c",
+        "lzw:1"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 LZW 32x32"
+    },
+    {
+      "name": "gray8-lzw2-t32-be.tif",
+      "bytes": 1714,
+      "sha256": "99c4d3e522289b08b3e98e607fb175907ba4cb7214ec7b36d907a8eb4eee562f",
+      "producer": "tiffcp (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "-B",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "32",
+        "-c",
+        "lzw:2"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 LZW predictor 2, 32x32 BE"
+    },
+    {
+      "name": "gray8-none-t16-le.tif",
+      "bytes": 9380,
+      "sha256": "e4d464e66446ea642fd70a2bd18b55f46bbcc090a278ba9badf7099bd72e33bc",
+      "producer": "tiffcp (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "none"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 none 16x16 LE"
+    },
+    {
+      "name": "gray8-o2-t16.tif",
+      "bytes": 7176,
+      "sha256": "c17ca1c69ed5b4971a556da62327818c0ee23bed9b600765a0934e91f967659b",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "--tile",
+        "16x16",
+        "--compression",
+        "lzw",
+        "--orientation",
+        "2"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 LZW 16x16, Orientation 2"
+    },
+    {
+      "name": "gray8-o3-t16.tif",
+      "bytes": 2474,
+      "sha256": "5b648d9a0561406814f508f46514d48381ea5e924530313d393d01fbadb2fc23",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "--tile",
+        "16x16",
+        "--compression",
+        "zip",
+        "--predictor",
+        "2",
+        "--orientation",
+        "3"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 Deflate predictor 2, 16x16, Orientation 3"
+    },
+    {
+      "name": "gray8-o4-t16-be.tif",
+      "bytes": 8734,
+      "sha256": "ed4f31f7b54e3d27ecaaa2d914336c17c2056661e0be0deb00998e74252a1466",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "--tile",
+        "16x16",
+        "--compression",
+        "packbits",
+        "--orientation",
+        "4",
+        "--big-endian"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 PackBits 16x16 BE, Orientation 4"
+    },
+    {
+      "name": "gray8-o5-t16.tif",
+      "bytes": 9380,
+      "sha256": "da6ba4106abd81da0483c5949cbf0a1fe6e5b60bff7d77d48ba689c1a84fb4de",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "--tile",
+        "16x16",
+        "--compression",
+        "none",
+        "--orientation",
+        "5"
+      ],
+      "expectation": "reject:TiffUnsupportedCodecException",
+      "layout": "gray8 Orientation 5 (typed rejection)"
+    },
+    {
+      "name": "gray8-o6-t16.tif",
+      "bytes": 9380,
+      "sha256": "15e7435fb2587c6fcf5dbdfe964a3f9169900ed7d57901203b2963d35c628f32",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "--tile",
+        "16x16",
+        "--compression",
+        "none",
+        "--orientation",
+        "6"
+      ],
+      "expectation": "reject:TiffUnsupportedCodecException",
+      "layout": "gray8 Orientation 6 (typed rejection)"
+    },
+    {
+      "name": "gray8-o7-t16.tif",
+      "bytes": 9380,
+      "sha256": "f635800b3e0e41b41d7397e30b0588c27005008e85b45798d6b0dce074e205d3",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "--tile",
+        "16x16",
+        "--compression",
+        "none",
+        "--orientation",
+        "7"
+      ],
+      "expectation": "reject:TiffUnsupportedCodecException",
+      "layout": "gray8 Orientation 7 (typed rejection)"
+    },
+    {
+      "name": "gray8-o8-t16.tif",
+      "bytes": 9380,
+      "sha256": "3867b44b61e4660c29c9def13c6950915c61cb2ec3f5cf4b60b811e6a669ca73",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "--tile",
+        "16x16",
+        "--compression",
+        "none",
+        "--orientation",
+        "8"
+      ],
+      "expectation": "reject:TiffUnsupportedCodecException",
+      "layout": "gray8 Orientation 8 (typed rejection)"
+    },
+    {
+      "name": "gray8-packbits-t16-be.tif",
+      "bytes": 10010,
+      "sha256": "541613dcaeddc9b3db3c2cf120794d7b5385a71c32c57ddc3ba160b5f1507a9e",
+      "producer": "tiffcp (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "-B",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "packbits"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 PackBits 16x16 BE"
+    },
+    {
+      "name": "gray8-t16x64.tif",
+      "bytes": 10968,
+      "sha256": "8e4db76957a23d0a105d550c98da6678025fcb70c5fbb9cced50e9b991a3605a",
+      "producer": "tiffcp (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "64",
+        "-c",
+        "lzw"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 rectangular 16x64 tiles"
+    },
+    {
+      "name": "gray8-tiny-7x5-t16.tif",
+      "bytes": 278,
+      "sha256": "59989f0f36796f72e92a04cddcb52ba30fc04a0529cddd9e1cf2a18f30132f04",
+      "producer": "tiffcp (libtiff 4.7.2) from gray8-7x5.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "lzw"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 7x5 image inside one 16x16 tile"
+    },
+    {
+      "name": "gray8-zip-t16.tif",
+      "bytes": 5936,
+      "sha256": "0709665cad760a2989130c7f9bbdf5f14d44c7113cb936ba981d05edfc912edb",
+      "producer": "tiffcp (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "zip:1"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 Deflate 16x16"
+    },
+    {
+      "name": "gray8-zip2-t16-big.tif",
+      "bytes": 2660,
+      "sha256": "c2432770d3f105cebf3669330530a9f23333b5238fbf7c73b4191c48c99ea0c6",
+      "producer": "tiffcp (libtiff 4.7.2) from gray8-100x75.tif",
+      "arguments": [
+        "-8",
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "zip:2"
+      ],
+      "expectation": "compare",
+      "layout": "gray8 Deflate predictor 2, 16x16 BigTIFF"
+    },
+    {
+      "name": "ladoga-lzw2-t32-be.tif",
+      "bytes": 22674,
+      "sha256": "7ebca3ee6b331cc44a5136b31f58b1fc1f39b4e2d1807ae3564014047144c1bf",
+      "producer": "tiffcp (libtiff 4.7.2) from ladoga.tif",
+      "arguments": [
+        "-B",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "32",
+        "-c",
+        "lzw:2"
+      ],
+      "expectation": "compare",
+      "layout": "ladoga gray16 LZW predictor 2, 32x32 BE"
+    },
+    {
+      "name": "ladoga-zip2-t16.tif",
+      "bytes": 24998,
+      "sha256": "b1d2c4b96d8d653359e4f86a322e4abaf407d982cf56d6c5e750d49619ca175a",
+      "producer": "tiffcp (libtiff 4.7.2) from ladoga.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "zip:2"
+      ],
+      "expectation": "compare",
+      "layout": "ladoga gray16 Deflate predictor 2, 16x16 (edge tiles)"
+    },
+    {
+      "name": "ladoga.tif",
+      "bytes": 20420,
+      "sha256": "16b185b70346d6b88d3a92010bc27018a1a2377ce3c99c9968a1c0c4eba8ec98",
+      "producer": "libtiffpic pics-3.8.0 (independent)",
+      "expectation": "compare",
+      "layout": "gray 16-bit Deflate strips 158x118 (real 16-bit source)"
+    },
+    {
+      "name": "mixed-big-be-2page.tif",
+      "bytes": 199130,
+      "sha256": "5e4967cccea08af6f442f7d6702cd602a4e8bb84f029ac3141c91e34a7a38167",
+      "producer": "tiffcp (libtiff 4.7.2) concatenating gray16-zip2-t16-big-be.tif, rgb8-100x75.tif",
+      "arguments": [
+        "-8",
+        "-B"
+      ],
+      "expectation": "compare",
+      "layout": "BigTIFF BE: page 1 gray16 Deflate tiles, page 2 RGB8 strips"
+    },
+    {
+      "name": "mixed-strip-tile-3page.tif",
+      "bytes": 7948,
+      "sha256": "831270a024d87cd2496592a5018901e56972bb0a9b791785a6d46d2aec2d9542",
+      "producer": "tiffcp (libtiff 4.7.2) concatenating gray8-96x64.tif, rgb8-lzw2-t16.tif, bilevel-g4-t32x16.tif",
+      "expectation": "compare",
+      "layout": "page 1 gray8 strips, page 2 RGB8 LZW 16x16 tiles, page 3 bilevel Group 4 32x16 tiles"
+    },
+    {
+      "name": "quad-tile.tif",
+      "bytes": 209220,
+      "sha256": "ab5e5c87cd575472c6fc3e0d5824ebc818b88bf6e5e4aff3afe66f8725351a09",
+      "producer": "libtiffpic pics-3.8.0 (independent)",
+      "expectation": "compare",
+      "layout": "SGI Image Library; RGB 8-bit LZW, 512x384 in 128x128 tiles addressed by StripOffsets/StripByteCounts"
+    },
+    {
+      "name": "quad-zip2-t32-big.tif",
+      "bytes": 101894,
+      "sha256": "51cac945906271c426083d6fd782fa3489c30e2c80bbb18215c0afd82e4aa258",
+      "producer": "tiffcp (libtiff 4.7.2) from quad-tile.tif",
+      "arguments": [
+        "-8",
+        "-L",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "32",
+        "-c",
+        "zip:2"
+      ],
+      "expectation": "compare",
+      "layout": "quad RGB8 Deflate predictor 2, 32x32 BigTIFF, SampleFormat 4"
+    },
+    {
+      "name": "rgb16-zip2-t16.tif",
+      "bytes": 2026,
+      "sha256": "b54008070e792a599a4e87f6b3a644714cd6dc767902f3330851dc74cfbf9291",
+      "producer": "tiffcp (libtiff 4.7.2) from rgb16-48x40.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "zip:2"
+      ],
+      "expectation": "compare-native",
+      "layout": "RGB16 Deflate predictor 2, 16x16"
+    },
+    {
+      "name": "rgb8-exact-32x32-t32.tif",
+      "bytes": 3318,
+      "sha256": "4a20a90d95f7394a53ff0e472fcc1cbf7c0f9b69113f497f0c50bc4f9116cf9c",
+      "producer": "tiffcp (libtiff 4.7.2) from rgb8-32x32.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "32",
+        "-c",
+        "packbits"
+      ],
+      "expectation": "compare",
+      "layout": "RGB8 32x32 image equal to its single tile"
+    },
+    {
+      "name": "rgb8-lzw2-t16.tif",
+      "bytes": 5158,
+      "sha256": "cd87511c2e89516f768ef5dbd5d12c9f00cbf5f4c36935e8488974f796d5f749",
+      "producer": "tiffcp (libtiff 4.7.2) from rgb8-100x75.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "lzw:2"
+      ],
+      "expectation": "compare",
+      "layout": "RGB8 LZW predictor 2, 16x16"
+    },
+    {
+      "name": "rgb8-none-t16.tif",
+      "bytes": 27306,
+      "sha256": "ab3c06644c9e32c57d89d2f04fc21864e493740eebc90cc7269eff53ffc0123b",
+      "producer": "tiffcp (libtiff 4.7.2) from rgb8-100x75.tif",
+      "arguments": [
+        "-L",
+        "-t",
+        "-w",
+        "16",
+        "-l",
+        "16",
+        "-c",
+        "none"
+      ],
+      "expectation": "compare",
+      "layout": "RGB8 none 16x16"
+    },
+    {
+      "name": "rgb8-o3-t32.tif",
+      "bytes": 3338,
+      "sha256": "6a74f92f42dfab330b293aea5209462599bdc6f7ea3bef9d4fa3aa348eba66a1",
+      "producer": "tiff_oracle_encode (libtiff 4.7.2) from rgb8-100x75.tif",
+      "arguments": [
+        "--tile",
+        "32x32",
+        "--compression",
+        "lzw",
+        "--predictor",
+        "2",
+        "--orientation",
+        "3"
+      ],
+      "expectation": "compare",
+      "layout": "RGB8 LZW predictor 2, 32x32, Orientation 3"
+    },
+    {
+      "name": "rgb8-packbits-t32-be.tif",
+      "bytes": 37556,
+      "sha256": "ca956ee058726f002024f3e080463ba4cdbea3e056a46ff7b1e2d594b4e6b0c4",
+      "producer": "tiffcp (libtiff 4.7.2) from rgb8-100x75.tif",
+      "arguments": [
+        "-B",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "32",
+        "-c",
+        "packbits"
+      ],
+      "expectation": "compare",
+      "layout": "RGB8 PackBits 32x32 BE"
+    },
+    {
+      "name": "rgb8-zip2-t32-big-be.tif",
+      "bytes": 2296,
+      "sha256": "993d68c7fe682a7df6f8de72d3bfde57596678024a11810cf5373d5c5c7a97bf",
+      "producer": "tiffcp (libtiff 4.7.2) from rgb8-100x75.tif",
+      "arguments": [
+        "-8",
+        "-B",
+        "-t",
+        "-w",
+        "32",
+        "-l",
+        "32",
+        "-c",
+        "zip:2"
+      ],
+      "expectation": "compare",
+      "layout": "RGB8 Deflate predictor 2, 32x32 BigTIFF BE"
+    },
+    {
+      "name": "zackthecat.tif",
+      "bytes": 8258,
+      "sha256": "0d31f2acb25bfbde4d79975572369c3e4bea8e978fc1935075a545e3f8321b6e",
+      "producer": "libtiffpic pics-3.8.0 (independent)",
+      "expectation": "reject:TiffUnsupportedCodecException",
+      "layout": "tiled old-style JPEG YCbCr 234x213 (typed rejection)"
+    }
+  ]
+}

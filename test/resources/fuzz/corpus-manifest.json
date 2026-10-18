@@ -2586,8 +2586,8 @@
     {
       "path": "test/resources/tiff/PROVENANCE.md",
       "format": "manifest",
-      "bytes": 7115,
-      "sha256": "54099894b0cc5c468e9f6846c56e2ff16501fa1b25f3ba6c199f5304f6c34bd9",
+      "bytes": 10274,
+      "sha256": "700b9a4a0f5d6f65b897e57b0d88208942398026e43368e440e75775d928f961",
       "container": "unknown",
       "landmarks": 0
     },
@@ -2806,13 +2806,461 @@
       "sha256": "e50130294baf254b8ab54a46b96e8d8d13abe840e4d8a447086028375de97c37",
       "container": "unknown",
       "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-g3-2d-fill-t32x16.tif",
+      "format": "tiff",
+      "bytes": 1616,
+      "sha256": "80f5329053500a010a304d79e5fe15152eb19e40607447fa69125f95718f71c6",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-g3-t32x16-be.tif",
+      "format": "tiff",
+      "bytes": 1602,
+      "sha256": "3af181e7942cee295475bd71c2842709c784ba6427ba0bb1a0510477a1b03640",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-g4-o2-t32x16.tif",
+      "format": "tiff",
+      "bytes": 742,
+      "sha256": "49a8f2c524d95545ac834ee051ecc1859f06d462b48ac21876d8539d9638dedc",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-g4-t16-edge-be.tif",
+      "format": "tiff",
+      "bytes": 866,
+      "sha256": "21a6ed45f376d0ca45accace0e31656a574ed6ba6ef5d12f45753bd815a759fb",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-g4-t32x16.tif",
+      "format": "tiff",
+      "bytes": 742,
+      "sha256": "1fdb4e439d1e9be1c4d3aba4d8c30b3da215af6a3061610c6995ff776566c17f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-lzw-t64-be.tif",
+      "format": "tiff",
+      "bytes": 764,
+      "sha256": "0d4f22b75ef47498722a7a41b8154e1e66466447bf1bfc4b1fe6d0f58362bd87",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-mh-strips.tif",
+      "format": "tiff",
+      "bytes": 704,
+      "sha256": "26f4f204f29eb48120a1e35f5a66463c566fcf79433c74fa047b8c243d3f52d4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-mh-t16-edge.tif",
+      "format": "tiff",
+      "bytes": 1254,
+      "sha256": "9abd12e3946239a171b7298f23a379e012b28d94a5cdf51c594f5fed166de12c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-mh-t32x16.tif",
+      "format": "tiff",
+      "bytes": 1026,
+      "sha256": "11a66ecbc42edad762a0c29c440902d6b64d14a2aa9af5b65742b694a8825cab",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-none-fill2-t32.tif",
+      "format": "tiff",
+      "bytes": 1818,
+      "sha256": "25ef922fa08968fe6da7f268c9fb56bef51aeff1961ab5b0442d1d4fe9250077",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-none-t32.tif",
+      "format": "tiff",
+      "bytes": 1818,
+      "sha256": "67403ee1541ccff05f3456b5d0e9fc61b2f6fbbc8237f8a4bc51c58d3ebbd977",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/bilevel-packbits-t16.tif",
+      "format": "tiff",
+      "bytes": 1714,
+      "sha256": "279726a54f7961893f149600a47a74b4c2b390a3553f18006aa0e4ba776d8af2",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/cramps-lzw2-t64.tif",
+      "format": "tiff",
+      "bytes": 114852,
+      "sha256": "0c07ae24d7b3e80efb797c3030cd02a638cc6e7fb5d45cf73f7ee35b048c8402",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/cramps-tile.tif",
+      "format": "tiff",
+      "bytes": 786758,
+      "sha256": "cd14f8e22fc486f501fd4cdc9d9911e3582f7ac46972e71d4942c73e16ba3d7a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/cramps.tif",
+      "format": "tiff",
+      "bytes": 194176,
+      "sha256": "d9fb9600d745cb33a82a5448ef6cf9d6933c9462b90d3887475039ae2485af40",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/fax2d-g3-2d-t64.tif",
+      "format": "tiff",
+      "bytes": 102296,
+      "sha256": "6938fab56fce4bf61097c27731a493d5fb57372c9e6973e22784c7682e59c9f4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/fax2d-g4-t64.tif",
+      "format": "tiff",
+      "bytes": 37776,
+      "sha256": "0dd401b8a1d4f1ac819ea435b50ef0956a16835e84095b34d0b24638062f1209",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/fax2d-mh-t128x64-be.tif",
+      "format": "tiff",
+      "bytes": 57508,
+      "sha256": "b4efbf94956a30ce89f1be75744cda6181fa12c2bb696953aa13351f0c3a36f7",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/fax2d.tif",
+      "format": "tiff",
+      "bytes": 32817,
+      "sha256": "4e497620740a6c192ac9523817c9e51ba3596d5ab8b4ac1a15e8cc58e9a49b3f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray16-lzw2-t16-le.tif",
+      "format": "tiff",
+      "bytes": 2672,
+      "sha256": "e7136dba61b06b79da0e399d35de5a4f8eb525f0cd4f8370c38362d491dd4507",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray16-none-t16-be.tif",
+      "format": "tiff",
+      "bytes": 12642,
+      "sha256": "8b9c9b6c66f6ab588f2f2a4d2b07e936a2486852068a85983298ece32a7079bb",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray16-zip2-t16-big-be.tif",
+      "format": "tiff",
+      "bytes": 2206,
+      "sha256": "179530a95720ebb07a266a2f8587b484b9876b39f1001151b6944877d09ff475",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray2-lzw-t16-be.tif",
+      "format": "tiff",
+      "bytes": 1610,
+      "sha256": "1c34361136a77a86085b7444a8cba495c613d433271ee62a2d026f2091a83b36",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray4-none-t16.tif",
+      "format": "tiff",
+      "bytes": 4900,
+      "sha256": "e6c1e1b00923cb4e6c42de509818bbd05898f36b1be711bda2c29986bfbb8e55",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-1x1-t16-big.tif",
+      "format": "tiff",
+      "bytes": 344,
+      "sha256": "0a318143720ee35368231c8d50d005c19c240e7122483d8b4324385a534cdfe3",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-lzw-t32.tif",
+      "format": "tiff",
+      "bytes": 8660,
+      "sha256": "b9c14349f3b2d9e3f39023a245aa2f37157a97b12246e83058ab0d1066c3db28",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-lzw2-t32-be.tif",
+      "format": "tiff",
+      "bytes": 1714,
+      "sha256": "99c4d3e522289b08b3e98e607fb175907ba4cb7214ec7b36d907a8eb4eee562f",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-none-t16-le.tif",
+      "format": "tiff",
+      "bytes": 9380,
+      "sha256": "e4d464e66446ea642fd70a2bd18b55f46bbcc090a278ba9badf7099bd72e33bc",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-o2-t16.tif",
+      "format": "tiff",
+      "bytes": 7176,
+      "sha256": "c17ca1c69ed5b4971a556da62327818c0ee23bed9b600765a0934e91f967659b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-o3-t16.tif",
+      "format": "tiff",
+      "bytes": 2474,
+      "sha256": "5b648d9a0561406814f508f46514d48381ea5e924530313d393d01fbadb2fc23",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-o4-t16-be.tif",
+      "format": "tiff",
+      "bytes": 8734,
+      "sha256": "ed4f31f7b54e3d27ecaaa2d914336c17c2056661e0be0deb00998e74252a1466",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-o5-t16.tif",
+      "format": "tiff",
+      "bytes": 9380,
+      "sha256": "da6ba4106abd81da0483c5949cbf0a1fe6e5b60bff7d77d48ba689c1a84fb4de",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-o6-t16.tif",
+      "format": "tiff",
+      "bytes": 9380,
+      "sha256": "15e7435fb2587c6fcf5dbdfe964a3f9169900ed7d57901203b2963d35c628f32",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-o7-t16.tif",
+      "format": "tiff",
+      "bytes": 9380,
+      "sha256": "f635800b3e0e41b41d7397e30b0588c27005008e85b45798d6b0dce074e205d3",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-o8-t16.tif",
+      "format": "tiff",
+      "bytes": 9380,
+      "sha256": "3867b44b61e4660c29c9def13c6950915c61cb2ec3f5cf4b60b811e6a669ca73",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-packbits-t16-be.tif",
+      "format": "tiff",
+      "bytes": 10010,
+      "sha256": "541613dcaeddc9b3db3c2cf120794d7b5385a71c32c57ddc3ba160b5f1507a9e",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-t16x64.tif",
+      "format": "tiff",
+      "bytes": 10968,
+      "sha256": "8e4db76957a23d0a105d550c98da6678025fcb70c5fbb9cced50e9b991a3605a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-tiny-7x5-t16.tif",
+      "format": "tiff",
+      "bytes": 278,
+      "sha256": "59989f0f36796f72e92a04cddcb52ba30fc04a0529cddd9e1cf2a18f30132f04",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-zip-t16.tif",
+      "format": "tiff",
+      "bytes": 5936,
+      "sha256": "0709665cad760a2989130c7f9bbdf5f14d44c7113cb936ba981d05edfc912edb",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/gray8-zip2-t16-big.tif",
+      "format": "tiff",
+      "bytes": 2660,
+      "sha256": "c2432770d3f105cebf3669330530a9f23333b5238fbf7c73b4191c48c99ea0c6",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/ladoga-lzw2-t32-be.tif",
+      "format": "tiff",
+      "bytes": 22674,
+      "sha256": "7ebca3ee6b331cc44a5136b31f58b1fc1f39b4e2d1807ae3564014047144c1bf",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/ladoga-zip2-t16.tif",
+      "format": "tiff",
+      "bytes": 24998,
+      "sha256": "b1d2c4b96d8d653359e4f86a322e4abaf407d982cf56d6c5e750d49619ca175a",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/ladoga.tif",
+      "format": "tiff",
+      "bytes": 20420,
+      "sha256": "16b185b70346d6b88d3a92010bc27018a1a2377ce3c99c9968a1c0c4eba8ec98",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/manifest.json",
+      "format": "manifest",
+      "bytes": 24640,
+      "sha256": "9f7f0d5729b67cf48772f4d429158b5b979c48ed417c029f20c00b431914325f",
+      "container": "palmDb",
+      "landmarks": 1
+    },
+    {
+      "path": "test/resources/tiff/tiled/mixed-big-be-2page.tif",
+      "format": "tiff",
+      "bytes": 199130,
+      "sha256": "5e4967cccea08af6f442f7d6702cd602a4e8bb84f029ac3141c91e34a7a38167",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/mixed-strip-tile-3page.tif",
+      "format": "tiff",
+      "bytes": 7948,
+      "sha256": "831270a024d87cd2496592a5018901e56972bb0a9b791785a6d46d2aec2d9542",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/quad-tile.tif",
+      "format": "tiff",
+      "bytes": 209220,
+      "sha256": "ab5e5c87cd575472c6fc3e0d5824ebc818b88bf6e5e4aff3afe66f8725351a09",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/quad-zip2-t32-big.tif",
+      "format": "tiff",
+      "bytes": 101894,
+      "sha256": "51cac945906271c426083d6fd782fa3489c30e2c80bbb18215c0afd82e4aa258",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/rgb16-zip2-t16.tif",
+      "format": "tiff",
+      "bytes": 2026,
+      "sha256": "b54008070e792a599a4e87f6b3a644714cd6dc767902f3330851dc74cfbf9291",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/rgb8-exact-32x32-t32.tif",
+      "format": "tiff",
+      "bytes": 3318,
+      "sha256": "4a20a90d95f7394a53ff0e472fcc1cbf7c0f9b69113f497f0c50bc4f9116cf9c",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/rgb8-lzw2-t16.tif",
+      "format": "tiff",
+      "bytes": 5158,
+      "sha256": "cd87511c2e89516f768ef5dbd5d12c9f00cbf5f4c36935e8488974f796d5f749",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/rgb8-none-t16.tif",
+      "format": "tiff",
+      "bytes": 27306,
+      "sha256": "ab3c06644c9e32c57d89d2f04fc21864e493740eebc90cc7269eff53ffc0123b",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/rgb8-o3-t32.tif",
+      "format": "tiff",
+      "bytes": 3338,
+      "sha256": "6a74f92f42dfab330b293aea5209462599bdc6f7ea3bef9d4fa3aa348eba66a1",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/rgb8-packbits-t32-be.tif",
+      "format": "tiff",
+      "bytes": 37556,
+      "sha256": "ca956ee058726f002024f3e080463ba4cdbea3e056a46ff7b1e2d594b4e6b0c4",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/rgb8-zip2-t32-big-be.tif",
+      "format": "tiff",
+      "bytes": 2296,
+      "sha256": "993d68c7fe682a7df6f8de72d3bfde57596678024a11810cf5373d5c5c7a97bf",
+      "container": "unknown",
+      "landmarks": 0
+    },
+    {
+      "path": "test/resources/tiff/tiled/zackthecat.tif",
+      "format": "tiff",
+      "bytes": 8258,
+      "sha256": "0d31f2acb25bfbde4d79975572369c3e4bea8e978fc1935075a545e3f8321b6e",
+      "container": "unknown",
+      "landmarks": 0
     }
   ],
   "counts": {
-    "total": 345,
-    "totalBytes": 89823748,
+    "total": 401,
+    "totalBytes": 91997820,
     "byFormat": {
-      "manifest": 20,
+      "manifest": 21,
       "xml-sidecar": 9,
       "chm": 4,
       "cbr": 20,
@@ -2838,7 +3286,7 @@
       "azw4": 1,
       "odt": 1,
       "pdf": 31,
-      "tiff": 25,
+      "tiff": 80,
       "txtz": 1,
       "resource": 40
     }
