@@ -110,7 +110,7 @@ Future<void> main(final List<String> arguments) async {
     '$evidenceDir/cases/rl03-resource-resolution.json',
   ], caseArtifacts);
   _writeCase('$evidenceDir/cases/rl04-outcomes-reuse.json', 'RL04', rl04, [
-    'cases/rl04-outcomes-reuse.json',
+    '$evidenceDir/cases/rl04-outcomes-reuse.json',
   ], caseArtifacts);
 
   // ---- RL05: position lists + independent verifier ---------------------
@@ -118,7 +118,7 @@ Future<void> main(final List<String> arguments) async {
   final rl05Artifacts = <String>[];
   _comparePositions(evidenceDir, python, rl05Artifacts, failures, rl05);
   _writeCase('$evidenceDir/cases/rl05-position-lists.json', 'RL05', rl05, [
-    'cases/rl05-position-lists.json',
+    '$evidenceDir/cases/rl05-position-lists.json',
     ...rl05Artifacts,
   ], caseArtifacts);
 
@@ -149,7 +149,7 @@ Future<void> main(final List<String> arguments) async {
     failures.add('RL07: suite evidence (--suites) missing');
   }
   _writeCase('$evidenceDir/cases/rl07-vm-chrome.json', 'RL07', rl07, [
-    'cases/rl07-vm-chrome.json',
+    '$evidenceDir/cases/rl07-vm-chrome.json',
     ...rl07Artifacts,
   ], caseArtifacts);
 
@@ -175,7 +175,7 @@ Future<void> main(final List<String> arguments) async {
     }
   }
   _writeCase('$evidenceDir/cases/rl08-comparator-negatives.json', 'RL08', rl08, [
-    'cases/rl08-comparator-negatives.json',
+    '$evidenceDir/cases/rl08-comparator-negatives.json',
     ...rl08Artifacts,
   ], caseArtifacts);
 
